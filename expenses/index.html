@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Expenses</title>
+
+  <style>
+    :root{
+      --accent:#0077B6;
+      --bg:#ffffff;
+      --text:#1f2933;
+      --muted:#6b7280;
+    }
+
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    header{
+      padding:16px;
+      border-bottom:1px solid rgba(0,0,0,.1);
+    }
+
+    .wrap{
+      max-width:900px;
+      margin:auto;
+      padding:20px;
+    }
+
+    .btn{
+      background:var(--accent);
+      color:white;
+      padding:10px 14px;
+      border-radius:12px;
+      border:none;
+      cursor:pointer;
+      font-weight:600;
+    }
+
+    .card{
+      border:1px solid rgba(0,0,0,.1);
+      border-radius:16px;
+      padding:16px;
+      margin-top:16px;
+    }
+
+    /* Hide attachment for now (Spark plan) */
+    .hidden { display: none !important; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="wrap">
+    <strong>Simple Expenses</strong>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h1>Simple Expenses</h1>
+
+    <p>Track your expenses and receipts.</p>
+
+    <!-- LOGIN CARD -->
+    <div class="card" id="loginCard">
+
+    <h3>Sign in</h3>
+
+    <input id="email" type="email" placeholder="Email"
+        style="width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid #ccc;">
+
+    <input id="password" type="password" placeholder="Password"
+        style="width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid #ccc;">
+
+    <button class="btn" id="btnSignIn" style="margin-top:12px;">
+    Sign in
+        </button>
+
+        <button class="btn" id="btnSignUp" style="margin-top:8px; background:#6b7280;">
+        Create account
+        </button>
+    </div>
+
+
+    <!-- APP AREA -->
+    <div id="appArea" style="display:none;">
+
+    <button class="btn" id="btnSignOut">Sign out</button>
+
+    <button class="btn" id="btnAddExpense" style="margin-left:8px;">Add expense</button>
+
+  <div class="card" id="expenseForm" style="display:none;">
+    <h3 style="margin-top:0;">New expense</h3>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+      <input id="expDate" type="date"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+
+      <input id="expSupplier" placeholder="Supplier"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+
+      <input id="expCategory" placeholder="Category (e.g. Travel)"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+
+      <input id="expNet" type="number" step="0.01" placeholder="Net (£)"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+      
+      <input id="expReceipt" class="hidden" type="file" accept="image/*,.pdf"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-top:10px;">
+    </div>
+
+    <textarea id="expNotes" placeholder="Notes (optional)"
+      style="width:100%; padding:10px; margin-top:10px; border-radius:8px; border:1px solid #ccc;"></textarea>
+
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn" id="btnSaveExpense">Save</button>
+      <button class="btn" id="btnCancelExpense" style="background:#6b7280;">Cancel</button>
+    </div>
+
+    <div id="formMsg" style="margin-top:10px; color:#b91c1c;"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Expenses</h3>
+    <div id="expensesList">No expenses yet.</div>
+  </div>
+
+    </div>
+
+</div>
+
+<!-- Firebase (place at bottom of body) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import {
+    getAuth,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+  import {
+    getFirestore,
+    collection,
+    addDoc,
+    serverTimestamp,
+    query,
+    orderBy,
+    onSnapshot,
+    doc,
+    deleteDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import {
+    getStorage,
+    ref as storageRef,
+    uploadBytes,
+    getDownloadURL
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+
+  // --- Firebase config ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyA4Ix7zn0Tgow4V2djHbqF4LIWnk6TD4Hk",
+    authDomain: "simple-expenses-8ab54.firebaseapp.com",
+    projectId: "simple-expenses-8ab54",
+    storageBucket: "simple-expenses-8ab54.firebasestorage.app",
+    messagingSenderId: "902097301037",
+    appId: "1:902097301037:web:a556848244815a3eca52a4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+
+  console.log("Firebase ready ✅", { auth, db, storage });
+
+  // --- Elements ---
+  const loginCard = document.getElementById("loginCard");
+  const appArea = document.getElementById("appArea");
+
+  const btnSignIn = document.getElementById("btnSignIn");
+  const btnSignUp = document.getElementById("btnSignUp");
+  const btnSignOut = document.getElementById("btnSignOut");
+
+  const btnAddExpense = document.getElementById("btnAddExpense");
+  const expenseForm = document.getElementById("expenseForm");
+  const btnSaveExpense = document.getElementById("btnSaveExpense");
+  const btnCancelExpense = document.getElementById("btnCancelExpense");
+  const expensesList = document.getElementById("expensesList");
+  const formMsg = document.getElementById("formMsg");
+
+  // --- Delete handler (event delegation) ---
+  expensesList.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-id]");
+    if (!btn) return;
+
+    const id = btn.getAttribute("data-id");
+    if (!id) return;
+
+    const user = auth.currentUser;
+    if (!user) return alert("You must be signed in.");
+
+    if (!confirm("Delete this expense?")) return;
+
+    try {
+      await deleteDoc(doc(db, "users", user.uid, "expenses", id));
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  // --- Auth actions ---
+  btnSignUp.addEventListener("click", async () => {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      alert("Account created ✅");
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  btnSignIn.addEventListener("click", async () => {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  btnSignOut.addEventListener("click", async () => {
+    await signOut(auth);
+  });
+
+  // --- UI helpers ---
+  function renderExpenses(docs) {
+    if (!docs.length) {
+      expensesList.textContent = "No expenses yet.";
+      return;
+    }
+
+    expensesList.innerHTML = docs.map(d => {
+      const data = d.data();
+      const date = data.date || "";
+      const supplier = data.supplier || "";
+      const category = data.category || "";
+      const net = typeof data.net === "number" ? data.net.toFixed(2) : "0.00";
+      const notes = data.notes ? ` • ${data.notes}` : "";
+      const receiptLink = data.receipt?.url
+        ? ` • <a href="${data.receipt.url}" target="_blank" rel="noopener" style="color:var(--accent); font-weight:600; text-decoration:none;">View receipt</a>`
+        : "";
+
+      return `<div style="padding:10px 0; border-top:1px solid rgba(0,0,0,.08); display:flex; justify-content:space-between; gap:12px;">
+        <div>
+          <div style="font-weight:600;">£${net}
+            <span style="color:var(--muted); font-weight:400;">(${category})</span>
+          </div>
+          <div style="color:var(--muted);">${date} • ${supplier}${notes}${receiptLink}</div>
+        </div>
+
+        <button class="btn btnDanger" data-id="${d.id}" style="background:#ef4444; height:40px;">
+          Delete
+        </button>
+      </div>`;
+    }).join("");
+  }
+
+  function showForm(show) {
+    formMsg.textContent = "";
+    expenseForm.style.display = show ? "block" : "none";
+  }
+
+  // --- Expense form buttons ---
+  btnAddExpense.addEventListener("click", () => showForm(true));
+  btnCancelExpense.addEventListener("click", () => showForm(false));
+
+  btnSaveExpense.addEventListener("click", async () => {
+    formMsg.textContent = "";
+
+    const user = auth.currentUser;
+    if (!user) {
+      formMsg.textContent = "You must be signed in.";
+      return;
+    }
+
+    const date = document.getElementById("expDate").value;
+    const supplier = document.getElementById("expSupplier").value.trim();
+    const category = document.getElementById("expCategory").value.trim();
+    const netRaw = document.getElementById("expNet").value;
+    const notes = document.getElementById("expNotes").value.trim();
+    // Attachments disabled for now (Spark plan)
+    const receiptFile = null;
+
+    const net = Number(netRaw);
+
+    if (!date) return (formMsg.textContent = "Please pick a date.");
+    if (!supplier) return (formMsg.textContent = "Please enter a supplier.");
+    if (!category) return (formMsg.textContent = "Please enter a category.");
+    if (!Number.isFinite(net) || net <= 0) return (formMsg.textContent = "Net must be a number > 0.");
+
+    try {
+      const ref = collection(db, "users", user.uid, "expenses");
+
+      let receipt = null;
+
+      if (receiptFile) {
+        const safeName = receiptFile.name.replaceAll(" ", "_");
+        const path = `users/${user.uid}/receipts/${Date.now()}_${safeName}`;
+        const fileRef = storageRef(storage, path);
+
+        await uploadBytes(fileRef, receiptFile);
+        const url = await getDownloadURL(fileRef);
+
+        receipt = {
+          url,
+          path,
+          name: receiptFile.name,
+          type: receiptFile.type || "unknown"
+        };
+      }
+
+      await addDoc(ref, {
+        date,
+        supplier,
+        category,
+        net,
+        notes,
+        receipt,
+        createdAt: serverTimestamp()
+      });
+
+      // clear + hide
+      document.getElementById("expDate").value = "";
+      document.getElementById("expSupplier").value = "";
+      document.getElementById("expCategory").value = "";
+      document.getElementById("expNet").value = "";
+      document.getElementById("expNotes").value = "";
+      document.getElementById("expReceipt").value = "";
+      showForm(false);
+    } catch (err) {
+      formMsg.textContent = err.message;
+    }
+  });
+
+  // --- Firestore live listener (per user) ---
+  let unsubscribeExpenses = null;
+
+  onAuthStateChanged(auth, (user) => {
+    console.log("Auth state:", user ? user.email : "signed out");
+
+    // stop previous listener when signing out or switching user
+    if (unsubscribeExpenses) {
+      unsubscribeExpenses();
+      unsubscribeExpenses = null;
+    }
+
+    if (user) {
+      loginCard.style.display = "none";
+      appArea.style.display = "block";
+
+      const ref = collection(db, "users", user.uid, "expenses");
+      const q = query(ref, orderBy("createdAt", "desc"));
+
+      unsubscribeExpenses = onSnapshot(q, (snap) => {
+        renderExpenses(snap.docs);
+      }, (err) => {
+        console.error(err);
+        expensesList.textContent = "Could not load expenses.";
+      });
+
+    } else {
+      loginCard.style.display = "block";
+      appArea.style.display = "none";
+      expensesList.textContent = "No expenses yet.";
+      showForm(false);
+    }
+  });
+</script>
+
+</body>
+</html>

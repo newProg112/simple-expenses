@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Simple Books: calm, clear bookkeeping for UK sole traders and small limited companies. Fixed monthly pricing, tidy records, VAT support, and simple monthly summaries." />
+  <title>Simple Books | Bookkeeping (UK)</title>
+  <style>
+    :root{
+      --bg: #ffffff;
+      --panel: #f7f9fb;
+      --panel-2: #eef3f7;
+
+      --text: #1f2933;
+      --muted: #4D4D4D;
+      --faint: #6b7280;
+
+      --line: rgba(0,0,0,0.10);
+
+      --accent: #0077B6;
+      --accent-2: #0077B6;
+
+      --shadow: 0 10px 30px rgba(0,0,0,.10);
+      --radius: 18px;
+      --radius-lg: 26px;
+      --max: 1100px;
+    }
+
+    *{ box-sizing:border-box; }
+    html{ scroll-behavior:smooth; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 15% 10%, rgba(0,119,182,.10), transparent 55%),
+        radial-gradient(900px 600px at 85% 30%, rgba(0,119,182,.06), transparent 55%),
+        var(--bg);
+      line-height: 1.5;
+    }
+
+    a{ color: inherit; text-decoration: none; }
+    a:hover{ text-decoration: underline; }
+
+    .wrap{ max-width: var(--max); margin:0 auto; padding: 0 20px; }
+
+    /* Header */
+    header{
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(10px);
+      background: rgba(255,255,255,.92);
+      border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+    .nav{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 0;
+    }
+    .mark{
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background:
+        radial-gradient(14px 14px at 30% 30%, rgba(255,255,255,.35), transparent 60%),
+        linear-gradient(135deg, rgba(125,211,252,.9), rgba(167,243,208,.85));
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    .brand .name{
+      font-weight: 650;
+      letter-spacing: .2px;
+    }
+    .brand .tag{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: -2px;
+    }
+    .logo{
+      height: 44px;
+      width: auto;
+      display: block;
+    }
+    .brand{
+      min-width: unset; /* optional: stops it forcing space */
+    }
+    @media (max-width: 900px){
+      .logo{ height: 40px; }
+    }
+
+    nav ul{
+      list-style:none;
+      display:flex;
+      align-items:center;
+      gap: 16px;
+      padding:0;
+      margin:0;
+    }
+    nav a{
+      font-size: 14px;
+      color: #4D4D4D;
+      padding: 8px 10px;
+      border-radius: 12px;
+    }
+    nav a:hover{
+      color: #1f2933;
+      background: rgba(0,0,0,.04);
+      text-decoration:none;
+    }
+
+    .actions{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width: 220px;
+      justify-content: flex-end;
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{ background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.18); text-decoration:none; }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: #0077B6;
+      color: #ffffff;
+      border-color: #0077B6;
+    }
+    .btn.primary:hover{
+      background: #00639a;
+    }
+
+    .menu-btn{
+      display:none;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      font-weight: 650;
+      cursor:pointer;
+    }
+
+    /* Mobile nav (hidden on desktop by default) */
+    .mobile{ display:none; }
+
+    /* Hero */
+    .hero{
+      padding: 54px 0 22px;
+    }
+    .hero-grid{
+      display:grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .card{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+    }
+    .hero-main{
+      padding: 28px;
+      position: relative;
+      overflow:hidden;
+    }
+    .hero-main:before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(500px 280px at 25% 15%, rgba(125,211,252,.18), transparent 65%),
+        radial-gradient(500px 280px at 85% 65%, rgba(167,243,208,.14), transparent 70%);
+      pointer-events:none;
+    }
+    .hero-main > *{ position: relative; }
+    h1{
+      margin: 0 0 10px;
+      font-size: clamp(30px, 4.4vw, 44px);
+      letter-spacing: -0.6px;
+      line-height: 1.12;
+    }
+    .subhead{
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 16px;
+      max-width: 58ch;
+    }
+    .bullets{
+      display:grid;
+      gap: 10px;
+      margin: 18px 0 22px;
+      padding:0;
+      list-style:none;
+      color: var(--text);
+    }
+    .bullets li{
+      display:flex;
+      gap: 10px;
+      align-items:flex-start;
+      color: var(--muted);
+    }
+    .dot{
+      margin-top: 6px;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(0,119,182,.30);
+      flex: 0 0 auto;
+    }
+    .hero-ctas{
+      display:flex;
+      flex-wrap:wrap;
+      gap: 10px;
+      align-items:center;
+      margin: 6px 0 14px;
+    }
+    .trust{
+      font-size: 12.5px;
+      color: var(--faint);
+    }
+    .trust strong{ color: var(--muted); font-weight: 650; }
+
+    .hero-side{
+      padding: 22px;
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+      justify-content: space-between;
+    }
+    .side-title{
+      font-weight: 700;
+      letter-spacing: .2px;
+      margin: 0;
+    }
+    .side-note{
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .mini{
+      display:grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .pill{
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 12px;
+      color: var(--muted);
+      font-size: 13.5px;
+    }
+    .pill strong{ color: var(--text); font-weight: 700; }
+
+    /* Sections */
+    section{ padding: 28px 0; }
+    .section-head{
+      display:flex;
+      align-items:flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    h2{
+      margin:0;
+      font-size: 22px;
+      letter-spacing: -0.2px;
+    }
+    .lead{
+      margin: 0;
+      color: var(--muted);
+      max-width: 70ch;
+      font-size: 14.5px;
+    }
+
+    .grid-3{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .grid-2{
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .box{
+      padding: 18px;
+      border-radius: var(--radius);
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+    .box h3{
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: -0.2px;
+    }
+    .box p{ margin:0; color: var(--muted); font-size: 14px; }
+    .meta{
+      margin-top: 10px;
+      color: var(--faint);
+      font-size: 12.5px;
+    }
+
+    /* Pricing */
+    .price{
+      display:flex;
+      align-items: baseline;
+      gap: 6px;
+      margin: 10px 0 8px;
+    }
+    .amount{
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+    }
+    .per{ color: var(--muted); font-size: 13px; }
+    .ul{
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13.5px;
+    }
+    .ul li{ margin: 6px 0; }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+      font-size: 12.5px;
+      white-space: nowrap;
+    }
+    .badge .spark{ background: rgba(0,119,182,.60); }
+
+    /* How it works */
+    .steps{
+      counter-reset: step;
+      display:grid;
+      gap: 12px;
+    }
+    .step{
+      display:flex;
+      gap: 12px;
+      align-items:flex-start;
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+    }
+    .step:before{
+      counter-increment: step;
+      content: counter(step);
+      width: 32px;
+      height: 32px;
+      border-radius: 12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight: 800;
+      background: rgba(0,119,182,.18);
+      color: #0077B6;
+      border: 1px solid rgba(0,119,182,.25);
+      flex: 0 0 auto;
+      margin-top: 2px;
+    }
+    .step h3{ margin:0 0 4px; font-size: 15.5px; }
+    .step p{ margin:0; color: var(--muted); font-size: 13.8px; }
+
+    /* FAQ */
+    details{
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    details + details{ margin-top: 10px; }
+    summary{
+      cursor:pointer;
+      font-weight: 700;
+      color: var(--text);
+      list-style:none;
+    }
+    summary::-webkit-details-marker{ display:none; }
+    details p{
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* Contact */
+    form{
+      display:grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .fields{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    label{
+      display:grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    input, select, textarea{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: #ffffff;
+      color: var(--text);
+      outline: none;
+      font-size: 14px;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(0,119,182,.45);
+      box-shadow: 0 0 0 4px rgba(0,119,182,.12);
+    }
+    textarea{ min-height: 120px; resize: vertical; }
+    .contact-actions{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .hint{
+      color: var(--faint);
+      font-size: 12.5px;
+      margin: 8px 0 0;
+    }
+    .toast{
+      margin-top: 10px;
+      display:none;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(167,243,208,.35);
+      background: rgba(167,243,208,.10);
+      color: var(--text);
+      font-size: 13.5px;
+    }
+
+    /* Footer */
+    footer{
+      padding: 26px 0 44px;
+      border-top: 1px solid var(--line);
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .footer-grid{
+      display:flex;
+      align-items:flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap:wrap;
+    }
+    .fine{
+      color: var(--faint);
+      max-width: 80ch;
+      margin-top: 10px;
+      font-size: 12.5px;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px){
+      .hero-grid{ grid-template-columns: 1fr; }
+      .actions{ min-width: auto; }
+      nav ul{ gap: 8px; }
+      .grid-3{ grid-template-columns: 1fr; }
+      .grid-2{ grid-template-columns: 1fr; }
+      .fields{ grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 760px){
+      nav{ display:none; }
+      .menu-btn{ display:inline-flex; }
+      .mobile{
+        display:none;
+        padding: 10px 0 14px;
+      }
+      .mobile.open{ display:block; }
+      .mobile a{
+        display:block;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid transparent;
+        color: var(--muted);
+      }
+      .mobile a:hover{
+        background: rgba(255,255,255,.06);
+        border-color: rgba(255,255,255,.12);
+        color: var(--text);
+        text-decoration:none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="wrap">
+    <div class="nav">
+      <a class="brand" href="/" aria-label="Simple Books home">
+        <img src="assets/logo.png" alt="Simple Books" class="logo">
+      </a>
+
+      <nav aria-label="Primary navigation">
+        <ul>
+          <li><a href="#services">Services</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#faqs">FAQs</a></li>
+          <li><a href="/resources/">Resources</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </nav>
+
+      <div class="actions">
+        <a class="btn" href="mailto:adam@simple-books.co.uk?subject=Simple%20Books%20enquiry">Email</a>
+        <a class="btn primary" href="#contact">Book a free call</a>
+        <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="mobileNav">Menu</button>
+      </div>
+    </div>
+
+    <div class="mobile" id="mobileNav" aria-label="Mobile navigation">
+      <a href="#services">Services</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#how">How it works</a>
+      <a href="#about">About</a>
+      <a href="#faqs">FAQs</a>
+      <a href="/resources/">Resources</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div class="card hero-main">
+          <h1>Bookkeeping that stays simple.</h1>
+          <p class="subhead">
+            Monthly bookkeeping for UK sole traders and small limited companies — tidy records, clear reports,
+            and deadlines handled on time.
+          </p>
+
+          <ul class="bullets">
+            <li><span class="dot" aria-hidden="true"></span>Up-to-date books and reconciliations</li>
+            <li><span class="dot" aria-hidden="true"></span>VAT returns and HMRC-ready records (if registered)</li>
+            <li><span class="dot" aria-hidden="true"></span>A simple monthly summary you can actually understand</li>
+          </ul>
+
+          <div class="hero-ctas">
+            <a class="btn primary" href="#contact">Book a free 15-minute call</a>
+            <a class="btn" href="mailto:adam@simple-books.co.uk?subject=Simple%20Books%20enquiry">Email me</a>
+          </div>
+
+          <div class="trust">
+            <strong>Based in the UK</strong> · Remote-friendly · Works with <strong>Xero</strong>, <strong>QuickBooks</strong>, <strong>FreeAgent</strong> or spreadsheets
+          </div>
+        </div>
+
+        <aside class="card hero-side" aria-label="Quick reassurance">
+          <div>
+            <p class="side-title">Calm, clear, professional.</p>
+            <p class="side-note">No jargon. No judgement. Just clean books and clear next steps.</p>
+
+            <div class="mini">
+              <div class="pill"><strong>Fixed monthly pricing</strong><br/>Clear scope agreed before we start.</div>
+              <div class="pill"><strong>Simple monthly checklist</strong><br/>You’ll always know what to send.</div>
+              <div class="pill"><strong>HMRC-ready records</strong><br/>Tidy, consistent, and audit-friendly.</div>
+            </div>
+          </div>
+
+          <div class="pill">
+            <strong>Fast start</strong><br/>
+            Most clients can be set up within a week.
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section id="services">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2>What I can help with</h2>
+          <p class="lead">Choose what you need — most clients pick a monthly package.</p>
+        </div>
+        <span class="badge"><span class="spark" aria-hidden="true"></span>Clear scope · tidy delivery</span>
+      </div>
+
+      <div class="grid-3">
+        <div class="box">
+          <h3>Monthly bookkeeping</h3>
+          <p>Sales, expenses, bank reconciliation, tidy ledger, and month-end checks.</p>
+          <div class="meta">Best for: staying consistently up to date.</div>
+        </div>
+
+        <div class="box">
+          <h3>VAT returns (MTD)</h3>
+          <p>Preparation and submission, plus a simple VAT summary (if you’re registered).</p>
+          <div class="meta">Best for: avoiding last-minute VAT stress.</div>
+        </div>
+
+        <div class="box">
+          <h3>Catch-up bookkeeping</h3>
+          <p>Behind on records? I’ll bring everything up to date and get you back in control.</p>
+          <div class="meta">Best for: getting “current” again, quickly.</div>
+        </div>
+
+        <div class="box">
+          <h3>Self Assessment support</h3>
+          <p>Year-end tidy-up and clear figures for your return (or to share with your accountant).</p>
+          <div class="meta">Best for: sole traders who want it clean and simple.</div>
+        </div>
+
+        <div class="box">
+          <h3>Management summary</h3>
+          <p>Plain-English snapshot: income, costs, profit trend, and what to watch next month.</p>
+          <div class="meta">Best for: clarity on how the business is doing.</div>
+        </div>
+
+        <div class="box">
+          <h3>Clean handover to your accountant</h3>
+          <p>Structured records, reconciled balances, and tidy supporting detail.</p>
+          <div class="meta">Best for: smoother year-end and fewer questions.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2>Simple pricing</h2>
+          <p class="lead">Clear packages. No surprise fees. Transaction volume keeps pricing fair.</p>
+        </div>
+        <span class="badge"><span class="spark" aria-hidden="true"></span>Fixed monthly · agreed upfront</span>
+      </div>
+
+      <div class="grid-3">
+        <div class="box">
+          <h3>Starter</h3>
+          <div class="price">
+            <div class="amount">£129</div>
+            <div class="per">/ month</div>
+          </div>
+          <p>For low-volume sole traders and simple businesses.</p>
+          <ul class="ul">
+            <li>Monthly bookkeeping</li>
+            <li>Bank reconciliation</li>
+            <li>Monthly summary</li>
+            <li>Up to ~50 transactions/month</li>
+          </ul>
+        </div>
+
+        <div class="box" style="background: var(--panel-2); border-color: rgba(255,255,255,.18);">
+          <h3>Standard</h3>
+          <div class="price">
+            <div class="amount">£219</div>
+            <div class="per">/ month</div>
+          </div>
+          <p>For growing businesses that want tighter month-end clarity.</p>
+          <ul class="ul">
+            <li>Everything in Starter</li>
+            <li>Extra month-end checks</li>
+            <li>Monthly review notes</li>
+            <li>Up to ~150 transactions/month</li>
+          </ul>
+        </div>
+
+        <div class="box">
+          <h3>Limited Company</h3>
+          <div class="price">
+            <div class="amount">£299</div>
+            <div class="per">/ month</div>
+          </div>
+          <p>For small Ltd companies needing more structure and reporting.</p>
+          <ul class="ul">
+            <li>Monthly bookkeeping + reconciliations</li>
+            <li>Clear reporting structure</li>
+            <li>Director-related bookkeeping considerations</li>
+            <li>Up to ~200 transactions/month</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top: 14px;">
+        <div class="box">
+          <h3>VAT (MTD) add-on</h3>
+          <div class="price">
+            <div class="amount">£79</div>
+            <div class="per">/ quarter</div>
+          </div>
+          <p>VAT return prep + submission + a simple VAT summary.</p>
+        </div>
+
+        <div class="box">
+          <h3>Catch-up work</h3>
+          <div class="price">
+            <div class="amount">£45</div>
+            <div class="per">/ hour</div>
+          </div>
+          <p>Estimated after a quick look at what’s outstanding — no surprises.</p>
+        </div>
+      </div>
+
+      <p class="hint">
+        If your transaction volume is higher, I’ll quote a fixed price that matches the workload — agreed before work starts.
+      </p>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2>How it works</h2>
+          <p class="lead">Straightforward steps, then a simple monthly rhythm.</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="box">
+          <div class="steps">
+            <div class="step">
+              <div>
+                <h3>Quick call</h3>
+                <p>We confirm what you need, your software, and timelines.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div>
+                <h3>Simple setup</h3>
+                <p>You get a monthly checklist and a secure way to share documents.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div>
+                <h3>Monthly bookkeeping</h3>
+                <p>I reconcile, categorise, and keep everything tidy and HMRC-ready.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div>
+                <h3>Clear summary</h3>
+                <p>A short update: what’s done, what’s due next, and any questions.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="box">
+          <h3>What you’ll need to send each month</h3>
+          <p>Usually just your bank feed, invoices (if any), and receipts. If you’re VAT-registered, we keep a simple VAT-ready trail.</p>
+          <ul class="ul">
+            <li>Receipts (photo, PDF, or export)</li>
+            <li>Sales invoices (if you raise them)</li>
+            <li>Any “odd” items flagged for a quick answer</li>
+          </ul>
+          <div class="meta">Aim: minimal admin for you, tidy records for everything else.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2>About Simple Books</h2>
+          <p class="lead">Bookkeeping that’s calm, accurate, and easy to follow.</p>
+        </div>
+      </div>
+
+      <div class="box">
+        <p>
+          Simple Books helps UK sole traders and small limited companies keep their records clean and compliant —
+          without drowning in jargon. The goal is simple: tidy books, clear reporting, and steady progress month by month.
+        </p>
+        <p style="margin-top:10px;">
+          If you’d like to get started, send a short message with your business type, whether you’re VAT registered,
+          and roughly how many monthly transactions you have.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="faqs">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2>FAQs</h2>
+          <p class="lead">Quick answers to common questions.</p>
+        </div>
+      </div>
+
+      <details>
+        <summary>Do you work remotely?</summary>
+        <p>Yes — most clients share documents digitally and we keep everything organised month by month.</p>
+      </details>
+
+      <details>
+        <summary>Which software do you use?</summary>
+        <p>Xero, QuickBooks, FreeAgent, and spreadsheet-based workflows — depending on what’s right for you.</p>
+      </details>
+
+      <details>
+        <summary>Can you help if I’m behind?</summary>
+        <p>Absolutely. Catch-up work is common; we’ll agree a plan and timeline first.</p>
+      </details>
+
+      <details>
+        <summary>Do you file accounts or corporation tax?</summary>
+        <p>I focus on clean bookkeeping figures and reports. If you need accounts/tax filing, I can work with your accountant or recommend one.</p>
+      </details>
+
+      <details>
+        <summary>How do we get started?</summary>
+        <p>Book a free call or send a message with your business type, VAT status, and rough monthly transaction volume.</p>
+      </details>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2>Get a fixed quote</h2>
+          <p class="lead">Send a quick message and I’ll reply with a few questions and next steps.</p>
+        </div>
+        <span class="badge" title="Email address"><span class="spark" aria-hidden="true"></span>adam@simple-books.co.uk</span>
+      </div>
+
+      <div class="grid-2">
+        <div class="box">
+          <h3>Message</h3>
+          <form id="contactForm">
+            <div class="fields">
+              <label>
+                Name
+                <input name="name" type="text" autocomplete="name" required />
+              </label>
+              <label>
+                Email
+                <input name="email" type="email" autocomplete="email" required />
+              </label>
+            </div>
+
+            <div class="fields">
+              <label>
+                Business type
+                <select name="biz" required>
+                  <option value="" selected disabled>Select…</option>
+                  <option>Sole trader</option>
+                  <option>Limited company</option>
+                  <option>Partnership</option>
+                  <option>Other</option>
+                </select>
+              </label>
+
+              <label>
+                VAT registered?
+                <select name="vat" required>
+                  <option value="" selected disabled>Select…</option>
+                  <option>No</option>
+                  <option>Yes</option>
+                  <option>Not sure yet</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              Message
+              <textarea name="message" placeholder="Tell me a little about your business and roughly how many transactions you have per month…" required></textarea>
+            </label>
+
+            <div class="contact-actions">
+              <button class="btn primary" type="submit">Send message</button>
+              <button class="btn" type="button" id="copyEmailBtn">Copy email</button>
+              <a class="btn" href="mailto:adam@simple-books.co.uk?subject=Simple%20Books%20enquiry">Open email app</a>
+            </div>
+
+            <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+            <p class="hint">
+              This form opens your email client with the details pre-filled. If you prefer, just email
+              <a href="mailto:adam@simple-books.co.uk?subject=Simple%20Books%20enquiry">adam@simple-books.co.uk</a>.
+            </p>
+          </form>
+        </div>
+
+        <div class="box">
+          <h3>What to include (to get a fast quote)</h3>
+          <p>A few details helps me quote accurately and keep your pricing fixed.</p>
+          <ul class="ul">
+            <li>Sole trader or Ltd?</li>
+            <li>VAT registered (yes/no)?</li>
+            <li>Rough monthly transactions (ballpark is fine)</li>
+            <li>Software: Xero / QuickBooks / FreeAgent / spreadsheet</li>
+            <li>Any catch-up needed?</li>
+          </ul>
+
+          <div class="meta">
+            Typical reply time: within 1–2 working days.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <strong style="color:var(--text);">Simple Books</strong><br/>
+        Bookkeeping (UK) · Remote-friendly
+      </div>
+
+      <div>
+        <a href="mailto:adam@simple-books.co.uk?subject=Simple%20Books%20enquiry">adam@simple-books.co.uk</a><br/>
+        <a href="#privacy">Privacy</a>
+      </div>
+    </div>
+
+    <div class="fine" id="privacy">
+      <strong style="color:var(--text);">Privacy:</strong>
+      Simple Books provides bookkeeping services and is not a firm of accountants or tax advisers.
+      If you contact Simple Books, your details are used only to respond to your enquiry and provide a quote.
+      Your information is not sold. You can request deletion at any time by emailing adam@simple-books.co.uk.
+    </div>
+
+    <div class="fine">
+      © <span id="year"></span> Simple Books. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    const EMAIL_TO = "adam@simple-books.co.uk";
+
+    // Footer year
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Mobile menu
+    const menuBtn = document.getElementById("menuBtn");
+    const mobileNav = document.getElementById("mobileNav");
+    if (menuBtn && mobileNav) {
+      menuBtn.addEventListener("click", () => {
+        const open = mobileNav.classList.toggle("open");
+        menuBtn.setAttribute("aria-expanded", String(open));
+      });
+
+      // Close mobile nav after click
+      mobileNav.querySelectorAll("a").forEach(a => {
+        a.addEventListener("click", () => {
+          mobileNav.classList.remove("open");
+          menuBtn.setAttribute("aria-expanded", "false");
+        });
+      });
+    }
+
+    // Contact form -> mailto
+    const form = document.getElementById("contactForm");
+    const toast = document.getElementById("toast");
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.style.display = "block";
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => (toast.style.display = "none"), 4000);
+    }
+
+    if (form) {
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const name = (fd.get("name") || "").toString().trim();
+        const email = (fd.get("email") || "").toString().trim();
+        const biz = (fd.get("biz") || "").toString().trim();
+        const vat = (fd.get("vat") || "").toString().trim();
+        const message = (fd.get("message") || "").toString().trim();
+
+        if (!name || !email || !biz || !vat || !message) {
+          showToast("Please complete all fields.");
+          return;
+        }
+
+        const subject = encodeURIComponent("Simple Books enquiry");
+        const body = encodeURIComponent(
+`Name: ${name}
+Email: ${email}
+Business type: ${biz}
+VAT registered: ${vat}
+
+Message:
+${message}`
+        );
+
+        // Open email client
+        window.location.href = `mailto:${EMAIL_TO}?subject=${subject}&body=${body}`;
+        showToast("Opening your email app…");
+      });
+    }
+
+    // Copy email
+    const copyBtn = document.getElementById("copyEmailBtn");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(EMAIL_TO);
+          showToast("Email copied: " + EMAIL_TO);
+        } catch {
+          showToast("Couldn’t copy automatically — email is " + EMAIL_TO);
+        }
+      });
+    }
+  })();
+</script>
+</body>
+</html>
