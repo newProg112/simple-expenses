@@ -154,7 +154,8 @@
     orderBy,
     onSnapshot,
     doc,
-    deleteDoc
+    deleteDoc,
+    updateDoc
   } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
   import {
     getStorage,
@@ -195,23 +196,50 @@
   const expensesList = document.getElementById("expensesList");
   const formMsg = document.getElementById("formMsg");
 
+  let editingId = null;          // null = creating, otherwise editing this doc id
+  let latestDocsById = new Map(); // store latest snapshot docs for editing
+
   // --- Delete handler (event delegation) ---
   expensesList.addEventListener("click", async (e) => {
-    const btn = e.target.closest("[data-id]");
+    const btn = e.target.closest("[data-action][data-id]");
     if (!btn) return;
 
+    const action = btn.getAttribute("data-action");
     const id = btn.getAttribute("data-id");
-    if (!id) return;
+    if (!action || !id) return;
 
     const user = auth.currentUser;
     if (!user) return alert("You must be signed in.");
 
-    if (!confirm("Delete this expense?")) return;
+    if (action === "delete") {
+      if (!confirm("Delete this expense?")) return;
+      try {
+        await deleteDoc(doc(db, "users", user.uid, "expenses", id));
+        // if we were editing this item, reset form state
+        if (editingId === id) resetFormState();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
 
-    try {
-      await deleteDoc(doc(db, "users", user.uid, "expenses", id));
-    } catch (err) {
-      alert(err.message);
+    if (action === "edit") {
+      const snapDoc = latestDocsById.get(id);
+      if (!snapDoc) return alert("Could not load this expense to edit.");
+
+      const data = snapDoc.data();
+
+      editingId = id;
+      document.querySelector("#expenseForm h3").textContent = "Edit expense";
+      btnSaveExpense.textContent = "Update";
+
+      document.getElementById("expDate").value = data.date || "";
+      document.getElementById("expSupplier").value = data.supplier || "";
+      document.getElementById("expCategory").value = data.category || "";
+      document.getElementById("expNet").value = typeof data.net === "number" ? String(data.net) : "";
+      document.getElementById("expNotes").value = data.notes || "";
+
+      showForm(true);
+      formMsg.textContent = "";
     }
   });
 
@@ -245,6 +273,9 @@
 
   // --- UI helpers ---
   function renderExpenses(docs) {
+    // cache docs so we can load data when editing
+    latestDocsById = new Map(docs.map(d => [d.id, d]));
+
     if (!docs.length) {
       expensesList.textContent = "No expenses yet.";
       return;
@@ -269,9 +300,14 @@
           <div style="color:var(--muted);">${date} • ${supplier}${notes}${receiptLink}</div>
         </div>
 
-        <button class="btn btnDanger" data-id="${d.id}" style="background:#ef4444; height:40px;">
-          Delete
-        </button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" data-action="edit" data-id="${d.id}" style="background:#0ea5e9; height:40px;">
+            Edit
+          </button>
+          <button class="btn" data-action="delete" data-id="${d.id}" style="background:#ef4444; height:40px;">
+            Delete
+          </button>
+        </div>
       </div>`;
     }).join("");
   }
@@ -281,9 +317,28 @@
     expenseForm.style.display = show ? "block" : "none";
   }
 
+  function resetFormState() {
+    editingId = null;
+    document.querySelector("#expenseForm h3").textContent = "New expense";
+    btnSaveExpense.textContent = "Save";
+
+    document.getElementById("expDate").value = "";
+    document.getElementById("expSupplier").value = "";
+    document.getElementById("expCategory").value = "";
+    document.getElementById("expNet").value = "";
+    document.getElementById("expNotes").value = "";
+    document.getElementById("expReceipt").value = ""; // harmless even though hidden
+  }
+
   // --- Expense form buttons ---
-  btnAddExpense.addEventListener("click", () => showForm(true));
-  btnCancelExpense.addEventListener("click", () => showForm(false));
+  btnAddExpense.addEventListener("click", () => {
+    resetFormState();
+    showForm(true);
+  });
+  btnCancelExpense.addEventListener("click", () => {
+    resetFormState();
+    showForm(false);
+  });
 
   btnSaveExpense.addEventListener("click", async () => {
     formMsg.textContent = "";
@@ -330,23 +385,31 @@
         };
       }
 
-      await addDoc(ref, {
-        date,
-        supplier,
-        category,
-        net,
-        notes,
-        receipt,
-        createdAt: serverTimestamp()
-      });
+      if (editingId) {
+        // update existing
+        await updateDoc(doc(db, "users", user.uid, "expenses", editingId), {
+          date,
+          supplier,
+          category,
+          net,
+          notes
+          // keep createdAt as-is
+        });
+      } else {
+        // create new
+        await addDoc(ref, {
+          date,
+          supplier,
+          category,
+          net,
+          notes,
+          receipt,
+          createdAt: serverTimestamp()
+        });
+      }
 
-      // clear + hide
-      document.getElementById("expDate").value = "";
-      document.getElementById("expSupplier").value = "";
-      document.getElementById("expCategory").value = "";
-      document.getElementById("expNet").value = "";
-      document.getElementById("expNotes").value = "";
-      document.getElementById("expReceipt").value = "";
+      // reset + hide
+      resetFormState();
       showForm(false);
     } catch (err) {
       formMsg.textContent = err.message;
