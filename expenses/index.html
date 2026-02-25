@@ -149,6 +149,19 @@
 
   <div class="card">
     <h3 style="margin-top:0;">Expenses</h3>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; align-items:center;">
+      <input id="searchBox" placeholder="Search supplier / notes…"
+        style="flex:1; min-width:220px; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
+
+      <select id="categoryFilter"
+        style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:200px;">
+        <option value="">All categories</option>
+      </select>
+
+      <button class="btn" id="btnClearFilters" style="background:#6b7280;">Clear</button>
+    </div>
+
     <div id="expensesList">No expenses yet.</div>
   </div>
 
@@ -224,8 +237,24 @@
   const monthPick = document.getElementById("monthPick");
   const btnExportCsv = document.getElementById("btnExportCsv");
 
+  const searchBox = document.getElementById("searchBox");
+  const categoryFilter = document.getElementById("categoryFilter");
+  const btnClearFilters = document.getElementById("btnClearFilters");
+
   let editingId = null;          // null = creating, otherwise editing this doc id
   let latestDocsById = new Map(); // store latest snapshot docs for editing
+
+  let latestDocs = []; // keep the last snapshot array for filtering
+
+  searchBox.addEventListener("input", () => applyFilters());
+
+  categoryFilter.addEventListener("change", () => applyFilters());
+
+  btnClearFilters.addEventListener("click", () => {
+    searchBox.value = "";
+    categoryFilter.value = "";
+    applyFilters();
+  });
 
   // --- Delete handler (event delegation) ---
   expensesList.addEventListener("click", async (e) => {
@@ -338,6 +367,47 @@
         </div>
       </div>`;
     }).join("");
+  }
+
+  function hydrateFilters(docs) {
+    // build unique category list from current docs
+    const cats = new Set();
+    for (const d of docs) {
+      const c = (d.data().category || "").trim();
+      if (c) cats.add(c);
+    }
+
+    const current = categoryFilter.value;
+
+    categoryFilter.innerHTML =
+      `<option value="">All categories</option>` +
+      [...cats].sort((a, b) => a.localeCompare(b)).map(c =>
+        `<option value="${c}">${c}</option>`
+      ).join("");
+
+    // try to keep user selection if it still exists
+    if ([...categoryFilter.options].some(o => o.value === current)) {
+      categoryFilter.value = current;
+    }
+  }
+
+  function applyFilters() {
+    const q = (searchBox.value || "").trim().toLowerCase();
+    const cat = categoryFilter.value || "";
+
+    const filtered = latestDocs.filter(d => {
+      const data = d.data();
+      const supplier = (data.supplier || "").toLowerCase();
+      const notes = (data.notes || "").toLowerCase();
+      const category = (data.category || "").trim();
+
+      const matchesText = !q || supplier.includes(q) || notes.includes(q);
+      const matchesCat = !cat || category === cat;
+
+      return matchesText && matchesCat;
+    });
+
+    renderExpenses(filtered);
   }
 
   function showForm(show) {
@@ -589,8 +659,12 @@
 
       unsubscribeExpenses = onSnapshot(q, (snap) => {
         const docs = snap.docs;
-        renderExpenses(docs);
-        renderSummary(docs);
+        latestDocs = docs;
+
+        hydrateFilters(docs);
+        applyFilters();        // <-- renders the filtered list (instead of renderExpenses)
+
+        renderSummary(docs);   // summary stays based on ALL docs (good)
       }, (err) => {
         console.error(err);
         expensesList.textContent = "Could not load expenses.";
