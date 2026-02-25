@@ -95,6 +95,27 @@
 
     <button class="btn" id="btnAddExpense" style="margin-left:8px;">Add expense</button>
 
+      <div class="card" id="summaryCard" style="display:none;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-weight:700; font-size:16px;">This month</div>
+            <div style="color:var(--muted);" id="summaryLine">—</div>
+          </div>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:600;">
+              Month
+              <input id="monthPick" type="month"
+                style="padding:8px 10px; border-radius:10px; border:1px solid #ccc;">
+            </label>
+
+            <button class="btn" id="btnExportCsv" style="background:#111827;">Export CSV</button>
+          </div>
+        </div>
+
+        <div id="summaryBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
+      </div>
+
   <div class="card" id="expenseForm" style="display:none;">
     <h3 style="margin-top:0;">New expense</h3>
 
@@ -195,6 +216,13 @@
   const btnCancelExpense = document.getElementById("btnCancelExpense");
   const expensesList = document.getElementById("expensesList");
   const formMsg = document.getElementById("formMsg");
+
+  // --- Summary elements ---
+  const summaryCard = document.getElementById("summaryCard");
+  const summaryLine = document.getElementById("summaryLine");
+  const summaryBadges = document.getElementById("summaryBadges");
+  const monthPick = document.getElementById("monthPick");
+  const btnExportCsv = document.getElementById("btnExportCsv");
 
   let editingId = null;          // null = creating, otherwise editing this doc id
   let latestDocsById = new Map(); // store latest snapshot docs for editing
@@ -330,6 +358,110 @@
     document.getElementById("expReceipt").value = ""; // harmless even though hidden
   }
 
+  function monthKeyFromDateStr(dateStr) {
+    // expects "YYYY-MM-DD"
+    return (dateStr || "").slice(0, 7); // "YYYY-MM"
+  }
+
+  function formatGBP(n) {
+    const v = Number(n);
+    const safe = Number.isFinite(v) ? v : 0;
+    return safe.toLocaleString("en-GB", { style: "currency", currency: "GBP" });
+  }
+
+  function calcSummary(docs, monthKey) {
+    const rows = docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(x => monthKeyFromDateStr(x.date) === monthKey);
+
+    const total = rows.reduce((sum, r) => sum + (Number(r.net) || 0), 0);
+
+    // Category totals
+    const byCat = new Map();
+    for (const r of rows) {
+      const cat = (r.category || "Uncategorised").trim() || "Uncategorised";
+      byCat.set(cat, (byCat.get(cat) || 0) + (Number(r.net) || 0));
+    }
+
+    const topCats = [...byCat.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+
+    return { rows, total, topCats };
+  }
+
+  function renderSummary(docs) {
+
+    const monthKey = monthPick.value;
+    if (!monthKey) return;
+
+    const { rows, total, topCats } = calcSummary(docs, monthKey);
+
+    // Always show summary card
+    summaryCard.style.display = "block";
+
+    // Summary line
+    summaryLine.textContent =
+      `${formatGBP(total)} across ${rows.length} expense${rows.length === 1 ? "" : "s"}`;
+
+    // Category badges
+    if (!rows.length) {
+      summaryBadges.innerHTML =
+        `<div style="color:var(--muted); font-weight:600;">
+          No expenses in this month yet.
+        </div>`;
+      return;
+    }
+
+    summaryBadges.innerHTML = topCats.map(([cat, amt]) => {
+      return `<div style="
+        padding:8px 10px;
+        border:1px solid rgba(0,0,0,.10);
+        border-radius:999px;
+        background:#fff;
+        font-weight:700;
+        font-size:13px;
+      ">
+        <span style="color:var(--muted); font-weight:600;">${cat}</span>
+        <span style="margin-left:8px;">${formatGBP(amt)}</span>
+      </div>`;
+    }).join("");
+  }
+
+  function exportCsvForMonth(docs) {
+    const monthKey = monthPick.value;
+    const { rows } = calcSummary(docs, monthKey);
+
+    const header = ["Date", "Supplier", "Category", "Net", "Notes"];
+    const lines = [header];
+
+    for (const r of rows) {
+      lines.push([
+        r.date || "",
+        (r.supplier || "").replaceAll('"', '""'),
+        (r.category || "").replaceAll('"', '""'),
+        String(Number(r.net) || 0),
+        (r.notes || "").replaceAll('"', '""')
+      ]);
+    }
+
+    const csv = lines
+      .map(cols => cols.map(v => `"${String(v)}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `simple-expenses_${monthKey}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
   // --- Expense form buttons ---
   btnAddExpense.addEventListener("click", () => {
     resetFormState();
@@ -432,11 +564,33 @@
       loginCard.style.display = "none";
       appArea.style.display = "block";
 
+      // default month picker to current month once
+      if (!monthPick.value) {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        monthPick.value = `${yyyy}-${mm}`;
+      }
+
+      // month change re-renders summary using latest docs cache
+      monthPick.onchange = () => {
+        renderSummary([...latestDocsById.values()]);
+      };
+
+      // export
+      btnExportCsv.onclick = () => {
+        exportCsvForMonth([...latestDocsById.values()]);
+      };
+
+      summaryCard.style.display = "block";
+
       const ref = collection(db, "users", user.uid, "expenses");
       const q = query(ref, orderBy("createdAt", "desc"));
 
       unsubscribeExpenses = onSnapshot(q, (snap) => {
-        renderExpenses(snap.docs);
+        const docs = snap.docs;
+        renderExpenses(docs);
+        renderSummary(docs);
       }, (err) => {
         console.error(err);
         expensesList.textContent = "Could not load expenses.";
@@ -445,6 +599,9 @@
     } else {
       loginCard.style.display = "block";
       appArea.style.display = "none";
+
+      summaryCard.style.display = "none";
+
       expensesList.textContent = "No expenses yet.";
       showForm(false);
     }
