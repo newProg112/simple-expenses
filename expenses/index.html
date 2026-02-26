@@ -126,8 +126,17 @@
       <input id="expSupplier" placeholder="Supplier"
         style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
 
-      <input id="expCategory" placeholder="Category (e.g. Travel)"
-        style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <input id="expCategory" list="categoryOptions" placeholder="Category (e.g. Travel)"
+          style="flex:1; width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+
+        <select id="categoryQuickPick"
+          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
+          <option value="">Pick…</option>
+        </select>
+      </div>
+
+      <datalist id="categoryOptions"></datalist>
 
       <input id="expNet" type="number" step="0.01" placeholder="Net (£)"
         style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
@@ -159,8 +168,37 @@
         <option value="">All categories</option>
       </select>
 
+      <select id="rangeFilter"
+        style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
+        <option value="all">All time</option>
+        <option value="thisMonth">This month</option>
+        <option value="last30">Last 30 days</option>
+        <option value="last90">Last 90 days</option>
+        <option value="custom">Custom</option>
+      </select>
+
+      <div id="customRange" style="display:none; gap:10px; align-items:center;">
+        <input id="fromDate" type="date"
+          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
+        <input id="toDate" type="date"
+          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
+      </div>
+
+      <select id="sortBy"
+        style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
+        <option value="createdDesc">Newest</option>
+        <option value="createdAsc">Oldest</option>
+        <option value="amountDesc">Amount (high → low)</option>
+        <option value="amountAsc">Amount (low → high)</option>
+        <option value="dateDesc">Date (new → old)</option>
+        <option value="dateAsc">Date (old → new)</option>
+      </select>
+
       <button class="btn" id="btnClearFilters" style="background:#6b7280;">Clear</button>
     </div>
+
+    <div id="filterHint" style="color:var(--muted); margin-bottom:6px; font-weight:600;"></div>
+    <div id="filteredTotal" style="color:var(--text); margin-bottom:10px; font-weight:800;"></div>
 
     <div id="expensesList">No expenses yet.</div>
   </div>
@@ -230,6 +268,9 @@
   const expensesList = document.getElementById("expensesList");
   const formMsg = document.getElementById("formMsg");
 
+  const filterHint = document.getElementById("filterHint");
+  const filteredTotal = document.getElementById("filteredTotal");
+
   // --- Summary elements ---
   const summaryCard = document.getElementById("summaryCard");
   const summaryLine = document.getElementById("summaryLine");
@@ -241,18 +282,67 @@
   const categoryFilter = document.getElementById("categoryFilter");
   const btnClearFilters = document.getElementById("btnClearFilters");
 
+  const rangeFilter = document.getElementById("rangeFilter");
+  const customRange = document.getElementById("customRange");
+  const fromDate = document.getElementById("fromDate");
+  const toDate = document.getElementById("toDate");
+  const sortBy = document.getElementById("sortBy");
+
+  const categoryOptions = document.getElementById("categoryOptions");
+  const categoryQuickPick = document.getElementById("categoryQuickPick");
+
+  const LS_KEYS = {
+    q: "se_filters_q",
+    cat: "se_filters_cat",
+    range: "se_filters_range",
+    from: "se_filters_from",
+    to: "se_filters_to",
+    sort: "se_filters_sort"
+  };
+
+  categoryQuickPick.addEventListener("change", () => {
+    if (categoryQuickPick.value) {
+      document.getElementById("expCategory").value = categoryQuickPick.value;
+    }
+  });
+
   let editingId = null;          // null = creating, otherwise editing this doc id
   let latestDocsById = new Map(); // store latest snapshot docs for editing
 
   let latestDocs = []; // keep the last snapshot array for filtering
 
-  searchBox.addEventListener("input", () => applyFilters());
+  rangeFilter.addEventListener("change", () => {
+    const isCustom = rangeFilter.value === "custom";
+    customRange.style.display = isCustom ? "flex" : "none";
+    saveFilters();
+    applyFilters();
+  });
 
-  categoryFilter.addEventListener("change", () => applyFilters());
+  searchBox.addEventListener("input", () => { saveFilters(); applyFilters(); });
+  categoryFilter.addEventListener("change", () => { saveFilters(); applyFilters(); });
+  sortBy.addEventListener("change", () => { saveFilters(); applyFilters(); });
+
+  fromDate.addEventListener("change", () => { saveFilters(); applyFilters(); });
+  toDate.addEventListener("change", () => { saveFilters(); applyFilters(); });
 
   btnClearFilters.addEventListener("click", () => {
     searchBox.value = "";
     categoryFilter.value = "";
+
+    rangeFilter.value = "all";
+    customRange.style.display = "none";
+    fromDate.value = "";
+    toDate.value = "";
+
+    sortBy.value = "createdDesc";
+
+    localStorage.removeItem(LS_KEYS.q);
+    localStorage.removeItem(LS_KEYS.cat);
+    localStorage.removeItem(LS_KEYS.range);
+    localStorage.removeItem(LS_KEYS.from);
+    localStorage.removeItem(LS_KEYS.to);
+    localStorage.removeItem(LS_KEYS.sort);
+
     applyFilters();
   });
 
@@ -370,42 +460,207 @@
   }
 
   function hydrateFilters(docs) {
-    // build unique category list from current docs
     const cats = new Set();
     for (const d of docs) {
       const c = (d.data().category || "").trim();
       if (c) cats.add(c);
     }
 
-    const current = categoryFilter.value;
+    const sorted = [...cats].sort((a, b) => a.localeCompare(b));
+
+    // Keep current selection where possible
+    const currentFilter = categoryFilter.value;
 
     categoryFilter.innerHTML =
       `<option value="">All categories</option>` +
-      [...cats].sort((a, b) => a.localeCompare(b)).map(c =>
-        `<option value="${c}">${c}</option>`
-      ).join("");
+      sorted.map(c => `<option value="${c}">${c}</option>`).join("");
 
-    // try to keep user selection if it still exists
-    if ([...categoryFilter.options].some(o => o.value === current)) {
-      categoryFilter.value = current;
+    if ([...categoryFilter.options].some(o => o.value === currentFilter)) {
+      categoryFilter.value = currentFilter;
     }
+
+    // Fill datalist for typing suggestions
+    categoryOptions.innerHTML = sorted.map(c => `<option value="${c}"></option>`).join("");
+
+    // Fill quick pick dropdown for the form
+    const currentQuick = categoryQuickPick.value;
+    categoryQuickPick.innerHTML =
+      `<option value="">Pick…</option>` +
+      sorted.map(c => `<option value="${c}">${c}</option>`).join("");
+
+    if ([...categoryQuickPick.options].some(o => o.value === currentQuick)) {
+      categoryQuickPick.value = currentQuick;
+    }
+
+    const savedCat = localStorage.getItem(LS_KEYS.cat) || "";
+    if ([...categoryFilter.options].some(o => o.value === savedCat)) {
+      categoryFilter.value = savedCat;
+    }
+  }
+
+  function parseISODateToUTC(dateStr) {
+    // dateStr: "YYYY-MM-DD"
+    if (!dateStr) return null;
+    const [y, m, d] = dateStr.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(Date.UTC(y, m - 1, d));
+  }
+
+  function startOfThisMonthUTC() {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  }
+
+  function addDaysUTC(dateUTC, days) {
+    return new Date(dateUTC.getTime() + days * 24 * 60 * 60 * 1000);
+  }
+
+  function todayUTC() {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  }
+
+  function dateInRange(expDateStr, startUTC, endUTCInclusive) {
+    const d = parseISODateToUTC(expDateStr);
+    if (!d) return false;
+    if (startUTC && d < startUTC) return false;
+    if (endUTCInclusive && d > endUTCInclusive) return false;
+    return true;
+  }
+
+  function loadSavedFilters() {
+    const q = localStorage.getItem(LS_KEYS.q);
+    const cat = localStorage.getItem(LS_KEYS.cat);
+    const range = localStorage.getItem(LS_KEYS.range);
+    const from = localStorage.getItem(LS_KEYS.from);
+    const to = localStorage.getItem(LS_KEYS.to);
+    const sort = localStorage.getItem(LS_KEYS.sort);
+
+    if (q !== null) searchBox.value = q;
+    if (range) rangeFilter.value = range;
+    if (from) fromDate.value = from;
+    if (to) toDate.value = to;
+    if (sort) sortBy.value = sort;
+
+    // show/hide custom range row based on saved setting
+    customRange.style.display = (rangeFilter.value === "custom") ? "flex" : "none";
+
+    // categoryFilter options might not be hydrated yet (depends on snapshot),
+    // so we store it, and apply it later in hydrateFilters()
+    if (cat !== null) categoryFilter.value = cat;
+  }
+
+  function saveFilters() {
+    localStorage.setItem(LS_KEYS.q, searchBox.value || "");
+    localStorage.setItem(LS_KEYS.cat, categoryFilter.value || "");
+    localStorage.setItem(LS_KEYS.range, rangeFilter.value || "all");
+    localStorage.setItem(LS_KEYS.from, fromDate.value || "");
+    localStorage.setItem(LS_KEYS.to, toDate.value || "");
+    localStorage.setItem(LS_KEYS.sort, sortBy.value || "createdDesc");
   }
 
   function applyFilters() {
     const q = (searchBox.value || "").trim().toLowerCase();
     const cat = categoryFilter.value || "";
+    const range = rangeFilter.value || "all";
+
+    // Build range bounds (UTC)
+    let startUTC = null;
+    let endUTC = null;
+
+    if (range === "thisMonth") {
+      startUTC = startOfThisMonthUTC();
+      endUTC = todayUTC();
+    } else if (range === "last30") {
+      endUTC = todayUTC();
+      startUTC = addDaysUTC(endUTC, -29);
+    } else if (range === "last90") {
+      endUTC = todayUTC();
+      startUTC = addDaysUTC(endUTC, -89);
+    } else if (range === "custom") {
+      startUTC = parseISODateToUTC(fromDate.value);
+      endUTC = parseISODateToUTC(toDate.value);
+
+      // swap if user picked backwards
+      if (startUTC && endUTC && endUTC < startUTC) {
+        const tmp = startUTC;
+        startUTC = endUTC;
+        endUTC = tmp;
+      }
+    }
 
     const filtered = latestDocs.filter(d => {
       const data = d.data();
       const supplier = (data.supplier || "").toLowerCase();
       const notes = (data.notes || "").toLowerCase();
       const category = (data.category || "").trim();
+      const dateStr = data.date || "";
 
       const matchesText = !q || supplier.includes(q) || notes.includes(q);
       const matchesCat = !cat || category === cat;
+      const matchesDate = (range === "all") ? true : dateInRange(dateStr, startUTC, endUTC);
 
-      return matchesText && matchesCat;
+      return matchesText && matchesCat && matchesDate;
     });
+
+    const sortMode = sortBy.value || "createdDesc";
+
+    filtered.sort((a, b) => {
+      const da = a.data();
+      const db = b.data();
+
+      const na = Number(da.net) || 0;
+      const nb = Number(db.net) || 0;
+
+      const dateA = (da.date || "");
+      const dateB = (db.date || "");
+
+      const ca = da.createdAt?.toMillis ? da.createdAt.toMillis() : 0;
+      const cb = db.createdAt?.toMillis ? db.createdAt.toMillis() : 0;
+
+      switch (sortMode) {
+        case "createdAsc":  return ca - cb;
+        case "createdDesc": return cb - ca;
+
+        case "amountAsc":   return na - nb;
+        case "amountDesc":  return nb - na;
+
+        case "dateAsc":     return dateA.localeCompare(dateB);
+        case "dateDesc":    return dateB.localeCompare(dateA);
+
+        default:            return cb - ca;
+      }
+    });
+
+    const totalNet = filtered.reduce((sum, d) => {
+      const n = Number(d.data().net);
+      return sum + (Number.isFinite(n) ? n : 0);
+    }, 0);
+
+    filteredTotal.style.display = latestDocs.length ? "block" : "none";
+
+    filteredTotal.textContent = `Total of filtered: ${formatGBP(totalNet)}`;
+
+    // hint line
+    const total = latestDocs.length;
+    const showing = filtered.length;
+    const qLabel = q ? `Search: "${searchBox.value.trim()}"` : "";
+    const cLabel = cat ? `Category: ${cat}` : "";
+
+    let rLabel = "";
+    if (range === "thisMonth") rLabel = "Range: This month";
+    if (range === "last30") rLabel = "Range: Last 30 days";
+    if (range === "last90") rLabel = "Range: Last 90 days";
+    if (range === "custom") {
+      const f = fromDate.value ? fromDate.value : "…";
+      const t = toDate.value ? toDate.value : "…";
+      rLabel = `Range: ${f} → ${t}`;
+    }
+
+    const bits = [qLabel, cLabel, rLabel].filter(Boolean).join(" • ");
+    filterHint.textContent = bits
+      ? `Showing ${showing} of ${total} (${bits})`
+      : `Showing ${showing} of ${total}`;
 
     renderExpenses(filtered);
   }
@@ -633,6 +888,8 @@
     if (user) {
       loginCard.style.display = "none";
       appArea.style.display = "block";
+      
+      loadSavedFilters();
 
       // default month picker to current month once
       if (!monthPick.value) {
