@@ -194,6 +194,11 @@
         <option value="dateAsc">Date (old → new)</option>
       </select>
 
+      <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:700;">
+        <input id="vatMode" type="checkbox" style="width:18px; height:18px;">
+        VAT @20%
+      </label>
+
       <button class="btn" id="btnClearFilters" style="background:#6b7280;">Clear</button>
     </div>
 
@@ -287,6 +292,7 @@
   const fromDate = document.getElementById("fromDate");
   const toDate = document.getElementById("toDate");
   const sortBy = document.getElementById("sortBy");
+  const vatMode = document.getElementById("vatMode");
 
   const categoryOptions = document.getElementById("categoryOptions");
   const categoryQuickPick = document.getElementById("categoryQuickPick");
@@ -297,7 +303,8 @@
     range: "se_filters_range",
     from: "se_filters_from",
     to: "se_filters_to",
-    sort: "se_filters_sort"
+    sort: "se_filters_sort",
+    vat: "se_filters_vat"
   };
 
   categoryQuickPick.addEventListener("change", () => {
@@ -325,6 +332,8 @@
   fromDate.addEventListener("change", () => { saveFilters(); applyFilters(); });
   toDate.addEventListener("change", () => { saveFilters(); applyFilters(); });
 
+  vatMode.addEventListener("change", () => { saveFilters(); applyFilters(); renderSummary([...latestDocsById.values()]); });
+
   btnClearFilters.addEventListener("click", () => {
     searchBox.value = "";
     categoryFilter.value = "";
@@ -336,12 +345,17 @@
 
     sortBy.value = "createdDesc";
 
+    vatMode.checked = false;
+    localStorage.removeItem(LS_KEYS.vat);
     localStorage.removeItem(LS_KEYS.q);
     localStorage.removeItem(LS_KEYS.cat);
     localStorage.removeItem(LS_KEYS.range);
     localStorage.removeItem(LS_KEYS.from);
     localStorage.removeItem(LS_KEYS.to);
     localStorage.removeItem(LS_KEYS.sort);
+
+    // Optional: re-save the clean defaults
+    saveFilters();
 
     applyFilters();
   });
@@ -433,7 +447,8 @@
       const date = data.date || "";
       const supplier = data.supplier || "";
       const category = data.category || "";
-      const net = typeof data.net === "number" ? data.net.toFixed(2) : "0.00";
+      const { net, vat, gross } = calcVat(data.net);
+      const netStr = net.toFixed(2);
       const notes = data.notes ? ` • ${data.notes}` : "";
       const receiptLink = data.receipt?.url
         ? ` • <a href="${data.receipt.url}" target="_blank" rel="noopener" style="color:var(--accent); font-weight:600; text-decoration:none;">View receipt</a>`
@@ -441,9 +456,13 @@
 
       return `<div style="padding:10px 0; border-top:1px solid rgba(0,0,0,.08); display:flex; justify-content:space-between; gap:12px;">
         <div>
-          <div style="font-weight:600;">£${net}
-            <span style="color:var(--muted); font-weight:400;">(${category})</span>
+          <div style="font-weight:600;">
+            £${netStr} <span style="color:var(--muted); font-weight:400;">(${category})</span>
           </div>
+
+          ${vatMode.checked ? `<div style="color:var(--muted); font-weight:600; font-size:13px;">
+            VAT £${vat.toFixed(2)} • Gross £${gross.toFixed(2)}
+          </div>` : ``}
           <div style="color:var(--muted);">${date} • ${supplier}${notes}${receiptLink}</div>
         </div>
 
@@ -535,6 +554,8 @@
     const from = localStorage.getItem(LS_KEYS.from);
     const to = localStorage.getItem(LS_KEYS.to);
     const sort = localStorage.getItem(LS_KEYS.sort);
+    const vat = localStorage.getItem(LS_KEYS.vat);
+    if (vat !== null) vatMode.checked = (vat === "1");
 
     if (q !== null) searchBox.value = q;
     if (range) rangeFilter.value = range;
@@ -557,6 +578,7 @@
     localStorage.setItem(LS_KEYS.from, fromDate.value || "");
     localStorage.setItem(LS_KEYS.to, toDate.value || "");
     localStorage.setItem(LS_KEYS.sort, sortBy.value || "createdDesc");
+    localStorage.setItem(LS_KEYS.vat, vatMode.checked ? "1" : "0");
   }
 
   function applyFilters() {
@@ -632,14 +654,22 @@
       }
     });
 
-    const totalNet = filtered.reduce((sum, d) => {
-      const n = Number(d.data().net);
-      return sum + (Number.isFinite(n) ? n : 0);
-    }, 0);
+    const totals = filtered.reduce((acc, d) => {
+      const { net, vat, gross } = calcVat(d.data().net);
+      acc.net += net;
+      acc.vat += vat;
+      acc.gross += gross;
+      return acc;
+    }, { net: 0, vat: 0, gross: 0 });
 
     filteredTotal.style.display = latestDocs.length ? "block" : "none";
 
-    filteredTotal.textContent = `Total of filtered: ${formatGBP(totalNet)}`;
+    if (vatMode.checked) {
+      filteredTotal.textContent =
+        `Total of filtered: Net ${formatGBP(totals.net)} • VAT ${formatGBP(totals.vat)} • Gross ${formatGBP(totals.gross)}`;
+    } else {
+      filteredTotal.textContent = `Total of filtered: ${formatGBP(totals.net)}`;
+    }
 
     // hint line
     const total = latestDocs.length;
@@ -694,12 +724,24 @@
     return safe.toLocaleString("en-GB", { style: "currency", currency: "GBP" });
   }
 
+  const VAT_RATE = 0.20; // 20%
+
+  function calcVat(net) {
+    const n = Number(net);
+    const safe = Number.isFinite(n) ? n : 0;
+    const vat = safe * VAT_RATE;
+    const gross = safe + vat;
+    return { net: safe, vat, gross };
+  }
+
   function calcSummary(docs, monthKey) {
     const rows = docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(x => monthKeyFromDateStr(x.date) === monthKey);
 
     const total = rows.reduce((sum, r) => sum + (Number(r.net) || 0), 0);
+    const vatTotal = rows.reduce((sum, r) => sum + (Number(r.net) || 0) * VAT_RATE, 0);
+    const grossTotal = total + vatTotal;
 
     // Category totals
     const byCat = new Map();
@@ -712,7 +754,7 @@
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6);
 
-    return { rows, total, topCats };
+    return { rows, total, vatTotal, grossTotal, topCats };
   }
 
   function renderSummary(docs) {
@@ -720,14 +762,15 @@
     const monthKey = monthPick.value;
     if (!monthKey) return;
 
-    const { rows, total, topCats } = calcSummary(docs, monthKey);
+    const { rows, total, vatTotal, grossTotal, topCats } = calcSummary(docs, monthKey);
 
     // Always show summary card
     summaryCard.style.display = "block";
 
     // Summary line
-    summaryLine.textContent =
-      `${formatGBP(total)} across ${rows.length} expense${rows.length === 1 ? "" : "s"}`;
+    summaryLine.textContent = vatMode.checked
+      ? `Net ${formatGBP(total)} • VAT ${formatGBP(vatTotal)} • Gross ${formatGBP(grossTotal)} — ${rows.length} expense${rows.length === 1 ? "" : "s"}`
+      : `${formatGBP(total)} across ${rows.length} expense${rows.length === 1 ? "" : "s"}`;
 
     // Category badges
     if (!rows.length) {
@@ -757,15 +800,19 @@
     const monthKey = monthPick.value;
     const { rows } = calcSummary(docs, monthKey);
 
-    const header = ["Date", "Supplier", "Category", "Net", "Notes"];
+    const header = ["Date", "Supplier", "Category", "Net", "VAT", "Gross", "Notes"];
     const lines = [header];
 
     for (const r of rows) {
+      const { net, vat, gross } = calcVat(r.net);
+
       lines.push([
         r.date || "",
         (r.supplier || "").replaceAll('"', '""'),
         (r.category || "").replaceAll('"', '""'),
-        String(Number(r.net) || 0),
+        net.toFixed(2),
+        vat.toFixed(2),
+        gross.toFixed(2),
         (r.notes || "").replaceAll('"', '""')
       ]);
     }
