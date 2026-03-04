@@ -140,6 +140,14 @@
 
       <input id="expNet" type="number" step="0.01" placeholder="Net (£)"
         style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+
+        <select id="expVatCode"
+          style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+          <option value="standard">VAT 20% (Standard)</option>
+          <option value="reduced">VAT 5% (Reduced)</option>
+          <option value="zero">VAT 0% (Zero)</option>
+          <option value="exempt">Exempt / No VAT</option>
+        </select>
       
       <input id="expReceipt" class="hidden" type="file" accept="image/*,.pdf"
         style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-top:10px;">
@@ -196,7 +204,7 @@
 
       <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:700;">
         <input id="vatMode" type="checkbox" style="width:18px; height:18px;">
-        VAT @20%
+        Show VAT
       </label>
 
       <button class="btn" id="btnClearFilters" style="background:#6b7280;">Clear</button>
@@ -293,6 +301,7 @@
   const toDate = document.getElementById("toDate");
   const sortBy = document.getElementById("sortBy");
   const vatMode = document.getElementById("vatMode");
+  const expVatCode = document.getElementById("expVatCode");
 
   const categoryOptions = document.getElementById("categoryOptions");
   const categoryQuickPick = document.getElementById("categoryQuickPick");
@@ -398,6 +407,7 @@
       document.getElementById("expCategory").value = data.category || "";
       document.getElementById("expNet").value = typeof data.net === "number" ? String(data.net) : "";
       document.getElementById("expNotes").value = data.notes || "";
+      expVatCode.value = data.vatCode || "standard";
 
       showForm(true);
       formMsg.textContent = "";
@@ -447,7 +457,8 @@
       const date = data.date || "";
       const supplier = data.supplier || "";
       const category = data.category || "";
-      const { net, vat, gross } = calcVat(data.net);
+      const { net, vat, gross } = calcVat(data.net, data.vatCode);
+      const vatLabel = vatLabelFromCode(data.vatCode);
       const netStr = net.toFixed(2);
       const notes = data.notes ? ` • ${data.notes}` : "";
       const receiptLink = data.receipt?.url
@@ -461,7 +472,7 @@
           </div>
 
           ${vatMode.checked ? `<div style="color:var(--muted); font-weight:600; font-size:13px;">
-            VAT £${vat.toFixed(2)} • Gross £${gross.toFixed(2)}
+            ${vatLabel} • VAT £${vat.toFixed(2)} • Gross £${gross.toFixed(2)}
           </div>` : ``}
           <div style="color:var(--muted);">${date} • ${supplier}${notes}${receiptLink}</div>
         </div>
@@ -655,7 +666,8 @@
     });
 
     const totals = filtered.reduce((acc, d) => {
-      const { net, vat, gross } = calcVat(d.data().net);
+      const row = d.data();
+      const { net, vat, gross } = calcVat(row.net, row.vatCode);
       acc.net += net;
       acc.vat += vat;
       acc.gross += gross;
@@ -711,6 +723,7 @@
     document.getElementById("expNet").value = "";
     document.getElementById("expNotes").value = "";
     document.getElementById("expReceipt").value = ""; // harmless even though hidden
+    expVatCode.value = "standard";
   }
 
   function monthKeyFromDateStr(dateStr) {
@@ -724,14 +737,33 @@
     return safe.toLocaleString("en-GB", { style: "currency", currency: "GBP" });
   }
 
-  const VAT_RATE = 0.20; // 20%
+  function vatRateFromCode(code) {
+    switch (code) {
+      case "standard": return 0.20;
+      case "reduced":  return 0.05;
+      case "zero":     return 0.00;
+      case "exempt":   return 0.00;
+      default:         return 0.20; // backwards compat for old rows
+    }
+  }
 
-  function calcVat(net) {
+  function vatLabelFromCode(code) {
+    switch (code) {
+      case "standard": return "VAT 20%";
+      case "reduced":  return "VAT 5%";
+      case "zero":     return "VAT 0%";
+      case "exempt":   return "Exempt";
+      default:         return "VAT 20%";
+    }
+  }
+
+  function calcVat(net, vatCode) {
     const n = Number(net);
     const safe = Number.isFinite(n) ? n : 0;
-    const vat = safe * VAT_RATE;
+    const rate = vatRateFromCode(vatCode);
+    const vat = safe * rate;
     const gross = safe + vat;
-    return { net: safe, vat, gross };
+    return { net: safe, vat, gross, rate };
   }
 
   function calcSummary(docs, monthKey) {
@@ -740,7 +772,7 @@
       .filter(x => monthKeyFromDateStr(x.date) === monthKey);
 
     const total = rows.reduce((sum, r) => sum + (Number(r.net) || 0), 0);
-    const vatTotal = rows.reduce((sum, r) => sum + (Number(r.net) || 0) * VAT_RATE, 0);
+    const vatTotal = rows.reduce((sum, r) => sum + calcVat(r.net, r.vatCode).vat, 0);
     const grossTotal = total + vatTotal;
 
     // Category totals
@@ -800,17 +832,18 @@
     const monthKey = monthPick.value;
     const { rows } = calcSummary(docs, monthKey);
 
-    const header = ["Date", "Supplier", "Category", "Net", "VAT", "Gross", "Notes"];
+    const header = ["Date", "Supplier", "Category", "Net", "VAT Code", "VAT", "Gross", "Notes"];
     const lines = [header];
 
     for (const r of rows) {
-      const { net, vat, gross } = calcVat(r.net);
+      const { net, vat, gross } = calcVat(r.net, r.vatCode);
 
       lines.push([
         r.date || "",
         (r.supplier || "").replaceAll('"', '""'),
         (r.category || "").replaceAll('"', '""'),
         net.toFixed(2),
+        (r.vatCode || "standard"),
         vat.toFixed(2),
         gross.toFixed(2),
         (r.notes || "").replaceAll('"', '""')
@@ -858,6 +891,7 @@
     const category = document.getElementById("expCategory").value.trim();
     const netRaw = document.getElementById("expNet").value;
     const notes = document.getElementById("expNotes").value.trim();
+    const vatCode = expVatCode.value || "standard";
     // Attachments disabled for now (Spark plan)
     const receiptFile = null;
 
@@ -896,8 +930,8 @@
           supplier,
           category,
           net,
+          vatCode,
           notes
-          // keep createdAt as-is
         });
       } else {
         // create new
@@ -906,6 +940,7 @@
           supplier,
           category,
           net,
+          vatCode,
           notes,
           receipt,
           createdAt: serverTimestamp()
@@ -937,6 +972,8 @@
       appArea.style.display = "block";
       
       loadSavedFilters();
+
+      saveFilters(); // ensure defaults are persisted at least once
 
       // default month picker to current month once
       if (!monthPick.value) {
