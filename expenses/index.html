@@ -445,7 +445,7 @@
   // --- UI helpers ---
   function renderExpenses(docs) {
     // cache docs so we can load data when editing
-    latestDocsById = new Map(docs.map(d => [d.id, d]));
+    // DO NOT overwrite latestDocsById here (it is built from the full snapshot)
 
     if (!docs.length) {
       expensesList.textContent = "No expenses yet.";
@@ -468,12 +468,26 @@
       return `<div style="padding:10px 0; border-top:1px solid rgba(0,0,0,.08); display:flex; justify-content:space-between; gap:12px;">
         <div>
           <div style="font-weight:600;">
-            £${netStr} <span style="color:var(--muted); font-weight:400;">(${category})</span>
+            £${netStr}
+            <span style="color:var(--muted); font-weight:400;">(${category})</span>
+
+            <span style="
+              margin-left:8px;
+              padding:2px 8px;
+              border:1px solid rgba(0,0,0,.10);
+              border-radius:999px;
+              font-size:12px;
+              font-weight:700;
+              color:var(--muted);
+              background:#fff;
+              white-space:nowrap;
+            ">${vatLabel}</span>
           </div>
 
-          ${vatMode.checked ? `<div style="color:var(--muted); font-weight:600; font-size:13px;">
-            ${vatLabel} • VAT £${vat.toFixed(2)} • Gross £${gross.toFixed(2)}
+          ${vatMode.checked ? `<div style="color:var(--muted); font-weight:600; font-size:13px; margin-top:4px;">
+            VAT £${vat.toFixed(2)} • Gross £${gross.toFixed(2)}
           </div>` : ``}
+
           <div style="color:var(--muted);">${date} • ${supplier}${notes}${receiptLink}</div>
         </div>
 
@@ -973,7 +987,7 @@
       
       loadSavedFilters();
 
-      saveFilters(); // ensure defaults are persisted at least once
+      if (localStorage.getItem(LS_KEYS.range) === null) saveFilters(); // ensure defaults are persisted at least once
 
       // default month picker to current month once
       if (!monthPick.value) {
@@ -1001,6 +1015,8 @@
       unsubscribeExpenses = onSnapshot(q, (snap) => {
         const docs = snap.docs;
         latestDocs = docs;
+
+        latestDocsById = new Map(docs.map(d => [d.id, d]));
 
         hydrateFilters(docs);
         applyFilters();        // <-- renders the filtered list (instead of renderExpenses)
