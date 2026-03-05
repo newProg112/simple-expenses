@@ -114,6 +114,23 @@
         </div>
 
         <div id="summaryBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
+        <hr style="border:none; border-top:1px solid rgba(0,0,0,.08); margin:14px 0;">
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-weight:800;">VAT Quarter</div>
+            <div style="color:var(--muted);" id="vatQuarterLine">—</div>
+          </div>
+
+          <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:600;">
+            Quarter
+            <select id="vatQuarterPick"
+              style="padding:8px 10px; border-radius:10px; border:1px solid #ccc;">
+            </select>
+          </label>
+        </div>
+
+        <div id="vatQuarterBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
       </div>
 
   <div class="card" id="expenseForm" style="display:none;">
@@ -299,6 +316,10 @@
   const summaryBadges = document.getElementById("summaryBadges");
   const monthPick = document.getElementById("monthPick");
   const btnExportCsv = document.getElementById("btnExportCsv");
+
+  const vatQuarterPick = document.getElementById("vatQuarterPick");
+  const vatQuarterLine = document.getElementById("vatQuarterLine");
+  const vatQuarterBadges = document.getElementById("vatQuarterBadges");
 
   const searchBox = document.getElementById("searchBox");
   const categoryFilter = document.getElementById("categoryFilter");
@@ -880,6 +901,129 @@
     }).join("");
   }
 
+  function quarterKeyFromDateStr(dateStr) {
+    // "YYYY-MM-DD" -> "YYYY-Qn"
+    if (!dateStr || dateStr.length < 7) return null;
+    const y = Number(dateStr.slice(0, 4));
+    const m = Number(dateStr.slice(5, 7)); // 1..12
+    if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return null;
+    const q = Math.floor((m - 1) / 3) + 1; // 1..4
+    return `${y}-Q${q}`;
+  }
+
+  function quarterRangeLabel(quarterKey) {
+    // "2026-Q1" -> "Jan–Mar 2026"
+    const [yy, qq] = (quarterKey || "").split("-Q");
+    const y = Number(yy);
+    const q = Number(qq);
+    if (!Number.isFinite(y) || !Number.isFinite(q)) return quarterKey || "—";
+
+    const names = [
+      ["Jan", "Mar"],
+      ["Apr", "Jun"],
+      ["Jul", "Sep"],
+      ["Oct", "Dec"]
+    ];
+    const idx = q - 1;
+    if (!names[idx]) return quarterKey;
+
+    return `${names[idx][0]}–${names[idx][1]} ${y}`;
+  }
+
+  function buildQuarterOptions(docs) {
+    // Collect quarters from existing expenses
+    const set = new Set();
+    for (const d of docs) {
+      const k = quarterKeyFromDateStr(d.data().date);
+      if (k) set.add(k);
+    }
+
+    // If no docs yet, still give current quarter
+    if (set.size === 0) {
+      const now = new Date();
+      const y = now.getFullYear();
+      const q = Math.floor(now.getMonth() / 3) + 1;
+      set.add(`${y}-Q${q}`);
+    }
+
+    // Sort newest first
+    const sorted = [...set].sort((a, b) => {
+      // compare YYYY then Q
+      const [ay, aq] = a.split("-Q").map(Number);
+      const [by, bq] = b.split("-Q").map(Number);
+      if (ay !== by) return by - ay;
+      return bq - aq;
+    });
+
+    vatQuarterPick.innerHTML = sorted
+      .map(k => `<option value="${k}">${quarterRangeLabel(k)}</option>`)
+      .join("");
+
+    // Keep selection if possible, otherwise default to first (newest)
+    const current = vatQuarterPick.value;
+    if (!sorted.includes(current)) {
+      vatQuarterPick.value = sorted[0];
+    }
+  }
+
+  function calcVatQuarter(docs, quarterKey) {
+    const rows = docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(x => quarterKeyFromDateStr(x.date) === quarterKey);
+
+    const totals = rows.reduce((acc, r) => {
+      const { net, vat, gross } = calcVat(r.net, r.vatCode);
+      acc.net += net;
+      acc.vat += vat;
+      acc.gross += gross;
+
+      const code = (r.vatCode || "standard");
+      acc.byVatCode.set(code, (acc.byVatCode.get(code) || 0) + net);
+
+      return acc;
+    }, { net: 0, vat: 0, gross: 0, byVatCode: new Map() });
+
+    const byVat = [...totals.byVatCode.entries()]
+      .sort((a, b) => b[1] - a[1]);
+
+    return { rows, ...totals, byVat };
+  }
+
+  function renderVatQuarter(docs) {
+    const quarterKey = vatQuarterPick.value;
+    if (!quarterKey) return;
+
+    const { rows, net, vat, gross, byVat } = calcVatQuarter(docs, quarterKey);
+
+    // Line
+    if (!rows.length) {
+      vatQuarterLine.textContent = `${quarterRangeLabel(quarterKey)} — no expenses`;
+      vatQuarterBadges.innerHTML = `<div style="color:var(--muted); font-weight:600;">No expenses in this quarter.</div>`;
+      return;
+    }
+
+    // If you want the line to respect the "Show VAT" toggle:
+    vatQuarterLine.textContent = vatMode.checked
+      ? `${quarterRangeLabel(quarterKey)} — Net ${formatGBP(net)} • VAT ${formatGBP(vat)} • Gross ${formatGBP(gross)} (${rows.length} expense${rows.length === 1 ? "" : "s"})`
+      : `${quarterRangeLabel(quarterKey)} — ${formatGBP(net)} (${rows.length} expense${rows.length === 1 ? "" : "s"})`;
+
+    // Badges: show net by VAT code (helps spot standard vs exempt etc)
+    vatQuarterBadges.innerHTML = byVat.map(([code, amt]) => {
+      const label = vatLabelFromCode(code);
+      return `<div style="
+        padding:8px 10px;
+        border:1px solid rgba(0,0,0,.10);
+        border-radius:999px;
+        background:#fff;
+        font-weight:800;
+        font-size:13px;
+      ">
+        <span style="color:var(--muted); font-weight:700;">${label}</span>
+        <span style="margin-left:8px;">${formatGBP(amt)}</span>
+      </div>`;
+    }).join("");
+  }
+
   function exportCsvForMonth(docs) {
     const monthKey = monthPick.value;
     const { rows } = calcSummary(docs, monthKey);
@@ -1040,6 +1184,10 @@
         renderSummary([...latestDocsById.values()]);
       };
 
+      vatQuarterPick.onchange = () => {
+        renderVatQuarter([...latestDocsById.values()]);
+      };
+
       // export
       btnExportCsv.onclick = () => {
         exportCsvForMonth([...latestDocsById.values()]);
@@ -1060,6 +1208,9 @@
         applyFilters();        // <-- renders the filtered list (instead of renderExpenses)
 
         renderSummary(docs);   // summary stays based on ALL docs (good)
+
+        buildQuarterOptions(docs);
+        renderVatQuarter(docs);
       }, (err) => {
         console.error(err);
         expensesList.textContent = "Could not load expenses.";
