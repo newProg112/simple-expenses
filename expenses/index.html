@@ -176,6 +176,15 @@
         <option value="">All categories</option>
       </select>
 
+      <select id="vatFilter"
+        style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:170px;">
+        <option value="">All VAT</option>
+        <option value="standard">VAT 20%</option>
+        <option value="reduced">VAT 5%</option>
+        <option value="zero">VAT 0%</option>
+        <option value="exempt">Exempt</option>
+      </select>
+
       <select id="rangeFilter"
         style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
         <option value="all">All time</option>
@@ -293,6 +302,7 @@
 
   const searchBox = document.getElementById("searchBox");
   const categoryFilter = document.getElementById("categoryFilter");
+  const vatFilter = document.getElementById("vatFilter");
   const btnClearFilters = document.getElementById("btnClearFilters");
 
   const rangeFilter = document.getElementById("rangeFilter");
@@ -309,6 +319,7 @@
   const LS_KEYS = {
     q: "se_filters_q",
     cat: "se_filters_cat",
+    vatCode: "se_filters_vatcode",
     range: "se_filters_range",
     from: "se_filters_from",
     to: "se_filters_to",
@@ -342,10 +353,12 @@
   toDate.addEventListener("change", () => { saveFilters(); applyFilters(); });
 
   vatMode.addEventListener("change", () => { saveFilters(); applyFilters(); renderSummary([...latestDocsById.values()]); });
+  vatFilter.addEventListener("change", () => { saveFilters(); applyFilters(); });
 
   btnClearFilters.addEventListener("click", () => {
     searchBox.value = "";
     categoryFilter.value = "";
+    vatFilter.value = "";
 
     rangeFilter.value = "all";
     customRange.style.display = "none";
@@ -362,6 +375,7 @@
     localStorage.removeItem(LS_KEYS.from);
     localStorage.removeItem(LS_KEYS.to);
     localStorage.removeItem(LS_KEYS.sort);
+    localStorage.removeItem(LS_KEYS.vatCode);
 
     // Optional: re-save the clean defaults
     saveFilters();
@@ -459,6 +473,7 @@
       const category = data.category || "";
       const { net, vat, gross } = calcVat(data.net, data.vatCode);
       const vatLabel = vatLabelFromCode(data.vatCode);
+      const badge = vatBadgeStyleFromCode(data.vatCode);
       const netStr = net.toFixed(2);
       const notes = data.notes ? ` • ${data.notes}` : "";
       const receiptLink = data.receipt?.url
@@ -474,12 +489,12 @@
             <span style="
               margin-left:8px;
               padding:2px 8px;
-              border:1px solid rgba(0,0,0,.10);
+              border:1px solid ${badge.border};
               border-radius:999px;
               font-size:12px;
               font-weight:700;
-              color:var(--muted);
-              background:#fff;
+              color:${badge.text};
+              background:${badge.bg};
               white-space:nowrap;
             ">${vatLabel}</span>
           </div>
@@ -580,6 +595,8 @@
     const to = localStorage.getItem(LS_KEYS.to);
     const sort = localStorage.getItem(LS_KEYS.sort);
     const vat = localStorage.getItem(LS_KEYS.vat);
+    const vatCode = localStorage.getItem(LS_KEYS.vatCode);
+    if (vatCode !== null) vatFilter.value = vatCode;
     if (vat !== null) vatMode.checked = (vat === "1");
 
     if (q !== null) searchBox.value = q;
@@ -604,12 +621,15 @@
     localStorage.setItem(LS_KEYS.to, toDate.value || "");
     localStorage.setItem(LS_KEYS.sort, sortBy.value || "createdDesc");
     localStorage.setItem(LS_KEYS.vat, vatMode.checked ? "1" : "0");
+    localStorage.setItem(LS_KEYS.vatCode, vatFilter.value || "");
   }
 
   function applyFilters() {
     const q = (searchBox.value || "").trim().toLowerCase();
     const cat = categoryFilter.value || "";
     const range = rangeFilter.value || "all";
+    const vatCode = vatFilter.value || "";
+    const vLabel = vatCode ? `VAT: ${vatLabelFromCode(vatCode)}` : "";
 
     // Build range bounds (UTC)
     let startUTC = null;
@@ -642,12 +662,14 @@
       const notes = (data.notes || "").toLowerCase();
       const category = (data.category || "").trim();
       const dateStr = data.date || "";
+      const rowVat = (data.vatCode || "standard");
+      const matchesVat = !vatCode || rowVat === vatCode;
 
       const matchesText = !q || supplier.includes(q) || notes.includes(q);
       const matchesCat = !cat || category === cat;
       const matchesDate = (range === "all") ? true : dateInRange(dateStr, startUTC, endUTC);
 
-      return matchesText && matchesCat && matchesDate;
+      return matchesText && matchesCat && matchesVat && matchesDate;
     });
 
     const sortMode = sortBy.value || "createdDesc";
@@ -713,7 +735,7 @@
       rLabel = `Range: ${f} → ${t}`;
     }
 
-    const bits = [qLabel, cLabel, rLabel].filter(Boolean).join(" • ");
+    const bits = [qLabel, cLabel, vLabel, rLabel].filter(Boolean).join(" • ");
     filterHint.textContent = bits
       ? `Showing ${showing} of ${total} (${bits})`
       : `Showing ${showing} of ${total}`;
@@ -768,6 +790,22 @@
       case "zero":     return "VAT 0%";
       case "exempt":   return "Exempt";
       default:         return "VAT 20%";
+    }
+  }
+
+  function vatBadgeStyleFromCode(code) {
+    // returns inline CSS (kept simple + readable)
+    switch (code) {
+      case "standard": // 20%
+        return { bg: "rgba(14,165,233,.12)", border: "rgba(14,165,233,.35)", text: "#0369a1" };
+      case "reduced": // 5%
+        return { bg: "rgba(20,184,166,.12)", border: "rgba(20,184,166,.35)", text: "#0f766e" };
+      case "zero": // 0%
+        return { bg: "rgba(107,114,128,.12)", border: "rgba(107,114,128,.35)", text: "#374151" };
+      case "exempt": // exempt
+        return { bg: "rgba(245,158,11,.14)", border: "rgba(245,158,11,.40)", text: "#92400e" };
+      default:
+        return { bg: "rgba(14,165,233,.12)", border: "rgba(14,165,233,.35)", text: "#0369a1" };
     }
   }
 
