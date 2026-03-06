@@ -128,6 +128,10 @@
               style="padding:8px 10px; border-radius:10px; border:1px solid #ccc;">
             </select>
           </label>
+
+          <button class="btn" id="btnExportVatQuarter" style="background:#111827;">
+            Export VAT CSV
+          </button>
         </div>
 
         <div id="vatQuarterBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
@@ -178,7 +182,8 @@
       <button class="btn" id="btnCancelExpense" style="background:#6b7280;">Cancel</button>
     </div>
 
-    <div id="formMsg" style="margin-top:10px; color:#b91c1c;"></div>
+    <div id="duplicateWarning" style="margin-top:10px; color:#92400e; font-weight:700;"></div>
+    <div id="formMsg" style="margin-top:8px; color:#b91c1c;"></div>
   </div>
 
   <div class="card">
@@ -236,8 +241,25 @@
       <button class="btn" id="btnClearFilters" style="background:#6b7280;">Clear</button>
     </div>
 
-    <div id="filterHint" style="color:var(--muted); margin-bottom:6px; font-weight:600;"></div>
-    <div id="filteredTotal" style="color:var(--text); margin-bottom:10px; font-weight:800;"></div>
+    <div id="stickyTotalsBar" style="
+      position:sticky;
+      top:0;
+      z-index:5;
+      background:var(--bg);
+      padding:10px 0 10px 0;
+      margin-bottom:10px;
+    ">
+      <div style="
+        border:1px solid rgba(0,0,0,.08);
+        border-radius:12px;
+        padding:10px 12px;
+        background:#fff;
+        box-shadow:0 4px 12px rgba(0,0,0,.04);
+      ">
+        <div id="filterHint" style="color:var(--muted); margin-bottom:6px; font-weight:600;"></div>
+        <div id="filteredTotal" style="color:var(--text); font-weight:800;"></div>
+      </div>
+    </div>
 
     <div id="expensesList">No expenses yet.</div>
   </div>
@@ -306,6 +328,7 @@
   const btnCancelExpense = document.getElementById("btnCancelExpense");
   const expensesList = document.getElementById("expensesList");
   const formMsg = document.getElementById("formMsg");
+  const duplicateWarning = document.getElementById("duplicateWarning");
 
   const filterHint = document.getElementById("filterHint");
   const filteredTotal = document.getElementById("filteredTotal");
@@ -320,6 +343,7 @@
   const vatQuarterPick = document.getElementById("vatQuarterPick");
   const vatQuarterLine = document.getElementById("vatQuarterLine");
   const vatQuarterBadges = document.getElementById("vatQuarterBadges");
+  const btnExportVatQuarter = document.getElementById("btnExportVatQuarter");
 
   const searchBox = document.getElementById("searchBox");
   const categoryFilter = document.getElementById("categoryFilter");
@@ -336,6 +360,11 @@
 
   const categoryOptions = document.getElementById("categoryOptions");
   const categoryQuickPick = document.getElementById("categoryQuickPick");
+
+  // --- Duplicate detection listeners ---
+  document.getElementById("expDate").addEventListener("input", checkDuplicateLive);
+  document.getElementById("expSupplier").addEventListener("input", checkDuplicateLive);
+  document.getElementById("expNet").addEventListener("input", checkDuplicateLive);
 
   const LS_KEYS = {
     q: "se_filters_q",
@@ -358,6 +387,7 @@
   let latestDocsById = new Map(); // store latest snapshot docs for editing
 
   let latestDocs = []; // keep the last snapshot array for filtering
+  let possibleDuplicateId = null;
 
   rangeFilter.addEventListener("change", () => {
     const isCustom = rangeFilter.value === "custom";
@@ -447,6 +477,31 @@
       showForm(true);
       formMsg.textContent = "";
     }
+
+    if (action === "duplicate") {
+
+      const snapDoc = latestDocsById.get(id);
+      if (!snapDoc) return alert("Could not duplicate this expense.");
+
+      const data = snapDoc.data();
+
+      // Important: reset editing state so this becomes a NEW record
+      editingId = null;
+
+      document.querySelector("#expenseForm h3").textContent = "Duplicate expense";
+      btnSaveExpense.textContent = "Save";
+
+      document.getElementById("expDate").value = data.date || "";
+      document.getElementById("expSupplier").value = data.supplier || "";
+      document.getElementById("expCategory").value = data.category || "";
+      document.getElementById("expNet").value =
+        typeof data.net === "number" ? String(data.net) : "";
+      document.getElementById("expNotes").value = data.notes || "";
+      expVatCode.value = data.vatCode || "standard";
+
+      showForm(true);
+      formMsg.textContent = "";
+    }
   });
 
   // --- Auth actions ---
@@ -501,7 +556,11 @@
         ? ` • <a href="${data.receipt.url}" target="_blank" rel="noopener" style="color:var(--accent); font-weight:600; text-decoration:none;">View receipt</a>`
         : "";
 
-      return `<div style="padding:10px 0; border-top:1px solid rgba(0,0,0,.08); display:flex; justify-content:space-between; gap:12px;">
+      const highlight = d.id === possibleDuplicateId
+        ? "background:rgba(245,158,11,.12); border-radius:10px; padding:8px;"
+        : "";
+
+      return `<div style="${highlight} padding:10px 0; border-top:1px solid rgba(0,0,0,.08); display:flex; justify-content:space-between; gap:12px;">
         <div>
           <div style="font-weight:600;">
             £${netStr}
@@ -531,6 +590,11 @@
           <button class="btn" data-action="edit" data-id="${d.id}" style="background:#0ea5e9; height:40px;">
             Edit
           </button>
+
+          <button class="btn" data-action="duplicate" data-id="${d.id}" style="background:#6366f1; height:40px;">
+            Duplicate
+          </button>
+
           <button class="btn" data-action="delete" data-id="${d.id}" style="background:#ef4444; height:40px;">
             Delete
           </button>
@@ -643,6 +707,63 @@
     localStorage.setItem(LS_KEYS.sort, sortBy.value || "createdDesc");
     localStorage.setItem(LS_KEYS.vat, vatMode.checked ? "1" : "0");
     localStorage.setItem(LS_KEYS.vatCode, vatFilter.value || "");
+  }
+
+  function findPossibleDuplicate({ date, supplier, net, editingId = null }) {
+    const supplierNorm = (supplier || "").trim().toLowerCase();
+    const netNorm = Number(net);
+
+    if (!date || !supplierNorm || !Number.isFinite(netNorm)) return null;
+
+    for (const d of latestDocs) {
+      if (editingId && d.id === editingId) continue; // ignore the row being edited
+
+      const data = d.data();
+      const rowDate = data.date || "";
+      const rowSupplier = (data.supplier || "").trim().toLowerCase();
+      const rowNet = Number(data.net);
+
+      if (
+        rowDate === date &&
+        rowSupplier === supplierNorm &&
+        Number.isFinite(rowNet) &&
+        rowNet === netNorm
+      ) {
+        return {
+          id: d.id,
+          supplier: data.supplier || "",
+          date: rowDate,
+          net: rowNet
+        };
+      }
+    }
+
+    return null;
+  }
+
+  function checkDuplicateLive() {
+    const date = document.getElementById("expDate").value;
+    const supplier = document.getElementById("expSupplier").value.trim();
+    const net = Number(document.getElementById("expNet").value);
+
+    const possibleDuplicate = findPossibleDuplicate({
+      date,
+      supplier,
+      net,
+      editingId
+    });
+
+    if (possibleDuplicate) {
+      possibleDuplicateId = possibleDuplicate.id;
+
+      duplicateWarning.textContent =
+        `Possible duplicate found: ${possibleDuplicate.supplier} on ${possibleDuplicate.date} for ${formatGBP(possibleDuplicate.net)}.`;
+    } else {
+      possibleDuplicateId = null;
+      duplicateWarning.textContent = "";
+    }
+
+    applyFilters(); // re-render list to highlight duplicate
   }
 
   function applyFilters() {
@@ -766,6 +887,7 @@
 
   function showForm(show) {
     formMsg.textContent = "";
+    duplicateWarning.textContent = "";
     expenseForm.style.display = show ? "block" : "none";
   }
 
@@ -773,6 +895,7 @@
     editingId = null;
     document.querySelector("#expenseForm h3").textContent = "New expense";
     btnSaveExpense.textContent = "Save";
+    duplicateWarning.textContent = "";
 
     document.getElementById("expDate").value = "";
     document.getElementById("expSupplier").value = "";
@@ -1063,6 +1186,48 @@
     URL.revokeObjectURL(url);
   }
 
+  function exportCsvForVatQuarter(docs) {
+
+    const quarterKey = vatQuarterPick.value;
+
+    const { rows } = calcVatQuarter(docs, quarterKey);
+
+    const header = ["Date","Supplier","Category","Net","VAT Code","VAT","Gross","Notes"];
+    const lines = [header];
+
+    for (const r of rows) {
+
+      const { net, vat, gross } = calcVat(r.net, r.vatCode);
+
+      lines.push([
+        r.date || "",
+        (r.supplier || "").replaceAll('"','""'),
+        (r.category || "").replaceAll('"','""'),
+        net.toFixed(2),
+        r.vatCode || "standard",
+        vat.toFixed(2),
+        gross.toFixed(2),
+        (r.notes || "").replaceAll('"','""')
+      ]);
+    }
+
+    const csv = lines
+      .map(cols => cols.map(v => `"${String(v)}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `simple-expenses_${quarterKey}_vat.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
   // --- Expense form buttons ---
   btnAddExpense.addEventListener("click", () => {
     resetFormState();
@@ -1092,6 +1257,20 @@
     const receiptFile = null;
 
     const net = Number(netRaw);
+
+    duplicateWarning.textContent = "";
+
+    const possibleDuplicate = findPossibleDuplicate({
+      date,
+      supplier,
+      net,
+      editingId
+    });
+
+    if (possibleDuplicate) {
+      duplicateWarning.textContent =
+        `Possible duplicate found: ${possibleDuplicate.supplier} on ${possibleDuplicate.date} for ${formatGBP(possibleDuplicate.net)}. Saving will still continue.`;
+    }
 
     if (!date) return (formMsg.textContent = "Please pick a date.");
     if (!supplier) return (formMsg.textContent = "Please enter a supplier.");
@@ -1191,6 +1370,10 @@
       // export
       btnExportCsv.onclick = () => {
         exportCsvForMonth([...latestDocsById.values()]);
+      };
+
+      btnExportVatQuarter.onclick = () => {
+        exportCsvForVatQuarter([...latestDocsById.values()]);
       };
 
       summaryCard.style.display = "block";
