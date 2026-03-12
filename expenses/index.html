@@ -61,6 +61,27 @@
   </div>
 </header>
 
+<div id="toast" style="
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  z-index:9999;
+  min-width:220px;
+  max-width:340px;
+  background:#111827;
+  color:white;
+  padding:14px 16px;
+  border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.18);
+  font-weight:700;
+  opacity:0;
+  transform:translateY(10px);
+  pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease;
+">
+  Saved
+</div>
+
 <div class="wrap">
 
   <h1>Simple Expenses</h1>
@@ -113,6 +134,69 @@
           </div>
         </div>
 
+        <div id="dashboardCards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:14px;">
+          <div id="cardThisMonth" class="card" style="margin-top:0; cursor:pointer;">
+            <div style="color:var(--muted); font-weight:700; font-size:13px;">This month</div>
+            <div id="dashThisMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+          </div>
+
+          <div id="cardLastMonth" class="card" style="margin-top:0; cursor:pointer;">
+            <div style="color:var(--muted); font-weight:700; font-size:13px;">Last month</div>
+            <div id="dashLastMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+          </div>
+
+          <div id="cardYtd" class="card" style="margin-top:0; cursor:pointer;">
+            <div style="color:var(--muted); font-weight:700; font-size:13px;">Year to date</div>
+            <div id="dashYtd" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+          </div>
+
+          <div id="cardCount" class="card" style="margin-top:0; cursor:pointer;">
+            <div style="color:var(--muted); font-weight:700; font-size:13px;">Expense count</div>
+            <div id="dashCount" style="font-size:24px; font-weight:800; margin-top:6px;">0</div>
+          </div>
+        </div>
+
+        <div id="monthlyChart" style="
+          margin-top:14px;
+          padding:14px;
+          border:1px solid rgba(0,0,0,.08);
+          border-radius:14px;
+          background:#fff;
+        ">
+          <div style="font-weight:800; margin-bottom:8px;">Monthly spend</div>
+
+          <div style="height:320px;">
+            <canvas id="chartCanvas"></canvas>
+          </div>
+        </div>
+
+        <div style="
+          display:grid;
+          grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+          gap:14px;
+          margin-top:14px;
+        ">
+          <div id="topSuppliersCard" style="
+            padding:14px;
+            border:1px solid rgba(0,0,0,.08);
+            border-radius:14px;
+            background:#fff;
+          ">
+            <div style="font-weight:800; margin-bottom:10px;">Top suppliers</div>
+            <div id="topSuppliersList"></div>
+          </div>
+
+          <div id="topCategoriesCard" style="
+            padding:14px;
+            border:1px solid rgba(0,0,0,.08);
+            border-radius:14px;
+            background:#fff;
+          ">
+            <div style="font-weight:800; margin-bottom:10px;">Top categories</div>
+            <div id="topCategoriesList"></div>
+          </div>
+        </div>
+
         <div id="summaryBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
         <hr style="border:none; border-top:1px solid rgba(0,0,0,.08); margin:14px 0;">
 
@@ -144,8 +228,17 @@
       <input id="expDate" type="date"
         style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
 
-      <input id="expSupplier" placeholder="Supplier"
-        style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <input id="expSupplier" list="supplierOptions" placeholder="Supplier"
+          style="flex:1; width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+
+        <select id="supplierQuickPick"
+          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
+          <option value="">Recent suppliers…</option>
+        </select>
+      </div>
+
+      <datalist id="supplierOptions"></datalist>
 
       <div style="display:flex; gap:10px; align-items:center;">
         <input id="expCategory" list="categoryOptions" placeholder="Category (e.g. Travel)"
@@ -158,6 +251,8 @@
       </div>
 
       <datalist id="categoryOptions"></datalist>
+
+      <div id="categoryChips" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;"></div>
 
       <input id="expNet" type="number" step="0.01" placeholder="Net (£)"
         style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
@@ -238,6 +333,7 @@
         Show VAT
       </label>
 
+      <button class="btn" id="btnExportFilteredCsv" style="background:#111827;">Export filtered CSV</button>
       <button class="btn" id="btnClearFilters" style="background:#6b7280;">Clear</button>
     </div>
 
@@ -267,6 +363,8 @@
     </div>
 
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- Firebase (place at bottom of body) -->
 <script type="module">
@@ -333,6 +431,13 @@
   const filterHint = document.getElementById("filterHint");
   const filteredTotal = document.getElementById("filteredTotal");
 
+  const supplierOptions = document.getElementById("supplierOptions");
+  const supplierQuickPick = document.getElementById("supplierQuickPick");
+
+  const chartCanvas = document.getElementById("chartCanvas");
+  const topSuppliersList = document.getElementById("topSuppliersList");
+  const topCategoriesList = document.getElementById("topCategoriesList");
+
   // --- Summary elements ---
   const summaryCard = document.getElementById("summaryCard");
   const summaryLine = document.getElementById("summaryLine");
@@ -349,6 +454,7 @@
   const categoryFilter = document.getElementById("categoryFilter");
   const vatFilter = document.getElementById("vatFilter");
   const btnClearFilters = document.getElementById("btnClearFilters");
+  const btnExportFilteredCsv = document.getElementById("btnExportFilteredCsv");
 
   const rangeFilter = document.getElementById("rangeFilter");
   const customRange = document.getElementById("customRange");
@@ -358,8 +464,22 @@
   const vatMode = document.getElementById("vatMode");
   const expVatCode = document.getElementById("expVatCode");
 
+  const dashThisMonth = document.getElementById("dashThisMonth");
+  const dashLastMonth = document.getElementById("dashLastMonth");
+  const dashYtd = document.getElementById("dashYtd");
+  const dashCount = document.getElementById("dashCount");
+
+  const categoryChips = document.getElementById("categoryChips");
+
+  const cardThisMonth = document.getElementById("cardThisMonth");
+  const cardLastMonth = document.getElementById("cardLastMonth");
+  const cardYtd = document.getElementById("cardYtd");
+  const cardCount = document.getElementById("cardCount");
+
   const categoryOptions = document.getElementById("categoryOptions");
   const categoryQuickPick = document.getElementById("categoryQuickPick");
+
+  const toast = document.getElementById("toast");
 
   // --- Duplicate detection listeners ---
   document.getElementById("expDate").addEventListener("input", checkDuplicateLive);
@@ -383,11 +503,20 @@
     }
   });
 
+  supplierQuickPick.addEventListener("change", () => {
+    if (supplierQuickPick.value) {
+      document.getElementById("expSupplier").value = supplierQuickPick.value;
+      checkDuplicateLive();
+    }
+  });
+
   let editingId = null;          // null = creating, otherwise editing this doc id
   let latestDocsById = new Map(); // store latest snapshot docs for editing
 
   let latestDocs = []; // keep the last snapshot array for filtering
   let possibleDuplicateId = null;
+
+  let monthlyChart = null;
 
   rangeFilter.addEventListener("change", () => {
     const isCustom = rangeFilter.value === "custom";
@@ -403,7 +532,12 @@
   fromDate.addEventListener("change", () => { saveFilters(); applyFilters(); });
   toDate.addEventListener("change", () => { saveFilters(); applyFilters(); });
 
-  vatMode.addEventListener("change", () => { saveFilters(); applyFilters(); renderSummary([...latestDocsById.values()]); });
+  vatMode.addEventListener("change", () => {
+    saveFilters();
+    applyFilters();
+    renderSummary([...latestDocsById.values()]);
+    renderDashboardCards([...latestDocsById.values()]);
+  });
   vatFilter.addEventListener("change", () => { saveFilters(); applyFilters(); });
 
   btnClearFilters.addEventListener("click", () => {
@@ -432,6 +566,18 @@
     saveFilters();
 
     applyFilters();
+    setActiveDashboardCard("");
+    if (rangeFilter.value === "thisMonth") {
+      setActiveDashboardCard("cardThisMonth");
+    } else if (
+      rangeFilter.value === "custom" &&
+      fromDate.value === formatDateInputUTC(startOfYearUTC()) &&
+      toDate.value === formatDateInputUTC(todayUTC())
+    ) {
+      setActiveDashboardCard("cardYtd");
+    } else {
+      setActiveDashboardCard("");
+    }
   });
 
   // --- Delete handler (event delegation) ---
@@ -450,6 +596,7 @@
       if (!confirm("Delete this expense?")) return;
       try {
         await deleteDoc(doc(db, "users", user.uid, "expenses", id));
+        showToast("Expense deleted", "danger");
         // if we were editing this item, reset form state
         if (editingId === id) resetFormState();
       } catch (err) {
@@ -537,8 +684,37 @@
     // cache docs so we can load data when editing
     // DO NOT overwrite latestDocsById here (it is built from the full snapshot)
 
+    if (!latestDocs.length) {
+      expensesList.innerHTML = `
+        <div style="
+          padding:24px;
+          text-align:center;
+          border:1px dashed rgba(0,0,0,.14);
+          border-radius:16px;
+          color:var(--muted);
+          background:rgba(0,0,0,.02);
+        ">
+          <div style="font-size:18px; font-weight:800; color:var(--text);">No expenses yet</div>
+          <div style="margin-top:8px;">Add your first expense to get started.</div>
+        </div>
+      `;
+      return;
+    }
+
     if (!docs.length) {
-      expensesList.textContent = "No expenses yet.";
+      expensesList.innerHTML = `
+        <div style="
+          padding:24px;
+          text-align:center;
+          border:1px dashed rgba(0,0,0,.14);
+          border-radius:16px;
+          color:var(--muted);
+          background:rgba(0,0,0,.02);
+        ">
+          <div style="font-size:18px; font-weight:800; color:var(--text);">No matching expenses</div>
+          <div style="margin-top:8px;">Try clearing or changing your filters.</div>
+        </div>
+      `;
       return;
     }
 
@@ -601,6 +777,341 @@
         </div>
       </div>`;
     }).join("");
+  }
+
+  let toastTimer = null;
+
+  function showToast(message, tone = "dark") {
+    toast.textContent = message;
+
+    if (tone === "success") {
+      toast.style.background = "#166534";
+    } else if (tone === "danger") {
+      toast.style.background = "#b91c1c";
+    } else if (tone === "info") {
+      toast.style.background = "#1d4ed8";
+    } else {
+      toast.style.background = "#111827";
+    }
+
+    toast.style.opacity = "1";
+    toast.style.transform = "translateY(0)";
+
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transform = "translateY(10px)";
+    }, 2200);
+  }
+
+  function startOfYearUTC() {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+  }
+
+  function formatDateInputUTC(dateUTC) {
+    const y = dateUTC.getUTCFullYear();
+    const m = String(dateUTC.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(dateUTC.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function setActiveDashboardCard(activeId) {
+    const cards = [cardThisMonth, cardLastMonth, cardYtd, cardCount];
+
+    cards.forEach(card => {
+      card.style.border = "1px solid rgba(0,0,0,.1)";
+      card.style.boxShadow = "none";
+      card.style.background = "#fff";
+    });
+
+    const active = document.getElementById(activeId);
+    if (active) {
+      active.style.border = "1px solid rgba(0,119,182,.35)";
+      active.style.boxShadow = "0 0 0 3px rgba(0,119,182,.10)";
+      active.style.background = "rgba(0,119,182,.03)";
+    }
+  }
+
+  function getMonthKeyFromDate(date) {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    return `${yyyy}-${mm}`;
+  }
+
+  function getPreviousMonthKey(monthKey) {
+    const [y, m] = monthKey.split("-").map(Number);
+    const d = new Date(y, m - 2, 1);
+    return getMonthKeyFromDate(d);
+  }
+
+  function renderMonthlyChart(docs) {
+    const rows = docs.map(d => d.data());
+
+    const totals = new Map();
+
+    for (const r of rows) {
+      const key = monthKeyFromDateStr(r.date);
+      if (!key) continue;
+
+      const { net } = calcVat(r.net, r.vatCode);
+      totals.set(key, (totals.get(key) || 0) + net);
+    }
+
+    const sortedKeys = [...totals.keys()].sort((a, b) => a.localeCompare(b));
+
+    if (!sortedKeys.length) {
+      if (monthlyChart) {
+        monthlyChart.destroy();
+        monthlyChart = null;
+      }
+      return;
+    }
+
+    function nextMonthKey(monthKey) {
+      const [y, m] = monthKey.split("-").map(Number);
+      const d = new Date(y, m, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    function prettyMonthLabel(monthKey) {
+      const [y, m] = monthKey.split("-").map(Number);
+      const d = new Date(y, m - 1, 1);
+      return d.toLocaleDateString("en-GB", {
+        month: "short",
+        year: "numeric"
+      });
+    }
+
+    const startKey = sortedKeys[0];
+    const endKey = sortedKeys[sortedKeys.length - 1];
+
+    const monthKeys = [];
+    let cursor = startKey;
+
+    while (cursor <= endKey) {
+      monthKeys.push(cursor);
+      cursor = nextMonthKey(cursor);
+    }
+
+    const labels = monthKeys.map(prettyMonthLabel);
+    const values = monthKeys.map(key => totals.get(key) || 0);
+
+    if (monthlyChart) {
+      monthlyChart.destroy();
+    }
+
+    monthlyChart = new Chart(chartCanvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Monthly spend",
+          data: values,
+          borderColor: "#0077B6",
+          backgroundColor: "rgba(0,119,182,.1)",
+          tension: 0.3,
+          fill: true,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          pointHitRadius: 20
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: "nearest",
+          intersect: false
+        },
+        onClick: (_, elements) => {
+          if (!elements.length) return;
+
+          const index = elements[0].index;
+          const monthKey = monthKeys[index];
+          if (!monthKey) return;
+
+          const { from, to } = monthRangeFromMonthKey(monthKey);
+
+          rangeFilter.value = "custom";
+          customRange.style.display = "flex";
+          fromDate.value = from;
+          toDate.value = to;
+
+          saveFilters();
+          applyFilters();
+          setActiveDashboardCard("");
+          showToast(`Filtered to ${labels[index]}`, "info");
+        },
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (v) => "£" + v
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderTopCategories(docs) {
+    const totals = new Map();
+
+    for (const d of docs) {
+      const data = d.data();
+      const category = (data.category || "Uncategorised").trim() || "Uncategorised";
+      const { net } = calcVat(data.net, data.vatCode);
+
+      totals.set(category, (totals.get(category) || 0) + net);
+    }
+
+    const top = [...totals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+
+    if (!top.length) {
+      topCategoriesList.innerHTML = `<div style="color:var(--muted);">No expenses yet.</div>`;
+      return;
+    }
+
+    topCategoriesList.innerHTML = top.map(([category, amount], index) => {
+      return `
+        <button
+          type="button"
+          data-category="${category.replaceAll('"', '&quot;')}"
+          onmouseover="this.style.background='rgba(0,0,0,.03)'"
+          onmouseout="this.style.background='transparent'"
+          style="
+            width:100%;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            padding:10px 0;
+            border:none;
+            border-top:${index === 0 ? "none" : "1px solid rgba(0,0,0,.06)"};
+            background:transparent;
+            border-radius:10px;
+            cursor:pointer;
+            text-align:left;
+          "
+        >
+          <span style="font-weight:600;">${category}</span>
+          <span style="font-weight:700;">${formatGBP(amount)}</span>
+        </button>
+      `;
+    }).join("");
+  }
+
+  function renderTopSuppliers(docs) {
+    const totals = new Map();
+
+    for (const d of docs) {
+      const data = d.data();
+      const supplier = (data.supplier || "Unknown").trim() || "Unknown";
+      const { net } = calcVat(data.net, data.vatCode);
+
+      totals.set(supplier, (totals.get(supplier) || 0) + net);
+    }
+
+    const top = [...totals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+
+    if (!top.length) {
+      topSuppliersList.innerHTML = `<div style="color:var(--muted);">No expenses yet.</div>`;
+      return;
+    }
+
+    topSuppliersList.innerHTML = top.map(([supplier, amount], index) => {
+      return `
+        <button
+          type="button"
+          data-supplier="${supplier.replaceAll('"', '&quot;')}"
+          onmouseover="this.style.background='rgba(0,0,0,.03)'"
+          onmouseout="this.style.background='transparent'"
+          style="
+            width:100%;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            padding:10px 0;
+            border:none;
+            border-top:${index === 0 ? "none" : "1px solid rgba(0,0,0,.06)"};
+            background:transparent;
+            border-radius:10px;
+            cursor:pointer;
+            text-align:left;
+          "
+        >
+          <span style="font-weight:600;">${supplier}</span>
+          <span style="font-weight:700;">${formatGBP(amount)}</span>
+        </button>
+      `;
+    }).join("");
+  }
+
+  function renderCategoryChips(docs) {
+    const counts = new Map();
+
+    for (const d of docs) {
+      const cat = (d.data().category || "").trim();
+      if (!cat) continue;
+      counts.set(cat, (counts.get(cat) || 0) + 1);
+    }
+
+    const top = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+
+    categoryChips.innerHTML = top.map(([cat]) => `
+      <button type="button" style="
+        padding:6px 10px;
+        border-radius:999px;
+        border:1px solid rgba(0,0,0,.15);
+        background:#fff;
+        font-weight:700;
+        cursor:pointer;
+      " data-cat="${cat}">
+        ${cat}
+      </button>
+    `).join("");
+  }
+
+  function hydrateSuppliers(docs) {
+    const counts = new Map();
+
+    for (const d of docs) {
+      const supplier = (d.data().supplier || "").trim();
+      if (!supplier) continue;
+      counts.set(supplier, (counts.get(supplier) || 0) + 1);
+    }
+
+    const sorted = [...counts.entries()]
+      .sort((a, b) => {
+        if (b[1] !== a[1]) return b[1] - a[1]; // most used first
+        return a[0].localeCompare(b[0]);
+      })
+      .map(([supplier]) => supplier);
+
+    supplierOptions.innerHTML = sorted
+      .map(s => `<option value="${s}"></option>`)
+      .join("");
+
+    const currentQuick = supplierQuickPick.value;
+
+    supplierQuickPick.innerHTML =
+      `<option value="">Recent suppliers…</option>` +
+      sorted.slice(0, 12).map(s => `<option value="${s}">${s}</option>`).join("");
+
+    if ([...supplierQuickPick.options].some(o => o.value === currentQuick)) {
+      supplierQuickPick.value = currentQuick;
+    }
   }
 
   function hydrateFilters(docs) {
@@ -766,14 +1277,12 @@
     applyFilters(); // re-render list to highlight duplicate
   }
 
-  function applyFilters() {
+  function getFilteredDocs() {
     const q = (searchBox.value || "").trim().toLowerCase();
     const cat = categoryFilter.value || "";
     const range = rangeFilter.value || "all";
     const vatCode = vatFilter.value || "";
-    const vLabel = vatCode ? `VAT: ${vatLabelFromCode(vatCode)}` : "";
 
-    // Build range bounds (UTC)
     let startUTC = null;
     let endUTC = null;
 
@@ -790,7 +1299,6 @@
       startUTC = parseISODateToUTC(fromDate.value);
       endUTC = parseISODateToUTC(toDate.value);
 
-      // swap if user picked backwards
       if (startUTC && endUTC && endUTC < startUTC) {
         const tmp = startUTC;
         startUTC = endUTC;
@@ -805,8 +1313,8 @@
       const category = (data.category || "").trim();
       const dateStr = data.date || "";
       const rowVat = (data.vatCode || "standard");
-      const matchesVat = !vatCode || rowVat === vatCode;
 
+      const matchesVat = !vatCode || rowVat === vatCode;
       const matchesText = !q || supplier.includes(q) || notes.includes(q);
       const matchesCat = !cat || category === cat;
       const matchesDate = (range === "all") ? true : dateInRange(dateStr, startUTC, endUTC);
@@ -832,16 +1340,24 @@
       switch (sortMode) {
         case "createdAsc":  return ca - cb;
         case "createdDesc": return cb - ca;
-
         case "amountAsc":   return na - nb;
         case "amountDesc":  return nb - na;
-
         case "dateAsc":     return dateA.localeCompare(dateB);
         case "dateDesc":    return dateB.localeCompare(dateA);
-
         default:            return cb - ca;
       }
     });
+
+    return filtered;
+  }
+
+  function applyFilters() {
+    const q = (searchBox.value || "").trim().toLowerCase();
+    const cat = categoryFilter.value || "";
+    const range = rangeFilter.value || "all";
+    const vatCode = vatFilter.value || "";
+    const vLabel = vatCode ? `VAT: ${vatLabelFromCode(vatCode)}` : "";
+    const filtered = getFilteredDocs();
 
     const totals = filtered.reduce((acc, d) => {
       const row = d.data();
@@ -854,7 +1370,9 @@
 
     filteredTotal.style.display = latestDocs.length ? "block" : "none";
 
-    if (vatMode.checked) {
+    if (!filtered.length) {
+      filteredTotal.textContent = "No totals to show for the current filters.";
+    } else if (vatMode.checked) {
       filteredTotal.textContent =
         `Total of filtered: Net ${formatGBP(totals.net)} • VAT ${formatGBP(totals.vat)} • Gross ${formatGBP(totals.gross)}`;
     } else {
@@ -883,6 +1401,18 @@
       : `Showing ${showing} of ${total}`;
 
     renderExpenses(filtered);
+
+    if (rangeFilter.value === "thisMonth") {
+      setActiveDashboardCard("cardThisMonth");
+    } else if (
+      rangeFilter.value === "custom" &&
+      fromDate.value === formatDateInputUTC(startOfYearUTC()) &&
+      toDate.value === formatDateInputUTC(todayUTC())
+    ) {
+      setActiveDashboardCard("cardYtd");
+    } else {
+      setActiveDashboardCard("");
+    }
   }
 
   function showForm(show) {
@@ -896,6 +1426,7 @@
     document.querySelector("#expenseForm h3").textContent = "New expense";
     btnSaveExpense.textContent = "Save";
     duplicateWarning.textContent = "";
+    supplierQuickPick.value = "";
 
     document.getElementById("expDate").value = "";
     document.getElementById("expSupplier").value = "";
@@ -985,6 +1516,59 @@
     return { rows, total, vatTotal, grossTotal, topCats };
   }
 
+  function renderDashboardCards(docs) {
+    const rows = docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const now = new Date();
+    const thisMonthKey = getMonthKeyFromDate(now);
+    const lastMonthKey = getPreviousMonthKey(thisMonthKey);
+    const thisYear = String(now.getFullYear());
+
+    let thisMonthNet = 0;
+    let thisMonthVat = 0;
+
+    let lastMonthNet = 0;
+    let lastMonthVat = 0;
+
+    let ytdNet = 0;
+    let ytdVat = 0;
+
+    for (const r of rows) {
+      const monthKey = monthKeyFromDateStr(r.date);
+      const yearKey = (r.date || "").slice(0, 4);
+      const { net, vat, gross } = calcVat(r.net, r.vatCode);
+
+      if (monthKey === thisMonthKey) {
+        thisMonthNet += net;
+        thisMonthVat += vat;
+      }
+
+      if (monthKey === lastMonthKey) {
+        lastMonthNet += net;
+        lastMonthVat += vat;
+      }
+
+      if (yearKey === thisYear) {
+        ytdNet += net;
+        ytdVat += vat;
+      }
+    }
+
+    dashThisMonth.textContent = vatMode.checked
+      ? `${formatGBP(thisMonthNet + thisMonthVat)}`
+      : `${formatGBP(thisMonthNet)}`;
+
+    dashLastMonth.textContent = vatMode.checked
+      ? `${formatGBP(lastMonthNet + lastMonthVat)}`
+      : `${formatGBP(lastMonthNet)}`;
+
+    dashYtd.textContent = vatMode.checked
+      ? `${formatGBP(ytdNet + ytdVat)}`
+      : `${formatGBP(ytdNet)}`;
+
+    dashCount.textContent = String(rows.length);
+  }
+
   function renderSummary(docs) {
 
     const monthKey = monthPick.value;
@@ -1022,6 +1606,18 @@
         <span style="margin-left:8px;">${formatGBP(amt)}</span>
       </div>`;
     }).join("");
+  }
+
+  function monthRangeFromMonthKey(monthKey) {
+    const [y, m] = monthKey.split("-").map(Number);
+
+    const start = new Date(Date.UTC(y, m - 1, 1));
+    const end = new Date(Date.UTC(y, m, 0)); // last day of that month
+
+    return {
+      from: formatDateInputUTC(start),
+      to: formatDateInputUTC(end)
+    };
   }
 
   function quarterKeyFromDateStr(dateStr) {
@@ -1147,6 +1743,44 @@
     }).join("");
   }
 
+  function exportCsvForFiltered(docs) {
+    const header = ["Date", "Supplier", "Category", "Net", "VAT Code", "VAT", "Gross", "Notes"];
+    const lines = [header];
+
+    for (const d of docs) {
+      const r = d.data();
+      const { net, vat, gross } = calcVat(r.net, r.vatCode);
+
+      lines.push([
+        r.date || "",
+        (r.supplier || "").replaceAll('"', '""'),
+        (r.category || "").replaceAll('"', '""'),
+        net.toFixed(2),
+        (r.vatCode || "standard"),
+        vat.toFixed(2),
+        gross.toFixed(2),
+        (r.notes || "").replaceAll('"', '""')
+      ]);
+    }
+
+    const csv = lines
+      .map(cols => cols.map(v => `"${String(v)}"`).join(","))
+      .join("\n");
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `simple-expenses_filtered_${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
   function exportCsvForMonth(docs) {
     const monthKey = monthPick.value;
     const { rows } = calcSummary(docs, monthKey);
@@ -1228,6 +1862,94 @@
     URL.revokeObjectURL(url);
   }
 
+  cardThisMonth.addEventListener("click", () => {
+    rangeFilter.value = "thisMonth";
+    customRange.style.display = "none";
+    fromDate.value = "";
+    toDate.value = "";
+    saveFilters();
+    applyFilters();
+    setActiveDashboardCard("cardThisMonth");
+  });
+
+  cardLastMonth.addEventListener("click", () => {
+    const now = new Date();
+    const startCurrentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const endLastMonth = addDaysUTC(startCurrentMonth, -1);
+    const startLastMonth = new Date(Date.UTC(endLastMonth.getUTCFullYear(), endLastMonth.getUTCMonth(), 1));
+
+    rangeFilter.value = "custom";
+    customRange.style.display = "flex";
+    fromDate.value = formatDateInputUTC(startLastMonth);
+    toDate.value = formatDateInputUTC(endLastMonth);
+
+    saveFilters();
+    applyFilters();
+    setActiveDashboardCard("cardLastMonth");
+  });
+
+  cardYtd.addEventListener("click", () => {
+    rangeFilter.value = "custom";
+    customRange.style.display = "flex";
+    fromDate.value = formatDateInputUTC(startOfYearUTC());
+    toDate.value = formatDateInputUTC(todayUTC());
+
+    saveFilters();
+    applyFilters();
+    setActiveDashboardCard("cardYtd");
+  });
+
+  cardCount.addEventListener("click", () => {
+    rangeFilter.value = "all";
+    customRange.style.display = "none";
+    fromDate.value = "";
+    toDate.value = "";
+
+    searchBox.value = "";
+    categoryFilter.value = "";
+    vatFilter.value = "";
+
+    saveFilters();
+    applyFilters();
+    setActiveDashboardCard("cardCount");
+  });
+
+  categoryChips.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-cat]");
+    if (!btn) return;
+
+    const cat = btn.getAttribute("data-cat");
+    document.getElementById("expCategory").value = cat;
+  });
+
+  topCategoriesList.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-category]");
+    if (!btn) return;
+
+    const category = btn.getAttribute("data-category");
+    if (!category) return;
+
+    categoryFilter.value = category;
+    saveFilters();
+    applyFilters();
+    setActiveDashboardCard("");
+    showToast(`Filtered to ${category}`, "info");
+  });
+
+  topSuppliersList.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-supplier]");
+    if (!btn) return;
+
+    const supplier = btn.getAttribute("data-supplier");
+    if (!supplier) return;
+
+    searchBox.value = supplier;
+    saveFilters();
+    applyFilters();
+    setActiveDashboardCard("");
+    showToast(`Filtered to ${supplier}`, "info");
+  });
+
   // --- Expense form buttons ---
   btnAddExpense.addEventListener("click", () => {
     resetFormState();
@@ -1308,6 +2030,7 @@
           vatCode,
           notes
         });
+        showToast("Expense updated", "success");
       } else {
         // create new
         await addDoc(ref, {
@@ -1320,6 +2043,7 @@
           receipt,
           createdAt: serverTimestamp()
         });
+        showToast("Expense saved", "success");
       }
 
       // reset + hide
@@ -1370,10 +2094,17 @@
       // export
       btnExportCsv.onclick = () => {
         exportCsvForMonth([...latestDocsById.values()]);
+        showToast("Monthly CSV exported", "info");
       };
 
       btnExportVatQuarter.onclick = () => {
         exportCsvForVatQuarter([...latestDocsById.values()]);
+        showToast("VAT CSV exported", "info");
+      };
+
+      btnExportFilteredCsv.onclick = () => {
+        exportCsvForFiltered(getFilteredDocs());
+        showToast("Filtered CSV exported", "info");
       };
 
       summaryCard.style.display = "block";
@@ -1388,9 +2119,15 @@
         latestDocsById = new Map(docs.map(d => [d.id, d]));
 
         hydrateFilters(docs);
+        hydrateSuppliers(docs);
         applyFilters();        // <-- renders the filtered list (instead of renderExpenses)
 
         renderSummary(docs);   // summary stays based on ALL docs (good)
+        renderDashboardCards(docs);
+        renderCategoryChips(docs);
+        renderMonthlyChart(docs);
+        renderTopSuppliers(docs);
+        renderTopCategories(docs);
 
         buildQuarterOptions(docs);
         renderVatQuarter(docs);
