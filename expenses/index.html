@@ -112,58 +112,88 @@
     <!-- APP AREA -->
     <div id="appArea" style="display:none;">
 
-    <button class="btn" id="btnSignOut">Sign out</button>
+    <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn" id="btnAddExpense">Add expense</button>
+        <button class="btn" id="btnAddMileage" style="background:#0f766e;">Add mileage</button>
+      </div>
 
-    <button class="btn" id="btnAddExpense" style="margin-left:8px;">Add expense</button>
+      <button class="btn" id="btnSignOut" style="background:#6b7280;">Sign out</button>
+    </div>
 
       <div class="card" id="summaryCard" style="display:none;">
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+        <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;">
           <div>
-            <div style="font-weight:700; font-size:16px;">This month</div>
-            <div style="color:var(--muted);" id="summaryLine">—</div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <div style="font-weight:800; font-size:18px; color:var(--text);">This month</div>
+              <span style="
+                padding:6px 10px;
+                border-radius:999px;
+                background:rgba(0,119,182,.08);
+                color:#0077B6;
+                font-size:13px;
+                font-weight:700;
+              ">
+                Dashboard
+              </span>
+            </div>
+
+            <div style="color:var(--muted); margin-top:8px;" id="summaryLine">—</div>
           </div>
 
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:600;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:700;">
               Month
               <input id="monthPick" type="month"
-                style="padding:8px 10px; border-radius:10px; border:1px solid #ccc;">
+                style="padding:9px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.12); background:#fff;">
             </label>
 
             <button class="btn" id="btnExportCsv" style="background:#111827;">Export CSV</button>
           </div>
         </div>
 
-        <div id="dashboardCards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:14px;">
-          <div id="cardThisMonth" class="card" style="margin-top:0; cursor:pointer;">
+        <div id="dashboardCards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:16px;">
+          <div id="cardThisMonth" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
             <div style="color:var(--muted); font-weight:700; font-size:13px;">This month</div>
             <div id="dashThisMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
           </div>
 
-          <div id="cardLastMonth" class="card" style="margin-top:0; cursor:pointer;">
+          <div id="cardLastMonth" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
             <div style="color:var(--muted); font-weight:700; font-size:13px;">Last month</div>
             <div id="dashLastMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
           </div>
 
-          <div id="cardYtd" class="card" style="margin-top:0; cursor:pointer;">
+          <div id="cardYtd" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
             <div style="color:var(--muted); font-weight:700; font-size:13px;">Year to date</div>
             <div id="dashYtd" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
           </div>
 
-          <div id="cardCount" class="card" style="margin-top:0; cursor:pointer;">
+          <div id="cardCount" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
             <div style="color:var(--muted); font-weight:700; font-size:13px;">Expense count</div>
             <div id="dashCount" style="font-size:24px; font-weight:800; margin-top:6px;">0</div>
           </div>
         </div>
 
         <div id="monthlyChart" style="
-          margin-top:14px;
-          padding:14px;
+          margin-top:16px;
+          padding:18px;
           border:1px solid rgba(0,0,0,.08);
-          border-radius:14px;
+          border-radius:18px;
           background:#fff;
         ">
-          <div style="font-weight:800; margin-bottom:8px;">Monthly spend</div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div style="font-weight:800;">Monthly spend</div>
+            <span style="
+              padding:6px 10px;
+              border-radius:999px;
+              background:rgba(0,119,182,.08);
+              color:#0077B6;
+              font-size:13px;
+              font-weight:700;
+            ">
+              Trend
+            </span>
+          </div>
 
           <div style="height:320px;">
             <canvas id="chartCanvas"></canvas>
@@ -174,36 +204,72 @@
           display:grid;
           grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
           gap:14px;
-          margin-top:14px;
+          margin-top:16px;
         ">
           <div id="topSuppliersCard" style="
-            padding:14px;
+            padding:18px;
             border:1px solid rgba(0,0,0,.08);
-            border-radius:14px;
+            border-radius:18px;
             background:#fff;
           ">
-            <div style="font-weight:800; margin-bottom:10px;">Top suppliers</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+              <div style="font-weight:800;">Top suppliers</div>
+              <span style="
+                padding:6px 10px;
+                border-radius:999px;
+                background:rgba(0,119,182,.08);
+                color:#0077B6;
+                font-size:13px;
+                font-weight:700;
+              ">
+                Insight
+              </span>
+            </div>
             <div id="topSuppliersList"></div>
           </div>
 
           <div id="topCategoriesCard" style="
-            padding:14px;
+            padding:18px;
             border:1px solid rgba(0,0,0,.08);
-            border-radius:14px;
+            border-radius:18px;
             background:#fff;
           ">
-            <div style="font-weight:800; margin-bottom:10px;">Top categories</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+              <div style="font-weight:800;">Top categories</div>
+              <span style="
+                padding:6px 10px;
+                border-radius:999px;
+                background:rgba(0,119,182,.08);
+                color:#0077B6;
+                font-size:13px;
+                font-weight:700;
+              ">
+                Insight
+              </span>
+            </div>
             <div id="topCategoriesList"></div>
           </div>
         </div>
 
         <div id="summaryBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
-        <hr style="border:none; border-top:1px solid rgba(0,0,0,.08); margin:14px 0;">
+        <hr style="border:none; border-top:1px solid rgba(0,0,0,.08); margin:18px 0;">
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+        <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;">
           <div>
-            <div style="font-weight:800;">VAT Quarter</div>
-            <div style="color:var(--muted);" id="vatQuarterLine">—</div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <div style="font-weight:800;">VAT Quarter</div>
+              <span style="
+                padding:6px 10px;
+                border-radius:999px;
+                background:rgba(15,118,110,.08);
+                color:#0f766e;
+                font-size:13px;
+                font-weight:700;
+              ">
+                VAT
+              </span>
+            </div>
+            <div style="color:var(--muted); margin-top:8px;" id="vatQuarterLine">—</div>
           </div>
 
           <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:600;">
@@ -281,8 +347,63 @@
     <div id="formMsg" style="margin-top:8px; color:#b91c1c;"></div>
   </div>
 
+  <div class="card" id="mileageForm" style="display:none;">
+    <h3 style="margin-top:0;">New mileage claim</h3>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <input id="milDate" type="date"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,.12);" />
+
+      <input id="milJourney" type="text" placeholder="Journey"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,.12);" />
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+      <input id="milFrom" type="text" placeholder="From"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,.12);" />
+
+      <input id="milTo" type="text" placeholder="To"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,.12);" />
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+      <input id="milMiles" type="number" step="0.1" placeholder="Miles"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,.12);" />
+
+      <input id="milRate" type="number" step="0.01" value="0.45" placeholder="Rate per mile"
+        style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,.12);" />
+    </div>
+
+    <textarea id="milNotes" placeholder="Notes"
+      style="width:100%; min-height:90px; margin-top:10px; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,.12);"></textarea>
+
+    <div id="mileageTotalPreview"
+      style="margin-top:12px; padding:12px; border-radius:12px; background:rgba(0,119,182,.08); font-weight:700;">
+      Claim total: £0.00
+    </div>
+
+    <div id="mileageFormMsg" style="margin-top:10px; color:#b91c1c;"></div>
+
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button class="btn" id="btnSaveMileage">Save mileage</button>
+      <button class="btn" id="btnCancelMileage" style="background:#6b7280;">Cancel</button>
+    </div>
+  </div>
+
   <div class="card">
-    <h3 style="margin-top:0;">Expenses</h3>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <h3 style="margin:0;">Expenses</h3>
+      <span style="
+        padding:6px 10px;
+        border-radius:999px;
+        background:rgba(0,119,182,.08);
+        color:#0077B6;
+        font-size:13px;
+        font-weight:700;
+      ">
+        Expenses
+      </span>
+    </div>
 
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; align-items:center;">
       <input id="searchBox" placeholder="Search supplier / notes…"
@@ -360,6 +481,23 @@
     <div id="expensesList">No expenses yet.</div>
   </div>
 
+  <div class="card" id="mileageListCard" style="display:none;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <h3 style="margin:0;">Mileage claims</h3>
+      <span style="
+        padding:6px 10px;
+        border-radius:999px;
+        background:rgba(15,118,110,.08);
+        color:#0f766e;
+        font-size:13px;
+        font-weight:700;
+      ">
+        Mileage
+      </span>
+    </div>
+    <div id="mileageList"></div>
+  </div>
+
     </div>
 
 </div>
@@ -421,6 +559,7 @@
   const btnSignOut = document.getElementById("btnSignOut");
 
   const btnAddExpense = document.getElementById("btnAddExpense");
+  const btnAddMileage = document.getElementById("btnAddMileage");
   const expenseForm = document.getElementById("expenseForm");
   const btnSaveExpense = document.getElementById("btnSaveExpense");
   const btnCancelExpense = document.getElementById("btnCancelExpense");
@@ -437,6 +576,24 @@
   const chartCanvas = document.getElementById("chartCanvas");
   const topSuppliersList = document.getElementById("topSuppliersList");
   const topCategoriesList = document.getElementById("topCategoriesList");
+
+  const mileageForm = document.getElementById("mileageForm");
+  const mileageListCard = document.getElementById("mileageListCard");
+  const mileageList = document.getElementById("mileageList");
+
+  const milDate = document.getElementById("milDate");
+  const milJourney = document.getElementById("milJourney");
+  const milFrom = document.getElementById("milFrom");
+  const milTo = document.getElementById("milTo");
+  const milMiles = document.getElementById("milMiles");
+  const milRate = document.getElementById("milRate");
+  const milNotes = document.getElementById("milNotes");
+
+  const mileageFormMsg = document.getElementById("mileageFormMsg");
+  const mileageTotalPreview = document.getElementById("mileageTotalPreview");
+
+  const btnSaveMileage = document.getElementById("btnSaveMileage");
+  const btnCancelMileage = document.getElementById("btnCancelMileage");
 
   // --- Summary elements ---
   const summaryCard = document.getElementById("summaryCard");
@@ -485,6 +642,9 @@
   document.getElementById("expDate").addEventListener("input", checkDuplicateLive);
   document.getElementById("expSupplier").addEventListener("input", checkDuplicateLive);
   document.getElementById("expNet").addEventListener("input", checkDuplicateLive);
+
+  milMiles.addEventListener("input", updateMileagePreview);
+  milRate.addEventListener("input", updateMileagePreview);
 
   const LS_KEYS = {
     q: "se_filters_q",
@@ -651,6 +811,79 @@
     }
   });
 
+  mileageList.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-mileage-action]");
+    if (!btn) return;
+
+    const action = btn.getAttribute("data-mileage-action");
+    const id = btn.getAttribute("data-id");
+
+    const user = auth.currentUser;
+    if (!user) return;
+
+    if (action === "delete") {
+      if (!confirm("Delete this mileage claim?")) return;
+
+      try {
+        await deleteDoc(doc(db, "users", user.uid, "mileage", id));
+        showToast("Mileage deleted", "success");
+      } catch (err) {
+        console.error(err);
+        showToast("Failed to delete mileage", "error");
+      }
+    }
+
+    if (action === "edit") {
+      const docSnap = latestMileageDocs.find(d => d.id === id);
+      if (!docSnap) return;
+
+      const data = docSnap.data();
+
+      editingMileageId = id;
+
+      document.querySelector("#mileageForm h3").textContent = "Edit mileage claim";
+      btnSaveMileage.textContent = "Update mileage";
+
+      milDate.value = data.date || "";
+      milJourney.value = data.journey || "";
+      milFrom.value = data.fromLocation || "";
+      milTo.value = data.toLocation || "";
+      milMiles.value = data.miles || "";
+      milRate.value = data.ratePerMile || "0.45";
+      milNotes.value = data.notes || "";
+
+      updateMileagePreview();
+
+      showMileageForm(true);
+      mileageListCard.scrollIntoView({ behavior: "smooth" });
+    }
+
+    if (action === "duplicate") {
+      const docSnap = latestMileageDocs.find(d => d.id === id);
+      if (!docSnap) return;
+
+      const data = docSnap.data();
+
+      editingMileageId = null;
+
+      document.querySelector("#mileageForm h3").textContent = "Duplicate mileage claim";
+      btnSaveMileage.textContent = "Save mileage";
+
+      milDate.value = data.date || "";
+      milJourney.value = data.journey || "";
+      milFrom.value = data.fromLocation || "";
+      milTo.value = data.toLocation || "";
+      milMiles.value = data.miles || "";
+      milRate.value = data.ratePerMile || "0.45";
+      milNotes.value = data.notes || "";
+
+      updateMileagePreview();
+
+      showMileageForm(true);
+      mileageListCard.scrollIntoView({ behavior: "smooth" });
+    }
+  });
+
   // --- Auth actions ---
   btnSignUp.addEventListener("click", async () => {
     const email = document.getElementById("email").value.trim();
@@ -767,15 +1000,184 @@
             Edit
           </button>
 
-          <button class="btn" data-action="duplicate" data-id="${d.id}" style="background:#6366f1; height:40px;">
+          <button
+            data-action="duplicate"
+            data-id="${d.id}"
+            style="
+              min-height:40px;
+              padding:10px 14px;
+              border-radius:12px;
+              border:1px solid rgba(99,102,241,.22);
+              background:rgba(99,102,241,.06);
+              color:#4f46e5;
+              cursor:pointer;
+              font-weight:700;
+            "
+          >
             Duplicate
           </button>
 
-          <button class="btn" data-action="delete" data-id="${d.id}" style="background:#ef4444; height:40px;">
+          <button
+            data-action="delete"
+            data-id="${d.id}"
+            style="
+              min-height:40px;
+              padding:10px 14px;
+              border-radius:12px;
+              border:1px solid rgba(239,68,68,.22);
+              background:rgba(239,68,68,.06);
+              color:#b91c1c;
+              cursor:pointer;
+              font-weight:700;
+            "
+          >
             Delete
           </button>
         </div>
       </div>`;
+    }).join("");
+  }
+
+  function renderMileage(docs) {
+    if (!docs.length) {
+      mileageList.innerHTML = `
+        <div style="
+          padding:24px;
+          text-align:center;
+          border:1px dashed rgba(0,0,0,.14);
+          border-radius:16px;
+          color:var(--muted);
+          background:rgba(0,0,0,.02);
+        ">
+          <div style="font-size:18px; font-weight:800; color:var(--text);">No mileage yet</div>
+          <div style="margin-top:8px;">Add your first mileage claim to get started.</div>
+        </div>
+      `;
+      return;
+    }
+
+    mileageList.innerHTML = docs.map(d => {
+      const data = d.data();
+      const total = Number(data.total || 0).toFixed(2);
+      const miles = Number(data.miles || 0).toFixed(1);
+      const rate = Number(data.ratePerMile || 0).toFixed(2);
+
+      return `
+        <div style="
+          padding:16px 0;
+          border-top:1px solid rgba(0,0,0,.08);
+          display:flex;
+          justify-content:space-between;
+          align-items:flex-start;
+          gap:16px;
+        ">
+          <div style="min-width:0;">
+            <div style="
+              font-size:18px;
+              font-weight:800;
+              color:var(--text);
+            ">
+              £${total}
+            </div>
+
+            <div style="
+              margin-top:10px;
+              display:inline-flex;
+              align-items:center;
+              gap:8px;
+              padding:6px 10px;
+              border-radius:999px;
+              background:rgba(15,118,110,.10);
+              color:#0f766e;
+              font-weight:700;
+              font-size:13px;
+            ">
+              ${miles} miles
+            </div>
+
+            <div style="
+              margin-top:12px;
+              font-weight:700;
+              font-size:16px;
+              color:var(--text);
+            ">
+              ${data.journey || "Mileage claim"}
+            </div>
+
+            <div style="
+              color:var(--muted);
+              margin-top:6px;
+              line-height:1.45;
+            ">
+              ${data.date || ""} • ${data.fromLocation || ""} → ${data.toLocation || ""}
+            </div>
+
+            <div style="
+              color:var(--muted);
+              margin-top:6px;
+              font-weight:600;
+            ">
+              Rate: £${rate}/mile
+            </div>
+
+            ${data.notes ? `
+              <div style="
+                color:var(--muted);
+                margin-top:10px;
+                line-height:1.45;
+              ">
+                ${data.notes}
+              </div>
+            ` : ""}
+          </div>
+
+          <div style="
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+            justify-content:flex-end;
+            flex-shrink:0;
+          ">
+            <button class="btn" data-mileage-action="edit" data-id="${d.id}" style="background:#0ea5e9; min-height:40px;">
+              Edit
+            </button>
+
+            <button
+              data-mileage-action="duplicate"
+              data-id="${d.id}"
+              style="
+                min-height:40px;
+                padding:10px 14px;
+                border-radius:12px;
+                border:1px solid rgba(99,102,241,.22);
+                background:rgba(99,102,241,.06);
+                color:#4f46e5;
+                cursor:pointer;
+                font-weight:700;
+              "
+            >
+              Duplicate
+            </button>
+
+            <button
+              data-mileage-action="delete"
+              data-id="${d.id}"
+              style="
+                min-height:40px;
+                padding:10px 14px;
+                border-radius:12px;
+                border:1px solid rgba(239,68,68,.22);
+                background:rgba(239,68,68,.06);
+                color:#b91c1c;
+                cursor:pointer;
+                font-weight:700;
+              "
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      `;
     }).join("");
   }
 
@@ -1493,6 +1895,13 @@
     return { net: safe, vat, gross, rate };
   }
 
+  function updateMileagePreview() {
+    const miles = Number(milMiles.value || 0);
+    const rate = Number(milRate.value || 0);
+    const total = miles * rate;
+    mileageTotalPreview.textContent = `Claim total: £${total.toFixed(2)}`;
+  }
+
   function calcSummary(docs, monthKey) {
     const rows = docs
       .map(d => ({ id: d.id, ...d.data() }))
@@ -1683,6 +2092,25 @@
     if (!sorted.includes(current)) {
       vatQuarterPick.value = sorted[0];
     }
+  }
+
+  function resetMileageFormState() {
+    editingMileageId = null;
+    mileageFormMsg.textContent = "";
+    document.querySelector("#mileageForm h3").textContent = "New mileage claim";
+    btnSaveMileage.textContent = "Save mileage";
+    milDate.value = "";
+    milJourney.value = "";
+    milFrom.value = "";
+    milTo.value = "";
+    milMiles.value = "";
+    milRate.value = "0.45";
+    milNotes.value = "";
+    updateMileagePreview();
+  }
+
+  function showMileageForm(show) {
+    mileageForm.style.display = show ? "block" : "none";
   }
 
   function calcVatQuarter(docs, quarterKey) {
@@ -1960,6 +2388,17 @@
     showForm(false);
   });
 
+  btnAddMileage.addEventListener("click", () => {
+    resetMileageFormState();
+    showMileageForm(true);
+    mileageListCard.style.display = "block";
+  });
+
+  btnCancelMileage.addEventListener("click", () => {
+    resetMileageFormState();
+    showMileageForm(false);
+  });
+
   btnSaveExpense.addEventListener("click", async () => {
     formMsg.textContent = "";
 
@@ -2054,8 +2493,74 @@
     }
   });
 
+  btnSaveMileage.addEventListener("click", async () => {
+    mileageFormMsg.textContent = "";
+
+    const user = auth.currentUser;
+    if (!user) {
+      mileageFormMsg.textContent = "You must be signed in.";
+      return;
+    }
+
+    const date = milDate.value;
+    const journey = milJourney.value.trim();
+    const fromLocation = milFrom.value.trim();
+    const toLocation = milTo.value.trim();
+    const miles = Number(milMiles.value);
+    const ratePerMile = Number(milRate.value);
+    const notes = milNotes.value.trim();
+    const total = miles * ratePerMile;
+
+    if (!date) return (mileageFormMsg.textContent = "Please pick a date.");
+    if (!journey) return (mileageFormMsg.textContent = "Please enter a journey.");
+    if (!fromLocation) return (mileageFormMsg.textContent = "Please enter a start location.");
+    if (!toLocation) return (mileageFormMsg.textContent = "Please enter an end location.");
+    if (!Number.isFinite(miles) || miles <= 0) return (mileageFormMsg.textContent = "Miles must be a number > 0.");
+    if (!Number.isFinite(ratePerMile) || ratePerMile <= 0) return (mileageFormMsg.textContent = "Rate must be a number > 0.");
+
+    try {
+      const ref = collection(db, "users", user.uid, "mileage");
+
+      if (editingMileageId) {
+        await updateDoc(doc(db, "users", user.uid, "mileage", editingMileageId), {
+          date,
+          journey,
+          fromLocation,
+          toLocation,
+          miles,
+          ratePerMile,
+          total,
+          notes
+        });
+        showToast("Mileage updated", "success");
+      } else {
+        await addDoc(ref, {
+          date,
+          journey,
+          fromLocation,
+          toLocation,
+          miles,
+          ratePerMile,
+          total,
+          notes,
+          createdAt: serverTimestamp()
+        });
+        showToast("Mileage saved", "success");
+      }
+
+      resetMileageFormState();
+      showMileageForm(false);
+    } catch (err) {
+      mileageFormMsg.textContent = err.message;
+    }
+  });
+
   // --- Firestore live listener (per user) ---
   let unsubscribeExpenses = null;
+
+  let unsubscribeMileage = null;
+  let latestMileageDocs = [];
+  let editingMileageId = null;
 
   onAuthStateChanged(auth, (user) => {
     console.log("Auth state:", user ? user.email : "signed out");
@@ -2064,6 +2569,11 @@
     if (unsubscribeExpenses) {
       unsubscribeExpenses();
       unsubscribeExpenses = null;
+    }
+
+    if (unsubscribeMileage) {
+      unsubscribeMileage();
+      unsubscribeMileage = null;
     }
 
     if (user) {
@@ -2136,6 +2646,19 @@
         expensesList.textContent = "Could not load expenses.";
       });
 
+      const mileageRef = collection(db, "users", user.uid, "mileage");
+      const mileageQ = query(mileageRef, orderBy("createdAt", "desc"));
+
+      unsubscribeMileage = onSnapshot(mileageQ, (snap) => {
+        const docs = snap.docs;
+        latestMileageDocs = docs;
+        renderMileage(docs);
+        mileageListCard.style.display = "block";
+      }, (err) => {
+        console.error(err);
+        mileageList.textContent = "Could not load mileage.";
+      });
+
     } else {
       loginCard.style.display = "block";
       appArea.style.display = "none";
@@ -2144,6 +2667,12 @@
 
       expensesList.textContent = "No expenses yet.";
       showForm(false);
+      resetFormState();
+
+      mileageList.textContent = "No mileage yet.";
+      showMileageForm(false);
+      mileageListCard.style.display = "none";
+      resetMileageFormState();
     }
   });
 </script>
