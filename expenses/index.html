@@ -108,156 +108,110 @@
         </button>
     </div>
 
-
     <!-- APP AREA -->
     <div id="appArea" style="display:none;">
 
-    <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
-      <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <button class="btn" id="btnAddExpense">Add expense</button>
-        <button class="btn" id="btnAddMileage" style="background:#0f766e;">Add mileage</button>
+    <div class="card" style="
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      position:sticky;
+      top:12px;
+      z-index:20;
+      background:#fff;
+      box-shadow:0 8px 24px rgba(0,0,0,.06);
+    ">
+      <div style="display:flex; flex-direction:column; gap:12px; flex:1;">
+        <div id="modeSwitcher" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn" id="btnModeDashboard" style="padding:10px 18px;">Dashboard</button>
+          <button class="btn" id="btnModeExpenses" style="background:#6b7280; padding:10px 18px;">Expenses</button>
+          <button class="btn" id="btnModeMileage" style="background:#6b7280; padding:10px 18px;">Mileage</button>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn" id="btnAddExpense">Add expense</button>
+          <button class="btn" id="btnAddMileage" style="background:#0f766e;">Add mileage</button>
+        </div>
       </div>
 
       <button class="btn" id="btnSignOut" style="background:#6b7280;">Sign out</button>
     </div>
 
-      <div class="card" id="summaryCard" style="display:none;">
-        <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;">
-          <div>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <div style="font-weight:800; font-size:18px; color:var(--text);">This month</div>
-              <span style="
-                padding:6px 10px;
-                border-radius:999px;
-                background:rgba(0,119,182,.08);
-                color:#0077B6;
-                font-size:13px;
-                font-weight:700;
-              ">
-                Dashboard
-              </span>
+      <div id="dashboardSection" style="margin-top:20px;">
+        <div class="card" id="summaryCard" style="display:none;">
+          <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;">
+            <div>
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div style="font-weight:800; font-size:18px; color:var(--text);">This month</div>
+                <span style="
+                  padding:6px 10px;
+                  border-radius:999px;
+                  background:rgba(0,119,182,.08);
+                  color:#0077B6;
+                  font-size:13px;
+                  font-weight:700;
+                ">
+                  Dashboard
+                </span>
+              </div>
+
+              <div style="color:var(--muted); margin-top:8px;" id="summaryLine">—</div>
             </div>
 
-            <div style="color:var(--muted); margin-top:8px;" id="summaryLine">—</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:700;">
+                Month
+                <input id="monthPick" type="month"
+                  style="padding:9px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.12); background:#fff;">
+              </label>
+
+              <button class="btn" id="btnExportCsv" style="background:#111827;">Export CSV</button>
+            </div>
           </div>
 
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:700;">
-              Month
-              <input id="monthPick" type="month"
-                style="padding:9px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.12); background:#fff;">
-            </label>
+          <div id="dashboardCards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:16px;">
+            <div id="cardThisMonth" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
+              <div style="color:var(--muted); font-weight:700; font-size:13px;">This month</div>
+              <div id="dashThisMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+            </div>
 
-            <button class="btn" id="btnExportCsv" style="background:#111827;">Export CSV</button>
-          </div>
-        </div>
+            <div id="cardLastMonth" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
+              <div style="color:var(--muted); font-weight:700; font-size:13px;">Last month</div>
+              <div id="dashLastMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+            </div>
 
-        <div id="dashboardCards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:16px;">
-          <div id="cardThisMonth" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
-            <div style="color:var(--muted); font-weight:700; font-size:13px;">This month</div>
-            <div id="dashThisMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
-          </div>
+            <div id="cardYtd" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
+              <div style="color:var(--muted); font-weight:700; font-size:13px;">Year to date</div>
+              <div id="dashYtd" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+            </div>
 
-          <div id="cardLastMonth" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
-            <div style="color:var(--muted); font-weight:700; font-size:13px;">Last month</div>
-            <div id="dashLastMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
-          </div>
+            <div id="cardCount" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
+              <div style="color:var(--muted); font-weight:700; font-size:13px;">Expense count</div>
+              <div id="dashCount" style="font-size:24px; font-weight:800; margin-top:6px;">0</div>
+            </div>
 
-          <div id="cardYtd" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
-            <div style="color:var(--muted); font-weight:700; font-size:13px;">Year to date</div>
-            <div id="dashYtd" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
-          </div>
+            <div id="cardMileageThisMonth" class="card" style="margin-top:0; cursor:default; padding:18px; border-radius:18px;">
+              <div style="color:var(--muted); font-weight:700; font-size:13px;">Mileage this month</div>
+              <div id="dashMileageThisMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+            </div>
 
-          <div id="cardCount" class="card" style="margin-top:0; cursor:pointer; padding:18px; border-radius:18px;">
-            <div style="color:var(--muted); font-weight:700; font-size:13px;">Expense count</div>
-            <div id="dashCount" style="font-size:24px; font-weight:800; margin-top:6px;">0</div>
-          </div>
-        </div>
-
-        <div id="monthlyChart" style="
-          margin-top:16px;
-          padding:18px;
-          border:1px solid rgba(0,0,0,.08);
-          border-radius:18px;
-          background:#fff;
-        ">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <div style="font-weight:800;">Monthly spend</div>
-            <span style="
-              padding:6px 10px;
-              border-radius:999px;
-              background:rgba(0,119,182,.08);
-              color:#0077B6;
-              font-size:13px;
-              font-weight:700;
-            ">
-              Trend
-            </span>
+            <div id="cardMileageYtd" class="card" style="margin-top:0; cursor:default; padding:18px; border-radius:18px;">
+              <div style="color:var(--muted); font-weight:700; font-size:13px;">Mileage YTD</div>
+              <div id="dashMileageYtd" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+            </div>
           </div>
 
-          <div style="height:320px;">
-            <canvas id="chartCanvas"></canvas>
-          </div>
-        </div>
-
-        <div style="
-          display:grid;
-          grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-          gap:14px;
-          margin-top:16px;
-        ">
-          <div id="topSuppliersCard" style="
+          <div id="mileageSummaryBlock" style="
+            margin-top:16px;
             padding:18px;
             border:1px solid rgba(0,0,0,.08);
             border-radius:18px;
             background:#fff;
           ">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-              <div style="font-weight:800;">Top suppliers</div>
-              <span style="
-                padding:6px 10px;
-                border-radius:999px;
-                background:rgba(0,119,182,.08);
-                color:#0077B6;
-                font-size:13px;
-                font-weight:700;
-              ">
-                Insight
-              </span>
-            </div>
-            <div id="topSuppliersList"></div>
-          </div>
-
-          <div id="topCategoriesCard" style="
-            padding:18px;
-            border:1px solid rgba(0,0,0,.08);
-            border-radius:18px;
-            background:#fff;
-          ">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-              <div style="font-weight:800;">Top categories</div>
-              <span style="
-                padding:6px 10px;
-                border-radius:999px;
-                background:rgba(0,119,182,.08);
-                color:#0077B6;
-                font-size:13px;
-                font-weight:700;
-              ">
-                Insight
-              </span>
-            </div>
-            <div id="topCategoriesList"></div>
-          </div>
-        </div>
-
-        <div id="summaryBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
-        <hr style="border:none; border-top:1px solid rgba(0,0,0,.08); margin:18px 0;">
-
-        <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;">
-          <div>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <div style="font-weight:800;">VAT Quarter</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+              <div style="font-weight:800;">Mileage summary</div>
               <span style="
                 padding:6px 10px;
                 border-radius:999px;
@@ -266,25 +220,166 @@
                 font-size:13px;
                 font-weight:700;
               ">
-                VAT
+                Mileage
               </span>
             </div>
-            <div style="color:var(--muted); margin-top:8px;" id="vatQuarterLine">—</div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;">
+              <div class="card" style="margin-top:0; padding:16px; border-radius:16px;">
+                <div style="color:var(--muted); font-weight:700; font-size:13px;">This month claims</div>
+                <div id="mileageSummaryThisMonth" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+              </div>
+
+              <div class="card" style="margin-top:0; padding:16px; border-radius:16px;">
+                <div style="color:var(--muted); font-weight:700; font-size:13px;">This month miles</div>
+                <div id="mileageSummaryMiles" style="font-size:24px; font-weight:800; margin-top:6px;">0.0</div>
+              </div>
+
+              <div class="card" style="margin-top:0; padding:16px; border-radius:16px;">
+                <div style="color:var(--muted); font-weight:700; font-size:13px;">Mileage YTD</div>
+                <div id="mileageSummaryYtd" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+              </div>
+            </div>
           </div>
 
-          <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:600;">
-            Quarter
-            <select id="vatQuarterPick"
-              style="padding:8px 10px; border-radius:10px; border:1px solid #ccc;">
-            </select>
-          </label>
+          <div id="monthlyChart" style="
+            margin-top:16px;
+            padding:18px;
+            border:1px solid rgba(0,0,0,.08);
+            border-radius:18px;
+            background:#fff;
+          ">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+              <div style="font-weight:800;">Monthly spend</div>
+              <span style="
+                padding:6px 10px;
+                border-radius:999px;
+                background:rgba(0,119,182,.08);
+                color:#0077B6;
+                font-size:13px;
+                font-weight:700;
+              ">
+                Trend
+              </span>
+            </div>
 
-          <button class="btn" id="btnExportVatQuarter" style="background:#111827;">
-            Export VAT CSV
-          </button>
+            <div style="height:320px;">
+              <canvas id="chartCanvas"></canvas>
+            </div>
+          </div>
+
+          <div id="monthlyMileageChart" style="
+            margin-top:16px;
+            padding:18px;
+            border:1px solid rgba(0,0,0,.08);
+            border-radius:18px;
+            background:#fff;
+          ">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+              <div style="font-weight:800;">Monthly mileage</div>
+              <span style="
+                padding:6px 10px;
+                border-radius:999px;
+                background:rgba(15,118,110,.08);
+                color:#0f766e;
+                font-size:13px;
+                font-weight:700;
+              ">
+                Trend
+              </span>
+            </div>
+
+            <div style="height:320px;">
+              <canvas id="mileageChartCanvas"></canvas>
+            </div>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+            gap:14px;
+            margin-top:16px;
+          ">
+            <div id="topSuppliersCard" style="
+              padding:18px;
+              border:1px solid rgba(0,0,0,.08);
+              border-radius:18px;
+              background:#fff;
+            ">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                <div style="font-weight:800;">Top suppliers</div>
+                <span style="
+                  padding:6px 10px;
+                  border-radius:999px;
+                  background:rgba(0,119,182,.08);
+                  color:#0077B6;
+                  font-size:13px;
+                  font-weight:700;
+                ">
+                  Insight
+                </span>
+              </div>
+              <div id="topSuppliersList"></div>
+            </div>
+
+            <div id="topCategoriesCard" style="
+              padding:18px;
+              border:1px solid rgba(0,0,0,.08);
+              border-radius:18px;
+              background:#fff;
+            ">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                <div style="font-weight:800;">Top categories</div>
+                <span style="
+                  padding:6px 10px;
+                  border-radius:999px;
+                  background:rgba(0,119,182,.08);
+                  color:#0077B6;
+                  font-size:13px;
+                  font-weight:700;
+                ">
+                  Insight
+                </span>
+              </div>
+              <div id="topCategoriesList"></div>
+            </div>
+          </div>
+
+          <div id="summaryBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
+          <hr style="border:none; border-top:1px solid rgba(0,0,0,.08); margin:18px 0;">
+
+          <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;">
+            <div>
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div style="font-weight:800;">VAT Quarter</div>
+                <span style="
+                  padding:6px 10px;
+                  border-radius:999px;
+                  background:rgba(15,118,110,.08);
+                  color:#0f766e;
+                  font-size:13px;
+                  font-weight:700;
+                ">
+                  VAT
+                </span>
+              </div>
+              <div style="color:var(--muted); margin-top:8px;" id="vatQuarterLine">—</div>
+            </div>
+
+            <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:600;">
+              Quarter
+              <select id="vatQuarterPick"
+                style="padding:8px 10px; border-radius:10px; border:1px solid #ccc;">
+              </select>
+            </label>
+
+            <button class="btn" id="btnExportVatQuarter" style="background:#111827;">
+              Export VAT CSV
+            </button>
+          </div>
+
+          <div id="vatQuarterBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
         </div>
-
-        <div id="vatQuarterBadges" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
       </div>
 
   <div class="card" id="expenseForm" style="display:none;">
@@ -390,112 +485,116 @@
     </div>
   </div>
 
-  <div class="card">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-      <h3 style="margin:0;">Expenses</h3>
-      <span style="
-        padding:6px 10px;
-        border-radius:999px;
-        background:rgba(0,119,182,.08);
-        color:#0077B6;
-        font-size:13px;
-        font-weight:700;
-      ">
-        Expenses
-      </span>
-    </div>
-
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; align-items:center;">
-      <input id="searchBox" placeholder="Search supplier / notes…"
-        style="flex:1; min-width:220px; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
-
-      <select id="categoryFilter"
-        style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:200px;">
-        <option value="">All categories</option>
-      </select>
-
-      <select id="vatFilter"
-        style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:170px;">
-        <option value="">All VAT</option>
-        <option value="standard">VAT 20%</option>
-        <option value="reduced">VAT 5%</option>
-        <option value="zero">VAT 0%</option>
-        <option value="exempt">Exempt</option>
-      </select>
-
-      <select id="rangeFilter"
-        style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
-        <option value="all">All time</option>
-        <option value="thisMonth">This month</option>
-        <option value="last30">Last 30 days</option>
-        <option value="last90">Last 90 days</option>
-        <option value="custom">Custom</option>
-      </select>
-
-      <div id="customRange" style="display:none; gap:10px; align-items:center;">
-        <input id="fromDate" type="date"
-          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
-        <input id="toDate" type="date"
-          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
+  <div id="expensesSection" style="margin-top:20px;">
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <h3 style="margin:0;">Expenses</h3>
+        <span style="
+          padding:6px 10px;
+          border-radius:999px;
+          background:rgba(0,119,182,.08);
+          color:#0077B6;
+          font-size:13px;
+          font-weight:700;
+        ">
+          Expenses
+        </span>
       </div>
 
-      <select id="sortBy"
-        style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
-        <option value="createdDesc">Newest</option>
-        <option value="createdAsc">Oldest</option>
-        <option value="amountDesc">Amount (high → low)</option>
-        <option value="amountAsc">Amount (low → high)</option>
-        <option value="dateDesc">Date (new → old)</option>
-        <option value="dateAsc">Date (old → new)</option>
-      </select>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; align-items:center;">
+        <input id="searchBox" placeholder="Search supplier / notes…"
+          style="flex:1; min-width:220px; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
 
-      <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:700;">
-        <input id="vatMode" type="checkbox" style="width:18px; height:18px;">
-        Show VAT
-      </label>
+        <select id="categoryFilter"
+          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:200px;">
+          <option value="">All categories</option>
+        </select>
 
-      <button class="btn" id="btnExportFilteredCsv" style="background:#111827;">Export filtered CSV</button>
-      <button class="btn" id="btnClearFilters" style="background:#6b7280;">Clear</button>
-    </div>
+        <select id="vatFilter"
+          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:170px;">
+          <option value="">All VAT</option>
+          <option value="standard">VAT 20%</option>
+          <option value="reduced">VAT 5%</option>
+          <option value="zero">VAT 0%</option>
+          <option value="exempt">Exempt</option>
+        </select>
 
-    <div id="stickyTotalsBar" style="
-      position:sticky;
-      top:0;
-      z-index:5;
-      background:var(--bg);
-      padding:10px 0 10px 0;
-      margin-bottom:10px;
-    ">
-      <div style="
-        border:1px solid rgba(0,0,0,.08);
-        border-radius:12px;
-        padding:10px 12px;
-        background:#fff;
-        box-shadow:0 4px 12px rgba(0,0,0,.04);
-      ">
-        <div id="filterHint" style="color:var(--muted); margin-bottom:6px; font-weight:600;"></div>
-        <div id="filteredTotal" style="color:var(--text); font-weight:800;"></div>
+        <select id="rangeFilter"
+          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
+          <option value="all">All time</option>
+          <option value="thisMonth">This month</option>
+          <option value="last30">Last 30 days</option>
+          <option value="last90">Last 90 days</option>
+          <option value="custom">Custom</option>
+        </select>
+
+        <div id="customRange" style="display:none; gap:10px; align-items:center;">
+          <input id="fromDate" type="date"
+            style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
+          <input id="toDate" type="date"
+            style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
+        </div>
+
+        <select id="sortBy"
+          style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
+          <option value="createdDesc">Newest</option>
+          <option value="createdAsc">Oldest</option>
+          <option value="amountDesc">Amount (high → low)</option>
+          <option value="amountAsc">Amount (low → high)</option>
+          <option value="dateDesc">Date (new → old)</option>
+          <option value="dateAsc">Date (old → new)</option>
+        </select>
+
+        <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:700;">
+          <input id="vatMode" type="checkbox" style="width:18px; height:18px;">
+          Show VAT
+        </label>
+
+        <button class="btn" id="btnExportFilteredCsv" style="background:#111827;">Export filtered CSV</button>
+        <button class="btn" id="btnClearFilters" style="background:#6b7280;">Clear</button>
       </div>
-    </div>
 
-    <div id="expensesList">No expenses yet.</div>
+      <div id="stickyTotalsBar" style="
+        position:sticky;
+        top:0;
+        z-index:5;
+        background:var(--bg);
+        padding:10px 0 10px 0;
+        margin-bottom:10px;
+      ">
+        <div style="
+          border:1px solid rgba(0,0,0,.08);
+          border-radius:12px;
+          padding:10px 12px;
+          background:#fff;
+          box-shadow:0 4px 12px rgba(0,0,0,.04);
+        ">
+          <div id="filterHint" style="color:var(--muted); margin-bottom:6px; font-weight:600;"></div>
+          <div id="filteredTotal" style="color:var(--text); font-weight:800;"></div>
+        </div>
+      </div>
+
+      <div id="expensesList">No expenses yet.</div>
+    </div>
   </div>
 
-  <div class="card" id="mileageListCard" style="display:none;">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-      <h3 style="margin:0;">Mileage claims</h3>
-      <span style="
-        padding:6px 10px;
-        border-radius:999px;
-        background:rgba(15,118,110,.08);
-        color:#0f766e;
-        font-size:13px;
-        font-weight:700;
-      ">
-        Mileage
-      </span>
+  <div id="mileageSection" style="margin-top:20px;">
+    <div class="card" id="mileageListCard" style="display:none;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <h3 style="margin:0;">Mileage claims</h3>
+        <span style="
+          padding:6px 10px;
+          border-radius:999px;
+          background:rgba(15,118,110,.08);
+          color:#0f766e;
+          font-size:13px;
+          font-weight:700;
+        ">
+          Mileage
+        </span>
+      </div>
+      <div id="mileageList"></div>
     </div>
-    <div id="mileageList"></div>
   </div>
 
     </div>
@@ -567,6 +666,14 @@
   const formMsg = document.getElementById("formMsg");
   const duplicateWarning = document.getElementById("duplicateWarning");
 
+  const dashboardSection = document.getElementById("dashboardSection");
+  const expensesSection = document.getElementById("expensesSection");
+  const mileageSection = document.getElementById("mileageSection");
+
+  const btnModeDashboard = document.getElementById("btnModeDashboard");
+  const btnModeExpenses = document.getElementById("btnModeExpenses");
+  const btnModeMileage = document.getElementById("btnModeMileage");
+
   const filterHint = document.getElementById("filterHint");
   const filteredTotal = document.getElementById("filteredTotal");
 
@@ -574,6 +681,7 @@
   const supplierQuickPick = document.getElementById("supplierQuickPick");
 
   const chartCanvas = document.getElementById("chartCanvas");
+  const mileageChartCanvas = document.getElementById("mileageChartCanvas");
   const topSuppliersList = document.getElementById("topSuppliersList");
   const topCategoriesList = document.getElementById("topCategoriesList");
 
@@ -626,6 +734,13 @@
   const dashYtd = document.getElementById("dashYtd");
   const dashCount = document.getElementById("dashCount");
 
+  const dashMileageThisMonth = document.getElementById("dashMileageThisMonth");
+  const dashMileageYtd = document.getElementById("dashMileageYtd");
+
+  const mileageSummaryThisMonth = document.getElementById("mileageSummaryThisMonth");
+  const mileageSummaryMiles = document.getElementById("mileageSummaryMiles");
+  const mileageSummaryYtd = document.getElementById("mileageSummaryYtd");
+
   const categoryChips = document.getElementById("categoryChips");
 
   const cardThisMonth = document.getElementById("cardThisMonth");
@@ -677,6 +792,8 @@
   let possibleDuplicateId = null;
 
   let monthlyChart = null;
+  let monthlyMileageChart = null;
+  let currentMode = "dashboard";
 
   rangeFilter.addEventListener("change", () => {
     const isCustom = rangeFilter.value === "custom";
@@ -781,6 +898,7 @@
       document.getElementById("expNotes").value = data.notes || "";
       expVatCode.value = data.vatCode || "standard";
 
+      setMode("expenses");
       showForm(true);
       formMsg.textContent = "";
     }
@@ -806,6 +924,7 @@
       document.getElementById("expNotes").value = data.notes || "";
       expVatCode.value = data.vatCode || "standard";
 
+      setMode("expenses");
       showForm(true);
       formMsg.textContent = "";
     }
@@ -853,6 +972,7 @@
       milNotes.value = data.notes || "";
 
       updateMileagePreview();
+      setMode("mileage");
 
       showMileageForm(true);
       mileageListCard.scrollIntoView({ behavior: "smooth" });
@@ -878,6 +998,7 @@
       milNotes.value = data.notes || "";
 
       updateMileagePreview();
+      setMode("mileage");
 
       showMileageForm(true);
       mileageListCard.scrollIntoView({ behavior: "smooth" });
@@ -1049,8 +1170,12 @@
           color:var(--muted);
           background:rgba(0,0,0,.02);
         ">
-          <div style="font-size:18px; font-weight:800; color:var(--text);">No mileage yet</div>
-          <div style="margin-top:8px;">Add your first mileage claim to get started.</div>
+          <div style="font-size:18px; font-weight:800; color:var(--text);">
+            No mileage claims yet
+          </div>
+          <div style="margin-top:8px;">
+            Add your first journey to get started.
+          </div>
         </div>
       `;
       return;
@@ -1353,6 +1478,100 @@
             beginAtZero: true,
             ticks: {
               callback: (v) => "£" + v
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderMonthlyMileageChart(docs) {
+    const rows = docs.map(d => d.data());
+
+    const totals = new Map();
+
+    for (const r of rows) {
+      const key = monthKeyFromDateStr(r.date);
+      if (!key) continue;
+
+      const miles = Number(r.miles) || 0;
+      totals.set(key, (totals.get(key) || 0) + miles);
+    }
+
+    const sortedKeys = [...totals.keys()].sort((a, b) => a.localeCompare(b));
+
+    if (!sortedKeys.length) {
+      if (monthlyMileageChart) {
+        monthlyMileageChart.destroy();
+        monthlyMileageChart = null;
+      }
+      return;
+    }
+
+    function nextMonthKey(monthKey) {
+      const [y, m] = monthKey.split("-").map(Number);
+      const d = new Date(y, m, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    function prettyMonthLabel(monthKey) {
+      const [y, m] = monthKey.split("-").map(Number);
+      const d = new Date(y, m - 1, 1);
+      return d.toLocaleDateString("en-GB", {
+        month: "short",
+        year: "numeric"
+      });
+    }
+
+    const startKey = sortedKeys[0];
+    const endKey = sortedKeys[sortedKeys.length - 1];
+
+    const monthKeys = [];
+    let cursor = startKey;
+
+    while (cursor <= endKey) {
+      monthKeys.push(cursor);
+      cursor = nextMonthKey(cursor);
+    }
+
+    const labels = monthKeys.map(prettyMonthLabel);
+    const values = monthKeys.map(key => totals.get(key) || 0);
+
+    if (monthlyMileageChart) {
+      monthlyMileageChart.destroy();
+    }
+
+    monthlyMileageChart = new Chart(mileageChartCanvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Monthly mileage",
+          data: values,
+          borderColor: "#0f766e",
+          backgroundColor: "rgba(15,118,110,.10)",
+          tension: 0.3,
+          fill: true,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          pointHitRadius: 20
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: "nearest",
+          intersect: false
+        },
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (v) => v + " miles"
             }
           }
         }
@@ -1823,6 +2042,25 @@
     expenseForm.style.display = show ? "block" : "none";
   }
 
+  function setMode(mode) {
+    currentMode = mode;
+
+    showForm(false);
+    showMileageForm(false);
+
+    dashboardSection.style.display = mode === "dashboard" ? "block" : "none";
+    expensesSection.style.display = mode === "expenses" ? "block" : "none";
+    mileageSection.style.display = mode === "mileage" ? "block" : "none";
+
+    btnModeDashboard.style.background = mode === "dashboard" ? "var(--accent)" : "#6b7280";
+    btnModeExpenses.style.background = mode === "expenses" ? "var(--accent)" : "#6b7280";
+    btnModeMileage.style.background = mode === "mileage" ? "#0f766e" : "#6b7280";
+  }
+
+  function syncModeVisibility() {
+    setMode(currentMode);
+  }
+
   function resetFormState() {
     editingId = null;
     document.querySelector("#expenseForm h3").textContent = "New expense";
@@ -1976,6 +2214,66 @@
       : `${formatGBP(ytdNet)}`;
 
     dashCount.textContent = String(rows.length);
+  }
+
+  function renderMileageDashboardCards(docs) {
+    const rows = docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const now = new Date();
+    const thisMonthKey = getMonthKeyFromDate(now);
+    const thisYear = String(now.getFullYear());
+
+    let thisMonthMileageTotal = 0;
+    let ytdMileageTotal = 0;
+
+    for (const r of rows) {
+      const monthKey = monthKeyFromDateStr(r.date);
+      const yearKey = (r.date || "").slice(0, 4);
+      const total = Number(r.total) || 0;
+
+      if (monthKey === thisMonthKey) {
+        thisMonthMileageTotal += total;
+      }
+
+      if (yearKey === thisYear) {
+        ytdMileageTotal += total;
+      }
+    }
+
+    dashMileageThisMonth.textContent = formatGBP(thisMonthMileageTotal);
+    dashMileageYtd.textContent = formatGBP(ytdMileageTotal);
+  }
+
+  function renderMileageSummaryBlock(docs) {
+    const rows = docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const now = new Date();
+    const thisMonthKey = getMonthKeyFromDate(now);
+    const thisYear = String(now.getFullYear());
+
+    let thisMonthClaims = 0;
+    let thisMonthMiles = 0;
+    let ytdClaims = 0;
+
+    for (const r of rows) {
+      const monthKey = monthKeyFromDateStr(r.date);
+      const yearKey = (r.date || "").slice(0, 4);
+      const total = Number(r.total) || 0;
+      const miles = Number(r.miles) || 0;
+
+      if (monthKey === thisMonthKey) {
+        thisMonthClaims += total;
+        thisMonthMiles += miles;
+      }
+
+      if (yearKey === thisYear) {
+        ytdClaims += total;
+      }
+    }
+
+    mileageSummaryThisMonth.textContent = formatGBP(thisMonthClaims);
+    mileageSummaryMiles.textContent = thisMonthMiles.toFixed(1);
+    mileageSummaryYtd.textContent = formatGBP(ytdClaims);
   }
 
   function renderSummary(docs) {
@@ -2380,6 +2678,9 @@
 
   // --- Expense form buttons ---
   btnAddExpense.addEventListener("click", () => {
+    setMode("expenses");
+    resetMileageFormState();
+    showMileageForm(false);
     resetFormState();
     showForm(true);
   });
@@ -2388,7 +2689,22 @@
     showForm(false);
   });
 
+  btnModeDashboard.addEventListener("click", () => {
+    setMode("dashboard");
+  });
+
+  btnModeExpenses.addEventListener("click", () => {
+    setMode("expenses");
+  });
+
+  btnModeMileage.addEventListener("click", () => {
+    setMode("mileage");
+  });
+
   btnAddMileage.addEventListener("click", () => {
+    setMode("mileage");
+    resetFormState();
+    showForm(false);
     resetMileageFormState();
     showMileageForm(true);
     mileageListCard.style.display = "block";
@@ -2579,6 +2895,7 @@
     if (user) {
       loginCard.style.display = "none";
       appArea.style.display = "block";
+      setMode("dashboard");
       
       loadSavedFilters();
 
@@ -2653,6 +2970,9 @@
         const docs = snap.docs;
         latestMileageDocs = docs;
         renderMileage(docs);
+        renderMileageDashboardCards(docs);
+        renderMileageSummaryBlock(docs);
+        renderMonthlyMileageChart(docs);
         mileageListCard.style.display = "block";
       }, (err) => {
         console.error(err);
@@ -2662,6 +2982,7 @@
     } else {
       loginCard.style.display = "block";
       appArea.style.display = "none";
+      currentMode = "dashboard";
 
       summaryCard.style.display = "none";
 
@@ -2673,6 +2994,18 @@
       showMileageForm(false);
       mileageListCard.style.display = "none";
       resetMileageFormState();
+
+      dashMileageThisMonth.textContent = "£0.00";
+      dashMileageYtd.textContent = "£0.00";
+
+      mileageSummaryThisMonth.textContent = "£0.00";
+      mileageSummaryMiles.textContent = "0.0";
+      mileageSummaryYtd.textContent = "£0.00";
+
+      if (monthlyMileageChart) {
+        monthlyMileageChart.destroy();
+        monthlyMileageChart = null;
+      }
     }
   });
 </script>
