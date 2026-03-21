@@ -50,6 +50,73 @@
 
     /* Hide attachment for now (Spark plan) */
     .hidden { display: none !important; }
+
+    @media (max-width: 700px){
+      .wrap{
+        padding:16px;
+      }
+
+      .btn{
+        width:100%;
+        justify-content:center;
+      }
+
+      .card{
+        padding:14px;
+        border-radius:14px;
+      }
+
+      #modeSwitcher{
+        width:100%;
+      }
+
+      #modeSwitcher .btn{
+        flex:1 1 auto;
+        min-width:120px;
+      }
+
+      #dashboardCards{
+        grid-template-columns:1fr !important;
+      }
+
+      #summaryBadges,
+      #vatQuarterBadges{
+        gap:8px;
+      }
+
+      #topSuppliersCard,
+      #topCategoriesCard,
+      #monthlyChart,
+      #monthlyMileageChart,
+      #mileageSummaryBlock{
+        padding:14px !important;
+        border-radius:16px !important;
+      }
+
+      #expensesList > div,
+      #mileageList > div{
+        flex-direction:column !important;
+        align-items:flex-start !important;
+      }
+
+      #expensesList > div > div:last-child,
+      #mileageList > div > div:last-child{
+        width:100%;
+        justify-content:flex-start !important;
+        margin-top:12px;
+        flex-wrap:wrap;
+      }
+
+      #customRange{
+        width:100%;
+        flex-direction:column;
+        align-items:stretch !important;
+      }
+
+      #customRange input{
+        width:100%;
+      }
+    }
   </style>
 </head>
 
@@ -201,6 +268,24 @@
               <div style="color:var(--muted); font-weight:700; font-size:13px;">Mileage YTD</div>
               <div id="dashMileageYtd" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
             </div>
+
+            <div id="cardNetImpact" class="card" style="margin-top:0; cursor:default; padding:18px; border-radius:18px;">
+              <div style="color:var(--muted); font-weight:700; font-size:13px;">Total activity this month</div>
+              <div id="dashNetImpact" style="font-size:24px; font-weight:800; margin-top:6px;">£0.00</div>
+            </div>
+          </div>
+
+          <div id="dashboardHelpText" style="
+            margin-top:10px;
+            padding:10px 12px;
+            border-radius:12px;
+            background:rgba(0,0,0,.03);
+            font-size:13px;
+            color:var(--muted);
+            line-height:1.4;
+          ">
+            Dashboard summary: expenses and mileage claims for the current month. 
+            <strong>Total activity</strong> = expenses + mileage.
           </div>
 
           <div id="mileageSummaryBlock" style="
@@ -294,6 +379,30 @@
             </div>
           </div>
 
+          <div id="recentActivityCard" style="
+            margin-top:16px;
+            padding:18px;
+            border:1px solid rgba(0,0,0,.08);
+            border-radius:18px;
+            background:#fff;
+          ">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+              <div style="font-weight:800;">Recent activity</div>
+              <span style="
+                padding:6px 10px;
+                border-radius:999px;
+                background:rgba(17,24,39,.06);
+                color:#111827;
+                font-size:13px;
+                font-weight:700;
+              ">
+                Live
+              </span>
+            </div>
+
+            <div id="recentActivityList"></div>
+          </div>
+
           <div style="
             display:grid;
             grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
@@ -342,6 +451,29 @@
                 </span>
               </div>
               <div id="topCategoriesList"></div>
+            </div>
+
+            <div id="topJourneysCard" style="
+              padding:18px;
+              border:1px solid rgba(0,0,0,.08);
+              border-radius:18px;
+              background:#fff;
+            ">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                <div style="font-weight:800;">Top journeys</div>
+                <span style="
+                  padding:6px 10px;
+                  border-radius:999px;
+                  background:rgba(15,118,110,.08);
+                  color:#0f766e;
+                  font-size:13px;
+                  font-weight:700;
+                ">
+                  Insight
+                </span>
+              </div>
+
+              <div id="topJourneysList"></div>
             </div>
           </div>
 
@@ -556,7 +688,7 @@
 
       <div id="stickyTotalsBar" style="
         position:sticky;
-        top:0;
+        top:305px;
         z-index:5;
         background:var(--bg);
         padding:10px 0 10px 0;
@@ -684,6 +816,8 @@
   const mileageChartCanvas = document.getElementById("mileageChartCanvas");
   const topSuppliersList = document.getElementById("topSuppliersList");
   const topCategoriesList = document.getElementById("topCategoriesList");
+  const topJourneysList = document.getElementById("topJourneysList");
+  const recentActivityList = document.getElementById("recentActivityList");
 
   const mileageForm = document.getElementById("mileageForm");
   const mileageListCard = document.getElementById("mileageListCard");
@@ -736,6 +870,7 @@
 
   const dashMileageThisMonth = document.getElementById("dashMileageThisMonth");
   const dashMileageYtd = document.getElementById("dashMileageYtd");
+  const dashNetImpact = document.getElementById("dashNetImpact");
 
   const mileageSummaryThisMonth = document.getElementById("mileageSummaryThisMonth");
   const mileageSummaryMiles = document.getElementById("mileageSummaryMiles");
@@ -1160,7 +1295,14 @@
   }
 
   function renderMileage(docs) {
-    if (!docs.length) {
+    const filteredDocs = mileageJourneyFilter
+      ? docs.filter(d => {
+          const journey = (d.data().journey || "").trim();
+          return journey === mileageJourneyFilter;
+        })
+      : docs;
+
+    if (!filteredDocs.length) {
       mileageList.innerHTML = `
         <div style="
           padding:24px;
@@ -1171,17 +1313,60 @@
           background:rgba(0,0,0,.02);
         ">
           <div style="font-size:18px; font-weight:800; color:var(--text);">
-            No mileage claims yet
+            ${mileageJourneyFilter ? "No matching mileage claims" : "No mileage claims yet"}
           </div>
           <div style="margin-top:8px;">
-            Add your first journey to get started.
+            ${mileageJourneyFilter ? "Try clearing the journey filter." : "Add your first journey to get started."}
           </div>
+          ${mileageJourneyFilter ? `
+            <div style="margin-top:12px;">
+              <button
+                id="btnClearMileageJourneyFilter"
+                class="btn"
+                style="background:#6b7280;"
+              >
+                Clear filter
+              </button>
+            </div>
+          ` : ""}
         </div>
       `;
       return;
     }
 
-    mileageList.innerHTML = docs.map(d => {
+      const filterBanner = mileageJourneyFilter ? `
+        <div style="
+          margin-bottom:12px;
+          padding:12px 14px;
+          border-radius:14px;
+          background:rgba(15,118,110,.08);
+          color:#0f766e;
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:10px;
+          flex-wrap:wrap;
+          font-weight:700;
+        ">
+          <span>Filtering by journey: ${mileageJourneyFilter}</span>
+          <button
+            id="btnClearMileageJourneyFilter"
+            style="
+              padding:8px 12px;
+              border-radius:10px;
+              border:none;
+              background:#6b7280;
+              color:white;
+              cursor:pointer;
+              font-weight:700;
+            "
+          >
+            Clear
+          </button>
+        </div>
+      ` : "";
+
+      mileageList.innerHTML = filterBanner + filteredDocs.map(d => {
       const data = d.data();
       const total = Number(data.total || 0).toFixed(2);
       const miles = Number(data.miles || 0).toFixed(1);
@@ -1624,6 +1809,155 @@
           <span style="font-weight:600;">${category}</span>
           <span style="font-weight:700;">${formatGBP(amount)}</span>
         </button>
+      `;
+    }).join("");
+  }
+
+  function renderTopJourneys(docs) {
+    const totals = new Map();
+
+    for (const d of docs) {
+      const data = d.data();
+      const journey = (data.journey || "Unknown journey").trim() || "Unknown journey";
+      const total = Number(data.total) || 0;
+
+      totals.set(journey, (totals.get(journey) || 0) + total);
+    }
+
+    const top = [...totals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+
+    if (!top.length) {
+      topJourneysList.innerHTML = `<div style="color:var(--muted);">No mileage yet.</div>`;
+      return;
+    }
+
+    topJourneysList.innerHTML = top.map(([journey, amount], index) => {
+      return `
+        <button
+          type="button"
+          data-journey="${journey.replaceAll('"', '&quot;')}"
+          onmouseover="this.style.background='rgba(0,0,0,.03)'"
+          onmouseout="this.style.background='transparent'"
+          style="
+            width:100%;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            padding:10px 0;
+            border:none;
+            border-top:${index === 0 ? "none" : "1px solid rgba(0,0,0,.06)"};
+            background:transparent;
+            border-radius:10px;
+            cursor:pointer;
+            text-align:left;
+          "
+        >
+          <span style="font-weight:600;">${journey}</span>
+          <span style="font-weight:700;">${formatGBP(amount)}</span>
+        </button>
+      `;
+    }).join("");
+  }
+
+  function renderRecentActivity(expenseDocs, mileageDocs) {
+    const expenseItems = expenseDocs.map(d => {
+      const data = d.data();
+      const createdAt = d.data().createdAt?.toMillis ? d.data().createdAt.toMillis() : 0;
+
+      return {
+        type: "expense",
+        createdAt,
+        title: data.supplier || "Expense",
+        subtitle: `${data.date || ""} • ${data.category || "Uncategorised"}`,
+        amount: Number(data.net) || 0
+      };
+    });
+
+    const mileageItems = mileageDocs.map(d => {
+      const data = d.data();
+      const createdAt = d.data().createdAt?.toMillis ? d.data().createdAt.toMillis() : 0;
+
+      return {
+        type: "mileage",
+        createdAt,
+        title: data.journey || "Mileage claim",
+        subtitle: `${data.date || ""} • ${data.fromLocation || ""} → ${data.toLocation || ""}`,
+        amount: Number(data.total) || 0
+      };
+    });
+
+    const items = [...expenseItems, ...mileageItems]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 6);
+
+    if (!items.length) {
+      recentActivityList.innerHTML = `
+        <div style="
+          padding:20px;
+          text-align:center;
+          border:1px dashed rgba(0,0,0,.14);
+          border-radius:16px;
+          color:var(--muted);
+          background:rgba(0,0,0,.02);
+        ">
+          <div style="font-size:16px; font-weight:800; color:var(--text);">No recent activity yet</div>
+          <div style="margin-top:8px;">Expenses and mileage entries will appear here.</div>
+        </div>
+      `;
+      return;
+    }
+
+    recentActivityList.innerHTML = items.map((item, index) => {
+      const isExpense = item.type === "expense";
+      const badgeBg = isExpense ? "rgba(0,119,182,.08)" : "rgba(15,118,110,.08)";
+      const badgeColor = isExpense ? "#0077B6" : "#0f766e";
+      const badgeText = isExpense ? "Expense" : "Mileage";
+
+      return `
+        <div
+          data-activity-type="${item.type}"
+          onmouseover="this.style.background='rgba(0,0,0,.03)'"
+          onmouseout="this.style.background='transparent'"
+          style="
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:14px;
+            padding:${index === 0 ? "0 0 14px 0" : "14px 0"};
+            border-top:${index === 0 ? "none" : "1px solid rgba(0,0,0,.08)"};
+            cursor:pointer;
+            border-radius:12px;
+            background:transparent;
+            transition:background .15s ease;
+          "
+        >
+          <div style="min-width:0;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <div style="font-weight:700; color:var(--text);">${item.title}</div>
+              <span style="
+                padding:4px 8px;
+                border-radius:999px;
+                background:${badgeBg};
+                color:${badgeColor};
+                font-size:12px;
+                font-weight:700;
+              ">
+                ${badgeText}
+              </span>
+            </div>
+
+            <div style="margin-top:6px; color:var(--muted); line-height:1.4;">
+              ${item.subtitle}
+            </div>
+          </div>
+
+          <div style="font-weight:800; white-space:nowrap;">
+            ${formatGBP(item.amount)}
+          </div>
+        </div>
       `;
     }).join("");
   }
@@ -2276,6 +2610,36 @@
     mileageSummaryYtd.textContent = formatGBP(ytdClaims);
   }
 
+  function renderNetImpactCard(expenseDocs, mileageDocs) {
+    const now = new Date();
+    const thisMonthKey = getMonthKeyFromDate(now);
+
+    let expenseTotalThisMonth = 0;
+    let mileageTotalThisMonth = 0;
+
+    for (const d of expenseDocs) {
+      const data = d.data();
+      const monthKey = monthKeyFromDateStr(data.date);
+      if (monthKey !== thisMonthKey) continue;
+
+      const { net } = calcVat(data.net, data.vatCode);
+      expenseTotalThisMonth += net;
+    }
+
+    for (const d of mileageDocs) {
+      const data = d.data();
+      const monthKey = monthKeyFromDateStr(data.date);
+      if (monthKey !== thisMonthKey) continue;
+
+      mileageTotalThisMonth += Number(data.total) || 0;
+    }
+
+    const totalActivity = expenseTotalThisMonth + mileageTotalThisMonth;
+
+    dashNetImpact.textContent = formatGBP(totalActivity);
+    dashNetImpact.style.color = "var(--text)";
+  }
+
   function renderSummary(docs) {
 
     const monthKey = monthPick.value;
@@ -2655,11 +3019,55 @@
     const category = btn.getAttribute("data-category");
     if (!category) return;
 
+    setMode("expenses");
+
+    searchBox.value = "";
     categoryFilter.value = category;
+    vatFilter.value = "";
+
     saveFilters();
     applyFilters();
     setActiveDashboardCard("");
     showToast(`Filtered to ${category}`, "info");
+  });
+
+  recentActivityList.addEventListener("click", (e) => {
+    const row = e.target.closest("[data-activity-type]");
+    if (!row) return;
+
+    const type = row.getAttribute("data-activity-type");
+
+    if (type === "expense") {
+      setMode("expenses");
+      return;
+    }
+
+    if (type === "mileage") {
+      setMode("mileage");
+      return;
+    }
+  });
+
+  topJourneysList.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-journey]");
+    if (!btn) return;
+
+    const journey = btn.getAttribute("data-journey");
+    if (!journey) return;
+
+    mileageJourneyFilter = journey;
+    setMode("mileage");
+    renderMileage(latestMileageDocs);
+    showToast(`Filtered to ${journey}`, "info");
+  });
+
+  mileageList.addEventListener("click", (e) => {
+    const clearBtn = e.target.closest("#btnClearMileageJourneyFilter");
+    if (!clearBtn) return;
+
+    mileageJourneyFilter = "";
+    renderMileage(latestMileageDocs);
+    showToast("Journey filter cleared", "info");
   });
 
   topSuppliersList.addEventListener("click", (e) => {
@@ -2669,7 +3077,12 @@
     const supplier = btn.getAttribute("data-supplier");
     if (!supplier) return;
 
+    setMode("expenses");
+
     searchBox.value = supplier;
+    categoryFilter.value = "";
+    vatFilter.value = "";
+
     saveFilters();
     applyFilters();
     setActiveDashboardCard("");
@@ -2694,15 +3107,23 @@
   });
 
   btnModeExpenses.addEventListener("click", () => {
+    searchBox.value = "";
+    categoryFilter.value = "";
+    vatFilter.value = "";
+    saveFilters();
+    applyFilters();
     setMode("expenses");
   });
 
   btnModeMileage.addEventListener("click", () => {
+    mileageJourneyFilter = "";
     setMode("mileage");
+    renderMileage(latestMileageDocs);
   });
 
   btnAddMileage.addEventListener("click", () => {
     setMode("mileage");
+    mileageJourneyFilter = "";
     resetFormState();
     showForm(false);
     resetMileageFormState();
@@ -2877,6 +3298,7 @@
   let unsubscribeMileage = null;
   let latestMileageDocs = [];
   let editingMileageId = null;
+  let mileageJourneyFilter = "";
 
   onAuthStateChanged(auth, (user) => {
     console.log("Auth state:", user ? user.email : "signed out");
@@ -2955,6 +3377,8 @@
         renderMonthlyChart(docs);
         renderTopSuppliers(docs);
         renderTopCategories(docs);
+        renderRecentActivity(docs, latestMileageDocs);
+        renderNetImpactCard(docs, latestMileageDocs);
 
         buildQuarterOptions(docs);
         renderVatQuarter(docs);
@@ -2973,6 +3397,9 @@
         renderMileageDashboardCards(docs);
         renderMileageSummaryBlock(docs);
         renderMonthlyMileageChart(docs);
+        renderTopJourneys(docs);
+        renderRecentActivity(latestDocs, docs);
+        renderNetImpactCard(latestDocs, docs);
         mileageListCard.style.display = "block";
       }, (err) => {
         console.error(err);
@@ -2997,10 +3424,14 @@
 
       dashMileageThisMonth.textContent = "£0.00";
       dashMileageYtd.textContent = "£0.00";
+      dashNetImpact.textContent = "£0.00";
+      dashNetImpact.style.color = "var(--text)";
 
       mileageSummaryThisMonth.textContent = "£0.00";
       mileageSummaryMiles.textContent = "0.0";
       mileageSummaryYtd.textContent = "£0.00";
+      recentActivityList.innerHTML = "";
+      topJourneysList.innerHTML = "";
 
       if (monthlyMileageChart) {
         monthlyMileageChart.destroy();
