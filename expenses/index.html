@@ -117,10 +117,186 @@
         width:100%;
       }
     }
+
+    .intro{
+      padding: 40px 20px 24px;
+      background:
+        radial-gradient(circle at top right, rgba(0,119,182,.10), transparent 30%),
+        linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+      border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+
+    .intro-inner{
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.4fr .8fr;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .intro-copy h1{
+      margin: 10px 0 12px;
+      font-size: 42px;
+      line-height: 1.05;
+      color: #1f2933;
+    }
+
+    .intro-badge{
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(0,119,182,.10);
+      color: #0077B6;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .intro-lead{
+      margin: 0;
+      max-width: 620px;
+      font-size: 18px;
+      line-height: 1.6;
+      color: #4b5563;
+    }
+
+    .welcome-message{
+      margin: 0 0 10px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #0077B6;
+    }
+
+    .intro-actions{
+      display: flex;
+      gap: 12px;
+      margin-top: 22px;
+      flex-wrap: wrap;
+    }
+
+    .btn-secondary{
+      background: transparent;
+      color: #0077B6;
+      border: 1px solid rgba(0,119,182,.25);
+    }
+
+    .intro-card{
+      background: #ffffff;
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.06);
+      display: grid;
+      gap: 12px;
+    }
+
+    .intro-stat{
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #f7f9fb;
+      color: #1f2933;
+      font-weight: 600;
+    }
+
+    .intro-features{
+      max-width: 1100px;
+      margin: 24px auto 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .feature-card{
+      background: #ffffff;
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.04);
+    }
+
+    .feature-card h3{
+      margin: 0 0 8px;
+      color: #1f2933;
+      font-size: 18px;
+    }
+
+    .feature-card p{
+      margin: 0;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 700px){
+      .intro{
+        padding: 28px 16px 18px;
+      }
+
+      .intro-inner{
+        grid-template-columns: 1fr;
+      }
+
+      .intro-copy h1{
+        font-size: 32px;
+      }
+
+      .intro-lead{
+        font-size: 16px;
+      }
+
+      .intro-features{
+        grid-template-columns: 1fr;
+      }
+    }
+
+    header{
+      margin-top: 0;
+    }
   </style>
 </head>
 
 <body>
+
+  <!-- intro section for Simple Expenses webapp -->
+  <section class="intro">
+    <div class="intro-inner">
+      <div class="intro-copy">
+        <span class="intro-badge">Simple, calm expense tracking</span>
+        <h1>Simple Expenses</h1>
+        <p id="welcomeMessage" class="welcome-message" style="display:none;"></p>
+        <p class="intro-lead">
+          Track expenses, keep your records together, and export what you need without the clutter.
+        </p>
+
+        <div class="intro-actions">
+          <button class="btn" id="btnIntroGetStarted">Get started</button>
+          <button class="btn btn-secondary" id="btnIntroSignIn">Sign in</button>
+        </div>
+      </div>
+
+      <div class="intro-card">
+        <div class="intro-stat">Free web app</div>
+        <div class="intro-stat">CSV exports</div>
+        <div class="intro-stat">Receipt-friendly workflow</div>
+      </div>
+    </div>
+
+    <div class="intro-features">
+      <div class="feature-card">
+        <h3>Track expenses</h3>
+        <p>Log claims quickly with simple fields and clear totals.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Stay organised</h3>
+        <p>Filter, sort, and review your records without the usual mess.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Export with ease</h3>
+        <p>Download CSV files when you need to share or reconcile your data.</p>
+      </div>
+    </div>
+  </section>
 
 <header>
   <div class="wrap">
@@ -3301,6 +3477,7 @@
   let mileageJourneyFilter = "";
 
   onAuthStateChanged(auth, (user) => {
+    const welcomeMessage = document.getElementById("welcomeMessage");
     console.log("Auth state:", user ? user.email : "signed out");
 
     // stop previous listener when signing out or switching user
@@ -3315,6 +3492,15 @@
     }
 
     if (user) {
+      if (welcomeMessage) {
+        const firstName =
+          user.displayName?.split(" ")[0] ||
+          user.email?.split("@")[0] ||
+          "there";
+
+        welcomeMessage.textContent = `Welcome back, ${firstName}`;
+        welcomeMessage.style.display = "block";
+      }
       loginCard.style.display = "none";
       appArea.style.display = "block";
       setMode("dashboard");
@@ -3407,6 +3593,10 @@
       });
 
     } else {
+      if (welcomeMessage) {
+        welcomeMessage.textContent = "";
+        welcomeMessage.style.display = "none";
+      }
       loginCard.style.display = "block";
       appArea.style.display = "none";
       currentMode = "dashboard";
@@ -3438,6 +3628,20 @@
         monthlyMileageChart = null;
       }
     }
+  });
+
+  window.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("btnIntroGetStarted")?.addEventListener("click", () => {
+      const appArea = document.getElementById("appArea");
+      if (appArea) {
+        appArea.style.display = "block";
+        appArea.scrollIntoView({ behavior: "smooth" });
+      }
+    });
+
+    document.getElementById("btnIntroSignIn")?.addEventListener("click", () => {
+      document.getElementById("loginCard")?.scrollIntoView({ behavior: "smooth" });
+    });
   });
 </script>
 
