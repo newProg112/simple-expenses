@@ -152,6 +152,13 @@
       font-weight: 600;
     }
 
+    .intro-logo{
+      display:block;
+      width:min(320px, 100%);
+      height:auto;
+      margin:12px 0 14px;
+    }
+
     .intro-lead{
       margin: 0;
       max-width: 620px;
@@ -261,7 +268,13 @@
     <div class="intro-inner">
       <div class="intro-copy">
         <span class="intro-badge">Simple, calm expense tracking</span>
-        <h1>Simple Expenses</h1>
+
+        <img
+          src="assets/simple-expenses-logo.png"
+          alt="Simple Expenses"
+          class="intro-logo"
+        />
+
         <p id="welcomeMessage" class="welcome-message" style="display:none;"></p>
         <p class="intro-lead">
           Track expenses, keep your records together, and export what you need without the clutter.
@@ -270,6 +283,9 @@
         <div class="intro-actions">
           <button class="btn" id="btnIntroGetStarted">Get started</button>
           <button class="btn btn-secondary" id="btnIntroSignIn">Sign in</button>
+          <a class="btn btn-secondary" href="/downloads/simple-expenses-android.apk" download>
+            Download Android APK
+          </a>
         </div>
       </div>
 
