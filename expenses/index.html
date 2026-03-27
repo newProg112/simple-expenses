@@ -739,7 +739,7 @@
 
       <div id="categoryChips" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;"></div>
 
-      <input id="expNet" type="number" step="0.01" placeholder="Net (£)"
+      <input id="expNet" type="number" step="0.01" placeholder="Gross (£)"
         style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
 
         <select id="expVatCode"
@@ -749,8 +749,12 @@
           <option value="zero">VAT 0% (Zero)</option>
           <option value="exempt">Exempt / No VAT</option>
         </select>
+
+      <label for="expReceipt" style="display:block; margin-top:6px; color:#4b5563; font-size:14px;">
+        Attach receipt
+      </label>  
       
-      <input id="expReceipt" class="hidden" type="file" accept="image/*,.pdf"
+      <input id="expReceipt" type="file" accept="image/*,.pdf"
         style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-top:10px;">
     </div>
 
@@ -795,6 +799,13 @@
 
     <textarea id="milNotes" placeholder="Notes"
       style="width:100%; min-height:90px; margin-top:10px; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,.12);"></textarea>
+
+    <label for="milAttachment" style="display:block; margin-top:10px; color:#4b5563; font-size:14px;">
+      Attach evidence
+    </label>
+
+    <input id="milAttachment" type="file" accept="image/*,.pdf"
+      style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,.12); margin-top:6px;" />
 
     <div id="mileageTotalPreview"
       style="margin-top:12px; padding:12px; border-radius:12px; background:rgba(0,119,182,.08); font-weight:700;">
@@ -1407,10 +1418,16 @@
       const { net, vat, gross } = calcVat(data.net, data.vatCode);
       const vatLabel = vatLabelFromCode(data.vatCode);
       const badge = vatBadgeStyleFromCode(data.vatCode);
-      const netStr = net.toFixed(2);
+      const grossStr = gross.toFixed(2);
       const notes = data.notes ? ` • ${data.notes}` : "";
       const receiptLink = data.receipt?.url
-        ? ` • <a href="${data.receipt.url}" target="_blank" rel="noopener" style="color:var(--accent); font-weight:600; text-decoration:none;">View receipt</a>`
+        ? data.receipt.type?.startsWith("image/")
+          ? ` • <a href="${data.receipt.url}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">
+              <img src="${data.receipt.url}" style="width:36px; height:36px; object-fit:cover; border-radius:8px; border:1px solid rgba(0,0,0,.08);" />
+            </a>`
+          : ` • <a href="${data.receipt.url}" target="_blank" rel="noopener" style="color:var(--accent); font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+              📎 Receipt
+            </a>`
         : "";
 
       const highlight = d.id === possibleDuplicateId
@@ -1420,7 +1437,7 @@
       return `<div style="${highlight} padding:10px 0; border-top:1px solid rgba(0,0,0,.08); display:flex; justify-content:space-between; gap:12px;">
         <div>
           <div style="font-weight:600;">
-            £${netStr}
+            £${grossStr}
             <span style="color:var(--muted); font-weight:400;">(${category})</span>
 
             <span style="
@@ -1437,7 +1454,7 @@
           </div>
 
           ${vatMode.checked ? `<div style="color:var(--muted); font-weight:600; font-size:13px; margin-top:4px;">
-            VAT £${vat.toFixed(2)} • Gross £${gross.toFixed(2)}
+            Net £${net.toFixed(2)} • VAT £${vat.toFixed(2)}
           </div>` : ``}
 
           <div style="color:var(--muted);">${date} • ${supplier}${notes}${receiptLink}</div>
@@ -1564,6 +1581,17 @@
       const miles = Number(data.miles || 0).toFixed(1);
       const rate = Number(data.ratePerMile || 0).toFixed(2);
 
+      const evidenceLink = data.attachment?.url
+        ? data.attachment.type?.startsWith("image/")
+          ? ` • <a href="${data.attachment.url}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">
+              <img src="${data.attachment.url}" style="width:36px; height:36px; object-fit:cover; border-radius:8px; border:1px solid rgba(0,0,0,.08);" />
+            </a>`
+          : ` • <a href="${data.attachment.url}" target="_blank" rel="noopener"
+              style="color:var(--accent); font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+              📎 Evidence
+            </a>`
+        : "";
+
       return `
         <div style="
           padding:16px 0;
@@ -1611,7 +1639,7 @@
               margin-top:6px;
               line-height:1.45;
             ">
-              ${data.date || ""} • ${data.fromLocation || ""} → ${data.toLocation || ""}
+              ${data.date || ""} • ${data.fromLocation || ""} → ${data.toLocation || ""}${evidenceLink}
             </div>
 
             <div style="
@@ -3343,8 +3371,7 @@
     const netRaw = document.getElementById("expNet").value;
     const notes = document.getElementById("expNotes").value.trim();
     const vatCode = expVatCode.value || "standard";
-    // Attachments disabled for now (Spark plan)
-    const receiptFile = null;
+    const receiptFile = document.getElementById("expReceipt").files[0] || null;
 
     const net = Number(netRaw);
 
@@ -3365,7 +3392,7 @@
     if (!date) return (formMsg.textContent = "Please pick a date.");
     if (!supplier) return (formMsg.textContent = "Please enter a supplier.");
     if (!category) return (formMsg.textContent = "Please enter a category.");
-    if (!Number.isFinite(net) || net <= 0) return (formMsg.textContent = "Net must be a number > 0.");
+    if (!Number.isFinite(net) || net <= 0) return (formMsg.textContent = "Gross must be a number > 0.");
 
     try {
       const ref = collection(db, "users", user.uid, "expenses");
@@ -3438,6 +3465,7 @@
     const miles = Number(milMiles.value);
     const ratePerMile = Number(milRate.value);
     const notes = milNotes.value.trim();
+    const attachmentFile = document.getElementById("milAttachment").files[0] || null;
     const total = miles * ratePerMile;
 
     if (!date) return (mileageFormMsg.textContent = "Please pick a date.");
@@ -3450,6 +3478,24 @@
     try {
       const ref = collection(db, "users", user.uid, "mileage");
 
+      let attachment = null;
+
+      if (attachmentFile) {
+        const safeName = attachmentFile.name.replaceAll(" ", "_");
+        const path = `users/${user.uid}/mileage-attachments/${Date.now()}_${safeName}`;
+        const fileRef = storageRef(storage, path);
+
+        await uploadBytes(fileRef, attachmentFile);
+        const url = await getDownloadURL(fileRef);
+
+        attachment = {
+          url,
+          path,
+          name: attachmentFile.name,
+          type: attachmentFile.type || "unknown"
+        };
+      }
+
       if (editingMileageId) {
         await updateDoc(doc(db, "users", user.uid, "mileage", editingMileageId), {
           date,
@@ -3459,7 +3505,8 @@
           miles,
           ratePerMile,
           total,
-          notes
+          notes,
+          attachment
         });
         showToast("Mileage updated", "success");
       } else {
@@ -3472,6 +3519,7 @@
           ratePerMile,
           total,
           notes,
+          attachment,
           createdAt: serverTimestamp()
         });
         showToast("Mileage saved", "success");
