@@ -6,13 +6,6 @@
   <title>Simple Expenses</title>
 
   <style>
-    :root{
-      --accent:#0077B6;
-      --bg:#ffffff;
-      --text:#1f2933;
-      --muted:#6b7280;
-    }
-
     body{
       margin:0;
       font-family:system-ui,-apple-system,Segoe UI,Roboto;
@@ -118,143 +111,6 @@
       }
     }
 
-    .intro{
-      padding: 40px 20px 24px;
-      background:
-        radial-gradient(circle at top right, rgba(0,119,182,.10), transparent 30%),
-        linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-      border-bottom: 1px solid rgba(0,0,0,.08);
-    }
-
-    .intro-inner{
-      max-width: 1100px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1.4fr .8fr;
-      gap: 24px;
-      align-items: center;
-    }
-
-    .intro-copy h1{
-      margin: 10px 0 12px;
-      font-size: 42px;
-      line-height: 1.05;
-      color: #1f2933;
-    }
-
-    .intro-badge{
-      display: inline-block;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(0,119,182,.10);
-      color: #0077B6;
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .intro-logo{
-      display:block;
-      width:min(320px, 100%);
-      height:auto;
-      margin:12px 0 14px;
-    }
-
-    .intro-lead{
-      margin: 0;
-      max-width: 620px;
-      font-size: 18px;
-      line-height: 1.6;
-      color: #4b5563;
-    }
-
-    .welcome-message{
-      margin: 0 0 10px;
-      font-size: 16px;
-      font-weight: 600;
-      color: #0077B6;
-    }
-
-    .intro-actions{
-      display: flex;
-      gap: 12px;
-      margin-top: 22px;
-      flex-wrap: wrap;
-    }
-
-    .btn-secondary{
-      background: transparent;
-      color: #0077B6;
-      border: 1px solid rgba(0,119,182,.25);
-    }
-
-    .intro-card{
-      background: #ffffff;
-      border: 1px solid rgba(0,0,0,.08);
-      border-radius: 20px;
-      padding: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.06);
-      display: grid;
-      gap: 12px;
-    }
-
-    .intro-stat{
-      padding: 14px 16px;
-      border-radius: 14px;
-      background: #f7f9fb;
-      color: #1f2933;
-      font-weight: 600;
-    }
-
-    .intro-features{
-      max-width: 1100px;
-      margin: 24px auto 0;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .feature-card{
-      background: #ffffff;
-      border: 1px solid rgba(0,0,0,.08);
-      border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 4px 12px rgba(0,0,0,.04);
-    }
-
-    .feature-card h3{
-      margin: 0 0 8px;
-      color: #1f2933;
-      font-size: 18px;
-    }
-
-    .feature-card p{
-      margin: 0;
-      color: #6b7280;
-      line-height: 1.5;
-    }
-
-    @media (max-width: 700px){
-      .intro{
-        padding: 28px 16px 18px;
-      }
-
-      .intro-inner{
-        grid-template-columns: 1fr;
-      }
-
-      .intro-copy h1{
-        font-size: 32px;
-      }
-
-      .intro-lead{
-        font-size: 16px;
-      }
-
-      .intro-features{
-        grid-template-columns: 1fr;
-      }
-    }
-
     header{
       margin-top: 0;
     }
@@ -274,10 +130,6 @@
       --shadow:0 14px 34px rgba(15,23,42,.08);
       --radius:20px;
       --radius-sm:14px;
-    }
-
-    body{
-      background: linear-gradient(180deg, #f8fbff 0%, #f3f7fb 100%);
     }
 
     .page-title{
@@ -508,63 +360,6 @@
 
 <body>
 
-  <!-- intro section for Simple Expenses webapp -->
-  <section class="intro">
-    <div class="intro-inner">
-      <div class="intro-copy">
-        <span class="intro-badge">Simple, calm expense tracking</span>
-
-        <img
-          src="../assets/simple-expenses-logo.png"
-          alt="Simple Expenses"
-          class="intro-logo"
-        />
-
-        <p id="welcomeMessage" class="welcome-message" style="display:none;"></p>
-        <p class="intro-lead">
-          Track expenses, keep your records together, and export what you need without the clutter.
-        </p>
-
-        <div class="intro-actions">
-          <button class="btn" id="btnIntroGetStarted">Get started</button>
-          <button class="btn btn-secondary" id="btnIntroSignIn">Sign in</button>
-          <a class="btn btn-secondary" href="/downloads/simple-expenses-android.apk" download>
-            Download Android APK
-          </a>
-        </div>
-      </div>
-
-      <div class="intro-card">
-        <div class="intro-stat">Free web app</div>
-        <div class="intro-stat">CSV exports</div>
-        <div class="intro-stat">Receipt-friendly workflow</div>
-      </div>
-    </div>
-
-    <div class="intro-features">
-      <div class="feature-card">
-        <h3>Track expenses</h3>
-        <p>Log claims quickly with simple fields and clear totals.</p>
-      </div>
-
-      <div class="feature-card">
-        <h3>Stay organised</h3>
-        <p>Filter, sort, and review your records without the usual mess.</p>
-      </div>
-
-      <div class="feature-card">
-        <h3>Export with ease</h3>
-        <p>Download CSV files when you need to share or reconcile your data.</p>
-      </div>
-    </div>
-  </section>
-
-<header>
-  <div class="wrap">
-    <strong>Simple Expenses</strong>
-  </div>
-</header>
-
 <div id="toast" style="
   position:fixed;
   right:20px;
@@ -587,10 +382,6 @@
 </div>
 
 <div class="wrap">
-
-  <h1>Simple Expenses</h1>
-
-    <p>Track your expenses and receipts.</p>
 
     <!-- LOGIN CARD -->
     <div class="card" id="loginCard">
@@ -630,11 +421,7 @@
             <button class="btn" id="btnModeDashboard" style="padding:10px 18px;">Dashboard</button>
             <button class="btn" id="btnModeExpenses" style="background:#6b7280; padding:10px 18px;">Expenses</button>
             <button class="btn" id="btnModeMileage" style="background:#6b7280; padding:10px 18px;">Mileage</button>
-          </div>
-
-          <div class="control-row">
-            <button class="btn" id="btnAddExpense">Add expense</button>
-            <button class="btn" id="btnAddMileage" style="background:#0f766e;">Add mileage</button>
+            <button class="btn" id="btnModeExports" style="background:#6b7280; padding:10px 18px;">Exports</button>
           </div>
         </div>
 
@@ -656,8 +443,6 @@
                   Month
                   <input id="monthPick" class="control-input" type="month">
                 </label>
-
-                <button class="btn" id="btnExportCsv" style="background:#111827;">Export CSV</button>
               </div>
             </div>
 
@@ -798,8 +583,6 @@
                     Quarter
                     <select id="vatQuarterPick" class="control-select"></select>
                   </label>
-
-                  <button class="btn" id="btnExportVatQuarter" style="background:#111827;">Export VAT CSV</button>
                 </div>
               </div>
 
@@ -986,7 +769,6 @@
           Show VAT
         </label>
 
-        <button class="btn" id="btnExportFilteredCsv" style="background:#111827;">Export filtered CSV</button>
         <button class="btn" id="btnClearFilters" style="background:#6b7280;">Clear</button>
       </div>
 
@@ -1030,6 +812,81 @@
         </span>
       </div>
       <div id="mileageList"></div>
+    </div>
+  </div>
+
+  <div id="exportsSection" style="margin-top:20px; display:none;">
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h3 style="margin:0;">Exports</h3>
+          <p style="margin:8px 0 0; color:var(--muted);">
+            Export expenses data by month, filter, or VAT quarter.
+          </p>
+        </div>
+
+        <span style="
+          padding:6px 10px;
+          border-radius:999px;
+          background:rgba(17,24,39,.06);
+          color:#111827;
+          font-size:13px;
+          font-weight:700;
+        ">
+          Exports
+        </span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin-top:16px;">
+        <div class="card" style="margin-top:0;">
+          <h4 style="margin:0 0 8px;">Monthly CSV</h4>
+          <p style="margin:0; color:var(--muted); line-height:1.5;">
+            Export expenses for the selected month.
+          </p>
+
+          <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:700;">
+              Month
+              <input id="exportMonthPick" class="control-input" type="month">
+            </label>
+
+            <button class="btn" id="btnExportsMonthlyCsv" style="background:#111827;">
+              Export monthly CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:0;">
+          <h4 style="margin:0 0 8px;">VAT quarter CSV</h4>
+          <p style="margin:0; color:var(--muted); line-height:1.5;">
+            Export expenses grouped for a VAT quarter.
+          </p>
+
+          <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <label style="display:flex; gap:8px; align-items:center; color:var(--muted); font-weight:700;">
+              Quarter
+              <select id="exportsVatQuarterPick" class="control-select"></select>
+            </label>
+
+            <button class="btn" id="btnExportsVatQuarterCsv" style="background:#111827;">
+              Export VAT CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:0;">
+          <h4 style="margin:0 0 8px;">Filtered CSV</h4>
+          <p style="margin:0; color:var(--muted); line-height:1.5;">
+            Export the current filtered expenses view from the Expenses page.
+          </p>
+
+          <div style="margin-top:14px;">
+            <button class="btn" id="btnExportsFilteredCsv" style="background:#111827;">
+              Export filtered CSV
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1140,6 +997,15 @@
 
   const btnSaveMileage = document.getElementById("btnSaveMileage");
   const btnCancelMileage = document.getElementById("btnCancelMileage");
+
+  const exportsSection = document.getElementById("exportsSection");
+  const btnModeExports = document.getElementById("btnModeExports");
+
+  const exportMonthPick = document.getElementById("exportMonthPick");
+  const exportsVatQuarterPick = document.getElementById("exportsVatQuarterPick");
+  const btnExportsMonthlyCsv = document.getElementById("btnExportsMonthlyCsv");
+  const btnExportsVatQuarterCsv = document.getElementById("btnExportsVatQuarterCsv");
+  const btnExportsFilteredCsv = document.getElementById("btnExportsFilteredCsv");
 
   // --- Summary elements ---
   const summaryCard = document.getElementById("summaryCard");
@@ -2706,10 +2572,12 @@
     dashboardSection.style.display = mode === "dashboard" ? "block" : "none";
     expensesSection.style.display = mode === "expenses" ? "block" : "none";
     mileageSection.style.display = mode === "mileage" ? "block" : "none";
+    exportsSection.style.display = mode === "exports" ? "block" : "none";
 
     btnModeDashboard.style.background = mode === "dashboard" ? "var(--accent)" : "#6b7280";
     btnModeExpenses.style.background = mode === "expenses" ? "var(--accent)" : "#6b7280";
     btnModeMileage.style.background = mode === "mileage" ? "#0f766e" : "#6b7280";
+    btnModeExports.style.background = mode === "exports" ? "#111827" : "#6b7280";
   }
 
   function syncModeVisibility() {
@@ -3410,52 +3278,73 @@
     showToast(`Filtered to ${supplier}`, "info");
   });
 
+  if (btnModeExports) {
+    btnModeExports.addEventListener("click", () => {
+      setMode("exports");
+    });
+  }
+
   // --- Expense form buttons ---
-  btnAddExpense.addEventListener("click", () => {
-    setMode("expenses");
-    resetMileageFormState();
-    showMileageForm(false);
-    resetFormState();
-    showForm(true);
-  });
-  btnCancelExpense.addEventListener("click", () => {
-    resetFormState();
-    showForm(false);
-  });
+  if (btnAddExpense) {
+    btnAddExpense.addEventListener("click", () => {
+      setMode("expenses");
+      resetMileageFormState();
+      showMileageForm(false);
+      resetFormState();
+      showForm(true);
+    });
+  }
 
-  btnModeDashboard.addEventListener("click", () => {
-    setMode("dashboard");
-  });
+  if (btnCancelExpense) {
+    btnCancelExpense.addEventListener("click", () => {
+      resetFormState();
+      showForm(false);
+    });
+  }
 
-  btnModeExpenses.addEventListener("click", () => {
-    searchBox.value = "";
-    categoryFilter.value = "";
-    vatFilter.value = "";
-    saveFilters();
-    applyFilters();
-    setMode("expenses");
-  });
+  if (btnModeDashboard) {
+    btnModeDashboard.addEventListener("click", () => {
+      setMode("dashboard");
+    });
+  }
 
-  btnModeMileage.addEventListener("click", () => {
-    mileageJourneyFilter = "";
-    setMode("mileage");
-    renderMileage(latestMileageDocs);
-  });
+  if (btnModeExpenses) {
+    btnModeExpenses.addEventListener("click", () => {
+      searchBox.value = "";
+      categoryFilter.value = "";
+      vatFilter.value = "";
+      saveFilters();
+      applyFilters();
+      setMode("expenses");
+    });
+  }
 
-  btnAddMileage.addEventListener("click", () => {
-    setMode("mileage");
-    mileageJourneyFilter = "";
-    resetFormState();
-    showForm(false);
-    resetMileageFormState();
-    showMileageForm(true);
-    mileageListCard.style.display = "block";
-  });
+  if (btnModeMileage) {
+    btnModeMileage.addEventListener("click", () => {
+      mileageJourneyFilter = "";
+      setMode("mileage");
+      renderMileage(latestMileageDocs);
+    });
+  }
 
-  btnCancelMileage.addEventListener("click", () => {
-    resetMileageFormState();
-    showMileageForm(false);
-  });
+  if (btnAddMileage) {
+    btnAddMileage.addEventListener("click", () => {
+      setMode("mileage");
+      mileageJourneyFilter = "";
+      resetFormState();
+      showForm(false);
+      resetMileageFormState();
+      showMileageForm(true);
+      mileageListCard.style.display = "block";
+    });
+  }
+
+  if (btnCancelMileage) {
+    btnCancelMileage.addEventListener("click", () => {
+      resetMileageFormState();
+      showMileageForm(false);
+    });
+  }
 
   btnSaveExpense.addEventListener("click", async () => {
     formMsg.textContent = "";
@@ -3642,7 +3531,6 @@
   let mileageJourneyFilter = "";
 
   onAuthStateChanged(auth, (user) => {
-    const welcomeMessage = document.getElementById("welcomeMessage");
     console.log("Auth state:", user ? user.email : "signed out");
 
     // stop previous listener when signing out or switching user
@@ -3657,15 +3545,6 @@
     }
 
     if (user) {
-      if (welcomeMessage) {
-        const firstName =
-          user.displayName?.split(" ")[0] ||
-          user.email?.split("@")[0] ||
-          "there";
-
-        welcomeMessage.textContent = `Welcome back, ${firstName}`;
-        welcomeMessage.style.display = "block";
-      }
       loginCard.style.display = "none";
       appArea.style.display = "block";
       setMode("dashboard");
@@ -3682,27 +3561,44 @@
         monthPick.value = `${yyyy}-${mm}`;
       }
 
+      if (exportMonthPick && !exportMonthPick.value) {
+        exportMonthPick.value = monthPick.value;
+      }
+
       // month change re-renders summary using latest docs cache
       monthPick.onchange = () => {
         renderSummary([...latestDocsById.values()]);
+        if (exportMonthPick) {
+          exportMonthPick.value = monthPick.value;
+        }
       };
 
       vatQuarterPick.onchange = () => {
         renderVatQuarter([...latestDocsById.values()]);
+        if (exportsVatQuarterPick) {
+          exportsVatQuarterPick.value = vatQuarterPick.value;
+        }
       };
 
       // export
-      btnExportCsv.onclick = () => {
+      btnExportsMonthlyCsv.onclick = () => {
+        if (exportMonthPick && exportMonthPick.value) {
+          monthPick.value = exportMonthPick.value;
+          renderSummary([...latestDocsById.values()]);
+        }
         exportCsvForMonth([...latestDocsById.values()]);
         showToast("Monthly CSV exported", "info");
       };
 
-      btnExportVatQuarter.onclick = () => {
+      btnExportsVatQuarterCsv.onclick = () => {
+        if (exportsVatQuarterPick && exportsVatQuarterPick.value) {
+          vatQuarterPick.value = exportsVatQuarterPick.value;
+        }
         exportCsvForVatQuarter([...latestDocsById.values()]);
         showToast("VAT CSV exported", "info");
       };
 
-      btnExportFilteredCsv.onclick = () => {
+      btnExportsFilteredCsv.onclick = () => {
         exportCsvForFiltered(getFilteredDocs());
         showToast("Filtered CSV exported", "info");
       };
@@ -3733,6 +3629,11 @@
 
         buildQuarterOptions(docs);
         renderVatQuarter(docs);
+
+        if (exportsVatQuarterPick) {
+          exportsVatQuarterPick.innerHTML = vatQuarterPick.innerHTML;
+          exportsVatQuarterPick.value = vatQuarterPick.value;
+        }
       }, (err) => {
         console.error(err);
         expensesList.textContent = "Could not load expenses.";
@@ -3758,10 +3659,6 @@
       });
 
     } else {
-      if (welcomeMessage) {
-        welcomeMessage.textContent = "";
-        welcomeMessage.style.display = "none";
-      }
       loginCard.style.display = "block";
       appArea.style.display = "none";
       currentMode = "dashboard";
@@ -3793,20 +3690,6 @@
         monthlyMileageChart = null;
       }
     }
-  });
-
-  window.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("btnIntroGetStarted")?.addEventListener("click", () => {
-      const appArea = document.getElementById("appArea");
-      if (appArea) {
-        appArea.style.display = "block";
-        appArea.scrollIntoView({ behavior: "smooth" });
-      }
-    });
-
-    document.getElementById("btnIntroSignIn")?.addEventListener("click", () => {
-      document.getElementById("loginCard")?.scrollIntoView({ behavior: "smooth" });
-    });
   });
 </script>
 
