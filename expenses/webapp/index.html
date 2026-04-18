@@ -7,39 +7,75 @@
   <title>Simple Expenses</title>
 
   <style>
+    :root {
+      --accent: #0077B6;
+      --accent-soft: rgba(0, 119, 182, .10);
+      --accent-strong: #005f92;
+      --teal: #0f766e;
+      --teal-soft: rgba(15, 118, 110, .10);
+      --ink: #111827;
+      --ink-soft: rgba(17, 24, 39, .06);
+      --bg: #f3f6fa;
+      --panel: rgba(255, 255, 255, .94);
+      --panel-soft: #f8fbfe;
+      --text: #1f2937;
+      --muted: #667085;
+      --line: rgba(15, 23, 42, .08);
+      --shadow: 0 10px 30px rgba(15, 23, 42, .06);
+      --shadow-soft: 0 4px 14px rgba(15, 23, 42, .05);
+      --radius: 20px;
+      --radius-sm: 14px;
+    }
+
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto;
-      background: var(--bg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(180deg, #eef3f8 0%, #f7f9fc 100%);
       color: var(--text);
     }
 
     header {
       padding: 16px;
       border-bottom: 1px solid rgba(0, 0, 0, .1);
+      margin-top: 0;
     }
 
     .wrap {
-      max-width: 900px;
-      margin: auto;
-      padding: 20px;
+      max-width: 1120px;
+      margin: 32px auto 80px;
+      padding: 0 18px;
     }
 
     .btn {
       background: var(--accent);
       color: white;
-      padding: 10px 14px;
-      border-radius: 12px;
+      padding: 11px 18px;
+      border-radius: 16px;
       border: none;
       cursor: pointer;
-      font-weight: 600;
+      font-weight: 800;
+      font-size: 15px;
+      box-shadow: var(--shadow-soft);
+      transition: transform .15s ease, opacity .15s ease, box-shadow .15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      opacity: .96;
+    }
+
+    .btn:active {
+      transform: translateY(0);
     }
 
     .card {
-      border: 1px solid rgba(0, 0, 0, .1);
-      border-radius: 16px;
-      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 20px;
       margin-top: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
     }
 
     /* Hide attachment for now (Spark plan) */
@@ -47,9 +83,511 @@
       display: none !important;
     }
 
+    .page-title {
+      margin: 0;
+      font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+      font-weight: 850;
+      color: #1e293b;
+    }
+
+    .page-subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .sticky-shell {
+      position: sticky;
+      top: 14px;
+      z-index: 20;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, .88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, .65);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .08);
+    }
+
+    .topbar-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .topbar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .logo-lockup {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .logo-lockup img {
+      width: 88px;
+      height: auto;
+      display: block;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .control-input,
+    .control-select {
+      padding: 11px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    .dashboard-hero {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 18px 22px;
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(0, 119, 182, .08), transparent 38%),
+        linear-gradient(180deg, #f8fbfe 0%, #f4f8fc 100%);
+      border: 1px solid rgba(0, 119, 182, .08);
+      margin-bottom: 18px;
+      box-shadow: none;
+    }
+
+    .dashboard-hero h2 {
+      margin: 10px 0 6px;
+      font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+    }
+
+    .dashboard-hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    h3, h4 {
+      letter-spacing: -0.02em;
+      color: #1f2937;
+    }
+
+    .section-head h3 {
+      font-size: 1.2rem;
+      font-weight: 850;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .01em;
+    }
+
+    .badge-blue {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .badge-teal {
+      background: var(--teal-soft);
+      color: var(--teal);
+    }
+
+    .badge-dark {
+      background: var(--ink-soft);
+      color: var(--ink);
+    }
+
+    .section-card {
+      margin-top: 18px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 1.08rem;
+      font-weight: 850;
+      letter-spacing: -0.02em;
+      color: #1f2937;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .kpi-card {
+      padding: 22px 22px 20px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+      border: 1px solid rgba(15, 23, 42, .06);
+      box-shadow: var(--shadow-soft);
+      min-height: 116px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .kpi-card.primary {
+      background: linear-gradient(180deg, rgba(0, 119, 182, .10) 0%, rgba(0, 119, 182, .05) 100%);
+      border: 1px solid rgba(0, 119, 182, .16);
+    }
+
+    .kpi-card.teal {
+      background: linear-gradient(180deg, rgba(15, 118, 110, .09) 0%, rgba(15, 118, 110, .04) 100%);
+      border: 1px solid rgba(15, 118, 110, .14);
+    }
+
+    .kpi-label {
+      color: #5b6779;
+      font-weight: 700;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .kpi-value {
+      font-size: clamp(2rem, 3vw, 2.75rem);
+      font-weight: 900;
+      margin-top: 14px;
+      letter-spacing: -0.045em;
+      line-height: 1;
+      color: #14213d;
+    }
+
+    .kpi-card.primary .kpi-value {
+      color: var(--accent);
+    }
+
+    .kpi-card.teal .kpi-value {
+      color: var(--teal);
+    }
+
+    .soft-note {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, .04);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      border: 1px solid rgba(15, 23, 42, .05);
+    }
+
+    .chart-shell {
+      height: 320px;
+      padding: 16px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #fbfdff 0%, #f7fafe 100%);
+      border: 1px solid rgba(15, 23, 42, .06);
+      box-sizing: border-box;
+    }
+
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .insight-card {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .expense-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    .expense-row.duplicate-highlight {
+      background: rgba(245, 158, 11, .10);
+      border-color: rgba(245, 158, 11, .28);
+    }
+
+    .expense-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .expense-topline {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .expense-amount {
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: #14213d;
+    }
+
+    .expense-category {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .expense-meta {
+      margin-top: 8px;
+      color: var(--muted);
+      line-height: 1.5;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .expense-vatmeta {
+      margin-top: 6px;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .expense-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn-soft {
+      min-height: 40px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 800;
+      border: 1px solid transparent;
+      background: #eef2f7;
+      color: #334155;
+    }
+
+    .btn-duplicate {
+      border-color: rgba(99, 102, 241, .22);
+      background: rgba(99, 102, 241, .06);
+      color: #4f46e5;
+    }
+
+    .btn-delete {
+      border-color: rgba(239, 68, 68, .22);
+      background: rgba(239, 68, 68, .06);
+      color: #b91c1c;
+    }
+
+    .receipt-thumb-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+
+    .receipt-thumb {
+      width: 42px;
+      height: 42px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid rgba(0,0,0,.08);
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    .receipt-link {
+      color: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .empty-state {
+      padding: 24px;
+      text-align: center;
+      border: 1px dashed rgba(0,0,0,.14);
+      border-radius: 16px;
+      color: var(--muted);
+      background: rgba(0,0,0,.02);
+    }
+
+    .empty-state-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .empty-state-subtitle {
+      margin-top: 8px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      justify-content: flex-end;
+    }
+
+    .form-card {
+      background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .input-highlight {
+      border: 1px solid rgba(0,119,182,.25) !important;
+      background: rgba(0,119,182,.04);
+    }
+
+    @media (max-width: 700px) {
+      .expense-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .expense-actions {
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 6px;
+      }
+    }
+
+    #summaryBadges,
+    #vatQuarterBadges {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="month"],
+    select,
+    textarea {
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+      border: 1px solid rgba(15, 23, 42, .12);
+      border-radius: 14px;
+      padding: 11px 12px;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    #stickyTotalsBar {
+      position: sticky;
+      top: 210px !important;
+      z-index: 5;
+      background: transparent !important;
+      padding: 8px 0 10px 0 !important;
+      margin-bottom: 10px;
+    }
+
+    #stickyTotalsBar>div {
+      border: 1px solid rgba(15, 23, 42, .08) !important;
+      border-radius: 16px !important;
+      padding: 12px 14px !important;
+      background: rgba(255, 255, 255, .92) !important;
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow-soft) !important;
+    }
+
+    @media (max-width: 980px) {
+      .topbar-grid,
+      .dashboard-hero {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .insight-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 700px) {
       .wrap {
-        padding: 16px;
+        margin: 18px auto 56px;
+        padding: 0 12px;
       }
 
       .btn {
@@ -58,8 +596,12 @@
       }
 
       .card {
-        padding: 14px;
-        border-radius: 14px;
+        padding: 16px;
+        border-radius: 22px;
+      }
+
+      .sticky-shell {
+        padding: 16px;
       }
 
       #modeSwitcher {
@@ -82,6 +624,7 @@
 
       #topSuppliersCard,
       #topCategoriesCard,
+      #topJourneysCard,
       #monthlyChart,
       #monthlyMileageChart,
       #mileageSummaryBlock {
@@ -112,242 +655,25 @@
       #customRange input {
         width: 100%;
       }
-    }
 
-    header {
-      margin-top: 0;
-    }
-
-    :root {
-      --accent: #0077B6;
-      --accent-soft: rgba(0, 119, 182, .08);
-      --teal: #0f766e;
-      --teal-soft: rgba(15, 118, 110, .08);
-      --ink: #111827;
-      --ink-soft: rgba(17, 24, 39, .06);
-      --bg: #f6f9fc;
-      --panel: #ffffff;
-      --text: #1f2933;
-      --muted: #6b7280;
-      --line: rgba(0, 0, 0, .08);
-      --shadow: 0 14px 34px rgba(15, 23, 42, .08);
-      --radius: 20px;
-      --radius-sm: 14px;
-    }
-
-    .page-title {
-      margin: 0;
-      font-size: 32px;
-      line-height: 1.05;
-      letter-spacing: -0.03em;
-    }
-
-    .page-subtitle {
-      margin: 10px 0 0;
-      color: var(--muted);
-      font-size: 15px;
-    }
-
-    .sticky-shell {
-      position: sticky;
-      top: 12px;
-      z-index: 20;
-      background: rgba(255, 255, 255, .88);
-      backdrop-filter: blur(14px);
-      border: 1px solid rgba(255, 255, 255, .65);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, .08);
-    }
-
-    .topbar-grid {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .topbar-left {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      flex: 1;
-      min-width: 280px;
-    }
-
-    .dashboard-hero {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      align-items: flex-start;
-      justify-content: space-between;
-      padding: 22px;
-      border-radius: 24px;
-      background: linear-gradient(135deg, rgba(0, 119, 182, .08), rgba(255, 255, 255, 1));
-      border: 1px solid rgba(0, 119, 182, .10);
-      box-shadow: var(--shadow);
-    }
-
-    .dashboard-hero h2 {
-      margin: 0;
-      font-size: 28px;
-      line-height: 1.05;
-      letter-spacing: -0.03em;
-    }
-
-    .dashboard-hero p {
-      margin: 8px 0 0;
-      color: var(--muted);
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 11px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .01em;
-    }
-
-    .badge-blue {
-      background: var(--accent-soft);
-      color: var(--accent);
-    }
-
-    .badge-teal {
-      background: var(--teal-soft);
-      color: var(--teal);
-    }
-
-    .badge-dark {
-      background: var(--ink-soft);
-      color: var(--ink);
-    }
-
-    .section-card {
-      margin-top: 18px;
-      padding: 20px;
-      border: 1px solid var(--line);
-      border-radius: 22px;
-      background: var(--panel);
-      box-shadow: var(--shadow);
-    }
-
-    .section-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-
-    .section-title {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-    }
-
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 14px;
-      margin-top: 16px;
-    }
-
-    .kpi-card {
-      padding: 18px;
-      border-radius: 18px;
-      background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-      border: 1px solid rgba(0, 0, 0, .06);
-      box-shadow: 0 8px 24px rgba(15, 23, 42, .04);
-    }
-
-    .kpi-label {
-      color: var(--muted);
-      font-weight: 700;
-      font-size: 13px;
-    }
-
-    .kpi-value {
-      font-size: 28px;
-      font-weight: 800;
-      margin-top: 8px;
-      letter-spacing: -0.03em;
-      color: var(--text);
-    }
-
-    .kpi-card.primary .kpi-value {
-      color: var(--accent);
-    }
-
-    .kpi-card.teal .kpi-value {
-      color: var(--teal);
-    }
-
-    .soft-note {
-      margin-top: 12px;
-      padding: 12px 14px;
-      border-radius: 14px;
-      background: rgba(0, 0, 0, .03);
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .chart-shell {
-      height: 320px;
-      padding-top: 6px;
-    }
-
-    .insight-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 14px;
-      margin-top: 18px;
-    }
-
-    .insight-card {
-      padding: 18px;
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      background: var(--panel);
-      box-shadow: var(--shadow);
-    }
-
-    .control-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .control-input,
-    .control-select {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(0, 0, 0, .12);
-      background: #fff;
-    }
-
-    .logo-lockup {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-
-    .logo-lockup img {
-      height: 44px;
-      width: auto;
-      display: block;
-    }
-
-    @media (max-width: 700px) {
       .page-title {
-        font-size: 26px;
+        font-size: 2rem;
+      }
+
+      .page-subtitle {
+        font-size: .95rem;
+      }
+
+      .logo-lockup {
+        align-items: flex-start;
+      }
+
+      .logo-lockup img {
+        width: 92px;
+      }
+
+      .dashboard-hero {
+        padding: 20px;
       }
 
       .dashboard-hero h2 {
@@ -356,6 +682,14 @@
 
       .kpi-value {
         font-size: 24px;
+      }
+
+      .kpi-card {
+        min-height: auto;
+      }
+
+      #stickyTotalsBar {
+        top: 160px !important;
       }
     }
   </style>
@@ -420,15 +754,15 @@
               </div>
             </div>
 
-            <div id="modeSwitcher" class="control-row">
-              <button class="btn" id="btnModeDashboard" style="padding:10px 18px;">Dashboard</button>
-              <button class="btn" id="btnModeExpenses" style="background:#6b7280; padding:10px 18px;">Expenses</button>
-              <button class="btn" id="btnModeMileage" style="background:#6b7280; padding:10px 18px;">Mileage</button>
-              <button class="btn" id="btnModeExports" style="background:#6b7280; padding:10px 18px;">Exports</button>
+            <div id="modeSwitcher" class="control-row" style="gap:12px;">
+              <button class="btn" id="btnModeDashboard" style="padding:9px 16px; border-radius:14px;">Dashboard</button>
+              <button class="btn" id="btnModeExpenses" style="background:#6b7280; padding:9px 16px; border-radius:14px;">Expenses</button>
+              <button class="btn" id="btnModeMileage" style="background:#6b7280; padding:9px 16px; border-radius:14px;">Mileage</button>
+              <button class="btn" id="btnModeExports" style="background:#6b7280; padding:9px 16px; border-radius:14px;">Exports</button>
             </div>
           </div>
 
-          <button class="btn" id="btnSignOut" style="background:#6b7280;">Sign out</button>
+          <button class="btn" id="btnSignOut" style="background:#6b7280; padding:9px 14px; border-radius:14px;">Sign out</button>
         </div>
       </div>
 
@@ -437,7 +771,7 @@
           <div class="dashboard-hero">
             <div>
               <div class="badge badge-blue">Dashboard</div>
-              <h2 style="margin-top:12px;">Your business at a glance</h2>
+              <h2 style="margin-top:12px; margin-bottom:8px;">Your business at a glance</h2>
               <p id="summaryLine">—</p>
             </div>
 
@@ -455,9 +789,9 @@
               <div id="dashThisMonth" class="kpi-value">£0.00</div>
             </div>
 
-            <div id="cardLastMonth" class="kpi-card" style="cursor:pointer;">
-              <div class="kpi-label">Last month</div>
-              <div id="dashLastMonth" class="kpi-value">£0.00</div>
+            <div id="cardNetImpact" class="kpi-card primary">
+              <div class="kpi-label">Total activity this month</div>
+              <div id="dashNetImpact" class="kpi-value">£0.00</div>
             </div>
 
             <div id="cardYtd" class="kpi-card" style="cursor:pointer;">
@@ -470,6 +804,11 @@
               <div id="dashCount" class="kpi-value">0</div>
             </div>
 
+            <div id="cardLastMonth" class="kpi-card" style="cursor:pointer;">
+              <div class="kpi-label">Last month</div>
+              <div id="dashLastMonth" class="kpi-value">£0.00</div>
+            </div>
+
             <div id="cardMileageThisMonth" class="kpi-card teal">
               <div class="kpi-label">Mileage this month</div>
               <div id="dashMileageThisMonth" class="kpi-value">£0.00</div>
@@ -478,11 +817,6 @@
             <div id="cardMileageYtd" class="kpi-card teal">
               <div class="kpi-label">Mileage YTD</div>
               <div id="dashMileageYtd" class="kpi-value">£0.00</div>
-            </div>
-
-            <div id="cardNetImpact" class="kpi-card">
-              <div class="kpi-label">Total activity this month</div>
-              <div id="dashNetImpact" class="kpi-value">£0.00</div>
             </div>
           </div>
 
@@ -597,57 +931,68 @@
       <div class="card" id="expenseForm" style="display:none;">
         <h3 style="margin-top:0;">New expense</h3>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-          <input id="expDate" type="date" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input id="expDate" type="date">
+          </div>
 
-          <div style="display:flex; gap:10px; align-items:center;">
-            <input id="expSupplier" list="supplierOptions" placeholder="Supplier"
-              style="flex:1; width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
-
-            <select id="supplierQuickPick"
-              style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
-              <option value="">Recent suppliers…</option>
-            </select>
+          <div class="form-group">
+            <label class="form-label">Supplier</label>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <input id="expSupplier" list="supplierOptions" placeholder="Supplier" style="flex:1;">
+              <select id="supplierQuickPick" style="min-width:160px;">
+                <option value="">Recent…</option>
+              </select>
+            </div>
           </div>
 
           <datalist id="supplierOptions"></datalist>
 
-          <div style="display:flex; gap:10px; align-items:center;">
-            <input id="expCategory" list="categoryOptions" placeholder="Category (e.g. Travel)"
-              style="flex:1; width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <input id="expCategory" list="categoryOptions" placeholder="Category (e.g. Travel)" style="flex:1;">
+              <select id="categoryQuickPick" style="min-width:160px;">
+                <option value="">Pick…</option>
+              </select>
+            </div>
+          </div>
 
-            <select id="categoryQuickPick"
-              style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15); min-width:180px;">
-              <option value="">Pick…</option>
-            </select>
+          <div class="form-group">
+            <label class="form-label">Amount (£)</label>
+            <input id="expNet" type="number" step="0.01" placeholder="0.00" class="input-highlight">
           </div>
 
           <datalist id="categoryOptions"></datalist>
 
-          <div id="categoryChips" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;"></div>
+          <div class="form-group full">
+            <label class="form-label">Quick categories</label>
+            <div id="categoryChips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+          </div>
 
-          <input id="expNet" type="number" step="0.01" placeholder="Gross (£)"
-            style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+          <div class="form-group">
+            <label class="form-label">VAT</label>
+            <select id="expVatCode">
+              <option value="standard">VAT 20% (Standard)</option>
+              <option value="reduced">VAT 5% (Reduced)</option>
+              <option value="zero">VAT 0% (Zero)</option>
+              <option value="exempt">Exempt / No VAT</option>
+            </select>
+          </div>
 
-          <select id="expVatCode" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
-            <option value="standard">VAT 20% (Standard)</option>
-            <option value="reduced">VAT 5% (Reduced)</option>
-            <option value="zero">VAT 0% (Zero)</option>
-            <option value="exempt">Exempt / No VAT</option>
-          </select>
+          <div class="form-group full">
+            <label class="form-label">Receipt</label>
+            <input id="expReceipt" type="file" accept="image/*,.pdf">
+          </div>
 
-          <label for="expReceipt" style="display:block; margin-top:6px; color:#4b5563; font-size:14px;">
-            Attach receipt
-          </label>
-
-          <input id="expReceipt" type="file" accept="image/*,.pdf"
-            style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-top:10px;">
+          <div class="form-group full">
+            <label class="form-label">Notes</label>
+            <textarea id="expNotes" placeholder="Optional notes"></textarea>
+          </div>
         </div>
 
-        <textarea id="expNotes" placeholder="Notes (optional)"
-          style="width:100%; padding:10px; margin-top:10px; border-radius:8px; border:1px solid #ccc;"></textarea>
-
-        <div style="display:flex; gap:10px; margin-top:10px;">
+        <div class="form-actions">
           <button class="btn" id="btnSaveExpense">Save</button>
           <button class="btn" id="btnCancelExpense" style="background:#6b7280;">Cancel</button>
         </div>
@@ -708,21 +1053,18 @@
 
       <div id="expensesSection" style="margin-top:20px;">
         <div class="card">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <h3 style="margin:0;">Expenses</h3>
-            <span style="
-          padding:6px 10px;
-          border-radius:999px;
-          background:rgba(0,119,182,.08);
-          color:#0077B6;
-          font-size:13px;
-          font-weight:700;
-        ">
-              Expenses
-            </span>
+          <div class="section-head" style="margin-bottom:14px;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <h3 style="margin:0;">Expenses</h3>
+              <span class="badge badge-blue">Expenses</span>
+            </div>
+
+            <button class="btn" id="btnAddExpense">
+              Add expense
+            </button>
           </div>
 
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; align-items:center;">
+          <div class="control-row" style="margin-bottom:14px; padding:14px; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.72); box-shadow:var(--shadow-soft);">
             <input id="searchBox" placeholder="Search supplier / notes…"
               style="flex:1; min-width:220px; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);">
 
@@ -800,18 +1142,15 @@
 
       <div id="mileageSection" style="margin-top:20px;">
         <div class="card" id="mileageListCard" style="display:none;">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <h3 style="margin:0;">Mileage claims</h3>
-            <span style="
-          padding:6px 10px;
-          border-radius:999px;
-          background:rgba(15,118,110,.08);
-          color:#0f766e;
-          font-size:13px;
-          font-weight:700;
-        ">
-              Mileage
-            </span>
+          <div class="section-head" style="margin-bottom:14px;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <h3 style="margin:0;">Mileage claims</h3>
+              <span class="badge badge-teal">Mileage</span>
+            </div>
+
+            <button class="btn" id="btnAddMileage" style="background:#0f766e;">
+              Add mileage
+            </button>
           </div>
           <div id="mileageList"></div>
         </div>
@@ -819,10 +1158,9 @@
 
       <div id="exportsSection" style="margin-top:20px; display:none;">
         <div class="card">
-          <div
-            style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:12px;">
+          <div class="section-head" style="margin-bottom:14px;">
             <div>
-              <h3 style="margin:0;">Exports</h3>
+              <span class="badge badge-dark">Exports</span>
               <p style="margin:8px 0 0; color:var(--muted);">
                 Export expenses data by month, filter, or VAT quarter.
               </p>
@@ -1344,135 +1682,115 @@
 
     // --- UI helpers ---
     function renderExpenses(docs) {
-      // cache docs so we can load data when editing
-      // DO NOT overwrite latestDocsById here (it is built from the full snapshot)
+    // cache docs so we can load data when editing
+    // DO NOT overwrite latestDocsById here (it is built from the full snapshot)
 
-      if (!latestDocs.length) {
-        expensesList.innerHTML = `
-        <div style="
-          padding:24px;
-          text-align:center;
-          border:1px dashed rgba(0,0,0,.14);
-          border-radius:16px;
-          color:var(--muted);
-          background:rgba(0,0,0,.02);
-        ">
-          <div style="font-size:18px; font-weight:800; color:var(--text);">No expenses yet</div>
-          <div style="margin-top:8px;">Add your first expense to get started.</div>
+    if (!latestDocs.length) {
+      expensesList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-title">No expenses yet</div>
+          <div class="empty-state-subtitle">Add your first expense to get started.</div>
         </div>
       `;
-        return;
-      }
+      return;
+    }
 
-      if (!docs.length) {
-        expensesList.innerHTML = `
-        <div style="
-          padding:24px;
-          text-align:center;
-          border:1px dashed rgba(0,0,0,.14);
-          border-radius:16px;
-          color:var(--muted);
-          background:rgba(0,0,0,.02);
-        ">
-          <div style="font-size:18px; font-weight:800; color:var(--text);">No matching expenses</div>
-          <div style="margin-top:8px;">Try clearing or changing your filters.</div>
+    if (!docs.length) {
+      expensesList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-title">No matching expenses</div>
+          <div class="empty-state-subtitle">Try clearing or changing your filters.</div>
         </div>
       `;
-        return;
-      }
+      return;
+    }
 
-      expensesList.innerHTML = docs.map(d => {
-        const data = d.data();
-        const date = data.date || "";
-        const supplier = data.supplier || "";
-        const category = data.category || "";
-        const { net, vat, gross } = calcVat(data.net, data.vatCode);
-        const vatLabel = vatLabelFromCode(data.vatCode);
-        const badge = vatBadgeStyleFromCode(data.vatCode);
-        const grossStr = gross.toFixed(2);
-        const notes = data.notes ? ` • ${data.notes}` : "";
-        const receiptLink = data.receipt?.url
-          ? data.receipt.type?.startsWith("image/")
-            ? ` • <a href="${data.receipt.url}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">
-              <img src="${data.receipt.url}" style="width:36px; height:36px; object-fit:cover; border-radius:8px; border:1px solid rgba(0,0,0,.08);" />
-            </a>`
-            : ` • <a href="${data.receipt.url}" target="_blank" rel="noopener" style="color:var(--accent); font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+    expensesList.innerHTML = docs.map(d => {
+      const data = d.data();
+      const date = data.date || "";
+      const supplier = data.supplier || "";
+      const category = data.category || "";
+      const { net, vat, gross } = calcVat(data.net, data.vatCode);
+      const vatLabel = vatLabelFromCode(data.vatCode);
+      const badge = vatBadgeStyleFromCode(data.vatCode);
+      const grossStr = gross.toFixed(2);
+      const notes = data.notes ? `• ${data.notes}` : "";
+
+      const receiptLink = data.receipt?.url
+        ? data.receipt.type?.startsWith("image/")
+          ? `
+            <a href="${data.receipt.url}" target="_blank" rel="noopener" class="receipt-thumb-link" title="View receipt">
+              <img src="${data.receipt.url}" class="receipt-thumb" alt="Receipt" />
+            </a>
+          `
+          : `
+            <a href="${data.receipt.url}" target="_blank" rel="noopener" class="receipt-link">
               📎 Receipt
-            </a>`
-          : "";
+            </a>
+          `
+        : "";
 
-        const highlight = d.id === possibleDuplicateId
-          ? "background:rgba(245,158,11,.12); border-radius:10px; padding:8px;"
-          : "";
+      const highlightClass = d.id === possibleDuplicateId ? "duplicate-highlight" : "";
 
-        return `<div style="${highlight} padding:10px 0; border-top:1px solid rgba(0,0,0,.08); display:flex; justify-content:space-between; gap:12px;">
-        <div>
-          <div style="font-weight:600;">
-            £${grossStr}
-            <span style="color:var(--muted); font-weight:400;">(${category})</span>
+      return `
+        <div class="expense-row ${highlightClass}">
+          <div class="expense-main">
+            <div class="expense-topline">
+              <div class="expense-amount">£${grossStr}</div>
+              <div class="expense-category">(${category})</div>
 
-            <span style="
-              margin-left:8px;
-              padding:2px 8px;
-              border:1px solid ${badge.border};
-              border-radius:999px;
-              font-size:12px;
-              font-weight:700;
-              color:${badge.text};
-              background:${badge.bg};
-              white-space:nowrap;
-            ">${vatLabel}</span>
+              <span style="
+                padding:2px 8px;
+                border:1px solid ${badge.border};
+                border-radius:999px;
+                font-size:12px;
+                font-weight:700;
+                color:${badge.text};
+                background:${badge.bg};
+                white-space:nowrap;
+              ">${vatLabel}</span>
+            </div>
+
+            ${vatMode.checked ? `
+              <div class="expense-vatmeta">
+                Net £${net.toFixed(2)} • VAT £${vat.toFixed(2)}
+              </div>
+            ` : ``}
+
+            <div class="expense-meta">
+              <span>${date}</span>
+              <span>•</span>
+              <span>${supplier}</span>
+              ${notes ? `<span>${notes}</span>` : ""}
+              ${receiptLink}
+            </div>
           </div>
 
-          ${vatMode.checked ? `<div style="color:var(--muted); font-weight:600; font-size:13px; margin-top:4px;">
-            Net £${net.toFixed(2)} • VAT £${vat.toFixed(2)}
-          </div>` : ``}
+          <div class="expense-actions">
+            <button class="btn" data-action="edit" data-id="${d.id}" style="background:#0ea5e9; min-height:40px;">
+              Edit
+            </button>
 
-          <div style="color:var(--muted);">${date} • ${supplier}${notes}${receiptLink}</div>
+            <button
+              class="btn-soft btn-duplicate"
+              data-action="duplicate"
+              data-id="${d.id}"
+            >
+              Duplicate
+            </button>
+
+            <button
+              class="btn-soft btn-delete"
+              data-action="delete"
+              data-id="${d.id}"
+            >
+              Delete
+            </button>
+          </div>
         </div>
-
-        <div style="display:flex; gap:8px;">
-          <button class="btn" data-action="edit" data-id="${d.id}" style="background:#0ea5e9; height:40px;">
-            Edit
-          </button>
-
-          <button
-            data-action="duplicate"
-            data-id="${d.id}"
-            style="
-              min-height:40px;
-              padding:10px 14px;
-              border-radius:12px;
-              border:1px solid rgba(99,102,241,.22);
-              background:rgba(99,102,241,.06);
-              color:#4f46e5;
-              cursor:pointer;
-              font-weight:700;
-            "
-          >
-            Duplicate
-          </button>
-
-          <button
-            data-action="delete"
-            data-id="${d.id}"
-            style="
-              min-height:40px;
-              padding:10px 14px;
-              border-radius:12px;
-              border:1px solid rgba(239,68,68,.22);
-              background:rgba(239,68,68,.06);
-              color:#b91c1c;
-              cursor:pointer;
-              font-weight:700;
-            "
-          >
-            Delete
-          </button>
-        </div>
-      </div>`;
-      }).join("");
-    }
+      `;
+    }).join("");
+  }
 
     function renderMileage(docs) {
       const filteredDocs = mileageJourneyFilter
