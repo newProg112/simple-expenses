@@ -93,7 +93,7 @@
     }
 
     .page-subtitle {
-      margin: 8px 0 0;
+      margin: 6px 0 0;
       color: var(--muted);
       font-size: 1.05rem;
     }
@@ -569,6 +569,13 @@
       box-shadow: var(--shadow-soft) !important;
     }
 
+    .welcome-line {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
     @media (max-width: 980px) {
       .topbar-grid,
       .dashboard-hero {
@@ -749,8 +756,8 @@
             <div class="logo-lockup">
               <img src="../assets/simple-expenses-logo.png" alt="Simple Expenses logo">
               <div>
-                <h1 class="page-title">Simple Expenses</h1>
                 <p class="page-subtitle">Track expenses, receipts and mileage in one place.</p>
+                <p id="welcomeLine" class="welcome-line"></p>
               </div>
             </div>
 
@@ -1247,7 +1254,8 @@
           <div class="insight-grid">
             <div class="insight-card">
               <div class="section-title">Account</div>
-              <p id="settingsEmail" style="margin:10px 0 0; color:var(--muted);">Signed in</p>
+              <p id="settingsName" style="margin:10px 0 0; font-weight:800;">Signed in</p>
+              <p id="settingsEmail" style="margin:6px 0 0; color:var(--muted);">—</p>
 
               <button class="btn" id="btnSettingsSignOut" style="margin-top:16px; background:#6b7280;">
                 Sign out
@@ -3936,6 +3944,20 @@
         loginCard.style.display = "none";
         appArea.style.display = "block";
         
+        const name = user.email ? user.email.split("@")[0] : "User";
+        const capitalised = name.charAt(0).toUpperCase() + name.slice(1);
+
+        const welcomeLine = document.getElementById("welcomeLine");
+        const settingsName = document.getElementById("settingsName");
+
+        if (welcomeLine) {
+          welcomeLine.textContent = `Hi ${capitalised} 👋`;
+        }
+
+        if (settingsName) {
+          settingsName.textContent = capitalised;
+        }
+
         if (settingsEmail) {
           settingsEmail.textContent = user.email || "Signed in";
         }
