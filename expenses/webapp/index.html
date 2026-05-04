@@ -759,10 +759,9 @@
               <button class="btn" id="btnModeExpenses" style="background:#6b7280; padding:9px 16px; border-radius:14px;">Expenses</button>
               <button class="btn" id="btnModeMileage" style="background:#6b7280; padding:9px 16px; border-radius:14px;">Mileage</button>
               <button class="btn" id="btnModeExports" style="background:#6b7280; padding:9px 16px; border-radius:14px;">Exports</button>
+              <button class="btn" id="btnModeSettings" style="background:#6b7280; padding:9px 16px; border-radius:14px;">Settings</button>
             </div>
           </div>
-
-          <button class="btn" id="btnSignOut" style="background:#6b7280; padding:9px 14px; border-radius:14px;">Sign out</button>
         </div>
       </div>
 
@@ -1232,6 +1231,52 @@
         </div>
       </div>
 
+      <div id="settingsSection" style="margin-top:20px; display:none;">
+        <div class="card">
+          <div class="section-head" style="margin-bottom:14px;">
+            <div>
+              <h3 style="margin:0;">Settings</h3>
+              <p style="margin:8px 0 0; color:var(--muted);">
+                Manage your account and app downloads.
+              </p>
+            </div>
+
+            <span class="badge badge-dark">Settings</span>
+          </div>
+
+          <div class="insight-grid">
+            <div class="insight-card">
+              <div class="section-title">Account</div>
+              <p id="settingsEmail" style="margin:10px 0 0; color:var(--muted);">Signed in</p>
+
+              <button class="btn" id="btnSettingsSignOut" style="margin-top:16px; background:#6b7280;">
+                Sign out
+              </button>
+            </div>
+
+            <div class="insight-card">
+              <div class="section-title">Android app</div>
+              <p style="margin:10px 0 0; color:var(--muted); line-height:1.5;">
+                Latest APK: v0.1 navigation update.
+              </p>
+
+              <a class="btn" href="/downloads/simple-expenses-android.apk" download
+                style="display:inline-block; margin-top:16px; text-decoration:none;">
+                Download Android APK
+              </a>
+            </div>
+
+            <div class="insight-card">
+              <div class="section-title">About</div>
+              <p style="margin:10px 0 0; color:var(--muted); line-height:1.5;">
+                Simple Expenses v0.1<br>
+                Expenses, receipts, mileage and exports in one place.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -1290,7 +1335,7 @@
 
     const btnSignIn = document.getElementById("btnSignIn");
     const btnSignUp = document.getElementById("btnSignUp");
-    const btnSignOut = document.getElementById("btnSignOut");
+    const btnSignOut = document.getElementById("btnSettingsSignOut");
 
     const btnAddExpense = document.getElementById("btnAddExpense");
     const btnAddMileage = document.getElementById("btnAddMileage");
@@ -1308,6 +1353,11 @@
     const btnModeDashboard = document.getElementById("btnModeDashboard");
     const btnModeExpenses = document.getElementById("btnModeExpenses");
     const btnModeMileage = document.getElementById("btnModeMileage");
+
+    const settingsSection = document.getElementById("settingsSection");
+    const btnModeSettings = document.getElementById("btnModeSettings");
+    const btnSettingsSignOut = document.getElementById("btnSettingsSignOut");
+    const settingsEmail = document.getElementById("settingsEmail");
 
     const filterHint = document.getElementById("filterHint");
     const filteredTotal = document.getElementById("filteredTotal");
@@ -2894,11 +2944,13 @@
       expensesSection.style.display = mode === "expenses" ? "block" : "none";
       mileageSection.style.display = mode === "mileage" ? "block" : "none";
       exportsSection.style.display = mode === "exports" ? "block" : "none";
+      settingsSection.style.display = mode === "settings" ? "block" : "none"; // ✅ ADD
 
       btnModeDashboard.style.background = mode === "dashboard" ? "var(--accent)" : "#6b7280";
       btnModeExpenses.style.background = mode === "expenses" ? "var(--accent)" : "#6b7280";
       btnModeMileage.style.background = mode === "mileage" ? "#0f766e" : "#6b7280";
       btnModeExports.style.background = mode === "exports" ? "#111827" : "#6b7280";
+      btnModeSettings.style.background = mode === "settings" ? "#374151" : "#6b7280"; // ✅ ADD
 
       if (mode === "expenses") renderExpenses(latestDocs);
       if (mode === "mileage") renderMileage(latestMileageDocs);
@@ -3608,6 +3660,12 @@
       });
     }
 
+    if (btnModeSettings) {
+      btnModeSettings.addEventListener("click", () => {
+        setMode("settings");
+      });
+    }
+
     // --- Expense form buttons ---
     if (btnAddExpense) {
       btnAddExpense.addEventListener("click", () => {
@@ -3629,6 +3687,12 @@
     if (btnModeDashboard) {
       btnModeDashboard.addEventListener("click", () => {
         setMode("dashboard");
+      });
+    }
+
+    if (btnSettingsSignOut) {
+      btnSettingsSignOut.addEventListener("click", () => {
+        auth.signOut();
       });
     }
 
@@ -3871,6 +3935,11 @@
       if (user) {
         loginCard.style.display = "none";
         appArea.style.display = "block";
+        
+        if (settingsEmail) {
+          settingsEmail.textContent = user.email || "Signed in";
+        }
+
         setMode("dashboard");
 
         loadSavedFilters();
