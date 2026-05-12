@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mileage Claim Calculator</title>
+
+  <style>
+    body{
+      font-family:system-ui,-apple-system,Segoe UI,Roboto;
+      background:#f4f7fb;
+      margin:0;
+      padding:40px 16px;
+      color:#1f2933;
+    }
+
+    .card{
+      max-width:520px;
+      margin:0 auto;
+      background:white;
+      padding:28px;
+      border-radius:24px;
+      box-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
+
+    h1{
+      margin-top:0;
+      font-size:32px;
+    }
+
+    p{
+      color:#6b7280;
+    }
+
+    label{
+      display:block;
+      margin-top:18px;
+      margin-bottom:6px;
+      font-weight:600;
+    }
+
+    input{
+      width:100%;
+      padding:14px;
+      border-radius:14px;
+      border:1px solid #d0d7de;
+      font-size:16px;
+      box-sizing:border-box;
+    }
+
+    button{
+      margin-top:24px;
+      width:100%;
+      padding:16px;
+      border:none;
+      border-radius:16px;
+      background:#0077B6;
+      color:white;
+      font-size:16px;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .result{
+      margin-top:24px;
+      padding:18px;
+      background:#f4f7fb;
+      border-radius:18px;
+      line-height:1.7;
+      font-size:18px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <div style="
+        width:56px;
+        height:56px;
+        border-radius:18px;
+        background:#0077B6;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color:white;
+        font-size:28px;
+        margin-bottom:18px;
+        ">
+        🚗
+        </div>
+
+        <h1>Mileage Claim Calculator</h1>
+
+    <p>
+      Calculate HMRC mileage claims using the 45p / 25p rules.
+    </p>
+
+    <label>Business miles already claimed this tax year</label>
+    <input id="existingMiles" type="number" placeholder="e.g. 9800" />
+
+    <label>New business miles to claim</label>
+    <input id="newMiles" type="number" placeholder="e.g. 500" />
+
+    <button onclick="calculateMileage()">
+      Calculate Claim
+    </button>
+
+    <button
+        onclick="resetForm()"
+        style="
+            background:white;
+            color:#0077B6;
+            border:2px solid #0077B6;
+            margin-top:12px;
+        "
+    >
+        Reset
+    </button>
+
+    <div class="result" id="result">
+      Enter your mileage above.
+    </div>
+
+    <p style="margin-top:22px; font-size:14px;">
+        Want to track mileage and expenses properly?
+        <a href="/expenses/webapp/" style="color:#0077B6; font-weight:700;">
+            Try Simple Expenses
+        </a>
+    </p>
+
+  </div>
+
+  <script>
+
+    function calculateMileage(){
+
+      const existing =
+        Number(document.getElementById("existingMiles").value);
+
+      const claim =
+        Number(document.getElementById("newMiles").value);
+
+      const remaining45p =
+        Math.max(0, 10000 - existing);
+
+      const milesAt45 =
+        Math.min(claim, remaining45p);
+
+      const milesAt25 =
+        Math.max(0, claim - milesAt45);
+
+      const total =
+        (milesAt45 * 0.45) + (milesAt25 * 0.25);
+
+      document.getElementById("result").innerHTML = `
+        <strong>${milesAt45}</strong> miles @ 45p<br>
+        <strong>${milesAt25}</strong> miles @ 25p<br><br>
+
+        Total Claim:<br>
+        <strong style="font-size:32px;">
+          £${total.toFixed(2)}
+        </strong>
+      `;
+    }
+
+    function resetForm(){
+
+      document.getElementById("existingMiles").value = "";
+      document.getElementById("newMiles").value = "";
+
+      document.getElementById("result").innerHTML =
+        "Enter your mileage above.";
+    }
+
+  </script>
+
+</body>
+</html>
