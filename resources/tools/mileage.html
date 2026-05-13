@@ -119,6 +119,30 @@
         Reset
     </button>
 
+    <button
+      onclick="copyResult()"
+      style="
+        background:#1f2933;
+        color:white;
+        border:2px solid #1f2933;
+        margin-top:12px;
+      "
+    >
+      Copy result
+    </button>
+
+    <button
+      onclick="downloadCsv()"
+      style="
+        background:white;
+        color:#1f2933;
+        border:2px solid #1f2933;
+        margin-top:12px;
+      "
+    >
+      Download CSV
+    </button>
+
     <div class="result" id="result">
       Enter your mileage above.
     </div>
@@ -133,6 +157,8 @@
   </div>
 
   <script>
+
+    let lastMileageResult = null;
 
     function calculateMileage(){
 
@@ -154,6 +180,14 @@
       const total =
         (milesAt45 * 0.45) + (milesAt25 * 0.25);
 
+      lastMileageResult = {
+        existingMiles: existing,
+        claimMiles: claim,
+        milesAt45: milesAt45,
+        milesAt25: milesAt25,
+        total: total.toFixed(2)
+      };
+
       document.getElementById("result").innerHTML = `
         <strong>${milesAt45}</strong> miles @ 45p<br>
         <strong>${milesAt25}</strong> miles @ 25p<br><br>
@@ -172,6 +206,38 @@
 
       document.getElementById("result").innerHTML =
         "Enter your mileage above.";
+    }
+
+    function copyResult(){
+
+      const resultText = document.getElementById("result").innerText;
+
+      navigator.clipboard.writeText(resultText);
+
+      alert("Result copied to clipboard");
+    }
+
+    function downloadCsv(){
+
+      if(!lastMileageResult){
+        alert("Please calculate a claim first.");
+        return;
+      }
+
+      const csv = [
+        "Existing Miles,Claim Miles,Miles at 45p,Miles at 25p,Total Claim",
+        `${lastMileageResult.existingMiles},${lastMileageResult.claimMiles},${lastMileageResult.milesAt45},${lastMileageResult.milesAt25},${lastMileageResult.total}`
+      ].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mileage-claim.csv";
+      a.click();
+
+      URL.revokeObjectURL(url);
     }
 
   </script>
