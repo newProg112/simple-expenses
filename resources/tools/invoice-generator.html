@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>Invoice Generator | Simple Books</title>
+
+  <style>
+    :root{
+      --accent:#0077B6;
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --text:#1f2933;
+      --muted:#6b7280;
+      --border:#d8dee6;
+    }
+
+    *{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    .wrap{
+      max-width:1100px;
+      margin:40px auto;
+      padding:0 20px;
+    }
+
+    .card{
+      background:var(--card);
+      border-radius:24px;
+      padding:24px;
+      box-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
+
+    h1{
+      margin-top:0;
+      font-size:2rem;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:24px;
+    }
+
+    label{
+      display:block;
+      margin-bottom:8px;
+      font-weight:600;
+    }
+
+    input{
+      width:100%;
+      padding:14px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      font-size:1rem;
+      margin-bottom:18px;
+    }
+
+    button{
+      border:none;
+      background:var(--accent);
+      color:white;
+      padding:14px 18px;
+      border-radius:14px;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .invoice-preview{
+      background:white;
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:24px;
+      min-height:500px;
+    }
+
+    .invoice-title{
+      font-size:2rem;
+      margin-bottom:8px;
+    }
+
+    .muted{
+      color:var(--muted);
+    }
+
+    .totals{
+      margin-top:30px;
+    }
+
+    .totals div{
+      margin-bottom:10px;
+      font-size:1.1rem;
+    }
+
+    @media (max-width: 800px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+    @media print {
+
+        body{
+            background:white;
+        }
+
+        .wrap{
+            margin:0;
+            padding:0;
+            max-width:none;
+        }
+
+        .card{
+            box-shadow:none;
+            padding:0;
+            background:white;
+        }
+
+        .grid{
+            display:block;
+        }
+
+        .grid > div:first-child{
+            display:none;
+        }
+
+        button{
+            display:none;
+        }
+
+        .invoice-preview{
+            border:none;
+            min-height:auto;
+            padding:0;
+        }
+
+        h1{
+            display:none;
+        }
+
+        }
+  </style>
+</head>
+
+<body>
+
+  <div class="wrap">
+
+    <div class="card">
+
+      <h1>Simple Books Invoice Generator</h1>
+
+      <div class="grid">
+
+        <div>
+
+          <label>Client Name</label>
+          <input id="clientName" placeholder="ABC Plumbing Ltd">
+
+          <label>Invoice Number</label>
+          <input id="invoiceNumber" placeholder="INV-001">
+
+          <label>Item 1 Description</label>
+          <input id="description1" placeholder="Bookkeeping services">
+
+          <label>Item 1 Amount Before VAT (£)</label>
+          <input id="amount1" type="number" placeholder="100">
+
+          <label>Item 2 Description</label>
+          <input id="description2" placeholder="VAT return preparation">
+
+          <label>Item 2 Amount Before VAT (£)</label>
+          <input id="amount2" type="number" placeholder="75">
+
+          <label>Item 3 Description</label>
+          <input id="description3" placeholder="Accounts clean-up work">
+
+          <label>Item 3 Amount Before VAT (£)</label>
+          <input id="amount3" type="number" placeholder="50">
+
+          <label>VAT Rate</label>
+
+          <select id="vatRate">
+            <option value="0.20">20%</option>
+            <option value="0.05">5%</option>
+            <option value="0">0%</option>
+          </select>
+
+          <div style="display:flex; gap:12px; margin-top:10px;">
+
+            <button onclick="generateInvoice()">
+                Generate Invoice
+            </button>
+
+            <button onclick="printInvoice()">
+                Save / Print PDF
+            </button>
+
+          </div>
+
+        </div>
+
+        <div class="invoice-preview" id="invoicePreview">
+
+          <div style="display:flex; align-items:center; gap:14px;">
+            <img src="/assets/logo.png"
+                alt="Simple Books logo"
+                style="width:54px; height:auto;">
+
+            <div class="invoice-title">
+                SIMPLE BOOKS
+            </div>
+          </div>
+
+          <div class="muted">
+            adam@simple-books.co.uk
+          </div>
+
+          <div class="muted">
+            simple-books.co.uk
+          </div>
+
+          <hr style="margin:24px 0;">
+
+          <p>
+            Fill in the form to generate an invoice preview.
+          </p>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+<script>
+
+function generateInvoice(){
+
+  const client =
+    document.getElementById("clientName").value;
+
+  const invoiceNo =
+    document.getElementById("invoiceNumber").value;
+
+  const items = [
+    {
+      description: document.getElementById("description1").value || "Bookkeeping services",
+      amount: parseFloat(document.getElementById("amount1").value || 0)
+    },
+    {
+      description: document.getElementById("description2").value || "",
+      amount: parseFloat(document.getElementById("amount2").value || 0)
+    },
+    {
+      description: document.getElementById("description3").value || "",
+      amount: parseFloat(document.getElementById("amount3").value || 0)
+    }
+  ];
+
+  const activeItems = items.filter(item => item.description && item.amount > 0);
+
+  const amount = activeItems.reduce((sum, item) => sum + item.amount, 0);
+
+  const vatRate =
+    parseFloat(document.getElementById("vatRate").value);
+
+  const vat = amount * vatRate;
+  const total = amount + vat;
+
+  const today =
+    new Date().toLocaleDateString("en-GB");
+
+  document.getElementById("invoicePreview").innerHTML = `
+
+    <div style="display:flex; align-items:center; gap:14px;">
+      <img src="/assets/logo.png" alt="Simple Books logo" style="width:54px; height:auto;">
+      <div class="invoice-title">
+        SIMPLE BOOKS
+      </div>
+    </div>
+
+    <div class="muted">
+      adam@simple-books.co.uk
+    </div>
+
+    <div class="muted">
+      simple-books.co.uk
+    </div>
+
+    <hr style="margin:24px 0;">
+
+    <h2>INVOICE</h2>
+
+    <p>
+      <strong>Date:</strong> ${today}
+    </p>
+
+    <p>
+      <strong>Invoice No:</strong> ${invoiceNo}
+    </p>
+
+    <p>
+      <strong>Client:</strong> ${client}
+    </p>
+
+    <br>
+
+    <table style="width:100%; border-collapse:collapse; margin-top:24px;">
+      <thead>
+        <tr>
+          <th style="text-align:left; border-bottom:1px solid #ddd; padding:8px;">Description</th>
+          <th style="text-align:right; border-bottom:1px solid #ddd; padding:8px;">Net</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${activeItems.map(item => `
+          <tr>
+            <td style="padding:8px;">${item.description}</td>
+            <td style="padding:8px; text-align:right;">£${item.amount.toFixed(2)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+
+    <div class="totals">
+
+      <div>
+        Net: £${amount.toFixed(2)}
+      </div>
+
+      <div>
+        VAT (${(vatRate * 100).toFixed(0)}%):
+        £${vat.toFixed(2)}
+      </div>
+
+      <div>
+        <strong>Total: £${total.toFixed(2)}</strong>
+      </div>
+
+    </div>
+
+    <br><br>
+
+    <p>
+      Payment terms: 14 days
+    </p>
+
+    <div style="margin-top:28px; padding-top:18px; border-top:1px solid #ddd;">
+
+      <strong>Payment Details</strong>
+
+      <p style="margin-top:10px;">
+        Account Name: Simple Books<br>
+        Sort Code: 00-00-00<br>
+        Account Number: 00000000
+      </p>
+
+    </div>
+
+  `;
+}
+
+function printInvoice(){
+  window.print();
+}
+
+</script>
+
+</body>
+</html>
