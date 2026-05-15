@@ -168,7 +168,7 @@
           <input id="clientName" placeholder="ABC Plumbing Ltd">
 
           <label>Invoice Number</label>
-          <input id="invoiceNumber" placeholder="INV-001">
+          <input id="invoiceNumber" placeholder="INV-001" value="">
 
           <label>Item 1 Description</label>
           <input id="description1" placeholder="Bookkeeping services">
@@ -200,6 +200,10 @@
 
             <button onclick="generateInvoice()">
                 Generate Invoice
+            </button>
+
+            <button onclick="updateExistingInvoice()">
+              Update Invoice
             </button>
 
             <button onclick="printInvoice()">
@@ -238,6 +242,16 @@
 
         </div>
 
+        <div style="margin-top:28px;">
+
+          <h2>Recent Invoices</h2>
+
+          <div id="recentInvoices" class="invoice-preview" style="min-height:auto;">
+            No invoices saved yet.
+          </div>
+
+        </div>
+
       </div>
 
     </div>
@@ -246,13 +260,226 @@
 
 <script>
 
-function generateInvoice(){
+let editingInvoiceIndex = null;
+
+function getNextInvoiceNumber(){
+  const lastNumber = localStorage.getItem("simpleBooksLastInvoiceNumber");
+
+  if(!lastNumber){
+    return "INV-001";
+  }
+
+  const numberPart = parseInt(lastNumber.replace("INV-", ""), 10);
+  const nextNumber = numberPart + 1;
+
+  return "INV-" + String(nextNumber).padStart(3, "0");
+}
+
+function setInitialInvoiceNumber(){
+  const invoiceInput = document.getElementById("invoiceNumber");
+  invoiceInput.value = getNextInvoiceNumber();
+}
+
+function saveLastInvoiceNumber(invoiceNo){
+  localStorage.setItem("simpleBooksLastInvoiceNumber", invoiceNo);
+}
+
+function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items){
+  const invoices =
+    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+  const invoice = {
+    invoiceNo,
+    client,
+    amount,
+    vat,
+    total,
+    items,
+    status: "Unpaid",
+    date: new Date().toLocaleDateString("en-GB")
+  };
+
+  invoices.unshift(invoice);
+
+  localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+}
+
+function renderRecentInvoices(){
+  const invoices =
+    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+  const box = document.getElementById("recentInvoices");
+
+  if(!invoices.length){
+    box.innerHTML = "No invoices saved yet.";
+    return;
+  }
+
+  box.innerHTML = invoices.slice(0, 5).map((invoice, index) => `
+    <div style="padding:12px 0; border-bottom:1px solid #ddd;">
+      <strong>${invoice.invoiceNo}</strong> — ${invoice.client}<br>
+      <span class="muted">
+        ${invoice.date} | Total: £${invoice.total.toFixed(2)}
+      </span>
+
+      <br>
+
+      <button onclick="toggleInvoiceStatus(${index})"
+              style="margin-top:8px; padding:8px 12px; border-radius:10px;">
+        ${invoice.status || "Unpaid"}
+      </button>
+
+      <button onclick="reopenInvoice(${index})"
+              style="margin-top:8px; margin-left:8px; padding:8px 12px; border-radius:10px;">
+        Reopen
+      </button>
+
+      <button onclick="deleteInvoice(${index})"
+              style="margin-top:8px; margin-left:8px; padding:8px 12px; border-radius:10px; background:#b91c1c;">
+        Delete
+      </button>
+    </div>
+  `).join("");
+}
+
+function toggleInvoiceStatus(index){
+  const invoices =
+    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+  if(!invoices[index]){
+    return;
+  }
+
+  invoices[index].status =
+    invoices[index].status === "Paid" ? "Unpaid" : "Paid";
+
+  localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+
+  renderRecentInvoices();
+}
+
+function reopenInvoice(index){
+  const invoices =
+    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+  const invoice = invoices[index];
+
+  editingInvoiceIndex = index;
+
+  if(!invoice){
+    return;
+  }
+
+  document.getElementById("invoiceNumber").value = invoice.invoiceNo;
+  document.getElementById("clientName").value = invoice.client;
+
+  const items = invoice.items || [];
+
+  for(let i = 0; i < 3; i++){
+
+    const item = items[i];
+
+    document.getElementById(`description${i + 1}`).value =
+      item ? item.description : "";
+
+    document.getElementById(`amount${i + 1}`).value =
+      item ? item.amount : "";
+  }
+
+  generateInvoice(false);
+}
+
+function updateExistingInvoice(){
+  if(editingInvoiceIndex === null){
+    alert("Reopen an invoice first.");
+    return;
+  }
+
+  const invoices =
+    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+  const invoiceNo =
+    document.getElementById("invoiceNumber").value;
+
+  const client =
+    document.getElementById("clientName").value;
+
+  const items = [
+    {
+      description: document.getElementById("description1").value || "",
+      amount: parseFloat(document.getElementById("amount1").value || 0)
+    },
+    {
+      description: document.getElementById("description2").value || "",
+      amount: parseFloat(document.getElementById("amount2").value || 0)
+    },
+    {
+      description: document.getElementById("description3").value || "",
+      amount: parseFloat(document.getElementById("amount3").value || 0)
+    }
+  ];
+
+  const activeItems =
+    items.filter(item => item.description && item.amount > 0);
+
+  const amount =
+    activeItems.reduce((sum, item) => sum + item.amount, 0);
+
+  const vatRate =
+    parseFloat(document.getElementById("vatRate").value);
+
+  const vat = amount * vatRate;
+  const total = amount + vat;
+
+  invoices[editingInvoiceIndex] = {
+    ...invoices[editingInvoiceIndex],
+    invoiceNo,
+    client,
+    amount,
+    vat,
+    total,
+    items: activeItems,
+    date: new Date().toLocaleDateString("en-GB")
+  };
+
+  localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+
+  generateInvoice(false);
+  renderRecentInvoices();
+
+  alert("Invoice updated.");
+}
+
+function deleteInvoice(index){
+  const confirmed = confirm("Delete this invoice? This cannot be undone.");
+
+  if(!confirmed){
+    return;
+  }
+
+  const invoices =
+    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+  invoices.splice(index, 1);
+
+  localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+
+  renderRecentInvoices();
+
+  if(editingInvoiceIndex === index){
+    editingInvoiceIndex = null;
+  }
+}
+
+function generateInvoice(saveToHistory = true){
 
   const client =
     document.getElementById("clientName").value;
 
   const invoiceNo =
     document.getElementById("invoiceNumber").value;
+
+  saveLastInvoiceNumber(invoiceNo);
 
   const items = [
     {
@@ -278,6 +505,11 @@ function generateInvoice(){
 
   const vat = amount * vatRate;
   const total = amount + vat;
+
+  if(saveToHistory){
+    saveInvoiceToHistory(invoiceNo, client, amount, vat, total, activeItems);
+    renderRecentInvoices();
+  }
 
   const today =
     new Date().toLocaleDateString("en-GB");
@@ -375,6 +607,9 @@ function generateInvoice(){
 function printInvoice(){
   window.print();
 }
+
+setInitialInvoiceNumber();
+renderRecentInvoices();
 
 </script>
 
