@@ -167,6 +167,9 @@
           <label>Client Name</label>
           <input id="clientName" placeholder="ABC Plumbing Ltd">
 
+          <label>Client Email</label>
+          <input id="clientEmail" type="email" placeholder="client@example.com">
+
           <label>Invoice Number</label>
           <input id="invoiceNumber" placeholder="INV-001" value="">
 
@@ -210,6 +213,14 @@
                 Save / Print PDF
             </button>
 
+            <button onclick="createEmailDraft()">
+              Create Email Draft
+            </button>
+
+            <button onclick="exportInvoiceRegisterCsv()">
+              Export Register CSV
+            </button>
+
           </div>
 
         </div>
@@ -243,6 +254,24 @@
         </div>
 
         <div style="margin-top:28px;">
+
+          <div style="margin-top:28px;">
+
+            <h2>Statement Summary</h2>
+
+            <div id="statementSummary" class="invoice-preview" style="min-height:auto;">
+              No statement generated yet.
+            </div>
+
+            <button onclick="generateStatement()" style="margin-top:12px;">
+              Generate Statement
+            </button>
+
+            <button onclick="printStatement()" style="margin-top:12px; margin-left:8px;">
+              Save / Print Statement PDF
+            </button>
+
+          </div>
 
           <h2>Recent Invoices</h2>
 
@@ -304,6 +333,21 @@ function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items){
   localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
 }
 
+function isInvoiceOverdue(invoice){
+  if((invoice.status || "Unpaid") === "Paid"){
+    return false;
+  }
+
+  const parts = invoice.date.split("/");
+  const invoiceDate = new Date(parts[2], parts[1] - 1, parts[0]);
+  const today = new Date();
+
+  const diffMs = today - invoiceDate;
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  return diffDays > 14;
+}
+
 function renderRecentInvoices(){
   const invoices =
     JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
@@ -315,31 +359,37 @@ function renderRecentInvoices(){
     return;
   }
 
-  box.innerHTML = invoices.slice(0, 5).map((invoice, index) => `
-    <div style="padding:12px 0; border-bottom:1px solid #ddd;">
-      <strong>${invoice.invoiceNo}</strong> — ${invoice.client}<br>
-      <span class="muted">
-        ${invoice.date} | Total: £${invoice.total.toFixed(2)}
-      </span>
+  box.innerHTML = invoices.slice(0, 5).map((invoice, index) => {
+    const overdue = isInvoiceOverdue(invoice);
+    const statusText = overdue ? "Overdue" : (invoice.status || "Unpaid");
 
-      <br>
+    return `
+      <div style="padding:12px 0; border-bottom:1px solid #ddd;">
+        <strong>${invoice.invoiceNo}</strong> — ${invoice.client}<br>
 
-      <button onclick="toggleInvoiceStatus(${index})"
-              style="margin-top:8px; padding:8px 12px; border-radius:10px;">
-        ${invoice.status || "Unpaid"}
-      </button>
+        <span class="muted">
+          ${invoice.date} | Total: £${invoice.total.toFixed(2)}
+        </span>
 
-      <button onclick="reopenInvoice(${index})"
-              style="margin-top:8px; margin-left:8px; padding:8px 12px; border-radius:10px;">
-        Reopen
-      </button>
+        <br>
 
-      <button onclick="deleteInvoice(${index})"
-              style="margin-top:8px; margin-left:8px; padding:8px 12px; border-radius:10px; background:#b91c1c;">
-        Delete
-      </button>
-    </div>
-  `).join("");
+        <button onclick="toggleInvoiceStatus(${index})"
+                style="margin-top:8px; padding:8px 12px; border-radius:10px;">
+          ${statusText}
+        </button>
+
+        <button onclick="reopenInvoice(${index})"
+                style="margin-top:8px; margin-left:8px; padding:8px 12px; border-radius:10px;">
+          Reopen
+        </button>
+
+        <button onclick="deleteInvoice(${index})"
+                style="margin-top:8px; margin-left:8px; padding:8px 12px; border-radius:10px; background:#b91c1c;">
+          Delete
+        </button>
+      </div>
+    `;
+  }).join("");
 }
 
 function toggleInvoiceStatus(index){
@@ -471,13 +521,95 @@ function deleteInvoice(index){
   }
 }
 
+function generateStatement(){
+  const invoices =
+    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+  const box = document.getElementById("statementSummary");
+
+  if(!invoices.length){
+    box.innerHTML = "No invoices found.";
+    return;
+  }
+
+  const totalRaised =
+    invoices.reduce((sum, invoice) => sum + invoice.total, 0);
+
+  const totalPaid =
+    invoices
+      .filter(invoice => invoice.status === "Paid")
+      .reduce((sum, invoice) => sum + invoice.total, 0);
+
+  const totalUnpaid =
+    invoices
+      .filter(invoice => (invoice.status || "Unpaid") !== "Paid")
+      .reduce((sum, invoice) => sum + invoice.total, 0);
+
+  box.innerHTML = `
+    <h3>Invoice Statement</h3>
+
+    <p><strong>Total raised:</strong> £${totalRaised.toFixed(2)}</p>
+    <p><strong>Total paid:</strong> £${totalPaid.toFixed(2)}</p>
+    <p><strong>Total unpaid:</strong> £${totalUnpaid.toFixed(2)}</p>
+
+    <hr style="margin:18px 0;">
+
+    ${invoices.map(invoice => `
+      <div style="padding:10px 0; border-bottom:1px solid #ddd;">
+        <strong>${invoice.invoiceNo}</strong> — ${invoice.client}<br>
+        <span class="muted">
+          ${invoice.date || "-"} | £${Number(invoice.total || 0).toFixed(2)} | ${invoice.status || "Unpaid"}
+        </span>
+      </div>
+    `).join("")}
+  `;
+}
+
+function exportInvoiceRegisterCsv(){
+  const invoices =
+    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+  if(!invoices.length){
+    alert("No invoices to export.");
+    return;
+  }
+
+  const rows = [
+    ["Invoice No", "Date", "Client", "Net", "VAT", "Total", "Status"]
+  ];
+
+  invoices.forEach(invoice => {
+    rows.push([
+      invoice.invoiceNo,
+      invoice.date,
+      invoice.client,
+      invoice.amount.toFixed(2),
+      invoice.vat.toFixed(2),
+      invoice.total.toFixed(2),
+      invoice.status || "Unpaid"
+    ]);
+  });
+
+  const csvContent = rows
+    .map(row => row.map(value => `"${value}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;"
+  });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "simple-books-invoice-register.csv";
+  link.click();
+
+  URL.revokeObjectURL(link.href);
+}
+
 function generateInvoice(saveToHistory = true){
-
-  const client =
-    document.getElementById("clientName").value;
-
-  const invoiceNo =
-    document.getElementById("invoiceNumber").value;
+  const client = document.getElementById("clientName").value;
+  const clientEmail = document.getElementById("clientEmail").value;
+  const invoiceNo = document.getElementById("invoiceNumber").value;
 
   saveLastInvoiceNumber(invoiceNo);
 
@@ -497,12 +629,9 @@ function generateInvoice(saveToHistory = true){
   ];
 
   const activeItems = items.filter(item => item.description && item.amount > 0);
-
   const amount = activeItems.reduce((sum, item) => sum + item.amount, 0);
 
-  const vatRate =
-    parseFloat(document.getElementById("vatRate").value);
-
+  const vatRate = parseFloat(document.getElementById("vatRate").value);
   const vat = amount * vatRate;
   const total = amount + vat;
 
@@ -511,43 +640,24 @@ function generateInvoice(saveToHistory = true){
     renderRecentInvoices();
   }
 
-  const today =
-    new Date().toLocaleDateString("en-GB");
+  const today = new Date().toLocaleDateString("en-GB");
 
   document.getElementById("invoicePreview").innerHTML = `
-
     <div style="display:flex; align-items:center; gap:14px;">
       <img src="/assets/logo.png" alt="Simple Books logo" style="width:54px; height:auto;">
-      <div class="invoice-title">
-        SIMPLE BOOKS
-      </div>
+      <div class="invoice-title">SIMPLE BOOKS</div>
     </div>
 
-    <div class="muted">
-      adam@simple-books.co.uk
-    </div>
-
-    <div class="muted">
-      simple-books.co.uk
-    </div>
+    <div class="muted">adam@simple-books.co.uk</div>
+    <div class="muted">simple-books.co.uk</div>
 
     <hr style="margin:24px 0;">
 
     <h2>INVOICE</h2>
 
-    <p>
-      <strong>Date:</strong> ${today}
-    </p>
-
-    <p>
-      <strong>Invoice No:</strong> ${invoiceNo}
-    </p>
-
-    <p>
-      <strong>Client:</strong> ${client}
-    </p>
-
-    <br>
+    <p><strong>Date:</strong> ${today}</p>
+    <p><strong>Invoice No:</strong> ${invoiceNo}</p>
+    <p><strong>Client:</strong> ${client}</p>
 
     <table style="width:100%; border-collapse:collapse; margin-top:24px;">
       <thead>
@@ -567,30 +677,14 @@ function generateInvoice(saveToHistory = true){
     </table>
 
     <div class="totals">
-
-      <div>
-        Net: £${amount.toFixed(2)}
-      </div>
-
-      <div>
-        VAT (${(vatRate * 100).toFixed(0)}%):
-        £${vat.toFixed(2)}
-      </div>
-
-      <div>
-        <strong>Total: £${total.toFixed(2)}</strong>
-      </div>
-
+      <div>Net: £${amount.toFixed(2)}</div>
+      <div>VAT (${(vatRate * 100).toFixed(0)}%): £${vat.toFixed(2)}</div>
+      <div><strong>Total: £${total.toFixed(2)}</strong></div>
     </div>
 
-    <br><br>
-
-    <p>
-      Payment terms: 14 days
-    </p>
+    <p>Payment terms: 14 days</p>
 
     <div style="margin-top:28px; padding-top:18px; border-top:1px solid #ddd;">
-
       <strong>Payment Details</strong>
 
       <p style="margin-top:10px;">
@@ -598,14 +692,53 @@ function generateInvoice(saveToHistory = true){
         Sort Code: 00-00-00<br>
         Account Number: 00000000
       </p>
-
     </div>
-
   `;
-}
+  }
 
 function printInvoice(){
   window.print();
+}
+
+function printStatement(){
+  const statementBox = document.getElementById("statementSummary");
+
+  if(!statementBox || statementBox.innerHTML.includes("No statement")){
+    alert("Generate the statement first.");
+    return;
+  }
+
+  const originalBody = document.body.innerHTML;
+
+  document.body.innerHTML = statementBox.innerHTML;
+
+  window.print();
+
+  document.body.innerHTML = originalBody;
+
+  location.reload();
+}
+
+function createEmailDraft(){
+  const client = document.getElementById("clientName").value || "there";
+  const clientEmail = document.getElementById("clientEmail").value || "";
+  const invoiceNo = document.getElementById("invoiceNumber").value || "invoice";
+
+  const subject = "Invoice " + invoiceNo + " from Simple Books";
+
+  const body =
+    "Hi " + client + ",\n\n" +
+    "Please find attached invoice " + invoiceNo + ".\n\n" +
+    "If you have any questions, please let me know.\n\n" +
+    "Kind regards,\n" +
+    "Simple Books";
+
+  const mailtoLink =
+    "mailto:" + encodeURIComponent(clientEmail) +
+    "?subject=" + encodeURIComponent(subject) +
+    "&body=" + encodeURIComponent(body);
+
+  window.location.href = mailtoLink;
 }
 
 setInitialInvoiceNumber();
