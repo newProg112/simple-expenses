@@ -346,7 +346,9 @@
     getFirestore,
     collection,
     addDoc,
-    getDocs
+    getDocs,
+    doc,
+    updateDoc
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   import {
@@ -435,6 +437,22 @@
       invoice
     );
     console.log("Invoice saved to Firestore");
+  };
+
+  window.updateInvoiceStatusInFirestore = async function(invoiceId, newStatus){
+    if(!window.currentUser){
+      alert("Please log in first.");
+      return;
+    }
+
+    await updateDoc(
+      doc(db, "users", window.currentUser.uid, "invoices", invoiceId),
+      {
+        status: newStatus
+      }
+    );
+
+    console.log("Invoice status updated in Firestore");
   };
 
   window.getInvoicesFromFirestore = async function(){
@@ -607,18 +625,30 @@ async function renderRecentInvoices(){
   }).join("");
 }
 
-function toggleInvoiceStatus(index){
-  const invoices =
-    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+async function toggleInvoiceStatus(index){
+  let invoices = [];
 
-  if(!invoices[index]){
+  if(window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  } else {
+    invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  }
+
+  const invoice = invoices[index];
+
+  if(!invoice){
     return;
   }
 
-  invoices[index].status =
-    invoices[index].status === "Paid" ? "Unpaid" : "Paid";
+  const newStatus =
+    invoice.status === "Paid" ? "Unpaid" : "Paid";
 
-  localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+  if(invoice.id && window.updateInvoiceStatusInFirestore){
+    await window.updateInvoiceStatusInFirestore(invoice.id, newStatus);
+  } else {
+    invoice.status = newStatus;
+    localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+  }
 
   renderRecentInvoices();
 }
