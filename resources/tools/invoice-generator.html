@@ -176,6 +176,8 @@
         <p id="authStatus" class="muted">Not logged in.</p>
       </div>
 
+      <div id="appContent" style="display:none;">
+
       <div class="grid">
 
         <div>
@@ -334,6 +336,8 @@
 
   </div>
 
+  </div>
+
   <script type="module">
 
   import { app } from "../../firebase-config.js";
@@ -382,10 +386,28 @@
 
     const status = document.getElementById("authStatus");
 
+    const appContent = document.getElementById("appContent");
+
     if(user){
       status.textContent = "Logged in as " + user.email;
+
+      if(appContent){
+        appContent.style.display = "block";
+      }
+
+      renderCustomerDropdown();
+      renderRecentInvoices();
+
+      if(window.loadCustomersFromFirestore){
+        window.loadCustomersFromFirestore();
+      }
+
     } else {
       status.textContent = "Not logged in.";
+
+      if(appContent){
+        appContent.style.display = "none";
+      }
     }
   });
 
