@@ -164,11 +164,20 @@
 
         <div>
 
+          <label>Saved Customer</label>
+          <select id="savedCustomerSelect" onchange="selectSavedCustomer()">
+            <option value="">Choose saved customer...</option>
+          </select>
+
           <label>Client Name</label>
           <input id="clientName" placeholder="ABC Plumbing Ltd">
 
           <label>Client Email</label>
           <input id="clientEmail" type="email" placeholder="client@example.com">
+
+          <button type="button" onclick="saveCurrentCustomer()">
+            Save Customer
+          </button>
 
           <label>Invoice Number</label>
           <input id="invoiceNumber" placeholder="INV-001" value="">
@@ -220,6 +229,22 @@
             <button onclick="exportInvoiceRegisterCsv()">
               Export Register CSV
             </button>
+
+            <button onclick="exportInvoiceBackup()">
+              Export Backup
+            </button>
+
+            <button onclick="document.getElementById('importBackupInput').click()">
+              Import Backup
+            </button>
+
+            <input
+              type="file"
+              id="importBackupInput"
+              accept=".json"
+              style="display:none"
+              onchange="importInvoiceBackup(event)"
+            >
 
           </div>
 
@@ -741,8 +766,161 @@ function createEmailDraft(){
   window.location.href = mailtoLink;
 }
 
+function exportInvoiceBackup(){
+  const invoices =
+    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+  if(invoices.length === 0){
+    alert("No invoices found to export.");
+    return;
+  }
+
+  const backup = {
+    app: "Simple Books Invoice Generator",
+    exportedAt: new Date().toISOString(),
+    invoices: invoices
+  };
+
+  const blob = new Blob(
+    [JSON.stringify(backup, null, 2)],
+    { type: "application/json" }
+  );
+
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "simple-books-invoice-backup.json";
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
+function importInvoiceBackup(event){
+  const file = event.target.files[0];
+
+  if(!file){
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    try{
+      const backup =
+        JSON.parse(e.target.result);
+
+      if(!backup.invoices || !Array.isArray(backup.invoices)){
+        alert("Invalid backup file.");
+        return;
+      }
+
+      localStorage.setItem(
+        "simpleBooksInvoices",
+        JSON.stringify(backup.invoices)
+      );
+
+      alert(
+        "Backup imported successfully. " +
+        backup.invoices.length +
+        " invoices restored."
+      );
+
+      renderRecentInvoices();
+
+    }catch(error){
+      alert("Could not import backup file.");
+      console.error(error);
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function getCustomers(){
+  return JSON.parse(localStorage.getItem("simpleBooksCustomers") || "[]");
+}
+
+function saveCustomers(customers){
+  localStorage.setItem("simpleBooksCustomers", JSON.stringify(customers));
+}
+
+function saveCurrentCustomer(){
+  const name = document.getElementById("clientName").value.trim();
+  const email = document.getElementById("clientEmail").value.trim();
+
+  if(!name){
+    alert("Enter a client name first.");
+    return;
+  }
+
+  const customers = getCustomers();
+
+  const existingCustomer =
+    customers.find(customer =>
+      customer.name.toLowerCase() === name.toLowerCase()
+    );
+
+  if(existingCustomer){
+    existingCustomer.email = email;
+  } else {
+    customers.push({
+      id: Date.now(),
+      name: name,
+      email: email
+    });
+  }
+
+  saveCustomers(customers);
+  renderCustomerDropdown();
+
+  alert("Customer saved.");
+}
+
+function renderCustomerDropdown(){
+  const select = document.getElementById("savedCustomerSelect");
+
+  if(!select){
+    return;
+  }
+
+  const customers = getCustomers();
+
+  select.innerHTML =
+    `<option value="">Choose saved customer...</option>` +
+    customers.map(customer => `
+      <option value="${customer.id}">
+        ${customer.name}
+      </option>
+    `).join("");
+}
+
+function selectSavedCustomer(){
+  const selectedId = document.getElementById("savedCustomerSelect").value;
+
+  if(!selectedId){
+    return;
+  }
+
+  const customers = getCustomers();
+
+  const customer =
+    customers.find(customer => String(customer.id) === String(selectedId));
+
+  if(!customer){
+    return;
+  }
+
+  document.getElementById("clientName").value = customer.name;
+  document.getElementById("clientEmail").value = customer.email || "";
+}
+
 setInitialInvoiceNumber();
 renderRecentInvoices();
+renderCustomerDropdown();
 
 </script>
 
