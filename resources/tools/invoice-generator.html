@@ -175,6 +175,12 @@
           <label>Client Email</label>
           <input id="clientEmail" type="email" placeholder="client@example.com">
 
+          <label>Client Address</label>
+          <textarea id="clientAddress" placeholder="Customer address"></textarea>
+
+          <label>Payment Terms</label>
+          <input id="paymentTerms" type="text" value="14 days">
+
           <button type="button" onclick="saveCurrentCustomer()">
             Save Customer
           </button>
@@ -311,6 +317,48 @@
     </div>
 
   </div>
+
+  <script type="module">
+
+  import { app } from "../../firebase-config.js";
+
+  import {
+    getFirestore,
+    collection,
+    addDoc,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const db = getFirestore(app);
+
+  window.saveCustomerToFirestore = async function(customer){
+    await addDoc(collection(db, "customers"), customer);
+    console.log("Customer saved to Firestore");
+  };
+
+  window.loadCustomersFromFirestore = async function(){
+    const snapshot = await getDocs(collection(db, "customers"));
+
+    const customers = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    localStorage.setItem(
+      "simpleBooksCustomers",
+      JSON.stringify(customers)
+    );
+
+    console.log("Customers loaded from Firestore", customers.length);
+
+    if(window.renderCustomerDropdown){
+      window.renderCustomerDropdown();
+    }
+  };
+
+  console.log("Firestore connected");
+
+  </script>
 
 <script>
 
@@ -667,6 +715,12 @@ function generateInvoice(saveToHistory = true){
 
   const today = new Date().toLocaleDateString("en-GB");
 
+  const clientAddress =
+    document.getElementById("clientAddress")?.value || "";
+
+  const paymentTerms =
+    document.getElementById("paymentTerms")?.value || "14 days";
+
   document.getElementById("invoicePreview").innerHTML = `
     <div style="display:flex; align-items:center; gap:14px;">
       <img src="/assets/logo.png" alt="Simple Books logo" style="width:54px; height:auto;">
@@ -683,6 +737,8 @@ function generateInvoice(saveToHistory = true){
     <p><strong>Date:</strong> ${today}</p>
     <p><strong>Invoice No:</strong> ${invoiceNo}</p>
     <p><strong>Client:</strong> ${client}</p>
+
+    <p style="white-space:pre-line;"><strong>Address:</strong><br>${clientAddress}</p>
 
     <table style="width:100%; border-collapse:collapse; margin-top:24px;">
       <thead>
@@ -707,7 +763,7 @@ function generateInvoice(saveToHistory = true){
       <div><strong>Total: £${total.toFixed(2)}</strong></div>
     </div>
 
-    <p>Payment terms: 14 days</p>
+    <p>Payment terms: ${paymentTerms}</p>
 
     <div style="margin-top:28px; padding-top:18px; border-top:1px solid #ddd;">
       <strong>Payment Details</strong>
@@ -851,6 +907,8 @@ function saveCustomers(customers){
 function saveCurrentCustomer(){
   const name = document.getElementById("clientName").value.trim();
   const email = document.getElementById("clientEmail").value.trim();
+  const address = document.getElementById("clientAddress").value.trim();
+  const paymentTerms = document.getElementById("paymentTerms").value.trim();
 
   if(!name){
     alert("Enter a client name first.");
@@ -866,15 +924,30 @@ function saveCurrentCustomer(){
 
   if(existingCustomer){
     existingCustomer.email = email;
+    existingCustomer.address = address;
+    existingCustomer.paymentTerms = paymentTerms;
   } else {
     customers.push({
       id: Date.now(),
       name: name,
-      email: email
+      email: email,
+      address: address,
+      paymentTerms: paymentTerms
     });
   }
 
   saveCustomers(customers);
+
+  if(window.saveCustomerToFirestore){
+    window.saveCustomerToFirestore({
+      name: name,
+      email: email,
+      address: address,
+      paymentTerms: paymentTerms,
+      createdAt: new Date().toISOString()
+    });
+  }
+
   renderCustomerDropdown();
 
   alert("Customer saved.");
@@ -898,6 +971,8 @@ function renderCustomerDropdown(){
     `).join("");
 }
 
+window.renderCustomerDropdown = renderCustomerDropdown;
+
 function selectSavedCustomer(){
   const selectedId = document.getElementById("savedCustomerSelect").value;
 
@@ -916,11 +991,27 @@ function selectSavedCustomer(){
 
   document.getElementById("clientName").value = customer.name;
   document.getElementById("clientEmail").value = customer.email || "";
+
+  if(document.getElementById("clientAddress")){
+    document.getElementById("clientAddress").value = customer.address || "";
+  }
+
+  if(document.getElementById("paymentTerms")){
+    document.getElementById("paymentTerms").value = customer.paymentTerms || "14 days";
+  }
 }
 
 setInitialInvoiceNumber();
 renderRecentInvoices();
 renderCustomerDropdown();
+
+setTimeout(function(){
+  if(window.loadCustomersFromFirestore){
+    window.loadCustomersFromFirestore();
+  } else {
+    console.log("Firestore customer loader not ready yet");
+  }
+}, 500);
 
 </script>
 
