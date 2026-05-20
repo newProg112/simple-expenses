@@ -160,6 +160,22 @@
 
       <h1>Simple Books Invoice Generator</h1>
 
+      <div class="card" id="authBox" style="margin-bottom:24px;">
+        <h2>Login</h2>
+
+        <label>Email</label>
+        <input id="authEmail" type="email" placeholder="you@example.com">
+
+        <label>Password</label>
+        <input id="authPassword" type="password" placeholder="Password">
+
+        <button type="button" onclick="signUpUser()">Sign Up</button>
+        <button type="button" onclick="loginUser()">Login</button>
+        <button type="button" onclick="logoutUser()">Logout</button>
+
+        <p id="authStatus" class="muted">Not logged in.</p>
+      </div>
+
       <div class="grid">
 
         <div>
@@ -329,20 +345,113 @@
     getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+  import {
+    getAuth,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
   const db = getFirestore(app);
 
+  const auth = getAuth(app);
+
+  window.currentUser = null;
+
+  window.signUpUser = async function(){
+    const email = document.getElementById("authEmail").value;
+    const password = document.getElementById("authPassword").value;
+
+    await createUserWithEmailAndPassword(auth, email, password);
+  };
+
+  window.loginUser = async function(){
+    const email = document.getElementById("authEmail").value;
+    const password = document.getElementById("authPassword").value;
+
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  window.logoutUser = async function(){
+    await signOut(auth);
+  };
+
+  onAuthStateChanged(auth, function(user){
+    window.currentUser = user;
+
+    const status = document.getElementById("authStatus");
+
+    if(user){
+      status.textContent = "Logged in as " + user.email;
+    } else {
+      status.textContent = "Not logged in.";
+    }
+  });
+
   window.saveCustomerToFirestore = async function(customer){
-    await addDoc(collection(db, "customers"), customer);
+    if(!window.currentUser){
+      alert("Please log in first.");
+      return;
+    }
+
+    await addDoc(
+      collection(db, "users", window.currentUser.uid, "customers"),
+      customer
+    );
     console.log("Customer saved to Firestore");
   };
 
   window.saveInvoiceToFirestore = async function(invoice){
-    await addDoc(collection(db, "invoices"), invoice);
+    if(!window.currentUser){
+      alert("Please log in first.");
+      return;
+    }
+
+    await addDoc(
+      collection(db, "users", window.currentUser.uid, "invoices"),
+      invoice
+    );
     console.log("Invoice saved to Firestore");
   };
 
+  window.getInvoicesFromFirestore = async function(){
+
+    if(!window.currentUser){
+      console.log("No logged-in user, skipping invoice load.");
+      return [];
+    }
+
+    const snapshot = await getDocs(
+      collection(db, "users", window.currentUser.uid, "invoices")
+    );
+
+    const invoices = [];
+
+    snapshot.forEach((doc) => {
+      invoices.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    console.log(
+      "Invoices loaded from Firestore",
+      invoices.length
+    );
+
+    return invoices;
+  };
+
   window.loadCustomersFromFirestore = async function(){
-    const snapshot = await getDocs(collection(db, "customers"));
+    if(!window.currentUser){
+      console.log("No logged-in user, skipping customer load.");
+      return [];
+    }
+
+    const snapshot = await getDocs(
+      collection(db, "users", window.currentUser.uid, "customers")
+    );
 
     const customers = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -426,9 +535,15 @@ function isInvoiceOverdue(invoice){
   return diffDays > 14;
 }
 
-function renderRecentInvoices(){
-  const invoices =
-    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+async function renderRecentInvoices(){
+  let invoices = [];
+
+  if(window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  }else{
+    invoices =
+      JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  }
 
   const box = document.getElementById("recentInvoices");
 
@@ -1034,6 +1149,8 @@ setTimeout(function(){
   } else {
     console.log("Firestore customer loader not ready yet");
   }
+
+  renderRecentInvoices();
 }, 500);
 
 </script>
