@@ -336,6 +336,11 @@
     console.log("Customer saved to Firestore");
   };
 
+  window.saveInvoiceToFirestore = async function(invoice){
+    await addDoc(collection(db, "invoices"), invoice);
+    console.log("Invoice saved to Firestore");
+  };
+
   window.loadCustomersFromFirestore = async function(){
     const snapshot = await getDocs(collection(db, "customers"));
 
@@ -710,6 +715,24 @@ function generateInvoice(saveToHistory = true){
 
   if(saveToHistory){
     saveInvoiceToHistory(invoiceNo, client, amount, vat, total, activeItems);
+
+    if(window.saveInvoiceToFirestore){
+      window.saveInvoiceToFirestore({
+        invoiceNo: invoiceNo,
+        client: client,
+        clientEmail: clientEmail,
+        clientAddress: document.getElementById("clientAddress")?.value || "",
+        paymentTerms: document.getElementById("paymentTerms")?.value || "14 days",
+        amount: amount,
+        vat: vat,
+        total: total,
+        items: activeItems,
+        status: "Unpaid",
+        date: new Date().toLocaleDateString("en-GB"),
+        createdAt: new Date().toISOString()
+      });
+    }
+
     renderRecentInvoices();
   }
 
