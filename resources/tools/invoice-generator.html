@@ -233,6 +233,9 @@
           <label>Payment Terms</label>
           <input id="paymentTerms" type="text" value="14 days">
 
+          <label>Due Date</label>
+          <input id="dueDate" type="date">
+
           <button type="button" onclick="saveCurrentCustomer()">
             Save Customer
           </button>
@@ -398,7 +401,8 @@
     addDoc,
     getDocs,
     doc,
-    updateDoc
+    updateDoc,
+    deleteDoc
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   import {
@@ -519,6 +523,19 @@
     console.log("Invoice updated in Firestore");
   };
 
+  window.deleteInvoiceFromFirestore = async function(invoiceId){
+    if(!window.currentUser){
+      alert("Please log in first.");
+      return;
+    }
+
+    await deleteDoc(
+      doc(db, "users", window.currentUser.uid, "invoices", invoiceId)
+    );
+
+    console.log("Invoice deleted from Firestore");
+  };
+
   window.getInvoicesFromFirestore = async function(){
 
     if(!window.currentUser){
@@ -627,18 +644,21 @@ function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items){
 }
 
 function isInvoiceOverdue(invoice){
-  if((invoice.status || "Unpaid") === "Paid"){
+  if(invoice.status === "Paid"){
     return false;
   }
 
-  const parts = invoice.date.split("/");
-  const invoiceDate = new Date(parts[2], parts[1] - 1, parts[0]);
+  if(!invoice.dueDate){
+    return false;
+  }
+
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  const diffMs = today - invoiceDate;
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const dueDate = new Date(invoice.dueDate);
+  dueDate.setHours(0, 0, 0, 0);
 
-  return diffDays > 14;
+  return dueDate < today;
 }
 
 function filterInvoices(invoices){
@@ -799,7 +819,7 @@ async function renderRecentInvoices(){
           Reopen
         </button>
 
-        <button onclick="deleteInvoice(${index})"
+        <button onclick="deleteInvoice('${invoice.id}')"
                 style="margin-top:8px; margin-left:8px; padding:8px 12px; border-radius:10px; background:#b91c1c;">
           Delete
         </button>
@@ -856,6 +876,7 @@ async function reopenInvoice(invoiceId){
   document.getElementById("clientEmail").value = invoice.clientEmail || "";
   document.getElementById("clientAddress").value = invoice.clientAddress || "";
   document.getElementById("paymentTerms").value = invoice.paymentTerms || "14 days";
+  document.getElementById("dueDate").value = invoice.dueDate || "";
   document.getElementById("invoiceNumber").value = invoice.invoiceNo || "";
 
   const items = invoice.items || [];
@@ -912,6 +933,7 @@ async function updateExistingInvoice(){
     clientEmail: clientEmail,
     clientAddress: document.getElementById("clientAddress")?.value || "",
     paymentTerms: document.getElementById("paymentTerms")?.value || "14 days",
+    dueDate: document.getElementById("dueDate")?.value || "",
     amount: amount,
     vat: vat,
     total: total,
@@ -931,25 +953,16 @@ async function updateExistingInvoice(){
   alert("Invoice updated.");
 }
 
-function deleteInvoice(index){
-  const confirmed = confirm("Delete this invoice? This cannot be undone.");
-
-  if(!confirmed){
+async function deleteInvoice(invoiceId){
+  if(!confirm("Delete this invoice?")){
     return;
   }
 
-  const invoices =
-    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
-
-  invoices.splice(index, 1);
-
-  localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+  if(window.deleteInvoiceFromFirestore){
+    await window.deleteInvoiceFromFirestore(invoiceId);
+  }
 
   renderRecentInvoices();
-
-  if(editingInvoiceIndex === index){
-    editingInvoiceIndex = null;
-  }
 }
 
 function generateStatement(){
@@ -1076,6 +1089,7 @@ function generateInvoice(saveToHistory = true){
         clientEmail: clientEmail,
         clientAddress: document.getElementById("clientAddress")?.value || "",
         paymentTerms: document.getElementById("paymentTerms")?.value || "14 days",
+        dueDate: document.getElementById("dueDate")?.value || "",
         amount: amount,
         vat: vat,
         total: total,
