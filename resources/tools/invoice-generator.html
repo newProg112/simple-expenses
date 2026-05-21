@@ -620,22 +620,58 @@ let editingInvoiceId = null;
 
 let editingInvoiceIndex = null;
 
-function getNextInvoiceNumber(){
-  const lastNumber = localStorage.getItem("simpleBooksLastInvoiceNumber");
+async function invoiceNumberExists(invoiceNo){
+  let invoices = [];
 
-  if(!lastNumber){
-    return "INV-001";
+  if(window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  } else {
+    invoices =
+      JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
   }
 
-  const numberPart = parseInt(lastNumber.replace("INV-", ""), 10);
-  const nextNumber = numberPart + 1;
+  return invoices.some(invoice =>
+    (invoice.invoiceNo || "").toLowerCase() === invoiceNo.toLowerCase()
+  );
+}
+
+async function getNextInvoiceNumber(){
+  let invoices = [];
+
+  if(window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  } else {
+    invoices =
+      JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  }
+
+  let highestNumber = 0;
+
+  invoices.forEach(invoice => {
+    const invoiceNo = invoice.invoiceNo || "";
+
+    if(invoiceNo.startsWith("INV-")){
+      const numberPart = parseInt(invoiceNo.replace("INV-", ""), 10);
+
+      if(!isNaN(numberPart) && numberPart > highestNumber){
+        highestNumber = numberPart;
+      }
+    }
+  });
+
+  const nextNumber = highestNumber + 1;
 
   return "INV-" + String(nextNumber).padStart(3, "0");
 }
 
-function setInitialInvoiceNumber(){
+async function setInitialInvoiceNumber(){
   const invoiceInput = document.getElementById("invoiceNumber");
-  invoiceInput.value = getNextInvoiceNumber();
+
+  if(!invoiceInput){
+    return;
+  }
+
+  invoiceInput.value = await getNextInvoiceNumber();
 }
 
 function saveLastInvoiceNumber(invoiceNo){
@@ -1083,25 +1119,147 @@ async function generateStatement(){
       .reduce((sum, invoice) => sum + invoice.total, 0);
 
   box.innerHTML = `
-    <h3>Invoice Statement</h3>
-    <p class="muted">
-      ${selectedCustomer ? "Customer: " + document.getElementById("clientName").value : "All customers"}
-    </p>
+    <div id="statementPrintArea">
 
-    <p><strong>Total raised:</strong> £${totalRaised.toFixed(2)}</p>
-    <p><strong>Total paid:</strong> £${totalPaid.toFixed(2)}</p>
-    <p><strong>Total unpaid:</strong> £${totalUnpaid.toFixed(2)}</p>
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        margin-bottom:24px;
+        gap:24px;
+        flex-wrap:wrap;
+      ">
 
-    <hr style="margin:18px 0;">
+        <div>
+          <h2 style="margin:0;">SIMPLE BOOKS</h2>
 
-    ${invoices.map(invoice => `
-      <div style="padding:10px 0; border-bottom:1px solid #ddd;">
-        <strong>${invoice.invoiceNo}</strong> — ${invoice.client}<br>
-        <span class="muted">
-          ${invoice.date || "-"} | £${Number(invoice.total || 0).toFixed(2)} | ${invoice.status || "Unpaid"}
-        </span>
+          <div class="muted" style="margin-top:8px;">
+            adam@simple-books.co.uk<br>
+            simple-books.co.uk
+          </div>
+        </div>
+
+        <div style="text-align:right;">
+          <h2 style="margin:0;">Customer Statement</h2>
+
+          <div class="muted" style="margin-top:8px;">
+            ${
+              selectedCustomer
+                ? document.getElementById("clientName").value
+                : "All customers"
+            }
+          </div>
+
+          ${
+            fromDate || toDate
+              ? `
+                <div style="margin-top:8px;">
+                  ${
+                    fromDate
+                      ? `From: ${fromDate}<br>`
+                      : ""
+                  }
+
+                  ${
+                    toDate
+                      ? `To: ${toDate}`
+                      : ""
+                  }
+                </div>
+              `
+              : ""
+          }
+
+          ${
+            unpaidOnly
+              ? `
+                <div style="
+                  margin-top:8px;
+                  color:#b91c1c;
+                  font-weight:700;
+                ">
+                  UNPAID INVOICES ONLY
+                </div>
+              `
+              : ""
+          }
+
+        </div>
+
       </div>
-    `).join("")}
+
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+        gap:12px;
+        margin-bottom:24px;
+      ">
+
+        <div class="card">
+          <div class="muted">Total Raised</div>
+          <h2>£${totalRaised.toFixed(2)}</h2>
+        </div>
+
+        <div class="card">
+          <div class="muted">Paid</div>
+          <h2>£${totalPaid.toFixed(2)}</h2>
+        </div>
+
+        <div class="card">
+          <div class="muted">Outstanding</div>
+          <h2>£${totalUnpaid.toFixed(2)}</h2>
+        </div>
+
+      </div>
+
+      <table style="
+        width:100%;
+        border-collapse:collapse;
+        margin-top:18px;
+      ">
+
+        <thead>
+          <tr style="background:#f3f4f6;">
+            <th style="padding:12px; text-align:left;">Invoice</th>
+            <th style="padding:12px; text-align:left;">Date</th>
+            <th style="padding:12px; text-align:left;">Status</th>
+            <th style="padding:12px; text-align:right;">Total</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          ${invoices.map(invoice => `
+            <tr style="border-bottom:1px solid #ddd;">
+
+              <td style="padding:12px;">
+                ${invoice.invoiceNo}
+              </td>
+
+              <td style="padding:12px;">
+                ${invoice.date || "-"}
+              </td>
+
+              <td style="padding:12px;">
+                ${invoice.status || "Unpaid"}
+              </td>
+
+              <td style="
+                padding:12px;
+                text-align:right;
+                font-weight:700;
+              ">
+                £${Number(invoice.total || 0).toFixed(2)}
+              </td>
+
+            </tr>
+          `).join("")}
+
+        </tbody>
+
+      </table>
+
+    </div>
   `;
 }
 
@@ -1146,10 +1304,15 @@ function exportInvoiceRegisterCsv(){
   URL.revokeObjectURL(link.href);
 }
 
-function generateInvoice(saveToHistory = true){
+async function generateInvoice(saveToHistory = true){
   const client = document.getElementById("clientName").value;
   const clientEmail = document.getElementById("clientEmail").value;
   const invoiceNo = document.getElementById("invoiceNumber").value;
+
+  if(saveToHistory && await invoiceNumberExists(invoiceNo)){
+    alert("An invoice with this number already exists. Please use a different invoice number.");
+    return;
+  }
 
   saveLastInvoiceNumber(invoiceNo);
 
@@ -1197,6 +1360,7 @@ function generateInvoice(saveToHistory = true){
     }
 
     renderRecentInvoices();
+    setInitialInvoiceNumber();
   }
 
   const today = new Date().toLocaleDateString("en-GB");
@@ -1268,16 +1432,28 @@ function printInvoice(){
 }
 
 function printStatement(){
-  const statementBox = document.getElementById("statementSummary");
+  const statementHtml =
+    document.getElementById("statementPrintArea")?.innerHTML;
 
-  if(!statementBox || statementBox.innerHTML.includes("No statement")){
+  if(!statementHtml){
     alert("Generate the statement first.");
     return;
   }
 
   const originalBody = document.body.innerHTML;
 
-  document.body.innerHTML = statementBox.innerHTML;
+  document.body.innerHTML = `
+    <div style="
+      max-width:760px;
+      margin:0 auto;
+      padding:28px;
+      font-size:18px;
+      font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color:#1f2933;
+    ">
+      ${statementHtml}
+    </div>
+  `;
 
   window.print();
 
@@ -1497,6 +1673,8 @@ setTimeout(function(){
   } else {
     console.log("Firestore customer loader not ready yet");
   }
+
+  setInitialInvoiceNumber();
 
   renderRecentInvoices();
 }, 500);
