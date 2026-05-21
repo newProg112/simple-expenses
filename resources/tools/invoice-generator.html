@@ -505,6 +505,20 @@
     console.log("Invoice status updated in Firestore");
   };
 
+  window.updateInvoiceInFirestore = async function(invoiceId, updatedInvoice){
+    if(!window.currentUser){
+      alert("Please log in first.");
+      return;
+    }
+
+    await updateDoc(
+      doc(db, "users", window.currentUser.uid, "invoices", invoiceId),
+      updatedInvoice
+    );
+
+    console.log("Invoice updated in Firestore");
+  };
+
   window.getInvoicesFromFirestore = async function(){
 
     if(!window.currentUser){
@@ -565,6 +579,8 @@
   </script>
 
 <script>
+
+let editingInvoiceId = null;
 
 let editingInvoiceIndex = null;
 
@@ -765,7 +781,7 @@ async function renderRecentInvoices(){
 
         <br>
 
-        <button onclick="toggleInvoiceStatus(${index})"
+        <button onclick="toggleInvoiceStatus('${invoice.id}')"
                 style="
                   margin-top:8px;
                   padding:8px 12px;
@@ -778,7 +794,7 @@ async function renderRecentInvoices(){
           ${statusText}
         </button>
 
-        <button onclick="reopenInvoice(${index})"
+        <button onclick="reopenInvoice('${invoice.id}')"
                 style="margin-top:8px; margin-left:8px; padding:8px 12px; border-radius:10px;">
           Reopen
         </button>
@@ -792,7 +808,7 @@ async function renderRecentInvoices(){
   }).join("");
 }
 
-async function toggleInvoiceStatus(index){
+async function toggleInvoiceStatus(invoiceId){
   let invoices = [];
 
   if(window.getInvoicesFromFirestore){
@@ -801,74 +817,76 @@ async function toggleInvoiceStatus(index){
     invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
   }
 
-  const invoice = invoices[index];
+  const invoice = invoices.find(item => item.id === invoiceId);
 
   if(!invoice){
+    alert("Could not find this invoice.");
     return;
   }
 
   const newStatus =
     invoice.status === "Paid" ? "Unpaid" : "Paid";
 
-  if(invoice.id && window.updateInvoiceStatusInFirestore){
-    await window.updateInvoiceStatusInFirestore(invoice.id, newStatus);
-  } else {
-    invoice.status = newStatus;
-    localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+  if(window.updateInvoiceStatusInFirestore){
+    await window.updateInvoiceStatusInFirestore(invoiceId, newStatus);
   }
 
   renderRecentInvoices();
 }
 
-function reopenInvoice(index){
-  const invoices =
-    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+async function reopenInvoice(invoiceId){
+  let invoices = [];
 
-  const invoice = invoices[index];
+  if(window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  } else {
+    invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  }
 
-  editingInvoiceIndex = index;
+  const invoice = invoices.find(item => item.id === invoiceId);
 
   if(!invoice){
+    alert("Could not find this invoice.");
     return;
   }
 
-  document.getElementById("invoiceNumber").value = invoice.invoiceNo;
-  document.getElementById("clientName").value = invoice.client;
+  editingInvoiceId = invoice.id;
+
+  document.getElementById("clientName").value = invoice.client || "";
+  document.getElementById("clientEmail").value = invoice.clientEmail || "";
+  document.getElementById("clientAddress").value = invoice.clientAddress || "";
+  document.getElementById("paymentTerms").value = invoice.paymentTerms || "14 days";
+  document.getElementById("invoiceNumber").value = invoice.invoiceNo || "";
 
   const items = invoice.items || [];
 
-  for(let i = 0; i < 3; i++){
+  document.getElementById("description1").value = items[0]?.description || "";
+  document.getElementById("amount1").value = items[0]?.amount || "";
 
-    const item = items[i];
+  document.getElementById("description2").value = items[1]?.description || "";
+  document.getElementById("amount2").value = items[1]?.amount || "";
 
-    document.getElementById(`description${i + 1}`).value =
-      item ? item.description : "";
-
-    document.getElementById(`amount${i + 1}`).value =
-      item ? item.amount : "";
-  }
+  document.getElementById("description3").value = items[2]?.description || "";
+  document.getElementById("amount3").value = items[2]?.amount || "";
 
   generateInvoice(false);
+
+  alert("Invoice loaded for editing. Make changes, then click Update Invoice.");
 }
 
-function updateExistingInvoice(){
-  if(editingInvoiceIndex === null){
-    alert("Reopen an invoice first.");
+async function updateExistingInvoice(){
+  if(!editingInvoiceId){
+    alert("Open an invoice first using Reopen.");
     return;
   }
 
-  const invoices =
-    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
-
-  const invoiceNo =
-    document.getElementById("invoiceNumber").value;
-
-  const client =
-    document.getElementById("clientName").value;
+  const client = document.getElementById("clientName").value;
+  const clientEmail = document.getElementById("clientEmail").value;
+  const invoiceNo = document.getElementById("invoiceNumber").value;
 
   const items = [
     {
-      description: document.getElementById("description1").value || "",
+      description: document.getElementById("description1").value || "Bookkeeping services",
       amount: parseFloat(document.getElementById("amount1").value || 0)
     },
     {
@@ -881,30 +899,31 @@ function updateExistingInvoice(){
     }
   ];
 
-  const activeItems =
-    items.filter(item => item.description && item.amount > 0);
+  const activeItems = items.filter(item => item.description && item.amount > 0);
+  const amount = activeItems.reduce((sum, item) => sum + item.amount, 0);
 
-  const amount =
-    activeItems.reduce((sum, item) => sum + item.amount, 0);
-
-  const vatRate =
-    parseFloat(document.getElementById("vatRate").value);
-
+  const vatRate = parseFloat(document.getElementById("vatRate").value);
   const vat = amount * vatRate;
   const total = amount + vat;
 
-  invoices[editingInvoiceIndex] = {
-    ...invoices[editingInvoiceIndex],
-    invoiceNo,
-    client,
-    amount,
-    vat,
-    total,
+  const updatedInvoice = {
+    invoiceNo: invoiceNo,
+    client: client,
+    clientEmail: clientEmail,
+    clientAddress: document.getElementById("clientAddress")?.value || "",
+    paymentTerms: document.getElementById("paymentTerms")?.value || "14 days",
+    amount: amount,
+    vat: vat,
+    total: total,
     items: activeItems,
-    date: new Date().toLocaleDateString("en-GB")
+    updatedAt: new Date().toISOString()
   };
 
-  localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+  if(window.updateInvoiceInFirestore){
+    await window.updateInvoiceInFirestore(editingInvoiceId, updatedInvoice);
+  }
+
+  editingInvoiceId = null;
 
   generateInvoice(false);
   renderRecentInvoices();
