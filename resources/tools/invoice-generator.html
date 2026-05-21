@@ -40,6 +40,59 @@
       box-shadow:0 10px 30px rgba(0,0,0,.08);
     }
 
+    .dashboard-grid{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:16px;
+      margin:28px 0 22px;
+    }
+
+    .dashboard-grid .card{
+      padding:22px 24px;
+      min-height:130px;
+    }
+
+    .button-row,
+    .actions,
+    .invoice-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:12px;
+      align-items:center;
+    }
+
+    .button-row button,
+    .actions button,
+    .invoice-actions button{
+      flex:0 1 auto;
+      width:auto;
+      min-width:170px;
+    }
+
+    @media (max-width:800px){
+      .button-row,
+      .actions,
+      .invoice-actions{
+        display:grid;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+
+      .button-row button,
+      .actions button,
+      .invoice-actions button{
+        width:100%;
+      }
+    }
+
+    @media (max-width:800px){
+
+      .dashboard-grid{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+
+    }
+
     h1{
       margin-top:0;
       font-size:2rem;
@@ -76,6 +129,11 @@
       cursor:pointer;
     }
 
+    button:disabled{
+      opacity:0.5;
+      cursor:not-allowed;
+    }
+
     .invoice-preview{
       background:white;
       border:1px solid var(--border);
@@ -102,9 +160,48 @@
       font-size:1.1rem;
     }
 
+    .dashboard{
+      grid-column:1 / -1;
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:16px;
+      margin:28px 0;
+      width:100%;
+    }
+
+    .stat-card{
+      background:white;
+      border-radius:24px;
+      padding:22px 24px;
+      min-height:130px;
+      box-shadow:0 18px 45px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+
+    .stat-card .label{
+      color:var(--muted);
+      font-size:.95rem;
+      margin-bottom:22px;
+    }
+
+    .stat-card .value{
+      font-size:1.6rem;
+      font-weight:800;
+      color:var(--text);
+    }
+
     @media (max-width: 800px){
       .grid{
         grid-template-columns:1fr;
+      }
+
+      .dashboard{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+
+      .stat-card{
+        padding:18px;
+        min-height:115px;
       }
     }
 
@@ -178,7 +275,7 @@
 
       <div id="appContent" style="display:none;">
 
-      <div class="dashboard-grid" style="display:grid; grid-template-columns:repeat(6, 1fr); gap:14px; margin-bottom:22px;">
+      <div class="dashboard-grid">
 
         <div class="card">
           <div class="muted">Outstanding</div>
@@ -208,6 +305,16 @@
         <div class="card">
           <div class="muted">Paid %</div>
           <h2 id="dashboardPaidPercent">0%</h2>
+        </div>
+
+        <div class="card">
+          <div class="muted">Due Soon</div>
+          <h2 id="dashboardDueSoon">0</h2>
+        </div>
+
+        <div class="card">
+          <div class="muted">Overdue Count</div>
+          <h2 id="dashboardOverdueCount">0</h2>
         </div>
 
       </div>
@@ -269,14 +376,20 @@
             <option value="0">0%</option>
           </select>
 
-          <div style="display:flex; gap:12px; margin-top:10px;">
+          <div class="invoice-actions">
 
             <button onclick="generateInvoice()">
                 Generate Invoice
             </button>
 
-            <button onclick="updateExistingInvoice()">
+            <button id="updateInvoiceBtn"
+                    onclick="updateExistingInvoice()"
+                    disabled>
               Update Invoice
+            </button>
+
+            <button type="button" onclick="cancelInvoiceEdit()">
+              Cancel Edit
             </button>
 
             <button onclick="printInvoice()">
@@ -308,6 +421,10 @@
             >
 
           </div>
+
+          <p id="editModeStatus" class="muted" style="margin-top:10px;">
+            Creating new invoice
+          </p>
 
         </div>
 
@@ -716,6 +833,35 @@ function isInvoiceOverdue(invoice){
   return dueDate < today;
 }
 
+function getInvoiceAgeingText(invoice){
+  if(invoice.status === "Paid"){
+    return "Paid";
+  }
+
+  if(!invoice.dueDate){
+    return "No due date";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueDate = new Date(invoice.dueDate);
+  dueDate.setHours(0, 0, 0, 0);
+
+  const diffMs = dueDate - today;
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if(diffDays < 0){
+    return Math.abs(diffDays) + " days overdue";
+  }
+
+  if(diffDays === 0){
+    return "Due today";
+  }
+
+  return "Due in " + diffDays + " days";
+}
+
 function filterInvoices(invoices){
   const search =
     document.getElementById("invoiceSearch")?.value.toLowerCase() || "";
@@ -779,6 +925,25 @@ function renderDashboardTotals(invoices){
     })
     .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
 
+  const dueSoonCount = invoices.filter(invoice => {
+    if(invoice.status === "Paid" || !invoice.dueDate){
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueDate = new Date(invoice.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
+
+    return diffDays >= 0 && diffDays <= 7;
+  }).length;
+
+  const overdueCount =
+    invoices.filter(invoice => isInvoiceOverdue(invoice)).length;
+
   const paidCount =
     invoices.filter(invoice => invoice.status === "Paid").length;
 
@@ -802,6 +967,12 @@ function renderDashboardTotals(invoices){
 
   document.getElementById("dashboardPaidPercent").textContent =
     paidPercent + "%";
+
+  document.getElementById("dashboardDueSoon").textContent =
+    dueSoonCount;
+
+  document.getElementById("dashboardOverdueCount").textContent =
+    overdueCount;
 }
 
 async function renderRecentInvoices(){
@@ -839,6 +1010,8 @@ async function renderRecentInvoices(){
     const overdue = isInvoiceOverdue(invoice);
     const statusText = overdue ? "Overdue" : (invoice.status || "Unpaid");
 
+    const ageingText = getInvoiceAgeingText(invoice);
+
     const statusColor =
       statusText === "Paid"
         ? "#15803d"
@@ -851,7 +1024,7 @@ async function renderRecentInvoices(){
         <strong>${invoice.invoiceNo}</strong> — ${invoice.client}<br>
 
         <span class="muted">
-          ${invoice.date} | Total: £${invoice.total.toFixed(2)}
+          ${invoice.date} | Due: ${invoice.dueDate || "-"} | ${ageingText} | Total: £${invoice.total.toFixed(2)}
         </span>
 
         <br>
@@ -926,6 +1099,11 @@ async function reopenInvoice(invoiceId){
   }
 
   editingInvoiceId = invoice.id;
+
+  document.getElementById("updateInvoiceBtn").disabled = false;
+
+  document.getElementById("editModeStatus").textContent =
+    "Editing invoice " + (invoice.invoiceNo || "");
 
   document.getElementById("clientName").value = invoice.client || "";
   document.getElementById("clientEmail").value = invoice.clientEmail || "";
@@ -1002,10 +1180,28 @@ async function updateExistingInvoice(){
 
   editingInvoiceId = null;
 
+  document.getElementById("updateInvoiceBtn").disabled = true;
+
+  document.getElementById("editModeStatus").textContent =
+    "Creating new invoice";
+
   generateInvoice(false);
   renderRecentInvoices();
 
   alert("Invoice updated.");
+}
+
+function cancelInvoiceEdit(){
+  editingInvoiceId = null;
+
+  document.getElementById("updateInvoiceBtn").disabled = true;
+
+  document.getElementById("editModeStatus").textContent =
+    "Creating new invoice";
+
+  setInitialInvoiceNumber();
+
+  alert("Edit cancelled.");
 }
 
 async function deleteInvoice(invoiceId){
