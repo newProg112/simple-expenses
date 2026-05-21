@@ -345,6 +345,25 @@
 
             <h2>Statement Summary</h2>
 
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+
+              <div>
+                <label>From</label>
+                <input id="statementFromDate" type="date">
+              </div>
+
+              <div>
+                <label>To</label>
+                <input id="statementToDate" type="date">
+              </div>
+
+              <div style="display:flex; align-items:end; gap:8px; padding-bottom:10px;">
+                <input id="statementUnpaidOnly" type="checkbox">
+                <label for="statementUnpaidOnly" style="margin:0;">Unpaid only</label>
+              </div>
+
+            </div>
+
             <div id="statementSummary" class="invoice-preview" style="min-height:auto;">
               No statement generated yet.
             </div>
@@ -965,14 +984,88 @@ async function deleteInvoice(invoiceId){
   renderRecentInvoices();
 }
 
-function generateStatement(){
-  const invoices =
-    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+async function generateStatement(){
+  let invoices = [];
+
+  if(window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  } else {
+    invoices =
+      JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  }
+
+  const selectedCustomer =
+    document.getElementById("clientName").value.trim().toLowerCase();
+
+  if(selectedCustomer){
+    invoices = invoices.filter(invoice =>
+      (invoice.client || "").toLowerCase() === selectedCustomer
+    );
+  }
+
+  const fromDate =
+    document.getElementById("statementFromDate")?.value || "";
+
+  const toDate =
+    document.getElementById("statementToDate")?.value || "";
+
+  const unpaidOnly =
+    document.getElementById("statementUnpaidOnly")?.checked || false;
+
+  function parseInvoiceDate(dateText){
+    const parts = dateText.split("/");
+    return new Date(
+      Number(parts[2]),
+      Number(parts[1]) - 1,
+      Number(parts[0])
+    );
+  }
+
+  function parseInputDate(dateText){
+    const parts = dateText.split("-");
+    return new Date(
+      Number(parts[0]),
+      Number(parts[1]) - 1,
+      Number(parts[2])
+    );
+  }
+
+  if(fromDate){
+    const from = parseInputDate(fromDate);
+
+    invoices = invoices.filter(invoice => {
+      if(!invoice.date){
+        return false;
+      }
+
+      const invoiceDate = parseInvoiceDate(invoice.date);
+      return invoiceDate >= from;
+    });
+  }
+
+  if(toDate){
+    const to = parseInputDate(toDate);
+
+    invoices = invoices.filter(invoice => {
+      if(!invoice.date){
+        return false;
+      }
+
+      const invoiceDate = parseInvoiceDate(invoice.date);
+      return invoiceDate <= to;
+    });
+  }
+
+  if(unpaidOnly){
+    invoices = invoices.filter(invoice =>
+      (invoice.status || "Unpaid") !== "Paid"
+    );
+  }
 
   const box = document.getElementById("statementSummary");
 
   if(!invoices.length){
-    box.innerHTML = "No invoices found.";
+    box.innerHTML = "No invoices found for this customer.";
     return;
   }
 
@@ -991,6 +1084,9 @@ function generateStatement(){
 
   box.innerHTML = `
     <h3>Invoice Statement</h3>
+    <p class="muted">
+      ${selectedCustomer ? "Customer: " + document.getElementById("clientName").value : "All customers"}
+    </p>
 
     <p><strong>Total raised:</strong> £${totalRaised.toFixed(2)}</p>
     <p><strong>Total paid:</strong> £${totalPaid.toFixed(2)}</p>
