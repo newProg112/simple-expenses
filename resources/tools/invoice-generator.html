@@ -178,6 +178,40 @@
 
       <div id="appContent" style="display:none;">
 
+      <div class="dashboard-grid" style="display:grid; grid-template-columns:repeat(6, 1fr); gap:14px; margin-bottom:22px;">
+
+        <div class="card">
+          <div class="muted">Outstanding</div>
+          <h2 id="dashboardOutstanding">£0.00</h2>
+        </div>
+
+        <div class="card">
+          <div class="muted">Paid</div>
+          <h2 id="dashboardPaid">£0.00</h2>
+        </div>
+
+        <div class="card">
+          <div class="muted">Overdue</div>
+          <h2 id="dashboardOverdue">£0.00</h2>
+        </div>
+
+        <div class="card">
+          <div class="muted">Invoices</div>
+          <h2 id="dashboardCount">0</h2>
+        </div>
+
+        <div class="card">
+          <div class="muted">This Month</div>
+          <h2 id="dashboardThisMonth">£0.00</h2>
+        </div>
+
+        <div class="card">
+          <div class="muted">Paid %</div>
+          <h2 id="dashboardPaidPercent">0%</h2>
+        </div>
+
+      </div>
+
       <div class="grid">
 
         <div>
@@ -323,6 +357,22 @@
           </div>
 
           <h2>Recent Invoices</h2>
+
+          <div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+            <input
+              id="invoiceSearch"
+              placeholder="Search invoices..."
+              oninput="renderRecentInvoices()"
+              style="flex:1; min-width:220px;"
+            >
+
+            <select id="invoiceStatusFilter" onchange="renderRecentInvoices()">
+              <option value="All">All statuses</option>
+              <option value="Unpaid">Unpaid</option>
+              <option value="Paid">Paid</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </div>
 
           <div id="recentInvoices" class="invoice-preview" style="min-height:auto;">
             No invoices saved yet.
@@ -575,6 +625,94 @@ function isInvoiceOverdue(invoice){
   return diffDays > 14;
 }
 
+function filterInvoices(invoices){
+  const search =
+    document.getElementById("invoiceSearch")?.value.toLowerCase() || "";
+
+  const statusFilter =
+    document.getElementById("invoiceStatusFilter")?.value || "All";
+
+  return invoices.filter(invoice => {
+    const invoiceText =
+      (
+        (invoice.invoiceNo || "") + " " +
+        (invoice.client || "") + " " +
+        (invoice.clientEmail || "")
+      ).toLowerCase();
+
+    const matchesSearch =
+      invoiceText.includes(search);
+
+    const isOverdue =
+      isInvoiceOverdue(invoice) && invoice.status !== "Paid";
+
+    const matchesStatus =
+      statusFilter === "All" ||
+      (statusFilter === "Overdue" && isOverdue) ||
+      (statusFilter !== "Overdue" && (invoice.status || "Unpaid") === statusFilter);
+
+    return matchesSearch && matchesStatus;
+  });
+}
+
+function renderDashboardTotals(invoices){
+  const outstanding = invoices
+    .filter(invoice => invoice.status !== "Paid")
+    .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+
+  const paid = invoices
+    .filter(invoice => invoice.status === "Paid")
+    .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+
+  const overdue = invoices
+    .filter(invoice => isInvoiceOverdue(invoice) && invoice.status !== "Paid")
+    .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const thisMonth = invoices
+    .filter(invoice => {
+      if(!invoice.date){
+        return false;
+      }
+
+      const parts = invoice.date.split("/");
+      const invoiceDate = new Date(parts[2], parts[1] - 1, parts[0]);
+
+      return (
+        invoiceDate.getMonth() === currentMonth &&
+        invoiceDate.getFullYear() === currentYear
+      );
+    })
+    .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+
+  const paidCount =
+    invoices.filter(invoice => invoice.status === "Paid").length;
+
+  const paidPercent =
+    invoices.length === 0 ? 0 : Math.round((paidCount / invoices.length) * 100);
+
+  document.getElementById("dashboardOutstanding").textContent =
+    "£" + outstanding.toFixed(2);
+
+  document.getElementById("dashboardPaid").textContent =
+    "£" + paid.toFixed(2);
+
+  document.getElementById("dashboardOverdue").textContent =
+    "£" + overdue.toFixed(2);
+
+  document.getElementById("dashboardCount").textContent =
+    invoices.length;
+
+  document.getElementById("dashboardThisMonth").textContent =
+    "£" + thisMonth.toFixed(2);
+
+  document.getElementById("dashboardPaidPercent").textContent =
+    paidPercent + "%";
+}
+
 async function renderRecentInvoices(){
   let invoices = [];
 
@@ -584,6 +722,20 @@ async function renderRecentInvoices(){
     invoices =
       JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
   }
+
+  invoices.sort((a, b) => {
+    const aParts = a.date.split("/");
+    const bParts = b.date.split("/");
+
+    const aDate = new Date(aParts[2], aParts[1] - 1, aParts[0]);
+    const bDate = new Date(bParts[2], bParts[1] - 1, bParts[0]);
+
+    return bDate - aDate;
+  });
+
+  renderDashboardTotals(invoices);
+
+  invoices = filterInvoices(invoices);
 
   const box = document.getElementById("recentInvoices");
 
@@ -596,6 +748,13 @@ async function renderRecentInvoices(){
     const overdue = isInvoiceOverdue(invoice);
     const statusText = overdue ? "Overdue" : (invoice.status || "Unpaid");
 
+    const statusColor =
+      statusText === "Paid"
+        ? "#15803d"
+        : statusText === "Overdue"
+          ? "#b91c1c"
+          : "#2563eb";
+
     return `
       <div style="padding:12px 0; border-bottom:1px solid #ddd;">
         <strong>${invoice.invoiceNo}</strong> — ${invoice.client}<br>
@@ -607,7 +766,15 @@ async function renderRecentInvoices(){
         <br>
 
         <button onclick="toggleInvoiceStatus(${index})"
-                style="margin-top:8px; padding:8px 12px; border-radius:10px;">
+                style="
+                  margin-top:8px;
+                  padding:8px 12px;
+                  border-radius:999px;
+                  border:none;
+                  background:${statusColor};
+                  color:white;
+                  font-weight:700;
+                ">
           ${statusText}
         </button>
 
