@@ -16,6 +16,45 @@
       --border:#d8dee6;
     }
 
+    body.dark-mode{
+      --bg:linear-gradient(135deg,#0f172a,#020617);
+      --card:#111827;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --border:#334155;
+    }
+
+    body.dark-mode .card,
+    body.dark-mode .invoice-preview,
+    body.dark-mode .stat-card,
+    body.dark-mode .invoice-row{
+      background:#111827;
+      color:var(--text);
+    }
+
+    body.dark-mode input,
+    body.dark-mode textarea,
+    body.dark-mode select{
+      background:#0b1220;
+      color:var(--text);
+      border-color:var(--border);
+    }
+
+    body.dark-mode .invoice-note{
+      background:#0b1220;
+    }
+
+    body.dark-mode .invoice-table th,
+    body.dark-mode .invoice-table td,
+    body.dark-mode .invoice-total-row{
+      border-color:#334155;
+    }
+
+    body.dark-mode .muted,
+    body.dark-mode .invoice-row-sub{
+      color:var(--muted);
+    }
+
     *{
       box-sizing:border-box;
     }
@@ -701,6 +740,10 @@
               onchange="importInvoiceBackup(event)"
             >
 
+            <button type="button" onclick="toggleDarkMode()" id="darkModeBtn">
+              Dark Mode
+            </button>
+
           </div>
 
           <p id="editModeStatus" class="muted" style="margin-top:10px;">
@@ -853,6 +896,19 @@
   window.logoutUser = async function(){
     await signOut(auth);
   };
+
+  if(localStorage.getItem("simpleBooksDarkMode") === "true"){
+
+    document.body.classList.add("dark-mode");
+
+    const btn =
+      document.getElementById("darkModeBtn");
+
+    if(btn){
+      btn.textContent = "Light Mode";
+    }
+
+  }
 
   onAuthStateChanged(auth, function(user){
     window.currentUser = user;
@@ -1254,6 +1310,28 @@ function renderDashboardTotals(invoices){
 
   document.getElementById("dashboardOverdueCount").textContent =
     overdueCount;
+}
+
+function toggleDarkMode(){
+
+  document.body.classList.toggle("dark-mode");
+
+  const enabled =
+    document.body.classList.contains("dark-mode");
+
+  localStorage.setItem(
+    "simpleBooksDarkMode",
+    enabled
+  );
+
+  const btn =
+    document.getElementById("darkModeBtn");
+
+  if(btn){
+    btn.textContent =
+      enabled ? "Light Mode" : "Dark Mode";
+  }
+
 }
 
 async function renderRecentInvoices(){
