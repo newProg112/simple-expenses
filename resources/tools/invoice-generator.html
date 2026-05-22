@@ -108,6 +108,39 @@
       max-width:100%;
     }
 
+    .top-customers-list{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .top-customer-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:14px;
+      padding:14px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:var(--card);
+    }
+
+    .top-customer-name{
+      font-weight:800;
+    }
+
+    .top-customer-sub{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:.9rem;
+    }
+
+    .top-customer-value{
+      font-weight:900;
+      white-space:nowrap;
+    }
+
     .statement-card{
       margin-top:28px;
     }
@@ -719,6 +752,15 @@
           <p class="muted">Bar chart view</p>
 
           <canvas id="monthlyRevenueBarChart" height="90"></canvas>
+        </div>
+
+        <div class="card chart-card">
+          <h2>Top Customers</h2>
+          <p class="muted">Highest invoice totals</p>
+
+          <div id="topCustomersList" class="top-customers-list">
+            No customer data yet.
+          </div>
         </div>
 
         <div class="card chart-card">
@@ -1413,6 +1455,8 @@ function renderDashboardTotals(invoices){
 
   document.getElementById("dashboardOverdueCount").textContent =
     overdueCount;
+
+  renderTopCustomers(invoices);
 }
 
 function toggleDarkMode(){
@@ -2517,6 +2561,61 @@ function renderStatusChart(invoices){
 
   });
 
+}
+
+function renderTopCustomers(invoices){
+
+  const box = document.getElementById("topCustomersList");
+
+  if(!box){
+    return;
+  }
+
+  const grouped = {};
+
+  invoices.forEach(invoice => {
+
+    const client = invoice.client || "Unknown customer";
+
+    if(!grouped[client]){
+      grouped[client] = {
+        total:0,
+        count:0
+      };
+    }
+
+    grouped[client].total += Number(invoice.total || 0);
+    grouped[client].count += 1;
+  });
+
+  const sorted = Object.entries(grouped)
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, 5);
+
+  if(sorted.length === 0){
+    box.innerHTML = "No customer data yet.";
+    return;
+  }
+
+  box.innerHTML = sorted.map(([name, data]) => `
+    <div class="top-customer-row">
+
+      <div>
+        <div class="top-customer-name">
+          ${name}
+        </div>
+
+        <div class="top-customer-sub">
+          ${data.count} invoice${data.count !== 1 ? "s" : ""}
+        </div>
+      </div>
+
+      <div class="top-customer-value">
+        £${data.total.toFixed(2)}
+      </div>
+
+    </div>
+  `).join("");
 }
 
 setInitialInvoiceNumber();
