@@ -100,13 +100,83 @@
 
     .chart-card{
       margin:24px 0;
+      overflow:hidden;
+    }
+
+    .chart-card canvas{
+      width:100% !important;
+      max-width:100%;
+    }
+
+    .statement-card{
+      margin-top:28px;
+    }
+
+    .statement-shell{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:24px;
+      padding:28px;
+      margin-top:20px;
+    }
+
+    .statement-empty{
+      padding:28px;
+      border-radius:18px;
+      border:1px dashed var(--border);
+      color:var(--muted);
+      background:rgba(255,255,255,.03);
+    }
+
+    .statement-toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:14px;
+      align-items:end;
+      margin-bottom:20px;
+    }
+
+    .statement-toolbar > div{
+      flex:1;
+      min-width:160px;
+    }
+
+    .statement-toolbar label{
+      margin-bottom:8px;
+    }
+
+    .statement-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+    }
+
+    .statement-actions button{
+      flex:0 1 auto;
+    }
+
+    body.dark-mode .statement-empty{
+      background:#0b1220;
     }
 
     .analytics-grid{
       display:grid;
       grid-template-columns:2fr 1fr;
-      gap:20px;
-      margin:24px 0;
+      gap:24px;
+      margin:28px 0;
+    }
+
+    .analytics-grid .chart-card:first-child{
+      grid-column:1 / 2;
+    }
+
+    .analytics-grid .chart-card:nth-child(2){
+      grid-column:1 / 2;
+    }
+
+    .analytics-grid .chart-card:nth-child(3){
+      grid-column:2 / 3;
+      grid-row:1 / 3;
     }
 
     .analytics-grid .chart-card{
@@ -165,6 +235,25 @@
       .actions button,
       .invoice-actions button{
         width:100%;
+      }
+
+      .analytics-grid{
+        grid-template-columns:1fr;
+      }
+
+      .analytics-grid .chart-card:first-child,
+      .analytics-grid .chart-card:nth-child(2),
+      .analytics-grid .chart-card:nth-child(3){
+        grid-column:auto;
+        grid-row:auto;
+      }
+
+      .chart-card{
+        padding:20px;
+      }
+
+      .chart-card canvas{
+        max-height:260px;
       }
     }
 
@@ -626,6 +715,13 @@
         </div>
 
         <div class="card chart-card">
+          <h2>Monthly Revenue</h2>
+          <p class="muted">Bar chart view</p>
+
+          <canvas id="monthlyRevenueBarChart" height="90"></canvas>
+        </div>
+
+        <div class="card chart-card">
           <div class="chart-header">
             <div>
               <h2>Invoice Status</h2>
@@ -784,38 +880,45 @@
 
           <div style="margin-top:28px;">
 
-            <h2>Statement Summary</h2>
+            <div class="statement-card">
+              <h2>Statement Summary</h2>
 
-            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+              <div class="statement-toolbar">
 
-              <div>
-                <label>From</label>
-                <input id="statementFromDate" type="date">
+                <div>
+                  <label>From</label>
+                  <input id="statementFromDate" type="date">
+                </div>
+
+                <div>
+                  <label>To</label>
+                  <input id="statementToDate" type="date">
+                </div>
+
+                <div style="display:flex; align-items:end; gap:8px; padding-bottom:10px;">
+                  <input id="statementUnpaidOnly" type="checkbox">
+                  <label for="statementUnpaidOnly" style="margin:0;">Unpaid only</label>
+                </div>
+
               </div>
 
-              <div>
-                <label>To</label>
-                <input id="statementToDate" type="date">
+              <div id="statementSummary" class="statement-shell">
+                <div class="statement-empty">
+                  No statement generated yet.
+                </div>
               </div>
 
-              <div style="display:flex; align-items:end; gap:8px; padding-bottom:10px;">
-                <input id="statementUnpaidOnly" type="checkbox">
-                <label for="statementUnpaidOnly" style="margin:0;">Unpaid only</label>
+              <div class="statement-actions">
+                <button onclick="generateStatement()">
+                  Generate Statement
+                </button>
+
+                <button onclick="printStatement()">
+                  Save / Print Statement PDF
+                </button>
               </div>
 
             </div>
-
-            <div id="statementSummary" class="invoice-preview" style="min-height:auto;">
-              No statement generated yet.
-            </div>
-
-            <button onclick="generateStatement()" style="margin-top:12px;">
-              Generate Statement
-            </button>
-
-            <button onclick="printStatement()" style="margin-top:12px; margin-left:8px;">
-              Save / Print Statement PDF
-            </button>
 
           </div>
 
@@ -1357,6 +1460,7 @@ async function renderRecentInvoices(){
   renderDashboardTotals(invoices);
   renderRevenueChart(invoices);
   renderStatusChart(invoices);
+  renderMonthlyRevenueBarChart(invoices);
 
   invoices = filterInvoices(invoices);
 
@@ -1606,57 +1710,33 @@ async function generateStatement(){
     );
   }
 
-  const fromDate =
-    document.getElementById("statementFromDate")?.value || "";
-
-  const toDate =
-    document.getElementById("statementToDate")?.value || "";
-
-  const unpaidOnly =
-    document.getElementById("statementUnpaidOnly")?.checked || false;
+  const fromDate = document.getElementById("statementFromDate")?.value || "";
+  const toDate = document.getElementById("statementToDate")?.value || "";
+  const unpaidOnly = document.getElementById("statementUnpaidOnly")?.checked || false;
 
   function parseInvoiceDate(dateText){
     const parts = dateText.split("/");
-    return new Date(
-      Number(parts[2]),
-      Number(parts[1]) - 1,
-      Number(parts[0])
-    );
+    return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
   }
 
   function parseInputDate(dateText){
     const parts = dateText.split("-");
-    return new Date(
-      Number(parts[0]),
-      Number(parts[1]) - 1,
-      Number(parts[2])
-    );
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  }
+
+  function formatInputDate(dateText){
+    if(!dateText) return "";
+    return parseInputDate(dateText).toLocaleDateString("en-GB");
   }
 
   if(fromDate){
     const from = parseInputDate(fromDate);
-
-    invoices = invoices.filter(invoice => {
-      if(!invoice.date){
-        return false;
-      }
-
-      const invoiceDate = parseInvoiceDate(invoice.date);
-      return invoiceDate >= from;
-    });
+    invoices = invoices.filter(invoice => invoice.date && parseInvoiceDate(invoice.date) >= from);
   }
 
   if(toDate){
     const to = parseInputDate(toDate);
-
-    invoices = invoices.filter(invoice => {
-      if(!invoice.date){
-        return false;
-      }
-
-      const invoiceDate = parseInvoiceDate(invoice.date);
-      return invoiceDate <= to;
-    });
+    invoices = invoices.filter(invoice => invoice.date && parseInvoiceDate(invoice.date) <= to);
   }
 
   if(unpaidOnly){
@@ -1668,70 +1748,58 @@ async function generateStatement(){
   const box = document.getElementById("statementSummary");
 
   if(!invoices.length){
-    box.innerHTML = "No invoices found for this customer.";
+    box.innerHTML = `
+      <div class="statement-empty">
+        No invoices found for this customer.
+      </div>
+    `;
     return;
   }
 
   const totalRaised =
-    invoices.reduce((sum, invoice) => sum + invoice.total, 0);
+    invoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
 
   const totalPaid =
     invoices
       .filter(invoice => invoice.status === "Paid")
-      .reduce((sum, invoice) => sum + invoice.total, 0);
+      .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
 
   const totalUnpaid =
     invoices
       .filter(invoice => (invoice.status || "Unpaid") !== "Paid")
-      .reduce((sum, invoice) => sum + invoice.total, 0);
+      .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+
+  const customerLabel =
+    selectedCustomer
+      ? document.getElementById("clientName").value
+      : "All customers";
 
   box.innerHTML = `
     <div id="statementPrintArea">
 
-      <div style="
-        display:flex;
-        justify-content:space-between;
-        align-items:flex-start;
-        margin-bottom:24px;
-        gap:24px;
-        flex-wrap:wrap;
-      ">
+      <div class="invoice-header">
 
         <div>
-          <h2 style="margin:0;">SIMPLE BOOKS</h2>
-
-          <div class="muted" style="margin-top:8px;">
-            adam@simple-books.co.uk<br>
-            simple-books.co.uk
+          <div class="invoice-brand">
+            <img src="/assets/logo.png" alt="Simple Books logo">
+            <div class="invoice-title">STATEMENT</div>
           </div>
+
+          <div class="muted" style="margin-top:14px;">adam@simple-books.co.uk</div>
+          <div class="muted">simple-books.co.uk</div>
         </div>
 
-        <div style="text-align:right;">
-          <h2 style="margin:0;">Customer Statement</h2>
+        <div class="invoice-meta">
+          <div><strong>Customer Statement</strong></div>
 
-          <div class="muted" style="margin-top:8px;">
-            ${
-              selectedCustomer
-                ? document.getElementById("clientName").value
-                : "All customers"
-            }
-          </div>
+          <div style="margin-top:10px;">${customerLabel}</div>
 
           ${
             fromDate || toDate
               ? `
-                <div style="margin-top:8px;">
-                  ${
-                    fromDate
-                      ? `From: ${fromDate}<br>`
-                      : ""
-                  }
-
-                  ${
-                    toDate
-                      ? `To: ${toDate}`
-                      : ""
-                  }
+                <div style="margin-top:10px;">
+                  ${fromDate ? `From: ${formatInputDate(fromDate)}<br>` : ""}
+                  ${toDate ? `To: ${formatInputDate(toDate)}` : ""}
                 </div>
               `
               : ""
@@ -1740,28 +1808,19 @@ async function generateStatement(){
           ${
             unpaidOnly
               ? `
-                <div style="
-                  margin-top:8px;
-                  color:#b91c1c;
-                  font-weight:700;
-                ">
-                  UNPAID INVOICES ONLY
+                <div style="margin-top:10px; font-weight:800; color:#dc2626;">
+                  Unpaid only
                 </div>
               `
               : ""
           }
-
         </div>
 
       </div>
 
-      <div style="
-        display:grid;
-        grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-        gap:12px;
-        margin-bottom:24px;
-      ">
+      <hr style="border:none; border-top:1px solid var(--border); margin:24px 0;">
 
+      <div class="dashboard-grid" style="margin-top:0;">
         <div class="card">
           <div class="muted">Total Raised</div>
           <h2>£${totalRaised.toFixed(2)}</h2>
@@ -1776,54 +1835,44 @@ async function generateStatement(){
           <div class="muted">Outstanding</div>
           <h2>£${totalUnpaid.toFixed(2)}</h2>
         </div>
-
       </div>
 
-      <table style="
-        width:100%;
-        border-collapse:collapse;
-        margin-top:18px;
-      ">
-
+      <table class="invoice-table">
         <thead>
-          <tr style="background:#f3f4f6;">
-            <th style="padding:12px; text-align:left;">Invoice</th>
-            <th style="padding:12px; text-align:left;">Date</th>
-            <th style="padding:12px; text-align:left;">Status</th>
-            <th style="padding:12px; text-align:right;">Total</th>
+          <tr>
+            <th>Invoice</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Total</th>
           </tr>
         </thead>
 
         <tbody>
+          ${invoices.map(invoice => {
+            const overdue = isInvoiceOverdue(invoice);
+            const statusText = overdue ? "Overdue" : (invoice.status || "Unpaid");
 
-          ${invoices.map(invoice => `
-            <tr style="border-bottom:1px solid #ddd;">
+            const statusClass =
+              statusText === "Paid"
+                ? "status-paid"
+                : statusText === "Overdue"
+                  ? "status-overdue"
+                  : "status-unpaid";
 
-              <td style="padding:12px;">
-                ${invoice.invoiceNo}
-              </td>
-
-              <td style="padding:12px;">
-                ${invoice.date || "-"}
-              </td>
-
-              <td style="padding:12px;">
-                ${invoice.status || "Unpaid"}
-              </td>
-
-              <td style="
-                padding:12px;
-                text-align:right;
-                font-weight:700;
-              ">
-                £${Number(invoice.total || 0).toFixed(2)}
-              </td>
-
-            </tr>
-          `).join("")}
-
+            return `
+              <tr>
+                <td><strong>${invoice.invoiceNo}</strong></td>
+                <td>${invoice.date || "-"}</td>
+                <td>
+                  <span class="status-badge ${statusClass}">
+                    ${statusText}
+                  </span>
+                </td>
+                <td>£${Number(invoice.total || 0).toFixed(2)}</td>
+              </tr>
+            `;
+          }).join("")}
         </tbody>
-
       </table>
 
     </div>
@@ -2352,6 +2401,68 @@ function renderRevenueChart(invoices){
           }
         }
 
+      }
+    }
+  });
+}
+
+let monthlyRevenueBarChart;
+
+function renderMonthlyRevenueBarChart(invoices){
+
+  const monthlyTotals = {};
+
+  invoices.forEach(invoice => {
+
+    const parts = invoice.date.split("/");
+
+    const key = `${parts[1]}/${parts[2]}`;
+
+    monthlyTotals[key] =
+      (monthlyTotals[key] || 0) + invoice.total;
+
+  });
+
+  const labels = Object.keys(monthlyTotals);
+
+  const values = Object.values(monthlyTotals);
+
+  const ctx =
+    document.getElementById("monthlyRevenueBarChart");
+
+  if(!ctx){
+    return;
+  }
+
+  if(monthlyRevenueBarChart){
+    monthlyRevenueBarChart.destroy();
+  }
+
+  monthlyRevenueBarChart = new Chart(ctx, {
+    type:"bar",
+    data:{
+      labels:labels,
+      datasets:[{
+        label:"Revenue",
+        data:values,
+        borderRadius:12
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{
+          display:false
+        }
+      },
+      scales:{
+        y:{
+          ticks:{
+            callback:function(value){
+              return "£" + value;
+            }
+          }
+        }
       }
     }
   });
