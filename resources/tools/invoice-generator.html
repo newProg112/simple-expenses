@@ -735,46 +735,56 @@
       </div>
 
       <div class="analytics-grid">
-        <div class="card chart-card">
-          <div class="chart-header">
-            <div>
-              <h2>Revenue Trend</h2>
-              <p class="muted">Invoice totals by month</p>
-              <div id="chartTotal" class="chart-total">£0.00</div>
+
+        <div class="analytics-left">
+
+          <div class="card chart-card">
+            <div class="chart-header">
+              <div>
+                <h2>Revenue Trend</h2>
+                <p class="muted">Invoice totals by month</p>
+                <div id="chartTotal" class="chart-total">£0.00</div>
+              </div>
+            </div>
+
+            <canvas id="revenueChart" height="85"></canvas>
+          </div>
+
+          <div class="card chart-card">
+            <h2>Monthly Revenue</h2>
+            <p class="muted">Bar chart view</p>
+
+            <canvas id="monthlyRevenueBarChart" height="90"></canvas>
+          </div>
+
+        </div>
+
+        <div class="analytics-right">
+
+          <div class="card chart-card">
+            <div class="chart-header">
+              <div>
+                <h2>Invoice Status</h2>
+                <p class="muted">Paid vs unpaid invoices</p>
+              </div>
+            </div>
+
+            <div style="max-width:240px; margin:auto;">
+              <canvas id="statusChart" height="180"></canvas>
             </div>
           </div>
 
-          <canvas id="revenueChart" height="85"></canvas>
-        </div>
+          <div class="card chart-card">
+            <h2>Top Customers</h2>
+            <p class="muted">Highest invoice totals</p>
 
-        <div class="card chart-card">
-          <h2>Monthly Revenue</h2>
-          <p class="muted">Bar chart view</p>
-
-          <canvas id="monthlyRevenueBarChart" height="90"></canvas>
-        </div>
-
-        <div class="card chart-card">
-          <h2>Top Customers</h2>
-          <p class="muted">Highest invoice totals</p>
-
-          <div id="topCustomersList" class="top-customers-list">
-            No customer data yet.
-          </div>
-        </div>
-
-        <div class="card chart-card">
-          <div class="chart-header">
-            <div>
-              <h2>Invoice Status</h2>
-              <p class="muted">Paid vs unpaid invoices</p>
+            <div id="topCustomersList" class="top-customers-list">
+              No customer data yet.
             </div>
           </div>
 
-          <div style="max-width:240px; margin:auto;">
-            <canvas id="statusChart" height="180"></canvas>
-          </div>
         </div>
+
       </div>
 
       <div class="grid">
