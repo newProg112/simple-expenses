@@ -568,6 +568,19 @@
         <canvas id="revenueChart" height="85"></canvas>
       </div>
 
+      <div class="card chart-card">
+        <div class="chart-header">
+          <div>
+            <h2>Invoice Status</h2>
+            <p class="muted">Paid vs unpaid invoices</p>
+          </div>
+        </div>
+
+        <div style="max-width:240px; margin:auto;">
+          <canvas id="statusChart" height="180"></canvas>
+        </div>
+      </div>
+
       <div class="grid">
 
         <div>
@@ -1246,6 +1259,7 @@ async function renderRecentInvoices(){
 
   renderDashboardTotals(invoices);
   renderRevenueChart(invoices);
+  renderStatusChart(invoices);
 
   invoices = filterInvoices(invoices);
 
@@ -2244,6 +2258,57 @@ function renderRevenueChart(invoices){
       }
     }
   });
+}
+
+function renderStatusChart(invoices){
+
+  const paid =
+    invoices.filter(i => i.status === "Paid").length;
+
+  const unpaid =
+    invoices.filter(i =>
+      (i.status || "Unpaid") !== "Paid"
+    ).length;
+
+  const existingChart =
+    Chart.getChart("statusChart");
+
+  if(existingChart){
+    existingChart.destroy();
+  }
+
+  const ctx =
+    document.getElementById("statusChart");
+
+  new Chart(ctx, {
+
+    type:"doughnut",
+
+    data:{
+      labels:["Paid", "Unpaid"],
+
+      datasets:[{
+        data:[paid, unpaid],
+        backgroundColor:[
+          "#16a34a",
+          "#2563eb"
+        ],
+        borderWidth:0
+      }]
+    },
+
+    options:{
+      plugins:{
+        legend:{
+          position:"bottom"
+        }
+      },
+
+      cutout:"70%"
+    }
+
+  });
+
 }
 
 setInitialInvoiceNumber();
