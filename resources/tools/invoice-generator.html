@@ -670,7 +670,13 @@
 
     <div class="card">
 
-      <h1>Simple Books Invoice Generator</h1>
+      <div class="top-header">
+        <h1>Simple Books Invoice Generator</h1>
+
+        <button type="button" onclick="logoutUser()" id="topLogoutBtn" style="display:none;">
+          Logout
+        </button>
+      </div>
 
       <div class="card" id="authBox" style="margin-bottom:24px;">
         <h2>Login</h2>
@@ -781,6 +787,13 @@
             <div id="topCustomersList" class="top-customers-list">
               No customer data yet.
             </div>
+          </div>
+
+          <div class="card chart-card">
+            <h2>Outstanding Ageing</h2>
+            <p class="muted">Overdue invoice buckets</p>
+
+            <canvas id="ageingChart" height="180"></canvas>
           </div>
 
         </div>
@@ -1072,6 +1085,8 @@
 
     const appContent = document.getElementById("appContent");
 
+    const authBox = document.getElementById("authBox");
+
     if(user){
       status.textContent = "Logged in as " + user.email;
 
@@ -1086,12 +1101,24 @@
         window.loadCustomersFromFirestore();
       }
 
+      if(authBox){
+        authBox.style.display = "none";
+      }
+
+      document.getElementById("topLogoutBtn").style.display = "inline-flex";
+
     } else {
       status.textContent = "Not logged in.";
 
       if(appContent){
         appContent.style.display = "none";
       }
+
+      if(authBox){
+        authBox.style.display = "block";
+      }
+
+      document.getElementById("topLogoutBtn").style.display = "none";
     }
   });
 
@@ -1385,6 +1412,56 @@ function filterInvoices(invoices){
 }
 
 function renderDashboardTotals(invoices){
+  function animateMoney(id, value){
+    const el = document.getElementById(id);
+
+    if(!el){
+      return;
+    }
+
+    let start = 0;
+    const duration = 700;
+    const startTime = performance.now();
+
+    function update(now){
+      const progress = Math.min((now - startTime) / duration, 1);
+      const current = start + (value - start) * progress;
+
+      el.textContent = "£" + current.toFixed(2);
+
+      if(progress < 1){
+        requestAnimationFrame(update);
+      }
+    }
+
+    requestAnimationFrame(update);
+  }
+
+  function animateNumber(id, value, suffix = ""){
+    const el = document.getElementById(id);
+
+    if(!el){
+      return;
+    }
+
+    let start = 0;
+    const duration = 700;
+    const startTime = performance.now();
+
+    function update(now){
+      const progress = Math.min((now - startTime) / duration, 1);
+      const current = Math.round(start + (value - start) * progress);
+
+      el.textContent = current + suffix;
+
+      if(progress < 1){
+        requestAnimationFrame(update);
+      }
+    }
+
+    requestAnimationFrame(update);
+  }
+
   const outstanding = invoices
     .filter(invoice => invoice.status !== "Paid")
     .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
@@ -1442,29 +1519,14 @@ function renderDashboardTotals(invoices){
   const paidPercent =
     invoices.length === 0 ? 0 : Math.round((paidCount / invoices.length) * 100);
 
-  document.getElementById("dashboardOutstanding").textContent =
-    "£" + outstanding.toFixed(2);
-
-  document.getElementById("dashboardPaid").textContent =
-    "£" + paid.toFixed(2);
-
-  document.getElementById("dashboardOverdue").textContent =
-    "£" + overdue.toFixed(2);
-
-  document.getElementById("dashboardCount").textContent =
-    invoices.length;
-
-  document.getElementById("dashboardThisMonth").textContent =
-    "£" + thisMonth.toFixed(2);
-
-  document.getElementById("dashboardPaidPercent").textContent =
-    paidPercent + "%";
-
-  document.getElementById("dashboardDueSoon").textContent =
-    dueSoonCount;
-
-  document.getElementById("dashboardOverdueCount").textContent =
-    overdueCount;
+  animateMoney("dashboardOutstanding", outstanding);
+  animateMoney("dashboardPaid", paid);
+  animateMoney("dashboardOverdue", overdue);
+  animateNumber("dashboardCount", invoices.length);
+  animateMoney("dashboardThisMonth", thisMonth);
+  animateNumber("dashboardPaidPercent", paidPercent, "%");
+  animateNumber("dashboardDueSoon", dueSoonCount);
+  animateNumber("dashboardOverdueCount", overdueCount);
 
   renderTopCustomers(invoices);
 }
@@ -1515,6 +1577,7 @@ async function renderRecentInvoices(){
   renderRevenueChart(invoices);
   renderStatusChart(invoices);
   renderMonthlyRevenueBarChart(invoices);
+  renderAgeingChart(invoices);
 
   invoices = filterInvoices(invoices);
 
@@ -2511,6 +2574,101 @@ function renderMonthlyRevenueBarChart(invoices){
       },
       scales:{
         y:{
+          ticks:{
+            callback:function(value){
+              return "£" + value;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderAgeingChart(invoices){
+
+  const buckets = {
+    "0-30 days": 0,
+    "31-60 days": 0,
+    "60+ days": 0
+  };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  invoices.forEach(invoice => {
+
+    if(invoice.status === "Paid" || !invoice.dueDate){
+      return;
+    }
+
+    const due = new Date(invoice.dueDate);
+    due.setHours(0, 0, 0, 0);
+
+    const daysOverdue =
+      Math.floor((today - due) / (1000 * 60 * 60 * 24));
+
+    if(daysOverdue <= 0){
+      return;
+    }
+
+    const total = Number(invoice.total || 0);
+
+    if(daysOverdue <= 30){
+      buckets["0-30 days"] += total;
+    }else if(daysOverdue <= 60){
+      buckets["31-60 days"] += total;
+    }else{
+      buckets["60+ days"] += total;
+    }
+
+  });
+
+  const existingChart =
+    Chart.getChart("ageingChart");
+
+  if(existingChart){
+    existingChart.destroy();
+  }
+
+  const ctx =
+    document.getElementById("ageingChart");
+
+  if(!ctx){
+    return;
+  }
+
+  new Chart(ctx, {
+    type:"bar",
+
+    data:{
+      labels:Object.keys(buckets),
+
+      datasets:[{
+        label:"Outstanding",
+        data:Object.values(buckets),
+        borderRadius:10,
+        backgroundColor:[
+          "#facc15",
+          "#fb923c",
+          "#ef4444"
+        ]
+      }]
+    },
+
+    options:{
+      responsive:true,
+
+      plugins:{
+        legend:{
+          display:false
+        }
+      },
+
+      scales:{
+        y:{
+          beginAtZero:true,
+
           ticks:{
             callback:function(value){
               return "£" + value;
