@@ -501,6 +501,68 @@
       color:var(--text);
     }
 
+    .kpi-trend{
+      display:inline-flex;
+      align-items:center;
+      margin-top:8px;
+      padding:5px 9px;
+      border-radius:999px;
+      font-size:.8rem;
+      font-weight:800;
+    }
+
+    .kpi-trend.positive{
+      background:#dcfce7;
+      color:#166534;
+    }
+
+    .kpi-trend.negative{
+      background:#fee2e2;
+      color:#991b1b;
+    }
+
+    .kpi-trend.neutral{
+      background:#e0f2fe;
+      color:#075985;
+    }
+
+    .mobile-section{
+      margin-top:28px;
+    }
+
+    .mobile-section-toggle{
+      display:none;
+    }
+
+    @media (max-width:800px){
+
+      .mobile-section-toggle{
+        width:100%;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:16px 18px;
+        border:none;
+        border-radius:18px;
+        background:var(--card);
+        color:var(--text);
+        font-size:1rem;
+        font-weight:800;
+        margin-bottom:14px;
+        cursor:pointer;
+        box-shadow:0 10px 30px rgba(15,23,42,.06);
+      }
+
+      .mobile-section-content{
+        display:none;
+      }
+
+      .mobile-section.open .mobile-section-content{
+        display:block;
+      }
+
+    }
+
     @media (max-width: 800px){
       .grid{
         grid-template-columns:1fr;
@@ -721,6 +783,7 @@
         <div class="card">
           <div class="muted">This Month</div>
           <h2 id="dashboardThisMonth">£0.00</h2>
+          <div id="dashboardMonthTrend" class="kpi-trend neutral">No previous month</div>
         </div>
 
         <div class="card">
@@ -740,60 +803,72 @@
 
       </div>
 
-      <div class="analytics-grid">
+      <div class="mobile-section">
 
-        <div class="analytics-left">
+        <button class="mobile-section-toggle">
+          Analytics
+        </button>
 
-          <div class="card chart-card">
-            <div class="chart-header">
-              <div>
-                <h2>Revenue Trend</h2>
-                <p class="muted">Invoice totals by month</p>
-                <div id="chartTotal" class="chart-total">£0.00</div>
+        <div class="mobile-section-content">
+
+          <div class="analytics-grid">
+
+            <div class="analytics-left">
+
+              <div class="card chart-card">
+                <div class="chart-header">
+                  <div>
+                    <h2>Revenue Trend</h2>
+                    <p class="muted">Invoice totals by month</p>
+                    <div id="chartTotal" class="chart-total">£0.00</div>
+                  </div>
+                </div>
+
+                <canvas id="revenueChart" height="85"></canvas>
               </div>
-            </div>
 
-            <canvas id="revenueChart" height="85"></canvas>
-          </div>
+              <div class="card chart-card">
+                <h2>Monthly Revenue</h2>
+                <p class="muted">Bar chart view</p>
 
-          <div class="card chart-card">
-            <h2>Monthly Revenue</h2>
-            <p class="muted">Bar chart view</p>
-
-            <canvas id="monthlyRevenueBarChart" height="90"></canvas>
-          </div>
-
-        </div>
-
-        <div class="analytics-right">
-
-          <div class="card chart-card">
-            <div class="chart-header">
-              <div>
-                <h2>Invoice Status</h2>
-                <p class="muted">Paid vs unpaid invoices</p>
+                <canvas id="monthlyRevenueBarChart" height="90"></canvas>
               </div>
+
             </div>
 
-            <div style="max-width:240px; margin:auto;">
-              <canvas id="statusChart" height="180"></canvas>
+            <div class="analytics-right">
+
+              <div class="card chart-card">
+                <div class="chart-header">
+                  <div>
+                    <h2>Invoice Status</h2>
+                    <p class="muted">Paid vs unpaid invoices</p>
+                  </div>
+                </div>
+
+                <div style="max-width:240px; margin:auto;">
+                  <canvas id="statusChart" height="180"></canvas>
+                </div>
+              </div>
+
+              <div class="card chart-card">
+                <h2>Top Customers</h2>
+                <p class="muted">Highest invoice totals</p>
+
+                <div id="topCustomersList" class="top-customers-list">
+                  No customer data yet.
+                </div>
+              </div>
+
+              <div class="card chart-card">
+                <h2>Outstanding Ageing</h2>
+                <p class="muted">Overdue invoice buckets</p>
+
+                <canvas id="ageingChart" height="180"></canvas>
+              </div>
+
             </div>
-          </div>
 
-          <div class="card chart-card">
-            <h2>Top Customers</h2>
-            <p class="muted">Highest invoice totals</p>
-
-            <div id="topCustomersList" class="top-customers-list">
-              No customer data yet.
-            </div>
-          </div>
-
-          <div class="card chart-card">
-            <h2>Outstanding Ageing</h2>
-            <p class="muted">Overdue invoice buckets</p>
-
-            <canvas id="ageingChart" height="180"></canvas>
           </div>
 
         </div>
@@ -1096,6 +1171,7 @@
 
       renderCustomerDropdown();
       renderRecentInvoices();
+      setupMobileSections();
 
       if(window.loadCustomersFromFirestore){
         window.loadCustomersFromFirestore();
@@ -1493,6 +1569,71 @@ function renderDashboardTotals(invoices){
       );
     })
     .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+
+    const previousMonthDate = new Date(
+      currentYear,
+      currentMonth - 1,
+      1
+    );
+
+    const previousMonth = invoices
+      .filter(invoice => {
+
+        if(!invoice.date){
+          return false;
+        }
+
+        const parts = invoice.date.split("/");
+        const invoiceDate =
+          new Date(parts[2], parts[1] - 1, parts[0]);
+
+        return (
+          invoiceDate.getMonth() === previousMonthDate.getMonth() &&
+          invoiceDate.getFullYear() === previousMonthDate.getFullYear()
+        );
+
+      })
+      .reduce(
+        (sum, invoice) =>
+          sum + Number(invoice.total || 0),
+        0
+      );
+
+    const trendEl =
+      document.getElementById("dashboardMonthTrend");
+
+    if(trendEl){
+
+      if(previousMonth <= 0){
+
+        trendEl.textContent = "No previous month";
+        trendEl.className = "kpi-trend neutral";
+
+      } else {
+
+        const diffPercent =
+          Math.round(
+            ((thisMonth - previousMonth) / previousMonth) * 100
+          );
+
+        if(diffPercent >= 0){
+
+          trendEl.textContent =
+            "↑ " + diffPercent + "% vs previous month";
+
+          trendEl.className =
+            "kpi-trend positive";
+
+        } else {
+
+          trendEl.textContent =
+            "↓ " + Math.abs(diffPercent) + "% vs previous month";
+
+          trendEl.className =
+            "kpi-trend negative";
+        }
+      }
+    }
 
   const dueSoonCount = invoices.filter(invoice => {
     if(invoice.status === "Paid" || !invoice.dueDate){
@@ -2784,6 +2925,26 @@ function renderTopCustomers(invoices){
 
     </div>
   `).join("");
+}
+
+function setupMobileSections(){
+
+  document
+    .querySelectorAll(".mobile-section-toggle")
+    .forEach(button => {
+
+      button.addEventListener("click", function(){
+
+        const section =
+          button.closest(".mobile-section");
+
+        if(section){
+          section.classList.toggle("open");
+        }
+
+      });
+
+    });
 }
 
 setInitialInvoiceNumber();
