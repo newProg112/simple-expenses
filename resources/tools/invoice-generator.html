@@ -77,6 +77,15 @@
       border-radius:24px;
       padding:24px;
       box-shadow:0 10px 30px rgba(0,0,0,.08);
+      transition:
+        transform .18s ease,
+        box-shadow .18s ease;
+    }
+
+    .card:hover{
+      transform:translateY(-4px);
+      box-shadow:
+        0 18px 40px rgba(15,23,42,.10);
     }
 
     .dashboard-grid{
@@ -89,6 +98,109 @@
     .dashboard-grid .card{
       padding:22px 24px;
       min-height:130px;
+    }
+
+    .kpi-card{
+      position:relative;
+      overflow:hidden;
+      transition:transform .18s ease, box-shadow .18s ease;
+    }
+
+    .kpi-card:hover{
+      transform:translateY(-4px);
+      box-shadow:0 18px 45px rgba(15,23,42,.12);
+    }
+
+    .kpi-card::before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:0;
+      height:100%;
+      width:5px;
+      background:var(--accent);
+      opacity:.85;
+    }
+
+    .kpi-card h2{
+      font-size:1.8rem;
+      margin-bottom:0;
+    }
+
+    .dashboard-hero{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:24px;
+      padding:28px;
+      margin-bottom:28px;
+      border-radius:28px;
+      background:linear-gradient(
+        135deg,
+        rgba(0,119,182,.10),
+        rgba(59,130,246,.04)
+      );
+      border:1px solid var(--border);
+      position:relative;
+      overflow:hidden;
+      background:linear-gradient(
+        135deg,
+        #f7fbff,
+        #eef6ff
+      );
+    }
+
+    .dashboard-hero::before{
+      content:"";
+      position:absolute;
+      top:-120px;
+      right:-120px;
+      width:320px;
+      height:320px;
+      border-radius:50%;
+      background:radial-gradient(
+        rgba(14,165,233,.18),
+        transparent 70%
+      );
+    }
+
+    .hero-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 14px;
+      border-radius:999px;
+      background:#dbeafe;
+      color:#075985;
+      font-size:.8rem;
+      font-weight:900;
+      letter-spacing:.08em;
+      margin-bottom:16px;
+    }
+
+    .hero-subtitle{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:1rem;
+      max-width:540px;
+      line-height:1.6;
+    }
+
+    .dashboard-hero h1{
+      margin:0;
+    }
+
+    @media (max-width:800px){
+
+      .dashboard-hero{
+        flex-direction:column;
+        padding:22px;
+      }
+
+      .dashboard-hero button{
+        width:100%;
+      }
+
     }
 
     .chart-total{
@@ -183,6 +295,13 @@
       gap:12px;
       margin-bottom:18px;
       flex-wrap:wrap;
+    }
+
+    .invoice-results-count{
+      margin:0 0 14px;
+      color:var(--muted);
+      font-size:.95rem;
+      font-weight:700;
     }
 
     .invoice-toolbar input,
@@ -772,11 +891,25 @@
     <div class="card">
 
       <div class="top-header">
-        <h1>Simple Books Invoice Generator</h1>
+        <div class="dashboard-hero">
 
-        <button type="button" onclick="logoutUser()" id="topLogoutBtn" style="display:none;">
-          Logout
-        </button>
+          <div>
+            <div class="hero-badge">
+              LIVE DASHBOARD
+            </div>
+
+            <h1>Simple Books Invoice Generator</h1>
+
+            <p class="hero-subtitle">
+              Professional invoicing, analytics and customer management.
+            </p>
+          </div>
+
+          <button id="topLogoutBtn">
+            Logout
+          </button>
+
+        </div>
       </div>
 
       <div class="card" id="authBox" style="margin-bottom:24px;">
@@ -799,43 +932,43 @@
 
       <div class="dashboard-grid">
 
-        <div class="card">
+        <div class="card kpi-card">
           <div class="muted">Outstanding</div>
           <h2 id="dashboardOutstanding">£0.00</h2>
         </div>
 
-        <div class="card">
+        <div class="card kpi-card">
           <div class="muted">Paid</div>
           <h2 id="dashboardPaid">£0.00</h2>
         </div>
 
-        <div class="card">
+        <div class="card kpi-card">
           <div class="muted">Overdue</div>
           <h2 id="dashboardOverdue">£0.00</h2>
         </div>
 
-        <div class="card">
+        <div class="card kpi-card">
           <div class="muted">Invoices</div>
           <h2 id="dashboardCount">0</h2>
         </div>
 
-        <div class="card">
+        <div class="card kpi-card">
           <div class="muted">This Month</div>
           <h2 id="dashboardThisMonth">£0.00</h2>
           <div id="dashboardMonthTrend" class="kpi-trend neutral">No previous month</div>
         </div>
 
-        <div class="card">
+        <div class="card kpi-card">
           <div class="muted">Paid %</div>
           <h2 id="dashboardPaidPercent">0%</h2>
         </div>
 
-        <div class="card">
+        <div class="card kpi-card">
           <div class="muted">Due Soon</div>
           <h2 id="dashboardDueSoon">0</h2>
         </div>
 
-        <div class="card">
+        <div class="card kpi-card">
           <div class="muted">Overdue Count</div>
           <h2 id="dashboardOverdueCount">0</h2>
         </div>
@@ -1124,6 +1257,10 @@
               <option value="lowest">Lowest total</option>
             </select>
 
+          </div>
+
+          <div id="invoiceResultsCount" class="invoice-results-count">
+            Showing 0 invoices
           </div>
 
           <div id="recentInvoices" class="invoice-preview" style="min-height:auto;">
@@ -1789,8 +1926,20 @@ async function renderRecentInvoices(){
 
   const box = document.getElementById("recentInvoices");
 
+  const countBox =
+    document.getElementById("invoiceResultsCount");
+
+  if(countBox){
+    countBox.textContent =
+      `Showing ${invoices.length} invoice${invoices.length !== 1 ? "s" : ""}`;
+  }
+
   if(!invoices.length){
-    box.innerHTML = "No invoices saved yet.";
+    box.innerHTML = `
+      <div class="statement-empty">
+        No invoices match your current search or filters.
+      </div>
+    `;
     return;
   }
 
