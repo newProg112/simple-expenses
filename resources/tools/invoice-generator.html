@@ -178,6 +178,45 @@
       margin-bottom:8px;
     }
 
+    .invoice-toolbar{
+      display:flex;
+      gap:12px;
+      margin-bottom:18px;
+      flex-wrap:wrap;
+    }
+
+    .invoice-toolbar input,
+    .invoice-toolbar select{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px 16px;
+      color:var(--text);
+      font-size:.95rem;
+    }
+
+    .invoice-toolbar input{
+      flex:1;
+      min-width:240px;
+    }
+
+    .invoice-toolbar select{
+      min-width:180px;
+    }
+
+    @media (max-width:800px){
+
+      .invoice-toolbar{
+        flex-direction:column;
+      }
+
+      .invoice-toolbar input,
+      .invoice-toolbar select{
+        width:100%;
+      }
+
+    }
+
     .statement-actions{
       display:flex;
       flex-wrap:wrap;
@@ -1064,12 +1103,11 @@
 
           <h2>Recent Invoices</h2>
 
-          <div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+          <div class="invoice-toolbar">
             <input
               id="invoiceSearch"
-              placeholder="Search invoices..."
+              placeholder="Search customer or invoice..."
               oninput="renderRecentInvoices()"
-              style="flex:1; min-width:220px;"
             >
 
             <select id="invoiceStatusFilter" onchange="renderRecentInvoices()">
@@ -1078,6 +1116,14 @@
               <option value="Paid">Paid</option>
               <option value="Overdue">Overdue</option>
             </select>
+
+            <select id="invoiceSort" onchange="renderRecentInvoices()">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="highest">Highest total</option>
+              <option value="lowest">Lowest total</option>
+            </select>
+
           </div>
 
           <div id="recentInvoices" class="invoice-preview" style="min-height:auto;">
@@ -1721,6 +1767,25 @@ async function renderRecentInvoices(){
   renderAgeingChart(invoices);
 
   invoices = filterInvoices(invoices);
+
+  const sortValue =
+    document.getElementById("invoiceSort")?.value || "newest";
+
+  if(sortValue === "oldest"){
+    invoices.reverse();
+  }
+
+  if(sortValue === "highest"){
+    invoices.sort((a, b) =>
+      Number(b.total || 0) - Number(a.total || 0)
+    );
+  }
+
+  if(sortValue === "lowest"){
+    invoices.sort((a, b) =>
+      Number(a.total || 0) - Number(b.total || 0)
+    );
+  }
 
   const box = document.getElementById("recentInvoices");
 
