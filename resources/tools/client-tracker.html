@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>Client Tracker | Simple Books</title>
+
+  <style>
+
+    :root{
+      --accent:#0077B6;
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --text:#1f2933;
+      --muted:#6b7280;
+      --border:#d8dee6;
+    }
+
+    *{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    .wrap{
+      max-width:1200px;
+      margin:40px auto;
+      padding:0 20px;
+    }
+
+    .hero{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:24px;
+      padding:30px;
+      border-radius:28px;
+      background:linear-gradient(
+        135deg,
+        #f7fbff,
+        #eef6ff
+      );
+      border:1px solid var(--border);
+      margin-bottom:28px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      top:-120px;
+      right:-120px;
+      width:320px;
+      height:320px;
+      border-radius:50%;
+      background:radial-gradient(
+        rgba(14,165,233,.18),
+        transparent 70%
+      );
+    }
+
+    .hero-badge{
+      display:inline-flex;
+      padding:8px 14px;
+      border-radius:999px;
+      background:#dbeafe;
+      color:#075985;
+      font-size:.8rem;
+      font-weight:900;
+      letter-spacing:.08em;
+      margin-bottom:16px;
+    }
+
+    h1{
+      margin:0;
+      font-size:2.2rem;
+    }
+
+    .hero-subtitle{
+      margin-top:12px;
+      color:var(--muted);
+      max-width:560px;
+      line-height:1.6;
+    }
+
+    .dashboard-grid{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:16px;
+      margin-bottom:28px;
+    }
+
+    .card{
+      background:var(--card);
+      border-radius:24px;
+      padding:24px;
+      box-shadow:0 10px 30px rgba(0,0,0,.06);
+      transition:
+        transform .18s ease,
+        box-shadow .18s ease;
+    }
+
+    .card:hover{
+      transform:translateY(-4px);
+      box-shadow:0 18px 40px rgba(15,23,42,.10);
+    }
+
+    .kpi-card{
+      position:relative;
+      overflow:hidden;
+    }
+
+    .kpi-card::before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:0;
+      width:5px;
+      height:100%;
+      background:var(--accent);
+    }
+
+    .muted{
+      color:var(--muted);
+    }
+
+    .kpi-value{
+      font-size:1.8rem;
+      font-weight:900;
+      margin-top:10px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:380px 1fr;
+      gap:24px;
+    }
+
+    label{
+      display:block;
+      margin-bottom:8px;
+      font-weight:700;
+    }
+
+    input,
+    textarea,
+    select{
+      width:100%;
+      padding:14px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      font-size:1rem;
+      margin-bottom:18px;
+      background:white;
+    }
+
+    textarea{
+      min-height:120px;
+      resize:vertical;
+    }
+
+    button{
+      border:none;
+      background:var(--accent);
+      color:white;
+      padding:14px 18px;
+      border-radius:14px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .client-list{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    .client-toolbar{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    }
+
+    .client-toolbar input{
+      flex:1;
+      min-width:220px;
+    }
+
+    .client-toolbar select{
+      min-width:170px;
+    }
+
+    @media (max-width:700px){
+      .client-toolbar{
+        flex-direction:column;
+      }
+    }
+
+    .client-row{
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:18px;
+      background:white;
+    }
+
+    .client-top{
+      display:flex;
+      justify-content:space-between;
+      gap:18px;
+      align-items:flex-start;
+      margin-bottom:10px;
+    }
+
+    .client-name{
+      font-size:1.05rem;
+      font-weight:900;
+    }
+
+    .status-badge{
+      padding:7px 12px;
+      border-radius:999px;
+      font-size:.8rem;
+      font-weight:800;
+      white-space:nowrap;
+    }
+
+    .status-lead{
+      background:#dbeafe;
+      color:#075985;
+    }
+
+    .status-active{
+      background:#dcfce7;
+      color:#166534;
+    }
+
+    .status-dormant{
+      background:#f3f4f6;
+      color:#374151;
+    }
+
+    .client-meta{
+      margin-top:12px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      color:var(--muted);
+      font-size:.92rem;
+    }
+
+    @media (max-width:900px){
+
+      .dashboard-grid{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+    }
+
+    @media (max-width:700px){
+
+      .hero{
+        flex-direction:column;
+      }
+
+      .dashboard-grid{
+        grid-template-columns:1fr;
+      }
+
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+
+    <div class="hero">
+
+      <div>
+
+        <div class="hero-badge">
+          CRM-LITE
+        </div>
+
+        <h1>Client Tracker</h1>
+
+        <p class="hero-subtitle">
+          Track leads, clients, follow-ups and notes in one lightweight dashboard.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="dashboard-grid">
+
+      <div class="card kpi-card">
+        <div class="muted">Leads</div>
+        <div class="kpi-value" id="leadCount">0</div>
+      </div>
+
+      <div class="card kpi-card">
+        <div class="muted">Active Clients</div>
+        <div class="kpi-value" id="activeCount">0</div>
+      </div>
+
+      <div class="card kpi-card">
+        <div class="muted">Dormant</div>
+        <div class="kpi-value" id="dormantCount">0</div>
+      </div>
+
+      <div class="card kpi-card">
+        <div class="muted">Follow Ups Due</div>
+        <div class="kpi-value" id="followUpCount">0</div>
+      </div>
+
+    </div>
+
+    <div class="grid">
+
+      <div class="card">
+
+        <h2>Add Client</h2>
+
+        <label>Client Name</label>
+        <input id="clientName" placeholder="ABC Plumbing Ltd">
+
+        <label>Email</label>
+        <input id="clientEmail" placeholder="client@example.com">
+
+        <label>Phone</label>
+        <input id="clientPhone" placeholder="07700 900000">
+
+        <label>Status</label>
+
+        <select id="clientStatus">
+          <option>Lead</option>
+          <option>Active</option>
+          <option>Dormant</option>
+        </select>
+
+        <label>Next Follow Up</label>
+        <input id="followUpDate" type="date">
+
+        <label>Notes</label>
+        <textarea id="clientNotes"></textarea>
+
+        <button onclick="saveClient()">
+          Save Client
+        </button>
+
+      </div>
+
+      <div>
+
+        <div class="card">
+
+          <h2>Clients</h2>
+
+          <div class="client-toolbar">
+
+            <input
+                id="clientSearch"
+                placeholder="Search clients..."
+                oninput="renderClients()"
+            >
+
+            <select id="clientFilter" onchange="renderClients()">
+                <option value="All">All statuses</option>
+                <option value="Lead">Leads</option>
+                <option value="Active">Active</option>
+                <option value="Dormant">Dormant</option>
+            </select>
+
+          </div>
+
+          <div id="clientList" class="client-list">
+
+            <div class="muted">
+              No clients added yet.
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+
+    let clients = JSON.parse(
+      localStorage.getItem("simpleBooksClients") || "[]"
+    );
+
+    function saveClient(){
+
+      const client = {
+        id:Date.now(),
+        name:document.getElementById("clientName").value,
+        email:document.getElementById("clientEmail").value,
+        phone:document.getElementById("clientPhone").value,
+        status:document.getElementById("clientStatus").value,
+        followUp:document.getElementById("followUpDate").value,
+        notes:document.getElementById("clientNotes").value
+      };
+
+      if(window.editingClientId){
+
+        clients = clients.map(existingClient =>
+          existingClient.id === window.editingClientId
+            ? {
+                ...client,
+                id: window.editingClientId
+              }
+            : existingClient
+        );
+
+        window.editingClientId = null;
+
+        document.querySelector("button[onclick='saveClient()']").textContent =
+          "Save Client";
+
+      }else{
+
+        clients.unshift(client);
+
+      }
+
+      localStorage.setItem(
+        "simpleBooksClients",
+        JSON.stringify(clients)
+      );
+
+      renderClients();
+
+      document.getElementById("clientName").value = "";
+      document.getElementById("clientEmail").value = "";
+      document.getElementById("clientPhone").value = "";
+      document.getElementById("followUpDate").value = "";
+      document.getElementById("clientNotes").value = "";
+    }
+
+    function renderClients(){
+
+      const box =
+        document.getElementById("clientList");
+
+      document.getElementById("leadCount").textContent =
+        clients.filter(c => c.status === "Lead").length;
+
+      document.getElementById("activeCount").textContent =
+        clients.filter(c => c.status === "Active").length;
+
+      document.getElementById("dormantCount").textContent =
+        clients.filter(c => c.status === "Dormant").length;
+
+      const today =
+        new Date().toISOString().split("T")[0];
+
+      document.getElementById("followUpCount").textContent =
+        clients.filter(c =>
+          c.followUp &&
+          c.followUp <= today
+        ).length;
+
+      const searchText =
+        document.getElementById("clientSearch")?.value.toLowerCase() || "";
+
+      const filterValue =
+        document.getElementById("clientFilter")?.value || "All";
+
+      let visibleClients = clients.filter(client => {
+
+        const matchesSearch =
+          (client.name || "").toLowerCase().includes(searchText) ||
+          (client.email || "").toLowerCase().includes(searchText) ||
+          (client.phone || "").toLowerCase().includes(searchText);
+
+        const matchesFilter =
+          filterValue === "All" || client.status === filterValue;
+
+        return matchesSearch && matchesFilter;
+
+      });
+
+      if(!visibleClients.length){
+
+        box.innerHTML = `
+          <div class="muted">
+            No clients added yet.
+          </div>
+        `;
+
+        return;
+      }
+
+      box.innerHTML = visibleClients.map(client => `
+
+        <div class="client-row">
+
+          <div class="client-top">
+
+            <div>
+
+              <div class="client-name">
+                ${client.name}
+              </div>
+
+              <div class="muted">
+                ${client.email || "No email"}
+              </div>
+
+            </div>
+
+            <div class="status-badge status-${client.status.toLowerCase()}">
+              ${client.status}
+            </div>
+
+          </div>
+
+          <div>
+            ${client.notes || ""}
+          </div>
+
+          <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+
+            <button onclick="editClient(${client.id})">
+              Edit
+            </button>
+
+            <button
+              onclick="deleteClient(${client.id})"
+              style="background:#b91c1c;"
+            >
+              Delete
+            </button>
+
+          </div>
+
+          <div class="client-meta">
+
+            <div>
+              📞 ${client.phone || "-"}
+            </div>
+
+            <div>
+              📅 Follow up:
+              ${client.followUp || "-"}
+            </div>
+
+          </div>
+
+        </div>
+
+      `).join("");
+    }
+
+    renderClients();
+
+    function deleteClient(id){
+
+      if(!confirm("Delete this client?")){
+        return;
+      }
+
+      clients = clients.filter(client => client.id !== id);
+
+      localStorage.setItem(
+        "simpleBooksClients",
+        JSON.stringify(clients)
+      );
+
+      renderClients();
+    }
+
+    function editClient(id){
+
+      const client =
+        clients.find(client => client.id === id);
+
+      if(!client){
+        return;
+      }
+
+      document.getElementById("clientName").value =
+        client.name || "";
+
+      document.getElementById("clientEmail").value =
+        client.email || "";
+
+      document.getElementById("clientPhone").value =
+        client.phone || "";
+
+      document.getElementById("clientStatus").value =
+        client.status || "Lead";
+
+      document.getElementById("followUpDate").value =
+        client.followUp || "";
+
+      document.getElementById("clientNotes").value =
+        client.notes || "";
+
+      window.editingClientId = id;
+
+      document.querySelector("button[onclick='saveClient()']").textContent =
+        "Update Client";
+    }
+
+  </script>
+
+</body>
+</html>
