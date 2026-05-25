@@ -370,11 +370,18 @@
         <label>Next Follow Up</label>
         <input id="followUpDate" type="date">
 
+        <label>Last Contacted</label>
+        <input id="lastContactedDate" type="date">
+
         <label>Notes</label>
         <textarea id="clientNotes"></textarea>
 
         <button onclick="saveClient()">
           Save Client
+        </button>
+
+        <button type="button" onclick="exportClientsCsv()" style="margin-top:10px;">
+          Export Clients CSV
         </button>
 
       </div>
@@ -435,6 +442,7 @@
         phone:document.getElementById("clientPhone").value,
         status:document.getElementById("clientStatus").value,
         followUp:document.getElementById("followUpDate").value,
+        lastContacted:document.getElementById("lastContactedDate").value,
         notes:document.getElementById("clientNotes").value
       };
 
@@ -471,6 +479,7 @@
       document.getElementById("clientEmail").value = "";
       document.getElementById("clientPhone").value = "";
       document.getElementById("followUpDate").value = "";
+      document.getElementById("lastContactedDate").value = "";
       document.getElementById("clientNotes").value = "";
     }
 
@@ -572,6 +581,19 @@
               Edit
             </button>
 
+            ${
+              client.status === "Lead"
+                ? `
+                  <button
+                    onclick="convertToActive(${client.id})"
+                    style="background:#15803d;"
+                  >
+                    Convert to Active
+                  </button>
+                `
+                : ""
+            }
+
             <button
               onclick="deleteClient(${client.id})"
               style="background:#b91c1c;"
@@ -590,6 +612,11 @@
             <div>
               📅 Follow up:
               ${client.followUp || "-"}
+            </div>
+
+            <div>
+              🕒 Last contacted:
+              ${client.lastContacted || "-"}
             </div>
 
           </div>
@@ -641,6 +668,9 @@
       document.getElementById("followUpDate").value =
         client.followUp || "";
 
+      document.getElementById("lastContactedDate").value =
+        client.lastContacted || "";
+
       document.getElementById("clientNotes").value =
         client.notes || "";
 
@@ -648,6 +678,72 @@
 
       document.querySelector("button[onclick='saveClient()']").textContent =
         "Update Client";
+    }
+
+    function convertToActive(id){
+
+      clients = clients.map(client => {
+
+        if(client.id === id){
+
+          return {
+            ...client,
+            status:"Active"
+          };
+
+        }
+
+        return client;
+
+      });
+
+      localStorage.setItem(
+        "simpleBooksClients",
+        JSON.stringify(clients)
+      );
+
+      renderClients();
+    }
+
+    function exportClientsCsv(){
+
+      if(!clients.length){
+        alert("No clients to export.");
+        return;
+      }
+
+      const rows = [
+        ["Name", "Email", "Phone", "Status", "Follow Up", "Notes"],
+        ...clients.map(client => [
+          client.name || "",
+          client.email || "",
+          client.phone || "",
+          client.status || "",
+          client.followUp || "",
+          client.notes || ""
+        ])
+      ];
+
+      const csv = rows
+        .map(row =>
+          row.map(value =>
+            `"${String(value).replaceAll('"', '""')}"`
+          ).join(",")
+        )
+        .join("\n");
+
+      const blob = new Blob([csv], {
+        type:"text/csv;charset=utf-8;"
+      });
+
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "simple-books-clients.csv";
+      link.click();
+
+      URL.revokeObjectURL(url);
     }
 
   </script>
