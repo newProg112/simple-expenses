@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "simple-expenses-8ab54"
-  }
+  },
+  "targets": {
+    "simple-expenses-8ab54": {
+      "hosting": {
+        "main": [
+          "simple-expenses-8ab54"
+        ],
+        "expenses": [
+          "simple-expenses-app-a9ef1"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
