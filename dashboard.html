@@ -117,6 +117,26 @@
         <div class="muted">Saved invoices</div>
         <h2 id="invoiceCount">0</h2>
       </div>
+
+      <div class="card">
+        <div class="muted">Unpaid bills</div>
+        <h2 id="unpaidBills">£0.00</h2>
+      </div>
+
+      <div class="card">
+        <div class="muted">Net position</div>
+        <h2 id="netPosition">£0.00</h2>
+      </div>
+
+      <div class="card">
+        <div class="muted">Overdue bills</div>
+        <h2 id="overdueBills">0</h2>
+      </div>
+
+      <div class="card">
+        <div class="muted">Cashflow position</div>
+        <h2 id="cashflowPosition">£0.00</h2>
+      </div>
     </section>
 
     <h2 class="section-title">Quick Actions</h2>
@@ -145,6 +165,9 @@
     function loadDashboard() {
       const invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
 
+      const bills =
+        JSON.parse(localStorage.getItem("simpleBooksBills") || "[]");
+
       const outstanding = invoices
         .filter(inv => inv.status !== "Paid")
         .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
@@ -155,10 +178,44 @@
 
       const overdue = invoices.filter(inv => inv.status !== "Paid" && inv.dueDate).length;
 
+      const unpaidBills = bills
+        .filter(b => b.status !== "Paid")
+        .reduce((sum, bill) => sum + Number(bill.total || 0), 0);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const overdueBills = bills.filter(bill => {
+        if (bill.status === "Paid" || !bill.dueDate) {
+          return false;
+        }
+
+        const due = new Date(bill.dueDate);
+        due.setHours(0, 0, 0, 0);
+
+        return due < today;
+      }).length;
+
+      const cashflowPosition = outstanding - unpaidBills;
+
+      const netPosition = outstanding - unpaidBills;
+
       document.getElementById("outstandingTotal").textContent = money(outstanding);
       document.getElementById("paidTotal").textContent = money(paid);
       document.getElementById("overdueCount").textContent = overdue;
       document.getElementById("invoiceCount").textContent = invoices.length;
+
+      document.getElementById("unpaidBills").textContent =
+        money(unpaidBills);
+
+      document.getElementById("netPosition").textContent =
+        money(netPosition);
+
+      document.getElementById("overdueBills").textContent =
+        overdueBills;
+
+      document.getElementById("cashflowPosition").textContent =
+        money(cashflowPosition);
 
       const recent = invoices.slice(0, 5);
 
