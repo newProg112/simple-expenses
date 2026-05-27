@@ -103,6 +103,29 @@
 
     .danger { color: #b91c1c; font-weight: 700; }
 
+    .app-nav{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin-bottom:36px;
+      font-weight:600;
+    }
+
+    .app-nav a{
+      text-decoration:none;
+      color:#1f2937;
+    }
+
+    .app-nav span{
+      color:#cbd5e1;
+    }
+
+    .app-nav a.active{
+      color:#0077B6;
+      border-bottom:3px solid #0077B6;
+      padding-bottom:4px;
+    }
+
     @media (max-width: 760px) {
       .bill-row {
         grid-template-columns: 1fr;
@@ -113,7 +136,33 @@
 
 <body>
   <main class="wrap">
-    <p class="muted"><a href="/dashboard.html">Dashboard</a> / <a href="/resources/tools/">Tools</a></p>
+    <nav class="app-nav">
+      <a href="/dashboard.html">Dashboard</a>
+      <span>|</span>
+
+      <a href="/resources/tools/invoice-generator.html">
+        Invoices
+      </a>
+      <span>|</span>
+
+      <a class="active" href="/resources/tools/bills.html">
+        Bills
+      </a>
+      <span>|</span>
+
+      <a href="/resources/tools/client-tracker.html">
+        Clients
+      </a>
+      <span>|</span>
+
+      <a href="https://expenses.simple-books.co.uk">
+        Expenses
+      </a>
+      <span>|</span>
+
+      <a href="/account.html">Account</a>
+    </nav>
+
     <h1>Bills</h1>
     <p class="muted">Track supplier bills, due dates, VAT and payment status.</p>
 

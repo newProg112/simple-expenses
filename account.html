@@ -163,6 +163,29 @@
       display:none;
     }
 
+    .app-nav{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin-bottom:36px;
+      font-weight:600;
+    }
+
+    .app-nav a{
+      text-decoration:none;
+      color:#1f2937;
+    }
+
+    .app-nav span{
+      color:#cbd5e1;
+    }
+
+    .app-nav a.active{
+      color:#0077B6;
+      border-bottom:3px solid #0077B6;
+      padding-bottom:4px;
+    }
+
     @media (max-width:900px){
 
       .hero,
@@ -182,15 +205,32 @@
 
   <div class="wrap">
 
-    <div class="topbar">
-      <div class="logo">
-        Simple <span>Books</span>
-      </div>
+    <nav class="app-nav">
+      <a href="/dashboard.html">Dashboard</a>
+      <span>|</span>
 
-      <a class="btn btn-primary" href="index.html">
-        Back to homepage
+      <a href="/resources/tools/invoice-generator.html">
+        Invoices
       </a>
-    </div>
+      <span>|</span>
+
+      <a href="/resources/tools/bills.html">Bills</a>
+      <span>|</span>
+
+      <a href="/resources/tools/client-tracker.html">
+        Clients
+      </a>
+      <span>|</span>
+
+      <a href="https://expenses.simple-books.co.uk">
+        Expenses
+      </a>
+      <span>|</span>
+
+      <a class="active" href="/account.html">
+        Account
+      </a>
+    </nav>
 
     <section class="hero">
 

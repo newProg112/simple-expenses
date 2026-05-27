@@ -88,11 +88,55 @@
     .activity-row:last-child {
       border-bottom: 0;
     }
+
+    .app-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      font-weight: 700;
+    }
+
+    .app-nav a {
+      text-decoration: none;
+      color: #475569;
+    }
+
+    .app-nav a:hover {
+      color: #0077B6;
+    }
+
+    .app-nav span {
+      width: 1px;
+      height: 18px;
+      background: #cbd5e1;
+    }
+
+    .app-nav a.active {
+      color: #0077B6;
+      border-bottom: 3px solid #0077B6;
+      padding-bottom: 4px;
+    }
   </style>
 </head>
 
 <body>
   <main class="wrap">
+    <nav class="app-nav">
+      <a class="active" href="/dashboard.html">Dashboard</a>
+      <span></span>
+      <a href="/resources/tools/invoice-generator.html">Invoices</a>
+      <span></span>
+      <a href="/resources/tools/bills.html">Bills</a>
+      <span></span>
+      <a href="/resources/tools/client-tracker.html">Clients</a>
+      <span></span>
+      <a href="https://expenses.simple-books.co.uk" target="_blank">Expenses</a>
+      <span></span>
+      <a href="/account.html">Account</a>
+    </nav>
+
     <p class="muted">Simple Books</p>
     <h1>Business Dashboard</h1>
     <p class="muted">A simple overview of your invoices, tools and business activity.</p>
