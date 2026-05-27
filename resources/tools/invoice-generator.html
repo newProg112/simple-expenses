@@ -3206,6 +3206,27 @@ function setupMobileSections(){
     });
 }
 
+function loadBusinessProfileIntoInvoice() {
+  const account = JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+
+  document.getElementById("businessName").value =
+    account.businessName || "";
+
+  document.getElementById("businessEmail").value =
+    account.email || "";
+
+  document.getElementById("businessWebsite").value =
+    account.businessWebsite || "";
+
+  document.getElementById("businessVat").value =
+    account.vatNumber || "";
+
+  document.getElementById("paymentTerms").value =
+    account.paymentTermsDefault || "14 days";
+
+  updateBusinessPreview();
+}
+
 function updateBusinessPreview() {
     const name = document.getElementById("businessName").value || "SIMPLE BOOKS";
     const email = document.getElementById("businessEmail").value || "adam@simple-books.co.uk";
@@ -3225,6 +3246,7 @@ function updateBusinessPreview() {
 setInitialInvoiceNumber();
 renderRecentInvoices();
 renderCustomerDropdown();
+loadBusinessProfileIntoInvoice();
 
 setTimeout(function(){
   if(window.loadCustomersFromFirestore){

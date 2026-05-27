@@ -275,6 +275,12 @@
         <label>VAT number</label>
         <input id="vatNumber" type="text" placeholder="GB123456789" />
 
+        <label>Business website</label>
+        <input id="businessWebsite" type="text" placeholder="simple-books.co.uk" />
+
+        <label>Default payment terms</label>
+        <input id="paymentTermsDefault" type="text" placeholder="14 days" />
+
       </div>
 
     </div>
@@ -326,6 +332,12 @@
       document.getElementById("vatNumber").value =
         saved.vatNumber || "";
 
+      document.getElementById("businessWebsite").value =
+        saved.businessWebsite || "";
+
+      document.getElementById("paymentTermsDefault").value =
+        saved.paymentTermsDefault || "14 days";
+
       const welcomeTitle = document.getElementById("welcomeTitle");
 
       if(saved.fullName || saved.businessName){
@@ -358,7 +370,13 @@
           document.getElementById("vatRegistered").value,
 
         vatNumber:
-          document.getElementById("vatNumber").value
+          document.getElementById("vatNumber").value,
+
+        businessWebsite:
+          document.getElementById("businessWebsite").value,
+
+        paymentTermsDefault:
+          document.getElementById("paymentTermsDefault").value
 
       };
 
