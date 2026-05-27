@@ -155,6 +155,12 @@
     <div class="panel" id="recentActivity">
       <p class="muted">No recent activity yet.</p>
     </div>
+
+    <h2 class="section-title">Upcoming Reminders</h2>
+
+    <div class="panel" id="upcomingReminders">
+      <p class="muted">No upcoming reminders yet.</p>
+    </div>
   </main>
 
   <script>
@@ -167,6 +173,11 @@
 
       const bills =
         JSON.parse(localStorage.getItem("simpleBooksBills") || "[]");
+
+      const reminders = invoices
+        .filter(inv => inv.reminderDate)
+        .sort((a, b) => new Date(a.reminderDate) - new Date(b.reminderDate))
+        .slice(0, 5);
 
       const outstanding = invoices
         .filter(inv => inv.status !== "Paid")
@@ -233,6 +244,21 @@
             </div>
           `).join("")
         : `<p class="muted">No recent activity yet.</p>`;
+
+      document.getElementById("upcomingReminders").innerHTML = reminders.length
+        ? reminders.map(inv => `
+            <div class="activity-row">
+                <div>
+                <strong>${inv.invoiceNo || "Invoice reminder"}</strong><br>
+                <span class="muted">${inv.client || "Unknown client"}</span>
+                </div>
+                <div>
+                <strong>${inv.reminderDate}</strong><br>
+                <span class="muted">${inv.recurringFrequency || "Reminder"}</span>
+                </div>
+            </div>
+            `).join("")
+        : `<p class="muted">No upcoming reminders yet.</p>`;
     }
 
     loadDashboard();

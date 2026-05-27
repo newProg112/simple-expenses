@@ -1085,6 +1085,26 @@
           <label>Due Date</label>
           <input id="dueDate" type="date">
 
+          <label>Recurring invoice?</label>
+          <select id="recurringInvoice">
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+          </select>
+
+          <label>Frequency</label>
+          <select id="recurringFrequency">
+            <option value="">Choose frequency...</option>
+            <option value="Monthly">Monthly</option>
+            <option value="Quarterly">Quarterly</option>
+            <option value="Yearly">Yearly</option>
+          </select>
+
+          <label>Next invoice date</label>
+          <input id="nextInvoiceDate" type="date">
+
+          <label>Reminder date</label>
+          <input id="reminderDate" type="date">
+
           <button type="button" onclick="saveCurrentCustomer()">
             Save Customer
           </button>
@@ -2073,6 +2093,19 @@ async function reopenInvoice(invoiceId){
   document.getElementById("clientAddress").value = invoice.clientAddress || "";
   document.getElementById("paymentTerms").value = invoice.paymentTerms || "14 days";
   document.getElementById("dueDate").value = invoice.dueDate || "";
+
+  document.getElementById("recurringInvoice").value =
+    invoice.recurringInvoice || "No";
+
+  document.getElementById("recurringFrequency").value =
+    invoice.recurringFrequency || "";
+
+  document.getElementById("nextInvoiceDate").value =
+    invoice.nextInvoiceDate || "";
+
+  document.getElementById("reminderDate").value =
+    invoice.reminderDate || "";
+
   document.getElementById("invoiceNumber").value = invoice.invoiceNo || "";
 
   document.getElementById("businessName").value = invoice.businessName || "";
@@ -2147,7 +2180,11 @@ async function updateExistingInvoice(){
     vat: vat,
     total: total,
     items: activeItems,
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    recurringInvoice: document.getElementById("recurringInvoice")?.value || "No",
+    recurringFrequency: document.getElementById("recurringFrequency")?.value || "",
+    nextInvoiceDate: document.getElementById("nextInvoiceDate")?.value || "",
+    reminderDate: document.getElementById("reminderDate")?.value || "",
   };
 
   if(window.updateInvoiceInFirestore){
@@ -2472,7 +2509,11 @@ async function generateInvoice(saveToHistory = true){
         items: activeItems,
         status: "Unpaid",
         date: new Date().toLocaleDateString("en-GB"),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        recurringInvoice: document.getElementById("recurringInvoice")?.value || "No",
+        recurringFrequency: document.getElementById("recurringFrequency")?.value || "",
+        nextInvoiceDate: document.getElementById("nextInvoiceDate")?.value || "",
+        reminderDate: document.getElementById("reminderDate")?.value || "",
       });
     }
 
