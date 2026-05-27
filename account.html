@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>Account | Simple Books</title>
+
+  <style>
+    :root{
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --line:#dbe3ec;
+      --primary:#0077b6;
+      --primary-dark:#005f91;
+      --radius:28px;
+    }
+
+    *{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      font-family:Inter,system-ui,sans-serif;
+      background:linear-gradient(to bottom right,#f4f7fb,#eef5fb);
+      color:var(--text);
+    }
+
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:32px 20px 80px;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:36px;
+    }
+
+    .logo{
+      font-size:32px;
+      font-weight:900;
+      letter-spacing:-1px;
+    }
+
+    .logo span{
+      color:var(--primary);
+    }
+
+    .btn{
+      border:none;
+      border-radius:18px;
+      padding:14px 20px;
+      font-size:15px;
+      font-weight:700;
+      cursor:pointer;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      transition:.2s ease;
+    }
+
+    .btn-primary{
+      background:var(--primary);
+      color:white;
+    }
+
+    .btn-primary:hover{
+      background:var(--primary-dark);
+    }
+
+    .hero{
+      display:grid;
+      grid-template-columns:1.2fr .8fr;
+      gap:24px;
+      margin-bottom:28px;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:28px;
+      box-shadow:0 10px 30px rgba(15,23,42,.04);
+    }
+
+    h1{
+      margin-top:0;
+      font-size:52px;
+      line-height:1;
+      letter-spacing:-2px;
+      margin-bottom:18px;
+    }
+
+    .sub{
+      font-size:20px;
+      line-height:1.6;
+      color:#475569;
+      margin-bottom:0;
+    }
+
+    .mini{
+      display:grid;
+      gap:16px;
+    }
+
+    .mini-card{
+      border:1px solid var(--line);
+      border-radius:22px;
+      padding:18px;
+      background:#f9fbfd;
+    }
+
+    .mini-title{
+      font-weight:800;
+      margin-bottom:6px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:24px;
+    }
+
+    label{
+      display:block;
+      margin-bottom:10px;
+      font-size:15px;
+      font-weight:700;
+    }
+
+    input,
+    select{
+      width:100%;
+      border:1px solid var(--line);
+      background:white;
+      border-radius:18px;
+      padding:16px;
+      font-size:16px;
+      margin-bottom:22px;
+    }
+
+    .save-row{
+      display:flex;
+      justify-content:flex-end;
+    }
+
+    .muted{
+      color:var(--muted);
+      line-height:1.6;
+    }
+
+    .success{
+      margin-top:18px;
+      color:#15803d;
+      font-weight:700;
+      display:none;
+    }
+
+    @media (max-width:900px){
+
+      .hero,
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+      h1{
+        font-size:40px;
+      }
+
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="wrap">
+
+    <div class="topbar">
+      <div class="logo">
+        Simple <span>Books</span>
+      </div>
+
+      <a class="btn btn-primary" href="index.html">
+        Back to homepage
+      </a>
+    </div>
+
+    <section class="hero">
+
+      <div class="card">
+        <h1 id="welcomeTitle">Your business account.</h1>
+
+        <p class="sub">
+          Store your business details once and use them across
+          Simple Expenses, invoicing tools and future business apps.
+        </p>
+      </div>
+
+      <div class="card mini">
+
+        <div class="mini-card">
+          <div class="mini-title">Simple Expenses</div>
+          <div class="muted">
+            Expense tracking and CSV exports.
+          </div>
+        </div>
+
+        <div class="mini-card">
+          <div class="mini-title">Invoice tools</div>
+          <div class="muted">
+            Browser-based invoices and statements.
+          </div>
+        </div>
+
+        <div class="mini-card">
+          <div class="mini-title">CRM-lite</div>
+          <div class="muted">
+            Leads, follow-ups and client tracking.
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <div class="grid">
+
+      <div class="card">
+
+        <h2>Account details</h2>
+
+        <label>Full name</label>
+        <input id="fullName" type="text" placeholder="Adam Elvin" />
+
+        <label>Email address</label>
+        <input id="email" type="email" placeholder="you@example.com" />
+
+        <label>Role</label>
+        <select id="role">
+          <option>Owner</option>
+          <option>Bookkeeper</option>
+          <option>Accountant</option>
+          <option>Employee</option>
+        </select>
+
+      </div>
+
+      <div class="card">
+
+        <h2>Business details</h2>
+
+        <label>Business name</label>
+        <input id="businessName" type="text" placeholder="Simple Books Ltd" />
+
+        <label>Business type</label>
+        <select id="businessType">
+          <option>Sole trader</option>
+          <option>Limited company</option>
+          <option>Partnership</option>
+        </select>
+
+        <label>VAT registered?</label>
+        <select id="vatRegistered">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+
+        <label>VAT number</label>
+        <input id="vatNumber" type="text" placeholder="GB123456789" />
+
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+
+      <div class="save-row">
+        <button class="btn btn-primary" id="saveBtn">
+          Save account
+        </button>
+      </div>
+
+      <div class="success" id="successMessage">
+        Account saved locally successfully.
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+
+    const saveBtn = document.getElementById("saveBtn");
+    const successMessage = document.getElementById("successMessage");
+
+    function loadAccount(){
+
+      const saved =
+        JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+
+      document.getElementById("fullName").value =
+        saved.fullName || "";
+
+      document.getElementById("email").value =
+        saved.email || "";
+
+      document.getElementById("role").value =
+        saved.role || "Owner";
+
+      document.getElementById("businessName").value =
+        saved.businessName || "";
+
+      document.getElementById("businessType").value =
+        saved.businessType || "Sole trader";
+
+      document.getElementById("vatRegistered").value =
+        saved.vatRegistered || "No";
+
+      document.getElementById("vatNumber").value =
+        saved.vatNumber || "";
+
+      const welcomeTitle = document.getElementById("welcomeTitle");
+
+      if(saved.fullName || saved.businessName){
+        welcomeTitle.textContent =
+          `Welcome back${saved.fullName ? ", " + saved.fullName.split(" ")[0] : ""}.`;
+      }
+
+    }
+
+    function saveAccount(){
+
+      const data = {
+
+        fullName:
+          document.getElementById("fullName").value,
+
+        email:
+          document.getElementById("email").value,
+
+        role:
+          document.getElementById("role").value,
+
+        businessName:
+          document.getElementById("businessName").value,
+
+        businessType:
+          document.getElementById("businessType").value,
+
+        vatRegistered:
+          document.getElementById("vatRegistered").value,
+
+        vatNumber:
+          document.getElementById("vatNumber").value
+
+      };
+
+      localStorage.setItem(
+        "simpleBooksAccount",
+        JSON.stringify(data)
+      );
+
+      successMessage.style.display = "block";
+
+      setTimeout(() => {
+        successMessage.style.display = "none";
+      }, 2500);
+
+    }
+
+    saveBtn.addEventListener("click", saveAccount);
+
+    loadAccount();
+
+  </script>
+
+</body>
+</html>

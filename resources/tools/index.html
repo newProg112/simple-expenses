@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Books Tools</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      background: #f5f7fb;
+      color: #102033;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 48px 20px;
+    }
+
+    .hero {
+      margin-bottom: 32px;
+    }
+
+    .hero h1 {
+      font-size: 42px;
+      margin: 0 0 12px;
+    }
+
+    .hero p {
+      font-size: 18px;
+      color: #5b6b7c;
+      max-width: 680px;
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+
+    .tool-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    }
+
+    .tool-card h2 {
+      margin: 0 0 10px;
+      font-size: 22px;
+    }
+
+    .tool-card p {
+      color: #5b6b7c;
+      line-height: 1.5;
+    }
+
+    .tool-card a {
+      display: inline-block;
+      margin-top: 12px;
+      text-decoration: none;
+      font-weight: 700;
+      color: #0077B6;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #eef2f7;
+      color: #5b6b7c;
+      font-size: 13px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Simple Books Tools</h1>
+      <p>Free bookkeeping and business tools for UK sole traders, freelancers and small businesses.</p>
+    </section>
+
+    <section class="tools-grid">
+      <div class="tool-card">
+        <h2>Invoice Generator</h2>
+        <p>Create simple branded invoices, save customers, track status and export PDFs.</p>
+        <a href="./invoice-generator.html">Open tool →</a>
+      </div>
+
+      <div class="tool-card">
+        <h2>Mileage Claim Calculator</h2>
+        <p>Calculate HMRC mileage claims using the standard UK mileage rates.</p>
+        <a href="./mileage.html">Open tool →</a>
+      </div>
+
+      <div class="tool-card">
+        <h2>Client Tracker</h2>
+        <p>Keep basic client details, notes and follow-up information in one place.</p>
+        <a href="./client-tracker.html">Open tool →</a>
+      </div>
+
+      <div class="tool-card">
+        <h2>Simple Expenses</h2>
+        <p>Track expenses, mileage and receipts in the Simple Expenses web app.</p>
+        <a href="https://expenses.simple-books.co.uk" target="_blank">Open app →</a>
+      </div>
+
+      <div class="tool-card">
+        <h2>VAT Calculator</h2>
+        <p>Quickly calculate VAT-inclusive and VAT-exclusive amounts.</p>
+        <span class="badge">Coming soon</span>
+      </div>
+
+      <div class="tool-card">
+        <h2>Bulk Email Draft Tool</h2>
+        <p>Create draft emails from spreadsheet-style contact lists.</p>
+        <span class="badge">Coming soon</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

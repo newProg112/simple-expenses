@@ -1051,6 +1051,20 @@
 
         <div>
 
+          <div class="card">
+            <h3>Your Business</h3>
+
+            <div class="grid-2">
+              <input type="text" id="businessName" placeholder="Business name" />
+
+              <input type="email" id="businessEmail" placeholder="Business email" />
+
+              <input type="text" id="businessWebsite" placeholder="Website" />
+
+              <input type="text" id="businessVat" placeholder="VAT number" />
+            </div>
+          </div>
+
           <label>Saved Customer</label>
           <select id="savedCustomerSelect" onchange="selectSavedCustomer()">
             <option value="">Choose saved customer...</option>
@@ -1167,18 +1181,20 @@
                 alt="Simple Books logo"
                 style="width:54px; height:auto;">
 
-            <div class="invoice-title">
+            <div class="invoice-title" id="previewBusinessName">
                 SIMPLE BOOKS
             </div>
           </div>
 
-          <div class="muted">
+          <div class="muted" id="previewBusinessEmail">
             adam@simple-books.co.uk
           </div>
 
-          <div class="muted">
+          <div class="muted" id="previewBusinessWebsite">
             simple-books.co.uk
           </div>
+
+          <div class="muted" id="previewBusinessVat"></div>
 
           <hr style="margin:24px 0;">
 
@@ -2059,6 +2075,13 @@ async function reopenInvoice(invoiceId){
   document.getElementById("dueDate").value = invoice.dueDate || "";
   document.getElementById("invoiceNumber").value = invoice.invoiceNo || "";
 
+  document.getElementById("businessName").value = invoice.businessName || "";
+  document.getElementById("businessEmail").value = invoice.businessEmail || "";
+  document.getElementById("businessWebsite").value = invoice.businessWebsite || "";
+  document.getElementById("businessVat").value = invoice.businessVat || "";
+
+  updateBusinessPreview();
+
   const items = invoice.items || [];
 
   document.getElementById("description1").value = items[0]?.description || "";
@@ -2070,7 +2093,7 @@ async function reopenInvoice(invoiceId){
   document.getElementById("description3").value = items[2]?.description || "";
   document.getElementById("amount3").value = items[2]?.amount || "";
 
-  generateInvoice(false);
+  // generateInvoice(false);
 
   alert("Invoice loaded for editing. Make changes, then click Update Invoice.");
 }
@@ -2111,6 +2134,12 @@ async function updateExistingInvoice(){
     invoiceNo: invoiceNo,
     client: client,
     clientEmail: clientEmail,
+    
+    businessName: document.getElementById("businessName")?.value || "",
+    businessEmail: document.getElementById("businessEmail")?.value || "",
+    businessWebsite: document.getElementById("businessWebsite")?.value || "",
+    businessVat: document.getElementById("businessVat")?.value || "",
+
     clientAddress: document.getElementById("clientAddress")?.value || "",
     paymentTerms: document.getElementById("paymentTerms")?.value || "14 days",
     dueDate: document.getElementById("dueDate")?.value || "",
@@ -2459,17 +2488,33 @@ async function generateInvoice(saveToHistory = true){
   const paymentTerms =
     document.getElementById("paymentTerms")?.value || "14 days";
 
+  const businessName =
+    document.getElementById("businessName")?.value || "SIMPLE BOOKS";
+
+  const businessEmail =
+    document.getElementById("businessEmail")?.value || "adam@simple-books.co.uk";
+
+  const businessWebsite =
+    document.getElementById("businessWebsite")?.value || "simple-books.co.uk";
+
+  const businessVat =
+    document.getElementById("businessVat")?.value || "";
+
   document.getElementById("invoicePreview").innerHTML = `
     <div class="invoice-header">
 
       <div>
         <div class="invoice-brand">
           <img src="/assets/logo.png" alt="Simple Books logo">
-          <div class="invoice-title">SIMPLE BOOKS</div>
+          <div class="invoice-title">${businessName}</div>
         </div>
 
-        <div class="muted" style="margin-top:14px;">adam@simple-books.co.uk</div>
-        <div class="muted">simple-books.co.uk</div>
+        <div class="muted" style="margin-top:14px;">${businessEmail}</div>
+        <div class="muted">${businessWebsite}</div>
+
+        <div class="muted">
+          ${businessVat ? `VAT No: ${businessVat}` : ""}
+        </div>
       </div>
 
       <div class="invoice-meta">
@@ -3160,6 +3205,22 @@ function setupMobileSections(){
 
     });
 }
+
+function updateBusinessPreview() {
+    const name = document.getElementById("businessName").value || "SIMPLE BOOKS";
+    const email = document.getElementById("businessEmail").value || "adam@simple-books.co.uk";
+    const website = document.getElementById("businessWebsite").value || "simple-books.co.uk";
+    const vat = document.getElementById("businessVat").value;
+
+    document.getElementById("previewBusinessName").textContent = name;
+    document.getElementById("previewBusinessEmail").textContent = email;
+    document.getElementById("previewBusinessWebsite").textContent = website;
+    document.getElementById("previewBusinessVat").textContent = vat ? `VAT No: ${vat}` : "";
+  }
+
+  ["businessName", "businessEmail", "businessWebsite", "businessVat"].forEach(id => {
+    document.getElementById(id).addEventListener("input", updateBusinessPreview);
+});
 
 setInitialInvoiceNumber();
 renderRecentInvoices();
