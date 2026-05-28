@@ -109,6 +109,14 @@
       padding: 12px 16px;
       border-radius: 999px;
       font-weight: 700;
+      outline:none;
+      border:none;
+    }
+
+    .btn:focus,
+    .btn:active{
+      outline:none;
+      box-shadow:none;
     }
 
     .badge {
@@ -197,8 +205,14 @@
 
       <div class="card">
         <h2>Full backup</h2>
-        <p class="muted">Export all Simple Books browser data into one backup file.</p>
-        <span class="badge">Coming soon</span>
+
+        <p class="muted">
+          Download all locally stored invoices, bills, clients and account data into one backup file.
+        </p>
+
+        <button class="btn" onclick="downloadFullBackup()">
+          Download backup
+        </button>
       </div>
 
       <div class="card">
@@ -210,5 +224,47 @@
     </section>
 
   </main>
+
+  <script>
+    function downloadFullBackup(){
+
+        const backupData = {
+        exportedAt: new Date().toISOString(),
+
+        invoices:
+            JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]"),
+
+        bills:
+            JSON.parse(localStorage.getItem("simpleBooksBills") || "[]"),
+
+        clients:
+            JSON.parse(localStorage.getItem("simpleBooksClients") || "[]"),
+
+        account:
+            JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}"),
+
+        customers:
+            JSON.parse(localStorage.getItem("simpleBooksCustomers") || "[]")
+        };
+
+        const blob = new Blob(
+        [JSON.stringify(backupData, null, 2)],
+        { type: "application/json" }
+        );
+
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+
+        a.href = url;
+
+        a.download =
+        `simple-books-backup-${new Date().toISOString().slice(0,10)}.json`;
+
+        a.click();
+
+        URL.revokeObjectURL(url);
+    }
+  </script>
 </body>
 </html>
