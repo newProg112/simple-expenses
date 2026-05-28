@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Exports | Simple Books</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      background: #f5f7fb;
+      color: #102033;
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .app-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #102033;
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .app-brand img {
+      width: 42px;
+      height: auto;
+    }
+
+    .app-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .app-nav a {
+      text-decoration: none;
+      color: #475569;
+    }
+
+    .app-nav a:hover {
+      color: #0077B6;
+    }
+
+    .app-nav span {
+      width: 1px;
+      height: 18px;
+      background: #cbd5e1;
+    }
+
+    .app-nav a.active {
+      color: #0077B6;
+      border-bottom: 3px solid #0077B6;
+      padding-bottom: 4px;
+    }
+
+    h1 {
+      font-size: 42px;
+      margin: 0 0 10px;
+    }
+
+    .muted {
+      color: #5b6b7c;
+      line-height: 1.5;
+    }
+
+    .exports-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin-top: 32px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+    }
+
+    .btn {
+      display: inline-block;
+      margin-top: 14px;
+      text-decoration: none;
+      background: #0077B6;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: #eef2f7;
+      color: #5b6b7c;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 800px) {
+      .app-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+
+    <header class="app-header">
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
+        <span>Simple Books</span>
+      </a>
+
+      <nav class="app-nav">
+        <a href="/dashboard.html">Dashboard</a>
+        <span></span>
+
+        <a href="/resources/tools/invoice-generator.html">Invoices</a>
+        <span></span>
+
+        <a href="/resources/tools/bills.html">Bills</a>
+        <span></span>
+
+        <a href="/resources/tools/client-tracker.html">Clients</a>
+        <span></span>
+
+        <a href="https://expenses.simple-books.co.uk" target="_blank">Expenses</a>
+        <span></span>
+
+        <a class="active" href="/exports.html">Exports</a>
+        <span></span>
+
+        <a href="/account.html">Account</a>
+      </nav>
+    </header>
+
+    <p class="muted">Simple Books</p>
+    <h1>Exports</h1>
+    <p class="muted">
+      Download business data, backups and accountant-friendly files from one place.
+    </p>
+
+    <section class="exports-grid">
+
+      <div class="card">
+        <h2>Invoice exports</h2>
+        <p class="muted">Export invoice registers, invoice backups and customer invoice data.</p>
+        <a class="btn" href="/resources/tools/invoice-generator.html">Open invoices</a>
+      </div>
+
+      <div class="card">
+        <h2>Bills exports</h2>
+        <p class="muted">Export supplier bills, unpaid bills and payment records.</p>
+        <a class="btn" href="/resources/tools/bills.html">Open bills</a>
+      </div>
+
+      <div class="card">
+        <h2>Client exports</h2>
+        <p class="muted">Export client records, notes and follow-up information.</p>
+        <a class="btn" href="/resources/tools/client-tracker.html">Open clients</a>
+      </div>
+
+      <div class="card">
+        <h2>Expenses exports</h2>
+        <p class="muted">Open Simple Expenses to export expenses, mileage and receipt records.</p>
+        <a class="btn" href="https://expenses.simple-books.co.uk" target="_blank">Open expenses</a>
+      </div>
+
+      <div class="card">
+        <h2>Full backup</h2>
+        <p class="muted">Export all Simple Books browser data into one backup file.</p>
+        <span class="badge">Coming soon</span>
+      </div>
+
+      <div class="card">
+        <h2>Accountant pack</h2>
+        <p class="muted">Create a clean month-end or VAT-quarter handoff pack.</p>
+        <span class="badge">Coming soon</span>
+      </div>
+
+    </section>
+
+  </main>
+</body>
+</html>

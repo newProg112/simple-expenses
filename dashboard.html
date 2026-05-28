@@ -16,7 +16,7 @@
     .wrap {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 48px 20px;
+      padding: 24px 20px;
     }
 
     h1 {
@@ -89,6 +89,36 @@
       border-bottom: 0;
     }
 
+    .app-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:24px;
+      margin-bottom:24px;
+    }
+
+    .app-brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      text-decoration:none;
+      color:#102033;
+      font-weight:800;
+      font-size:18px;
+    }
+
+    .app-brand img{
+      width:42px;
+      height:auto;
+    }
+
+    @media (max-width:800px){
+      .app-header{
+        align-items:flex-start;
+        flex-direction:column;
+      }
+    }
+
     .app-nav {
       display: flex;
       flex-wrap: wrap;
@@ -118,69 +148,109 @@
       border-bottom: 3px solid #0077B6;
       padding-bottom: 4px;
     }
+
+    .dashboard-link-card{
+      text-decoration:none;
+      color:inherit;
+      transition:transform .18s ease, box-shadow .18s ease;
+      cursor:pointer;
+    }
+
+    .dashboard-link-card:hover{
+      transform:translateY(-2px);
+      box-shadow:0 10px 24px rgba(15,23,42,.08);
+    }
+
+    .dashboard-link-card::after {
+      content: "Open →";
+      display: inline-block;
+      margin-top: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0077B6;
+    }
   </style>
 </head>
 
 <body>
   <main class="wrap">
-    <nav class="app-nav">
-      <a class="active" href="/dashboard.html">Dashboard</a>
-      <span></span>
-      <a href="/resources/tools/invoice-generator.html">Invoices</a>
-      <span></span>
-      <a href="/resources/tools/bills.html">Bills</a>
-      <span></span>
-      <a href="/resources/tools/client-tracker.html">Clients</a>
-      <span></span>
-      <a href="https://expenses.simple-books.co.uk" target="_blank">Expenses</a>
-      <span></span>
-      <a href="/account.html">Account</a>
-    </nav>
+    <header class="app-header">
+
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
+        <span>Simple Books</span>
+      </a>
+
+      <nav class="app-nav">
+        <a class="active" href="/dashboard.html">Dashboard</a>
+        <span></span>
+
+        <a href="/resources/tools/invoice-generator.html">Invoices</a>
+        <span></span>
+
+        <a href="/resources/tools/bills.html">Bills</a>
+        <span></span>
+
+        <a href="/resources/tools/client-tracker.html">Clients</a>
+        <span></span>
+
+        <a href="https://expenses.simple-books.co.uk" target="_blank">Expenses</a>
+        <span></span>
+
+        <a href="/exports.html">Exports</a>
+        <span></span>
+
+        <a href="/account.html">Account</a>
+      </nav>
+
+    </header>
 
     <p class="muted">Simple Books</p>
     <h1>Business Dashboard</h1>
     <p class="muted">A simple overview of your invoices, tools and business activity.</p>
 
     <section class="dashboard-grid">
-      <div class="card">
+
+      <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
         <div class="muted">Outstanding invoices</div>
         <h2 id="outstandingTotal">£0.00</h2>
-      </div>
+      </a>
 
-      <div class="card">
+      <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
         <div class="muted">Paid invoices</div>
         <h2 id="paidTotal">£0.00</h2>
-      </div>
+      </a>
 
-      <div class="card">
+      <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
         <div class="muted">Overdue invoices</div>
         <h2 id="overdueCount">0</h2>
-      </div>
+      </a>
 
-      <div class="card">
+      <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
         <div class="muted">Saved invoices</div>
         <h2 id="invoiceCount">0</h2>
-      </div>
+      </a>
 
-      <div class="card">
+      <a class="card dashboard-link-card" href="./resources/tools/bills.html">
         <div class="muted">Unpaid bills</div>
         <h2 id="unpaidBills">£0.00</h2>
-      </div>
+      </a>
 
-      <div class="card">
+      <a class="card dashboard-link-card" href="./resources/tools/bills.html">
         <div class="muted">Net position</div>
         <h2 id="netPosition">£0.00</h2>
-      </div>
+      </a>
 
-      <div class="card">
+      <a class="card dashboard-link-card" href="./resources/tools/bills.html">
         <div class="muted">Overdue bills</div>
         <h2 id="overdueBills">0</h2>
-      </div>
+      </a>
 
-      <div class="card">
+      <a class="card dashboard-link-card" href="./resources/tools/bills.html">
         <div class="muted">Cashflow position</div>
         <h2 id="cashflowPosition">£0.00</h2>
-      </div>
+      </a>
+
     </section>
 
     <h2 class="section-title">Quick Actions</h2>
