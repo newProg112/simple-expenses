@@ -207,11 +207,23 @@
         <h2>Full backup</h2>
 
         <p class="muted">
-          Download all locally stored invoices, bills, clients and account data into one backup file.
+          Download or restore all locally stored invoices, bills, clients and account data.
         </p>
 
         <button class="btn" onclick="downloadFullBackup()">
           Download backup
+        </button>
+
+        <input
+          type="file"
+          id="backupImportInput"
+          accept=".json"
+          style="display:none"
+          onchange="importFullBackup(event)"
+        >
+
+        <button class="btn" onclick="document.getElementById('backupImportInput').click()">
+          Import backup
         </button>
       </div>
 
@@ -264,6 +276,47 @@
         a.click();
 
         URL.revokeObjectURL(url);
+    }
+
+    function importFullBackup(event){
+      const file = event.target.files[0];
+
+      if(!file){
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(e){
+        try{
+          const backup = JSON.parse(e.target.result);
+
+          if(!backup.invoices || !backup.bills || !backup.clients || !backup.account){
+            alert("Invalid Simple Books backup file.");
+            return;
+          }
+
+          if(!confirm("Importing this backup will replace your current local Simple Books data. Continue?")){
+            return;
+          }
+
+          localStorage.setItem("simpleBooksInvoices", JSON.stringify(backup.invoices || []));
+          localStorage.setItem("simpleBooksBills", JSON.stringify(backup.bills || []));
+          localStorage.setItem("simpleBooksClients", JSON.stringify(backup.clients || []));
+          localStorage.setItem("simpleBooksAccount", JSON.stringify(backup.account || {}));
+          localStorage.setItem("simpleBooksCustomers", JSON.stringify(backup.customers || []));
+
+          alert("Backup imported successfully.");
+
+          window.location.reload();
+
+        }catch(error){
+          console.error(error);
+          alert("Could not import backup file.");
+        }
+      };
+
+      reader.readAsText(file);
     }
   </script>
 </body>
