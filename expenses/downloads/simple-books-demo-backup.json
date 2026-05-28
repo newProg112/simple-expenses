@@ -1,0 +1,127 @@
+{
+  "simpleBooksBackupVersion": "1.0",
+  "exportedAt": "2026-05-28T14:00:00Z",
+
+  "invoices": [
+    {
+      "invoiceNo": "INV-001",
+      "client": "Northstar Media",
+      "invoiceDate": "05/01/2026",
+      "dueDate": "05/02/2026",
+      "total": 2400,
+      "status": "Paid"
+    },
+    {
+      "invoiceNo": "INV-002",
+      "client": "BluePeak Logistics",
+      "invoiceDate": "12/01/2026",
+      "dueDate": "12/02/2026",
+      "total": 3200,
+      "status": "Paid"
+    },
+    {
+      "invoiceNo": "INV-003",
+      "client": "Summit Design",
+      "invoiceDate": "03/02/2026",
+      "dueDate": "03/03/2026",
+      "total": 1800,
+      "status": "Unpaid"
+    },
+    {
+      "invoiceNo": "INV-004",
+      "client": "Oakstone Builders",
+      "invoiceDate": "16/02/2026",
+      "dueDate": "16/03/2026",
+      "total": 4100,
+      "status": "Paid"
+    },
+    {
+      "invoiceNo": "INV-005",
+      "client": "Citywide Plumbing",
+      "invoiceDate": "07/03/2026",
+      "dueDate": "07/04/2026",
+      "total": 2650,
+      "status": "Unpaid"
+    },
+    {
+      "invoiceNo": "INV-006",
+      "client": "Apex Roofing",
+      "invoiceDate": "25/03/2026",
+      "dueDate": "25/04/2026",
+      "total": 5100,
+      "status": "Paid"
+    }
+  ],
+
+  "bills": [
+    {
+      "billNo": "BILL-001",
+      "supplier": "Adobe",
+      "billDate": "02/01/2026",
+      "dueDate": "02/02/2026",
+      "total": 120,
+      "status": "Paid"
+    },
+    {
+      "billNo": "BILL-002",
+      "supplier": "Microsoft",
+      "billDate": "10/01/2026",
+      "dueDate": "10/02/2026",
+      "total": 260,
+      "status": "Paid"
+    },
+    {
+      "billNo": "BILL-003",
+      "supplier": "Google Workspace",
+      "billDate": "05/02/2026",
+      "dueDate": "05/03/2026",
+      "total": 95,
+      "status": "Paid"
+    },
+    {
+      "billNo": "BILL-004",
+      "supplier": "Amazon AWS",
+      "billDate": "18/02/2026",
+      "dueDate": "18/03/2026",
+      "total": 740,
+      "status": "Unpaid"
+    },
+    {
+      "billNo": "BILL-005",
+      "supplier": "BT Business",
+      "billDate": "08/03/2026",
+      "dueDate": "08/04/2026",
+      "total": 180,
+      "status": "Paid"
+    },
+    {
+      "billNo": "BILL-006",
+      "supplier": "Meta Ads",
+      "billDate": "22/03/2026",
+      "dueDate": "22/04/2026",
+      "total": 1450,
+      "status": "Unpaid"
+    }
+  ],
+
+  "clients": [
+    {
+      "name": "Northstar Media",
+      "status": "Active"
+    },
+    {
+      "name": "BluePeak Logistics",
+      "status": "Lead"
+    },
+    {
+      "name": "Summit Design",
+      "status": "Dormant"
+    }
+  ],
+
+  "account": {
+    "businessName": "Simple Books Demo Ltd",
+    "fullName": "Demo User",
+    "email": "demo@simplebooks.co.uk"
+  }
+}

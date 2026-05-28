@@ -393,7 +393,11 @@
 
         if (value.includes("/")) {
           const parts = value.split("/");
-          return `${parts[1]}/${parts[2]}`;
+
+          return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).toLocaleDateString("en-GB", {
+            month: "short",
+            year: "2-digit"
+          });
         }
 
         if (value.includes("-")) {
@@ -408,7 +412,7 @@
       }
 
       invoices.forEach(inv => {
-        const key = monthKeyFromDate(inv.date);
+        const key = monthKeyFromDate(inv.date || inv.invoiceDate || inv.createdAt);
 
         if (!key) return;
 
