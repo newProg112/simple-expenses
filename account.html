@@ -293,6 +293,13 @@
           <option>Employee</option>
         </select>
 
+        <label>Current plan</label>
+        <select id="currentPlan">
+          <option>Starter</option>
+          <option>Standard</option>
+          <option>Pro</option>
+        </select>
+
       </div>
 
       <div class="card">
@@ -344,42 +351,64 @@
 
   </div>
 
-  <script>
+  <script type="module">
+    import { auth, db } from "./firebase-config.js";
+
+    import {
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    import {
+      doc,
+      getDoc,
+      setDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const saveBtn = document.getElementById("saveBtn");
     const successMessage = document.getElementById("successMessage");
 
-    function loadAccount(){
+    let currentUser = null;
 
-      const saved =
+    function setField(id, value){
+      const el = document.getElementById(id);
+      if(el){
+        el.value = value || "";
+      }
+    }
+
+    function getField(id){
+      const el = document.getElementById(id);
+      return el ? el.value : "";
+    }
+
+    async function loadAccount(){
+
+      const localSaved =
         JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
 
-      document.getElementById("fullName").value =
-        saved.fullName || "";
+      let saved = localSaved;
 
-      document.getElementById("email").value =
-        saved.email || "";
+      if(currentUser){
+        const userRef = doc(db, "users", currentUser.uid);
+        const snap = await getDoc(userRef);
 
-      document.getElementById("role").value =
-        saved.role || "Owner";
+        if(snap.exists()){
+          saved = snap.data();
+          localStorage.setItem("simpleBooksAccount", JSON.stringify(saved));
+        }
+      }
 
-      document.getElementById("businessName").value =
-        saved.businessName || "";
-
-      document.getElementById("businessType").value =
-        saved.businessType || "Sole trader";
-
-      document.getElementById("vatRegistered").value =
-        saved.vatRegistered || "No";
-
-      document.getElementById("vatNumber").value =
-        saved.vatNumber || "";
-
-      document.getElementById("businessWebsite").value =
-        saved.businessWebsite || "";
-
-      document.getElementById("paymentTermsDefault").value =
-        saved.paymentTermsDefault || "14 days";
+      setField("fullName", saved.fullName);
+      setField("email", saved.email || currentUser?.email || "");
+      setField("role", saved.role || "Owner");
+      setField("currentPlan", saved.currentPlan || "Starter");
+      setField("businessName", saved.businessName);
+      setField("businessType", saved.businessType || "Sole trader");
+      setField("vatRegistered", saved.vatRegistered || "No");
+      setField("vatNumber", saved.vatNumber);
+      setField("businessWebsite", saved.businessWebsite);
+      setField("paymentTermsDefault", saved.paymentTermsDefault || "14 days");
 
       const welcomeTitle = document.getElementById("welcomeTitle");
 
@@ -387,40 +416,21 @@
         welcomeTitle.textContent =
           `Welcome back${saved.fullName ? ", " + saved.fullName.split(" ")[0] : ""}.`;
       }
-
     }
 
-    function saveAccount(){
+    async function saveAccount(){
 
       const data = {
-
-        fullName:
-          document.getElementById("fullName").value,
-
-        email:
-          document.getElementById("email").value,
-
-        role:
-          document.getElementById("role").value,
-
-        businessName:
-          document.getElementById("businessName").value,
-
-        businessType:
-          document.getElementById("businessType").value,
-
-        vatRegistered:
-          document.getElementById("vatRegistered").value,
-
-        vatNumber:
-          document.getElementById("vatNumber").value,
-
-        businessWebsite:
-          document.getElementById("businessWebsite").value,
-
-        paymentTermsDefault:
-          document.getElementById("paymentTermsDefault").value
-
+        fullName: getField("fullName"),
+        email: getField("email"),
+        role: getField("role"),
+        currentPlan: getField("currentPlan"),
+        businessName: getField("businessName"),
+        businessType: getField("businessType"),
+        vatRegistered: getField("vatRegistered"),
+        vatNumber: getField("vatNumber"),
+        businessWebsite: getField("businessWebsite"),
+        paymentTermsDefault: getField("paymentTermsDefault")
       };
 
       localStorage.setItem(
@@ -428,18 +438,35 @@
         JSON.stringify(data)
       );
 
+      if(currentUser){
+        await setDoc(
+          doc(db, "users", currentUser.uid),
+          {
+            ...data,
+            uid: currentUser.uid,
+            updatedAt: serverTimestamp()
+          },
+          { merge: true }
+        );
+      }
+
+      successMessage.textContent = currentUser
+        ? "Account saved to Firebase successfully."
+        : "Account saved locally. Log in to save to Firebase.";
+
       successMessage.style.display = "block";
 
       setTimeout(() => {
         successMessage.style.display = "none";
       }, 2500);
-
     }
 
     saveBtn.addEventListener("click", saveAccount);
 
-    loadAccount();
-
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      await loadAccount();
+    });
   </script>
 
 </body>

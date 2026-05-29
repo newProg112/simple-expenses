@@ -205,9 +205,11 @@
 
     </header>
 
-    <p class="muted">Simple Books</p>
-    <h1>Business Dashboard</h1>
-    <p class="muted">A simple overview of your invoices, tools and business activity.</p>
+    <p class="muted" id="dashboardBusinessName">Simple Books</p>
+    <h1 id="dashboardWelcome">Business Dashboard</h1>
+    <p class="muted" id="dashboardPlan">
+      A simple overview of your invoices, tools and business activity.
+    </p>
 
     <section class="dashboard-grid">
 
@@ -288,6 +290,25 @@
   <script>
     function money(value) {
       return "£" + Number(value || 0).toFixed(2);
+    }
+
+    function loadAccountSummary(){
+      const account =
+        JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+
+      const firstName =
+        account.fullName ? account.fullName.split(" ")[0] : "";
+
+      document.getElementById("dashboardBusinessName").textContent =
+        account.businessName || "Simple Books";
+
+      document.getElementById("dashboardWelcome").textContent =
+        firstName ? `Welcome back, ${firstName}` : "Business Dashboard";
+
+      document.getElementById("dashboardPlan").textContent =
+        account.currentPlan
+          ? `${account.currentPlan} plan · Business overview`
+          : "A simple overview of your invoices, tools and business activity.";
     }
 
     function loadDashboard() {
@@ -493,6 +514,7 @@
       });
     }
 
+    loadAccountSummary();
     loadDashboard();
   </script>
 </body>

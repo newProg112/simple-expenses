@@ -1367,10 +1367,9 @@
 
   <script type="module">
 
-  import { app } from "../../firebase-config.js";
+  import { app, auth, db } from "../../firebase-config.js";
 
   import {
-    getFirestore,
     collection,
     addDoc,
     getDocs,
@@ -1380,16 +1379,15 @@
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   import {
-    getAuth,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  const db = getFirestore(app);
+  // const db = getFirestore(app);
 
-  const auth = getAuth(app);
+  // const auth = getAuth(app);
 
   window.currentUser = null;
 
@@ -1410,6 +1408,12 @@
   window.logoutUser = async function(){
     await signOut(auth);
   };
+
+  const topLogoutBtn = document.getElementById("topLogoutBtn");
+
+  if(topLogoutBtn){
+    topLogoutBtn.addEventListener("click", logoutUser);
+  }
 
   if(localStorage.getItem("simpleBooksDarkMode") === "true"){
 
