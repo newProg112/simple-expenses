@@ -188,7 +188,7 @@
 
     .account-summary{
       display:grid;
-      grid-template-columns:repeat(3, 1fr);
+      grid-template-columns:repeat(4, 1fr);
       gap:14px;
       margin-top:28px;
     }
@@ -297,24 +297,46 @@
             <span class="summary-label">Signed in as</span>
             <strong id="summaryEmail">Not signed in</strong>
           </div>
+
+          <div>
+            <span class="summary-label">Member since</span>
+            <strong id="summaryCreated">Not set</strong>
+          </div>
         </div>
       </div>
 
       <div class="card mini">
+
         <div class="mini-card">
-          <div class="mini-title">Simple Expenses</div>
-          <div class="muted">Expense tracking and CSV exports.</div>
+          <div class="mini-title">Current plan</div>
+          <div class="muted">Active subscription</div>
+          <strong id="planStatus">Standard</strong>
         </div>
 
         <div class="mini-card">
-          <div class="mini-title">Invoice tools</div>
-          <div class="muted">Browser-based invoices and statements.</div>
+          <div class="mini-title">Account status</div>
+          <div class="muted">
+            ✓ Connected to Firebase<br>
+            ✓ Account active
+          </div>
         </div>
 
         <div class="mini-card">
-          <div class="mini-title">CRM-lite</div>
-          <div class="muted">Leads, follow-ups and client tracking.</div>
+          <div class="mini-title">Quick actions</div>
+
+          <div style="margin-top:10px;">
+            <a href="/resources/tools/invoice-generator.html">
+              Open Invoice Tools →
+            </a>
+          </div>
+
+          <div style="margin-top:10px;">
+            <a href="/expenses.html">
+              Open Simple Expenses →
+            </a>
+          </div>
         </div>
+
       </div>
 
     </section>
@@ -462,11 +484,22 @@
       document.getElementById("summaryPlan").textContent =
         saved.currentPlan || "Starter";
 
+      document.getElementById("planStatus").textContent =
+        saved.currentPlan || "Starter";
+
       document.getElementById("summaryBusiness").textContent =
         saved.businessName || "Not set";
 
       document.getElementById("summaryEmail").textContent =
         saved.email || currentUser?.email || "Not signed in";
+
+      if(currentUser?.metadata?.creationTime){
+        document.getElementById("summaryCreated").textContent =
+          new Date(currentUser.metadata.creationTime).toLocaleDateString("en-GB", {
+            month: "short",
+            year: "numeric"
+          });
+      }
 
       updateVatNumberState();
     }
