@@ -1377,6 +1377,7 @@
     collection,
     addDoc,
     getDocs,
+    getDoc,
     doc,
     updateDoc,
     deleteDoc
@@ -1432,6 +1433,34 @@
 
   }
 
+  async function loadBusinessDetailsFromAccount(user){
+    if(!user) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if(!userSnap.exists()) return;
+
+    const account = userSnap.data();
+
+    document.getElementById("businessName").value =
+      account.businessName || "";
+
+    document.getElementById("businessEmail").value =
+      account.email || user.email || "";
+
+    document.getElementById("businessWebsite").value =
+      account.businessWebsite || "";
+
+    document.getElementById("businessVat").value =
+      account.vatRegistered === "Yes"
+        ? account.vatNumber || ""
+        : "";
+
+    document.getElementById("paymentTerms").value =
+      account.paymentTermsDefault || "14 days";
+  }
+
   onAuthStateChanged(auth, function(user){
     window.currentUser = user;
 
@@ -1443,6 +1472,8 @@
 
     if(user){
       status.textContent = "Logged in as " + user.email;
+
+      loadBusinessDetailsFromAccount(user);
 
       if(appContent){
         appContent.style.display = "block";
