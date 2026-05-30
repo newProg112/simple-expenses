@@ -218,6 +218,33 @@
       cursor:not-allowed;
     }
 
+    .account-title-row{
+      display:flex;
+      align-items:center;
+      gap:18px;
+      margin-bottom:18px;
+    }
+
+    .avatar{
+      width:64px;
+      height:64px;
+      border-radius:22px;
+      background:#0077B6;
+      color:white;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      font-size:22px;
+      box-shadow:0 12px 28px rgba(0,119,182,.25);
+    }
+
+    .avatar-subtitle{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-weight:600;
+    }
+
     @media (max-width:800px){
       .account-summary{
         grid-template-columns:1fr;
@@ -276,7 +303,14 @@
     <section class="hero">
 
       <div class="card">
-        <h1 id="welcomeTitle">Account settings</h1>
+        <div class="account-title-row">
+          <div class="avatar" id="accountAvatar">SB</div>
+
+          <div>
+            <h1 id="welcomeTitle">Account settings</h1>
+            <p class="avatar-subtitle" id="accountNameLine">Your Simple Books profile</p>
+          </div>
+        </div>
 
         <p class="sub">
           Manage your profile, business details and Simple Books subscription.
@@ -335,6 +369,10 @@
               Open Simple Expenses →
             </a>
           </div>
+
+          <button id="accountLogoutBtn" class="btn" type="button" style="margin-top:18px;">
+            Logout
+          </button>
         </div>
 
       </div>
@@ -423,7 +461,8 @@
     import { auth, db } from "./firebase-config.js";
 
     import {
-      onAuthStateChanged
+      onAuthStateChanged,
+      signOut
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     import {
@@ -493,13 +532,28 @@
       document.getElementById("summaryEmail").textContent =
         saved.email || currentUser?.email || "Not signed in";
 
-      if(currentUser?.metadata?.creationTime){
-        document.getElementById("summaryCreated").textContent =
-          new Date(currentUser.metadata.creationTime).toLocaleDateString("en-GB", {
-            month: "short",
-            year: "numeric"
-          });
-      }
+      const accountDate =
+        saved.createdAt || saved.updatedAt;
+
+      document.getElementById("summaryCreated").textContent =
+        accountDate?.toDate
+          ? accountDate.toDate().toLocaleDateString("en-GB", {
+              month: "short",
+              year: "numeric"
+            })
+          : "Not set";
+
+      const initials = (saved.fullName || saved.businessName || "Simple Books")
+        .split(" ")
+        .map(word => word[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+
+      document.getElementById("accountAvatar").textContent = initials;
+
+      document.getElementById("accountNameLine").textContent =
+        saved.fullName || saved.businessName || "Your Simple Books profile";
 
       updateVatNumberState();
     }
@@ -568,6 +622,15 @@
     document
       .getElementById("vatRegistered")
       .addEventListener("change", updateVatNumberState);
+
+    const accountLogoutBtn = document.getElementById("accountLogoutBtn");
+
+    if(accountLogoutBtn){
+      accountLogoutBtn.addEventListener("click", async () => {
+        await signOut(auth);
+        window.location.href = "/";
+      });
+    }
 
     saveBtn.addEventListener("click", saveAccount);
 
