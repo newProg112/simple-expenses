@@ -186,6 +186,44 @@
       padding-bottom:4px;
     }
 
+    .account-summary{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:14px;
+      margin-top:28px;
+    }
+
+    .account-summary div{
+      background:#f7fbff;
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:16px;
+    }
+
+    .summary-label{
+      display:block;
+      color:var(--muted);
+      font-size:.9rem;
+      margin-bottom:6px;
+    }
+
+    .account-summary strong{
+      color:var(--text);
+      font-size:1.05rem;
+    }
+
+    input:disabled{
+      background:#f1f5f9;
+      color:#94a3b8;
+      cursor:not-allowed;
+    }
+
+    @media (max-width:800px){
+      .account-summary{
+        grid-template-columns:1fr;
+      }
+    }
+
     @media (max-width:900px){
 
       .hero,
@@ -238,37 +276,45 @@
     <section class="hero">
 
       <div class="card">
-        <h1 id="welcomeTitle">Your business account.</h1>
+        <h1 id="welcomeTitle">Account settings</h1>
 
         <p class="sub">
-          Store your business details once and use them across
-          Simple Expenses, invoicing tools and future business apps.
+          Manage your profile, business details and Simple Books subscription.
         </p>
+
+        <div class="account-summary">
+          <div>
+            <span class="summary-label">Plan</span>
+            <strong id="summaryPlan">Starter</strong>
+          </div>
+
+          <div>
+            <span class="summary-label">Business</span>
+            <strong id="summaryBusiness">Not set</strong>
+          </div>
+
+          <div>
+            <span class="summary-label">Signed in as</span>
+            <strong id="summaryEmail">Not signed in</strong>
+          </div>
+        </div>
       </div>
 
       <div class="card mini">
-
         <div class="mini-card">
           <div class="mini-title">Simple Expenses</div>
-          <div class="muted">
-            Expense tracking and CSV exports.
-          </div>
+          <div class="muted">Expense tracking and CSV exports.</div>
         </div>
 
         <div class="mini-card">
           <div class="mini-title">Invoice tools</div>
-          <div class="muted">
-            Browser-based invoices and statements.
-          </div>
+          <div class="muted">Browser-based invoices and statements.</div>
         </div>
 
         <div class="mini-card">
           <div class="mini-title">CRM-lite</div>
-          <div class="muted">
-            Leads, follow-ups and client tracking.
-          </div>
+          <div class="muted">Leads, follow-ups and client tracking.</div>
         </div>
-
       </div>
 
     </section>
@@ -410,12 +456,19 @@
       setField("businessWebsite", saved.businessWebsite);
       setField("paymentTermsDefault", saved.paymentTermsDefault || "14 days");
 
-      const welcomeTitle = document.getElementById("welcomeTitle");
+      document.getElementById("welcomeTitle").textContent =
+        "Account settings";
 
-      if(saved.fullName || saved.businessName){
-        welcomeTitle.textContent =
-          `Welcome back${saved.fullName ? ", " + saved.fullName.split(" ")[0] : ""}.`;
-      }
+      document.getElementById("summaryPlan").textContent =
+        saved.currentPlan || "Starter";
+
+      document.getElementById("summaryBusiness").textContent =
+        saved.businessName || "Not set";
+
+      document.getElementById("summaryEmail").textContent =
+        saved.email || currentUser?.email || "Not signed in";
+
+      updateVatNumberState();
     }
 
     async function saveAccount(){
@@ -460,6 +513,28 @@
         successMessage.style.display = "none";
       }, 2500);
     }
+
+    function updateVatNumberState(){
+      const vatRegistered = document.getElementById("vatRegistered");
+      const vatNumber = document.getElementById("vatNumber");
+
+      if(!vatRegistered || !vatNumber) return;
+
+      const isVatRegistered = vatRegistered.value === "Yes";
+
+      vatNumber.disabled = !isVatRegistered;
+      vatNumber.placeholder = isVatRegistered
+        ? "GB123456789"
+        : "Not required unless VAT registered";
+
+      if(!isVatRegistered){
+        vatNumber.value = "";
+      }
+    }
+
+    document
+      .getElementById("vatRegistered")
+      .addEventListener("change", updateVatNumberState);
 
     saveBtn.addEventListener("click", saveAccount);
 
