@@ -854,6 +854,37 @@
       padding-bottom:4px;
     }
 
+    .app-header{
+      display:flex;
+      align-items:center;
+      gap:48px;
+      margin-bottom:28px;
+    }
+
+    .app-brand{
+      display:flex;
+      align-items:center;
+      text-decoration:none;
+    }
+
+    .app-brand img{
+      width:80px;
+      height:auto;
+      display:block;
+      mix-blend-mode:multiply;
+      transform:translateY(-8px);
+    }
+
+    .app-nav{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:12px;
+      margin-left:auto;
+      margin-bottom:32px;
+      font-weight:700;
+    }
+
     @media (max-width:900px){
       .invoice-row{
         grid-template-columns:1fr;
@@ -912,61 +943,40 @@
 
   <div class="wrap">
 
-    <nav class="app-nav">
-      <a href="/dashboard.html">Dashboard</a>
-      <span>|</span>
+    <header class="app-header">
 
-      <a class="active"
-        href="/resources/tools/invoice-generator.html">
-        Invoices
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
       </a>
-      <span>|</span>
 
-      <a href="/resources/tools/bills.html">Bills</a>
-      <span>|</span>
+      <nav class="app-nav">
+        <a href="/dashboard.html">Dashboard</a>
+        <span>|</span>
 
-      <a href="/resources/tools/client-tracker.html">
-        Clients
-      </a>
-      <span>|</span>
+        <a class="active"
+          href="/resources/tools/invoice-generator.html">
+          Invoices
+        </a>
+        <span>|</span>
 
-      <a href="https://expenses.simple-books.co.uk">
-        Expenses
-      </a>
-      <span>|</span>
+        <a href="/resources/tools/bills.html">Bills</a>
+        <span>|</span>
 
-      <a href="/exports.html">Exports</a>
-      <span>|</span>
+        <a href="/resources/tools/client-tracker.html">Clients</a>
+        <span>|</span>
 
-      <a href="/account.html">Account</a>
-    </nav>
+        <a href="https://expenses.simple-books.co.uk">
+          Expenses
+        </a>
+        <span>|</span>
 
-    <div class="card">
+        <a href="/exports.html">Exports</a>
+        <span>|</span>
 
-      <div class="top-header">
-        <div class="dashboard-hero">
+        <a href="/account.html">Account</a>
+      </nav>
 
-          <div>
-            <div class="hero-badge">
-              LIVE DASHBOARD
-            </div>
-
-            <h1>Simple Books Invoice Generator</h1>
-
-            <p class="hero-subtitle">
-              Professional invoicing, analytics and customer management.
-            </p>
-          </div>
-
-          <button
-            id="topLogoutBtn"
-            type="button"
-            onclick="alert('Desktop logout clicked'); logoutUser();">
-            Logout
-          </button>
-
-        </div>
-      </div>
+    </header>
 
       <div class="card" id="authBox" style="margin-bottom:24px;">
         <h2>Login</h2>
@@ -1362,8 +1372,6 @@
         </div>
 
       </div>
-
-    </div>
 
   </div>
 

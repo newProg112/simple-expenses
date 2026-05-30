@@ -19,35 +19,35 @@
       padding: 32px 20px;
     }
 
-    .app-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-      margin-bottom: 32px;
+    .app-header{
+      display:flex;
+      align-items:center;
+      gap:48px;
+      margin-bottom:28px;
     }
 
-    .app-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-      color: #102033;
-      font-weight: 800;
-      font-size: 18px;
+    .app-brand{
+      display:flex;
+      align-items:center;
+      text-decoration:none;
     }
 
-    .app-brand img {
-      width: 42px;
-      height: auto;
+    .app-brand img{
+      width:80px;
+      height:auto;
+      display:block;
+      mix-blend-mode:multiply;
+      transform:translateY(-8px);
     }
 
-    .app-nav {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px;
-      font-weight: 700;
+    .app-nav{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:12px;
+      margin-left:auto;
+      margin-bottom:32px;
+      font-weight:700;
     }
 
     .app-nav a {
@@ -145,7 +145,6 @@
     <header class="app-header">
       <a class="app-brand" href="/dashboard.html">
         <img src="/assets/logo.png" alt="Simple Books logo">
-        <span>Simple Books</span>
       </a>
 
       <nav class="app-nav">
@@ -170,12 +169,6 @@
         <a href="/account.html">Account</a>
       </nav>
     </header>
-
-    <p class="muted">Simple Books</p>
-    <h1>Exports</h1>
-    <p class="muted">
-      Download business data, backups and accountant-friendly files from one place.
-    </p>
 
     <section class="exports-grid">
 

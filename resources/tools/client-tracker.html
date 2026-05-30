@@ -272,11 +272,28 @@
       font-size:.92rem;
     }
 
+    .app-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:24px;
+      margin-bottom:32px;
+    }
+
+    .app-brand img{
+      width:80px;
+      height:auto;
+      display:block;
+      mix-blend-mode:multiply;
+      transform:translateY(-8px);
+    }
+
     .app-nav{
       display:flex;
       align-items:center;
       gap:14px;
       margin-bottom:36px;
+      margin-left:auto;
       font-weight:600;
     }
 
@@ -323,54 +340,39 @@
 </head>
 <body>
 
-  <div class="wrap">
+  <main class="wrap">
 
-    <nav class="app-nav">
-      <a href="/dashboard.html">Dashboard</a>
-      <span>|</span>
+    <header class="app-header">
 
-      <a href="/resources/tools/invoice-generator.html">
-        Invoices
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
       </a>
-      <span>|</span>
 
-      <a href="/resources/tools/bills.html">Bills</a>
-      <span>|</span>
+      <nav class="app-nav">
 
-      <a class="active"
-        href="/resources/tools/client-tracker.html">
-        Clients
-      </a>
-      <span>|</span>
+        <a href="/dashboard.html">Dashboard</a>
+        <span>|</span>
 
-      <a href="https://expenses.simple-books.co.uk">
-        Expenses
-      </a>
-      <span>|</span>
+        <a href="/resources/tools/invoice-generator.html">Invoices</a>
+        <span>|</span>
 
-      <a href="/exports.html">Exports</a>
-      <span>|</span>
+        <a href="/resources/tools/bills.html">Bills</a>
+        <span>|</span>
 
-      <a href="/account.html">Account</a>
-    </nav>
+        <a class="active" href="/resources/tools/client-tracker.html">Clients</a>
+        <span>|</span>
 
-    <div class="hero">
+        <a href="https://expenses.simple-books.co.uk">Expenses</a>
+        <span>|</span>
 
-      <div>
+        <a href="/exports.html">Exports</a>
+        <span>|</span>
 
-        <div class="hero-badge">
-          CRM-LITE
-        </div>
+        <a href="/account.html">Account</a>
 
-        <h1>Client Tracker</h1>
+      </nav>
 
-        <p class="hero-subtitle">
-          Track leads, clients, follow-ups and notes in one lightweight dashboard.
-        </p>
-
-      </div>
-
-    </div>
+    </header>
 
     <div class="dashboard-grid">
 
@@ -475,7 +477,7 @@
 
     </div>
 
-  </div>
+  </main>
 
   <script>
 

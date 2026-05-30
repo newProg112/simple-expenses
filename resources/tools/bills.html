@@ -126,6 +126,37 @@
       padding-bottom:4px;
     }
 
+    .app-header{
+      display:flex;
+      align-items:center;
+      gap:48px;
+      margin-bottom:28px;
+    }
+
+    .app-brand{
+      display:flex;
+      align-items:center;
+      text-decoration:none;
+    }
+
+    .app-brand img{
+      width:80px;
+      height:auto;
+      display:block;
+      mix-blend-mode:multiply;
+      transform:translateY(-8px);
+    }
+
+    .app-nav{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:12px;
+      margin-left:auto;
+      margin-bottom:32px;
+      font-weight:700;
+    }
+
     @media (max-width: 760px) {
       .bill-row {
         grid-template-columns: 1fr;
@@ -136,38 +167,35 @@
 
 <body>
   <main class="wrap">
-    <nav class="app-nav">
-      <a href="/dashboard.html">Dashboard</a>
-      <span>|</span>
+    <header class="app-header">
 
-      <a href="/resources/tools/invoice-generator.html">
-        Invoices
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
       </a>
-      <span>|</span>
 
-      <a class="active" href="/resources/tools/bills.html">
-        Bills
-      </a>
-      <span>|</span>
+      <nav class="app-nav">
+        <a href="/dashboard.html">Dashboard</a>
+        <span>|</span>
 
-      <a href="/resources/tools/client-tracker.html">
-        Clients
-      </a>
-      <span>|</span>
+        <a href="/resources/tools/invoice-generator.html">Invoices</a>
+        <span>|</span>
 
-      <a href="https://expenses.simple-books.co.uk">
-        Expenses
-      </a>
-      <span>|</span>
+        <a class="active" href="/resources/tools/bills.html">Bills</a>
+        <span>|</span>
 
-      <a href="/exports.html">Exports</a>
-      <span>|</span>
+        <a href="/resources/tools/client-tracker.html">Clients</a>
+        <span>|</span>
 
-      <a href="/account.html">Account</a>
-    </nav>
+        <a href="https://expenses.simple-books.co.uk">Expenses</a>
+        <span>|</span>
 
-    <h1>Bills</h1>
-    <p class="muted">Track supplier bills, due dates, VAT and payment status.</p>
+        <a href="/exports.html">Exports</a>
+        <span>|</span>
+
+        <a href="/account.html">Account</a>
+      </nav>
+
+    </header>
 
     <section class="summary-grid">
       <div class="card summary">
