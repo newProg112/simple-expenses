@@ -30,9 +30,9 @@
 
     .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 18px;
-      margin: 32px 0;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0;
     }
 
     .card {
@@ -53,13 +53,6 @@
       font-size: 24px;
     }
 
-    .quick-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 18px;
-    }
-
     .btn {
       text-decoration: none;
       background: #0077B6;
@@ -75,6 +68,57 @@
       border: 1px solid #e2e8f0;
       border-radius: 24px;
       padding: 24px;
+    }
+
+    .dashboard-overview{
+      display:grid;
+      grid-template-columns:minmax(0, .78fr) minmax(320px, .92fr);
+      gap:16px;
+      align-items:start;
+      margin:18px 0 24px;
+    }
+
+    .dashboard-link-card{
+      min-height:64px;
+      padding:9px 10px;
+    }
+
+    .dashboard-link-card .muted{
+      font-size:13px;
+    }
+
+    .dashboard-link-card h2{
+      font-size:22px;
+      margin-top:4px;
+    }
+
+    .chart-card{
+      display:flex;
+      flex-direction:column;
+      align-self:start;
+      padding:14px;
+    }
+
+    .chart-card h2{
+      font-size:22px;
+      margin:0 0 4px;
+    }
+
+    .chart-card p{
+      font-size:13px;
+      margin:0 0 8px;
+    }
+
+    .chart-shell{
+      position:relative;
+      width:100%;
+      height:220px;
+    }
+
+    .chart-shell canvas{
+      display:block;
+      width:100%;
+      height:100%;
     }
 
     .activity-row {
@@ -138,6 +182,14 @@
     }
 
     @media(max-width:800px){
+      .dashboard-overview{
+        grid-template-columns:1fr;
+      }
+
+      .dashboard-grid{
+        grid-template-columns:1fr;
+      }
+
       .page-title-row{
         flex-direction:column;
         align-items:flex-start;
@@ -231,66 +283,61 @@
 
     </header>
 
-    <section class="dashboard-grid">
+    <section class="dashboard-overview">
 
-      <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
-        <div class="muted">Outstanding invoices</div>
-        <h2 id="outstandingTotal">£0.00</h2>
-      </a>
+      <div class="dashboard-grid">
 
-      <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
-        <div class="muted">Paid invoices</div>
-        <h2 id="paidTotal">£0.00</h2>
-      </a>
+        <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
+          <div class="muted">Outstanding invoices</div>
+          <h2 id="outstandingTotal">&pound;0.00</h2>
+        </a>
 
-      <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
-        <div class="muted">Overdue invoices</div>
-        <h2 id="overdueCount">0</h2>
-      </a>
+        <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
+          <div class="muted">Paid invoices</div>
+          <h2 id="paidTotal">&pound;0.00</h2>
+        </a>
 
-      <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
-        <div class="muted">Saved invoices</div>
-        <h2 id="invoiceCount">0</h2>
-      </a>
+        <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
+          <div class="muted">Overdue invoices</div>
+          <h2 id="overdueCount">0</h2>
+        </a>
 
-      <a class="card dashboard-link-card" href="./resources/tools/bills.html">
-        <div class="muted">Unpaid bills</div>
-        <h2 id="unpaidBills">£0.00</h2>
-      </a>
+        <a class="card dashboard-link-card" href="./resources/tools/invoice-generator.html">
+          <div class="muted">Saved invoices</div>
+          <h2 id="invoiceCount">0</h2>
+        </a>
 
-      <a class="card dashboard-link-card" href="./resources/tools/bills.html">
-        <div class="muted">Net position</div>
-        <h2 id="netPosition">£0.00</h2>
-      </a>
+        <a class="card dashboard-link-card" href="./resources/tools/bills.html">
+          <div class="muted">Unpaid bills</div>
+          <h2 id="unpaidBills">&pound;0.00</h2>
+        </a>
 
-      <a class="card dashboard-link-card" href="./resources/tools/bills.html">
-        <div class="muted">Overdue bills</div>
-        <h2 id="overdueBills">0</h2>
-      </a>
+        <a class="card dashboard-link-card" href="./resources/tools/bills.html">
+          <div class="muted">Net position</div>
+          <h2 id="netPosition">&pound;0.00</h2>
+        </a>
 
-      <a class="card dashboard-link-card" href="./resources/tools/bills.html">
-        <div class="muted">Cashflow position</div>
-        <h2 id="cashflowPosition">£0.00</h2>
-      </a>
+        <a class="card dashboard-link-card" href="./resources/tools/bills.html">
+          <div class="muted">Overdue bills</div>
+          <h2 id="overdueBills">0</h2>
+        </a>
+
+        <a class="card dashboard-link-card" href="./resources/tools/bills.html">
+          <div class="muted">Cashflow position</div>
+          <h2 id="cashflowPosition">&pound;0.00</h2>
+        </a>
+
+      </div>
+
+      <section class="card chart-card">
+        <h2>Income vs Bills</h2>
+        <p class="muted">Monthly invoices raised compared with bills entered.</p>
+        <div class="chart-shell">
+          <canvas id="incomeBillsChart"></canvas>
+        </div>
+      </section>
 
     </section>
-
-    <section class="card">
-      <h2>Income vs Bills</h2>
-      <p class="muted">Monthly invoices raised compared with bills entered.</p>
-      <canvas id="incomeBillsChart" height="90"></canvas>
-    </section>
-
-    <h2 class="section-title">Quick Actions</h2>
-
-    <div class="quick-actions">
-      <a class="btn" href="./resources/tools/invoice-generator.html">Create invoice</a>
-      <a class="btn" href="./resources/tools/client-tracker.html">Open clients</a>
-      <a class="btn" href="/resources/tools/bills.html">Bills</a>
-      <a class="btn" href="./resources/tools/mileage.html">Mileage calculator</a>
-      <a class="btn" href="./resources/tools/">All tools</a>
-      <a class="btn" href="https://expenses.simple-books.co.uk" target="_blank">Simple Expenses</a>
-    </div>
 
     <h2 class="section-title">Recent Activity</h2>
 
@@ -531,6 +578,7 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: {
             legend: {
               position: "bottom"
