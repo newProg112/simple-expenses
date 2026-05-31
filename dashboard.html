@@ -159,6 +159,25 @@
       transform:translateY(-8px);
     }
 
+    .header-greeting{
+      min-width:220px;
+      margin-left:-12px;
+      transform:translateY(-6px);
+    }
+
+    .header-greeting-title{
+      font-weight:900;
+      color:#102033;
+      line-height:1.15;
+    }
+
+    .header-greeting-subtitle{
+      margin-top:3px;
+      color:#5b6b7c;
+      font-size:13px;
+      line-height:1.3;
+    }
+
     .page-title-row{
       display:flex;
       align-items:flex-end;
@@ -189,6 +208,12 @@
 
       .dashboard-grid{
         grid-template-columns:1fr;
+      }
+
+      .header-greeting{
+        min-width:0;
+        margin-left:0;
+        transform:none;
       }
 
       .page-title-row{
@@ -259,6 +284,15 @@
       <a class="app-brand" href="/dashboard.html">
         <img src="/assets/logo.png" alt="Simple Books logo">
       </a>
+
+      <div class="header-greeting" aria-live="polite">
+        <div class="header-greeting-title" id="dashboardGreeting">
+          Welcome back 👋
+        </div>
+        <div class="header-greeting-subtitle">
+          Here's what's happening in your business today.
+        </div>
+      </div>
 
       <nav class="app-nav">
         <a class="active" href="/dashboard.html">Dashboard</a>
@@ -367,6 +401,9 @@
       const firstName =
         account.fullName ? account.fullName.split(" ")[0] : "";
 
+      const dashboardGreeting =
+        document.getElementById("dashboardGreeting");
+
       const dashboardBusinessName =
         document.getElementById("dashboardBusinessName");
 
@@ -379,6 +416,11 @@
       if(dashboardBusinessName){
         dashboardBusinessName.textContent =
           account.businessName || "Simple Books";
+      }
+
+      if(dashboardGreeting){
+        dashboardGreeting.textContent =
+          firstName ? `Welcome back, ${firstName} 👋` : "Welcome back 👋";
       }
 
       if(dashboardWelcome){
