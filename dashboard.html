@@ -319,16 +319,31 @@
       const firstName =
         account.fullName ? account.fullName.split(" ")[0] : "";
 
-      document.getElementById("dashboardBusinessName").textContent =
-        account.businessName || "Simple Books";
+      const dashboardBusinessName =
+        document.getElementById("dashboardBusinessName");
 
-      document.getElementById("dashboardWelcome").textContent =
-        firstName ? `Welcome back, ${firstName}` : "Business Dashboard";
+      const dashboardWelcome =
+        document.getElementById("dashboardWelcome");
 
-      document.getElementById("dashboardPlan").textContent =
-        account.currentPlan
-          ? `${account.currentPlan} plan · Business overview`
-          : "A simple overview of your invoices, tools and business activity.";
+      const dashboardPlan =
+        document.getElementById("dashboardPlan");
+
+      if(dashboardBusinessName){
+        dashboardBusinessName.textContent =
+          account.businessName || "Simple Books";
+      }
+
+      if(dashboardWelcome){
+        dashboardWelcome.textContent =
+          firstName ? `Welcome back, ${firstName}` : "Business Dashboard";
+      }
+
+      if(dashboardPlan){
+        dashboardPlan.textContent =
+          account.currentPlan
+            ? `${account.currentPlan} plan - Business overview`
+            : "A simple overview of your invoices, tools and business activity.";
+      }
     }
 
     function loadDashboard() {
