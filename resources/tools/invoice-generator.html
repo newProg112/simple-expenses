@@ -100,31 +100,79 @@
       min-height:130px;
     }
 
+    .invoice-kpi-grid{
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:12px;
+      margin:0 0 18px;
+    }
+
+    .invoice-kpi-grid .card{
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      min-height:92px;
+      padding:16px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
     .kpi-card{
       position:relative;
       overflow:hidden;
-      transition:transform .18s ease, box-shadow .18s ease;
     }
 
-    .kpi-card:hover{
-      transform:translateY(-4px);
-      box-shadow:0 18px 45px rgba(15,23,42,.12);
-    }
-
-    .kpi-card::before{
-      content:"";
-      position:absolute;
-      left:0;
-      top:0;
-      height:100%;
-      width:5px;
-      background:var(--accent);
-      opacity:.85;
+    .invoice-kpi-grid .kpi-card:hover{
+      transform:none;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
     }
 
     .kpi-card h2{
-      font-size:1.8rem;
-      margin-bottom:0;
+      color:var(--text);
+      font-size:22px;
+      line-height:1.1;
+      margin:4px 0 2px;
+      white-space:nowrap;
+    }
+
+    .invoice-kpi-grid .muted{
+      font-size:13px;
+      font-weight:650;
+      line-height:1.4;
+    }
+
+    .invoice-kpi-grid .kpi-trend{
+      margin-top:5px;
+      font-size:12px;
+    }
+
+    .page-title-row{
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      gap:14px;
+      margin:14px 0 18px;
+    }
+
+    .page-title-row h1{
+      margin:0 0 5px;
+      font-size:30px;
+      line-height:1.1;
+    }
+
+    .page-title-row p{
+      margin:0;
+      font-size:14px;
+    }
+
+    .page-title-icon{
+      width:44px;
+      height:44px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      background:#e8f3ff;
+      color:#0077B6;
+      font-weight:900;
+      font-size:22px;
+      flex:0 0 auto;
     }
 
     .dashboard-hero{
@@ -205,15 +253,20 @@
     }
 
     .chart-total{
-      margin-top:10px;
-      font-size:1.8rem;
-      font-weight:800;
+      margin-top:8px;
+      font-size:22px;
+      font-weight:900;
       color:var(--text);
+      font-variant-numeric:tabular-nums;
     }
 
     .chart-card{
       margin:24px 0;
       overflow:hidden;
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
     }
 
     .chart-card canvas{
@@ -221,26 +274,47 @@
       max-width:100%;
     }
 
+    .chart-shell{
+      position:relative;
+      width:100%;
+      min-height:220px;
+    }
+
+    .chart-shell canvas{
+      display:block;
+    }
+
+    .chart-shell-compact{
+      max-width:320px;
+      min-height:260px;
+      margin:0 auto;
+    }
+
     .top-customers-list{
       display:flex;
       flex-direction:column;
-      gap:12px;
-      margin-top:18px;
+      gap:10px;
+      margin-top:16px;
     }
 
     .top-customer-row{
-      display:flex;
-      justify-content:space-between;
+      display:grid;
+      grid-template-columns:minmax(0, 1fr) auto;
       align-items:center;
-      gap:14px;
-      padding:14px;
-      border:1px solid var(--border);
-      border-radius:16px;
-      background:var(--card);
+      gap:18px;
+      padding:12px 0;
+      border-bottom:1px solid #eef2f7;
+      background:transparent;
+    }
+
+    .top-customer-row:last-child{
+      border-bottom:0;
+      padding-bottom:0;
     }
 
     .top-customer-name{
       font-weight:800;
+      overflow-wrap:anywhere;
     }
 
     .top-customer-sub{
@@ -353,30 +427,37 @@
 
     .analytics-grid{
       display:grid;
-      grid-template-columns:2fr 1fr;
-      gap:24px;
-      margin:28px 0;
-    }
-
-    .analytics-grid .chart-card:first-child{
-      grid-column:1 / 2;
-    }
-
-    .analytics-grid .chart-card:nth-child(2){
-      grid-column:1 / 2;
-    }
-
-    .analytics-grid .chart-card:nth-child(3){
-      grid-column:2 / 3;
-      grid-row:1 / 3;
+      grid-template-columns:minmax(0, .92fr) minmax(360px, 1.08fr);
+      gap:18px;
+      margin:18px 0 28px;
+      align-items:stretch;
     }
 
     .analytics-grid .chart-card{
       margin:0;
+      min-width:0;
+    }
+
+    .analytics-wide-card{
+      grid-column:1 / -1;
+    }
+
+    .analytics-wide-card .top-customers-list{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:0 28px;
     }
 
     @media (max-width:900px){
       .analytics-grid{
+        grid-template-columns:1fr;
+      }
+
+      .analytics-wide-card{
+        grid-column:auto;
+      }
+
+      .analytics-wide-card .top-customers-list{
         grid-template-columns:1fr;
       }
     }
@@ -386,15 +467,18 @@
       justify-content:space-between;
       align-items:flex-start;
       gap:16px;
-      margin-bottom:18px;
+      margin-bottom:16px;
     }
 
     .chart-header h2{
       margin:0;
+      font-size:20px;
+      line-height:1.2;
     }
 
     .chart-header p{
-      margin:6px 0 0;
+      margin:5px 0 0;
+      line-height:1.4;
     }
 
     .button-row,
@@ -433,9 +517,7 @@
         grid-template-columns:1fr;
       }
 
-      .analytics-grid .chart-card:first-child,
-      .analytics-grid .chart-card:nth-child(2),
-      .analytics-grid .chart-card:nth-child(3){
+      .analytics-grid .chart-card{
         grid-column:auto;
         grid-row:auto;
       }
@@ -996,7 +1078,15 @@
 
       <div id="appContent" style="display:none;">
 
-      <div class="dashboard-grid">
+      <section class="page-title-row">
+        <div class="page-title-icon" aria-hidden="true">I</div>
+        <div>
+          <h1>Invoices</h1>
+          <p class="muted">Create invoices, track payments and monitor revenue.</p>
+        </div>
+      </section>
+
+      <div class="dashboard-grid invoice-kpi-grid">
 
         <div class="card kpi-card">
           <div class="muted">Outstanding</div>
@@ -1051,60 +1141,70 @@
 
           <div class="analytics-grid">
 
-            <div class="analytics-left">
-
-              <div class="card chart-card">
-                <div class="chart-header">
-                  <div>
-                    <h2>Revenue Trend</h2>
-                    <p class="muted">Invoice totals by month</p>
-                    <div id="chartTotal" class="chart-total">£0.00</div>
-                  </div>
+            <div class="card chart-card">
+              <div class="chart-header">
+                <div>
+                  <h2>Revenue Trend</h2>
+                  <p class="muted">Invoice totals by month</p>
+                  <div id="chartTotal" class="chart-total">£0.00</div>
                 </div>
+              </div>
 
+              <div class="chart-shell">
                 <canvas id="revenueChart" height="85"></canvas>
               </div>
-
-              <div class="card chart-card">
-                <h2>Monthly Revenue</h2>
-                <p class="muted">Bar chart view</p>
-
-                <canvas id="monthlyRevenueBarChart" height="90"></canvas>
-              </div>
-
             </div>
 
-            <div class="analytics-right">
-
-              <div class="card chart-card">
-                <div class="chart-header">
-                  <div>
-                    <h2>Invoice Status</h2>
-                    <p class="muted">Paid vs unpaid invoices</p>
-                  </div>
-                </div>
-
-                <div style="max-width:240px; margin:auto;">
-                  <canvas id="statusChart" height="180"></canvas>
+            <div class="card chart-card">
+              <div class="chart-header">
+                <div>
+                  <h2>Invoice Status</h2>
+                  <p class="muted">Paid vs unpaid invoices</p>
                 </div>
               </div>
 
-              <div class="card chart-card">
-                <h2>Top Customers</h2>
-                <p class="muted">Highest invoice totals</p>
+              <div class="chart-shell chart-shell-compact">
+                <canvas id="statusChart" height="180"></canvas>
+              </div>
+            </div>
 
-                <div id="topCustomersList" class="top-customers-list">
-                  No customer data yet.
+            <div class="card chart-card">
+              <div class="chart-header">
+                <div>
+                  <h2>Monthly Revenue</h2>
+                  <p class="muted">Bar chart view</p>
                 </div>
               </div>
 
-              <div class="card chart-card">
-                <h2>Outstanding Ageing</h2>
-                <p class="muted">Overdue invoice buckets</p>
+              <div class="chart-shell">
+                <canvas id="monthlyRevenueBarChart" height="90"></canvas>
+              </div>
+            </div>
 
+            <div class="card chart-card">
+              <div class="chart-header">
+                <div>
+                  <h2>Outstanding Ageing</h2>
+                  <p class="muted">Overdue invoice buckets</p>
+                </div>
+              </div>
+
+              <div class="chart-shell">
                 <canvas id="ageingChart" height="180"></canvas>
               </div>
+            </div>
 
+            <div class="card chart-card analytics-wide-card">
+              <div class="chart-header">
+                <div>
+                  <h2>Top Customers</h2>
+                  <p class="muted">Highest invoice totals</p>
+                </div>
+              </div>
+
+              <div id="topCustomersList" class="top-customers-list">
+                No customer data yet.
+              </div>
             </div>
 
           </div>
@@ -1643,6 +1743,8 @@
   console.log("Firestore connected");
 
   </script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
 
@@ -3401,8 +3503,6 @@ setTimeout(function(){
 }, 500);
 
 </script>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 </body>
 </html>
