@@ -14,10 +14,10 @@
       color: #102033;
     }
 
-    .wrap {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 42px 20px;
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:42px 32px 80px;
     }
 
     .card {
@@ -25,106 +25,23 @@
       border: 1px solid #e2e8f0;
       border-radius: 24px;
       padding: 24px;
-      margin-bottom: 20px;
       box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      box-sizing:border-box;
     }
 
-    h1 { font-size: 42px; margin-bottom: 8px; }
-    h2 { margin-top: 0; }
-
-    .muted { color: #5b6b7c; }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 14px;
+    h1 {
+      font-size: 42px;
+      margin: 0 0 10px;
     }
 
-    label {
-      display: block;
-      font-weight: 700;
-      margin: 12px 0 6px;
+    h2 {
+      margin: 0;
+      font-size: 24px;
     }
 
-    input, select, textarea {
-      width: 100%;
-      padding: 13px;
-      border-radius: 14px;
-      border: 1px solid #dbe3ec;
-      font-size: 15px;
-      box-sizing: border-box;
-    }
-
-    textarea { min-height: 90px; }
-
-    .btn {
-      border: 0;
-      background: #0077B6;
-      color: white;
-      padding: 12px 16px;
-      border-radius: 999px;
-      font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-block;
-      margin-top: 14px;
-    }
-
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 14px;
-      margin: 24px 0;
-    }
-
-    .summary h2 {
-      font-size: 32px;
-      margin: 6px 0 0;
-    }
-
-    .bill-row {
-      display: grid;
-      grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
-      gap: 12px;
-      align-items: center;
-      padding: 14px 0;
-      border-bottom: 1px solid #eef2f7;
-    }
-
-    .bill-row:last-child { border-bottom: 0; }
-
-    .pill {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: #eef2f7;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .danger { color: #b91c1c; font-weight: 700; }
-
-    .app-nav{
-      display:flex;
-      align-items:center;
-      gap:14px;
-      margin-bottom:36px;
-      font-weight:600;
-    }
-
-    .app-nav a{
-      text-decoration:none;
-      color:#1f2937;
-    }
-
-    .app-nav span{
-      color:#cbd5e1;
-    }
-
-    .app-nav a.active{
-      color:#0077B6;
-      border-bottom:3px solid #0077B6;
-      padding-bottom:4px;
+    .muted {
+      color: #5b6b7c;
+      line-height:1.4;
     }
 
     .app-header{
@@ -137,7 +54,11 @@
     .app-brand{
       display:flex;
       align-items:center;
+      gap:10px;
       text-decoration:none;
+      color:#102033;
+      font-weight:800;
+      font-size:18px;
     }
 
     .app-brand img{
@@ -158,9 +79,799 @@
       font-weight:700;
     }
 
-    @media (max-width: 760px) {
+    .app-nav a {
+      text-decoration: none;
+      color: #475569;
+    }
+
+    .app-nav a:hover {
+      color: #0077B6;
+    }
+
+    .app-nav span {
+      width: 1px;
+      height: 18px;
+      background: #cbd5e1;
+    }
+
+    .app-nav a.active {
+      color: #0077B6;
+      border-bottom: 3px solid #0077B6;
+      padding-bottom: 4px;
+    }
+
+    .page-title-row{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:20px;
+      margin:18px 0 22px;
+    }
+
+    .page-title-row p{
+      margin:0;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0 0 18px;
+    }
+
+    .summary h2 {
+      font-size: 34px;
+      margin: 8px 0 0;
+    }
+
+    .bills-workspace{
+      display:grid;
+      grid-template-columns:minmax(0, 1fr) 320px;
+      gap:18px;
+      align-items:start;
+      margin-bottom:20px;
+    }
+
+    .section-heading{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:20px;
+    }
+
+    .section-heading p,
+    .list-header p,
+    .overview-card p{
+      margin:5px 0 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .field{
+      min-width:0;
+    }
+
+    .field-wide{
+      margin-top:16px;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin: 0 0 7px;
+      color:#102033;
+      font-size:14px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      min-height:48px;
+      padding: 12px 13px;
+      border-radius: 14px;
+      border: 1px solid #dbe3ec;
+      font-size: 15px;
+      font-family:inherit;
+      box-sizing: border-box;
+      color:#102033;
+      background:#fff;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus{
+      outline:3px solid rgba(0,119,182,.16);
+      border-color:#0077B6;
+    }
+
+    textarea {
+      min-height: 104px;
+      resize: vertical;
+    }
+
+    .form-actions{
+      display:flex;
+      justify-content:flex-start;
+      margin-top:18px;
+    }
+
+    .btn {
+      border: 0;
+      background: #0077B6;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .overview-card{
+      padding:22px;
+    }
+
+    .overview-card h2{
+      font-size:22px;
+    }
+
+    .overview-list{
+      display:grid;
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .overview-item{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      padding:12px 0;
+      border-bottom:1px solid #eef2f7;
+    }
+
+    .overview-item:last-child{
+      border-bottom:0;
+      padding-bottom:0;
+    }
+
+    .overview-item strong{
+      white-space:nowrap;
+    }
+
+    .list-card{
+      padding:24px;
+    }
+
+    .list-header{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:18px;
+      margin-bottom:14px;
+    }
+
+    #billsList{
+      overflow-x:visible;
+    }
+
+    .bill-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .bill-row:last-child { border-bottom: 0; }
+
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #eef2f7;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .danger { color: #b91c1c; font-weight: 700; }
+
+    .row-actions{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .row-actions .btn{
+      padding:9px 12px;
+      font-size:13px;
+    }
+
+    @media (max-width: 900px) {
+      .wrap{
+        padding:32px 20px 56px;
+      }
+
+      .app-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .page-title-row{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+
+      .summary-grid{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+
+      .bills-workspace{
+        grid-template-columns:1fr;
+      }
+
+    }
+
+    @media (max-width: 640px) {
+      h1{
+        font-size:36px;
+      }
+
+      .summary-grid,
+      .grid{
+        grid-template-columns:1fr;
+      }
+
       .bill-row {
         grid-template-columns: 1fr;
+        gap:10px;
+      }
+
+      .row-actions{
+        justify-content:flex-start;
+      }
+    }
+
+    .wrap{
+      max-width:1360px;
+      padding:24px 32px 56px;
+    }
+
+    .card{
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
+    h1{
+      font-size:30px;
+      line-height:1.1;
+      margin:0 0 5px;
+    }
+
+    h2{
+      font-size:20px;
+    }
+
+    .app-header{
+      margin-bottom:14px;
+    }
+
+    .app-nav{
+      margin-bottom:0;
+    }
+
+    .page-title-row{
+      align-items:center;
+      justify-content:flex-start;
+      gap:14px;
+      margin:14px 0 18px;
+    }
+
+    .page-title-row p{
+      font-size:14px;
+    }
+
+    .page-title-icon{
+      width:44px;
+      height:44px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      background:#e8f3ff;
+      color:#0077B6;
+      font-weight:900;
+      font-size:22px;
+      flex:0 0 auto;
+    }
+
+    .summary-grid{
+      grid-template-columns:repeat(6, minmax(0, 1fr));
+      gap:12px;
+      margin:0 0 14px;
+    }
+
+    .summary{
+      display:grid;
+      grid-template-columns:auto minmax(0, 1fr);
+      gap:12px;
+      align-items:center;
+      min-height:92px;
+      padding:16px;
+    }
+
+    .summary h2{
+      font-size:22px;
+      margin:4px 0 2px;
+      white-space:nowrap;
+    }
+
+    .summary .muted{
+      font-size:13px;
+      font-weight:650;
+    }
+
+    .kpi-subtext{
+      color:#5b6b7c;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.25;
+    }
+
+    .kpi-icon{
+      width:42px;
+      height:42px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      font-weight:900;
+      font-size:18px;
+      flex:0 0 auto;
+    }
+
+    .kpi-blue{ background:#e8f3ff; color:#0077B6; }
+    .kpi-green{ background:#dcfce7; color:#16a34a; }
+    .kpi-orange{ background:#ffedd5; color:#f97316; }
+    .kpi-purple{ background:#ede9fe; color:#7c3aed; }
+    .kpi-teal{ background:#ccfbf1; color:#0f9f9a; }
+
+    .bills-workspace{
+      grid-template-columns:minmax(0, 1fr) 440px;
+      gap:14px;
+      margin-bottom:0;
+    }
+
+    .bills-main-column,
+    .bills-side-column{
+      display:grid;
+      gap:14px;
+      min-width:0;
+    }
+
+    .section-heading{
+      margin-bottom:14px;
+    }
+
+    .grid{
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:12px;
+    }
+
+    label{
+      font-size:12px;
+    }
+
+    input,
+    select,
+    textarea{
+      min-height:42px;
+      padding:10px 12px;
+      border-radius:10px;
+    }
+
+    textarea{
+      min-height:78px;
+    }
+
+    .form-actions{
+      justify-content:flex-end;
+      margin-top:12px;
+    }
+
+    .btn{
+      border-radius:10px;
+    }
+
+    .overview-card{
+      padding:20px;
+    }
+
+    .overview-card h2,
+    .chart-card h2{
+      font-size:20px;
+    }
+
+    .overview-list{
+      margin-top:14px;
+    }
+
+    .overview-item{
+      padding:10px 0;
+    }
+
+    .status-dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      display:inline-block;
+      margin-right:8px;
+      vertical-align:middle;
+    }
+
+    .status-blue{ background:#0077B6; }
+    .status-green{ background:#22c55e; }
+    .status-orange{ background:#f97316; }
+    .status-purple{ background:#7c3aed; }
+
+    .status-chart{
+      display:grid;
+      grid-template-columns:150px minmax(0, 1fr);
+      gap:18px;
+      align-items:center;
+      margin-top:18px;
+    }
+
+    .status-donut{
+      width:150px;
+      aspect-ratio:1;
+      border-radius:50%;
+      background:conic-gradient(#e2e8f0 0 100%);
+      position:relative;
+      box-shadow:inset 0 0 0 1px rgba(15,23,42,.06);
+    }
+
+    .status-donut::after{
+      content:"";
+      position:absolute;
+      inset:38px;
+      border-radius:50%;
+      background:white;
+      box-shadow:0 0 0 1px rgba(226,232,240,.9);
+    }
+
+    .status-legend{
+      display:grid;
+      gap:10px;
+    }
+
+    .status-legend-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      padding-bottom:10px;
+      border-bottom:1px solid #eef2f7;
+      font-size:14px;
+    }
+
+    .status-legend-row:last-child{
+      border-bottom:0;
+      padding-bottom:0;
+    }
+
+    .bill-row{
+      padding:12px 0;
+      min-width:0;
+    }
+
+    .bill-table-header{
+      color:#5b6b7c;
+      font-size:12px;
+      font-weight:800;
+      padding-top:0;
+    }
+
+    .row-actions .btn{
+      padding:8px 11px;
+    }
+
+    @media (max-width:1180px){
+      .summary-grid{
+        grid-template-columns:repeat(3, minmax(0, 1fr));
+      }
+
+      .bills-workspace{
+        grid-template-columns:1fr;
+      }
+
+    }
+
+    @media (max-width:900px){
+      .grid{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+
+      .status-chart{
+        grid-template-columns:1fr;
+      }
+    }
+
+    @media (max-width:640px){
+      .wrap{
+        padding:24px 16px 44px;
+      }
+
+      h1{
+        font-size:28px;
+      }
+
+      .summary-grid,
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+    .summary{
+      display:block;
+      min-height:92px;
+    }
+
+    .bills-workspace{
+      display:grid;
+      grid-template-columns:minmax(0, 2fr) minmax(340px, 1fr);
+      gap:18px;
+      align-items:start;
+      width:100%;
+    }
+
+    .bills-main-column{
+      width:100%;
+      max-width:920px;
+      justify-self:start;
+    }
+
+    .bills-side-column{
+      width:100%;
+      min-width:0;
+    }
+
+    .bills-main-column,
+    .bills-side-column{
+      display:grid;
+      gap:18px;
+      align-content:start;
+    }
+
+    .overview-card{
+      position:static;
+      top:auto;
+    }
+
+    .chart-card{
+      position:static;
+    }
+
+    #billsList{
+      overflow-x:visible;
+    }
+
+    .bill-row{
+      min-width:0;
+      grid-template-columns:minmax(0, 1.4fr) minmax(86px, .8fr) minmax(78px, .75fr) minmax(78px, .7fr) minmax(118px, auto);
+    }
+
+    @media (max-width:1180px){
+      .bills-workspace{
+        grid-template-columns:minmax(0, 1fr);
+      }
+
+      .bills-main-column{
+        max-width:none;
+      }
+    }
+
+    @media (max-width:760px){
+      .bill-row,
+      .bill-table-header{
+        grid-template-columns:1fr;
+      }
+
+      .bill-table-header{
+        display:none;
+      }
+    }
+
+    .list-card{
+      overflow:hidden;
+    }
+
+    .list-header{
+      align-items:flex-start;
+    }
+
+    .list-title-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .recent-title-icon{
+      width:30px;
+      height:30px;
+      border-radius:10px;
+      display:grid;
+      place-items:center;
+      background:#eef6ff;
+      color:#0077B6;
+      font-size:16px;
+      font-weight:900;
+      flex:0 0 auto;
+    }
+
+    .view-all-link{
+      color:#0077B6;
+      text-decoration:none;
+      font-size:13px;
+      font-weight:800;
+      white-space:nowrap;
+      padding-top:6px;
+    }
+
+    .view-all-link:hover{
+      color:#005f91;
+    }
+
+    .bill-table-header{
+      background:#f8fbff;
+      border:1px solid #e8eef7;
+      border-radius:12px;
+      padding:10px 12px;
+      margin-bottom:8px;
+      text-transform:uppercase;
+      letter-spacing:.02em;
+    }
+
+    .bill-row:not(.bill-table-header){
+      border-bottom:0;
+      border-radius:14px;
+      padding:14px 12px;
+      transition:background .16s ease, box-shadow .16s ease, transform .16s ease;
+    }
+
+    .bill-row:not(.bill-table-header):nth-child(odd){
+      background:#fbfdff;
+    }
+
+    .bill-row:not(.bill-table-header):hover{
+      background:#f4f9ff;
+      box-shadow:0 10px 22px rgba(15,23,42,.06);
+      transform:translateY(-1px);
+    }
+
+    .bill-supplier{
+      color:#102033;
+      font-size:15px;
+      font-weight:900;
+      line-height:1.25;
+    }
+
+    .bill-number{
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .bill-date-label{
+      display:block;
+      color:#7b8ba0;
+      font-size:11px;
+      font-weight:800;
+      margin-bottom:3px;
+      text-transform:uppercase;
+      letter-spacing:.02em;
+    }
+
+    .bill-date{
+      color:#102033;
+      font-size:14px;
+      font-weight:800;
+      font-variant-numeric:tabular-nums;
+    }
+
+    .bill-total{
+      color:#102033;
+      font-size:14px;
+      font-weight:900;
+      font-variant-numeric:tabular-nums;
+    }
+
+    .pill{
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:12px;
+      line-height:1;
+      border:1px solid transparent;
+    }
+
+    .pill-paid{
+      background:#dcfce7;
+      color:#15803d;
+      border-color:#bbf7d0;
+    }
+
+    .pill-unpaid{
+      background:#e8f3ff;
+      color:#075985;
+      border-color:#cfe8ff;
+    }
+
+    .pill-overdue{
+      background:#ffedd5;
+      color:#c2410c;
+      border-color:#fed7aa;
+    }
+
+    .row-actions{
+      gap:6px;
+    }
+
+    .row-actions .btn{
+      border-radius:9px;
+      margin:0;
+      font-size:12px;
+      line-height:1;
+    }
+
+    .btn-secondary{
+      background:#f8fafc;
+      color:#475569;
+      border:1px solid #dbe3ec;
+    }
+
+    .btn-positive{
+      background:#16a34a;
+      color:white;
+    }
+
+    .btn-danger-subtle{
+      background:transparent;
+      color:#b91c1c;
+      padding-inline:8px;
+    }
+
+    .recent-footer{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      border-top:1px solid #eef2f7;
+      margin-top:10px;
+      padding-top:12px;
+      color:#5b6b7c;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    @media (max-width:760px){
+      .list-header{
+        flex-direction:column;
+        gap:10px;
+      }
+
+      .bill-row:not(.bill-table-header){
+        padding:14px;
+        border:1px solid #e8eef7;
+      }
+
+      .row-actions{
+        justify-content:flex-start;
       }
     }
   </style>
@@ -176,27 +887,35 @@
 
       <nav class="app-nav">
         <a href="/dashboard.html">Dashboard</a>
-        <span>|</span>
+        <span></span>
 
         <a href="/resources/tools/invoice-generator.html">Invoices</a>
-        <span>|</span>
+        <span></span>
 
         <a class="active" href="/resources/tools/bills.html">Bills</a>
-        <span>|</span>
+        <span></span>
 
         <a href="/resources/tools/client-tracker.html">Clients</a>
-        <span>|</span>
+        <span></span>
 
-        <a href="https://expenses.simple-books.co.uk">Expenses</a>
-        <span>|</span>
+        <a href="https://expenses.simple-books.co.uk" target="_blank">Expenses</a>
+        <span></span>
 
         <a href="/exports.html">Exports</a>
-        <span>|</span>
+        <span></span>
 
         <a href="/account.html">Account</a>
       </nav>
 
     </header>
+
+    <section class="page-title-row">
+      <div class="page-title-icon" aria-hidden="true">B</div>
+      <div>
+        <h1>Bills</h1>
+        <p class="muted">Manage supplier bills, due dates and payment status.</p>
+      </div>
+    </section>
 
     <section class="summary-grid">
       <div class="card summary">
@@ -218,65 +937,158 @@
         <div class="muted">Saved bills</div>
         <h2 id="billCount">0</h2>
       </div>
+      <div class="card summary">
+        <div class="muted">Total bills</div>
+        <h2 id="totalBills">&pound;0.00</h2>
+        <div class="kpi-subtext" id="totalBillsMeta">0 bills</div>
+      </div>
+
+      <div class="card summary">
+        <div class="muted">Average bill</div>
+        <h2 id="averageBill">&pound;0.00</h2>
+        <div class="kpi-subtext">This year</div>
+      </div>
     </section>
 
-    <section class="card">
-      <h2>Add bill</h2>
-
-      <div class="grid">
-        <div>
-          <label>Supplier</label>
-          <input id="supplier" placeholder="Supplier name">
+    <section class="bills-workspace">
+      <div class="bills-main-column">
+      <section class="card">
+        <div class="section-heading">
+          <div>
+            <h2>Add bill</h2>
+            <p class="muted">Record supplier details, amounts and payment status.</p>
+          </div>
         </div>
 
-        <div>
-          <label>Bill number</label>
-          <input id="billNumber" placeholder="BILL-001">
-        </div>
+        <div class="grid">
+          <div class="field">
+            <label>Supplier</label>
+            <input id="supplier" placeholder="Supplier name">
+          </div>
 
-        <div>
-          <label>Bill date</label>
-          <input id="billDate" type="date">
-        </div>
+          <div class="field">
+            <label>Bill number</label>
+            <input id="billNumber" placeholder="BILL-001">
+          </div>
 
-        <div>
-          <label>Due date</label>
-          <input id="dueDate" type="date">
-        </div>
+          <div class="field">
+            <label>Bill date</label>
+            <input id="billDate" type="date">
+          </div>
 
-        <div>
+          <div class="field">
+            <label>Due date</label>
+            <input id="dueDate" type="date">
+          </div>
+
+        <div class="field">
           <label>Net amount (£)</label>
           <input id="netAmount" type="number" step="0.01" placeholder="100.00">
         </div>
 
-        <div>
-          <label>VAT rate</label>
-          <select id="vatRate">
-            <option value="0.20">20%</option>
-            <option value="0.05">5%</option>
-            <option value="0">0%</option>
-          </select>
+          <div class="field">
+            <label>VAT rate</label>
+            <select id="vatRate">
+              <option value="0.20">20%</option>
+              <option value="0.05">5%</option>
+              <option value="0">0%</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Status</label>
+            <select id="status">
+              <option>Unpaid</option>
+              <option>Paid</option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label>Status</label>
-          <select id="status">
-            <option>Unpaid</option>
-            <option>Paid</option>
-          </select>
+        <div class="field-wide">
+          <label>Notes</label>
+          <textarea id="notes" placeholder="Optional notes"></textarea>
         </div>
+
+        <div class="form-actions">
+          <button class="btn" onclick="saveBill()">Save bill</button>
+        </div>
+      </section>
+
+      <section class="card list-card">
+        <div class="list-header">
+          <div>
+            <div class="list-title-row">
+              <span class="recent-title-icon" aria-hidden="true">&#9776;</span>
+              <h2>Recent bills</h2>
+            </div>
+            <p class="muted">Saved supplier bills and their current payment status.</p>
+          </div>
+          <a class="view-all-link" href="#billsList">View all bills</a>
+        </div>
+
+        <div id="billsList">
+          <p class="muted">No bills yet.</p>
+        </div>
+
+        <div class="recent-footer" id="recentBillsFooter">
+          Showing 0 of 0 bills
+        </div>
+      </section>
       </div>
 
-      <label>Notes</label>
-      <textarea id="notes" placeholder="Optional notes"></textarea>
+      <div class="bills-side-column">
+      <aside class="card overview-card" aria-labelledby="billsOverviewTitle">
+        <h2 id="billsOverviewTitle">Bills overview</h2>
+        <p class="muted">A quick snapshot of supplier bills currently saved.</p>
 
-      <button class="btn" onclick="saveBill()">Save bill</button>
-    </section>
+        <div class="overview-list">
+          <div class="overview-item">
+            <span class="muted">Unpaid</span>
+            <strong data-bills-overview="unpaid">&pound;0.00</strong>
+          </div>
 
-    <section class="card">
-      <h2>Recent bills</h2>
-      <div id="billsList">
-        <p class="muted">No bills yet.</p>
+          <div class="overview-item">
+            <span class="muted">Paid</span>
+            <strong data-bills-overview="paid">&pound;0.00</strong>
+          </div>
+
+          <div class="overview-item">
+            <span class="muted">Overdue</span>
+            <strong data-bills-overview="overdue">0</strong>
+          </div>
+
+          <div class="overview-item">
+            <span class="muted">Saved bills</span>
+            <strong data-bills-overview="count">0</strong>
+          </div>
+        </div>
+      </aside>
+      <section class="card chart-card" aria-labelledby="billsStatusTitle">
+        <h2 id="billsStatusTitle">Bills by status</h2>
+
+        <div class="status-chart">
+          <div class="status-donut" id="statusDonut" aria-hidden="true"></div>
+
+          <div class="status-legend">
+            <div class="status-legend-row">
+              <span><i class="status-dot status-blue"></i>Unpaid</span>
+              <strong id="statusChartUnpaid">&pound;0.00 (0%)</strong>
+            </div>
+
+            <div class="status-legend-row">
+              <span><i class="status-dot status-green"></i>Paid</span>
+              <strong id="statusChartPaid">&pound;0.00 (0%)</strong>
+            </div>
+
+            <div class="status-legend-row">
+              <span><i class="status-dot status-orange"></i>Overdue</span>
+              <strong id="statusChartOverdue">&pound;0.00 (0%)</strong>
+            </div>
+          </div>
+        </div>
+
+        <p class="muted">Percentages are of total bill value.</p>
+      </section>
       </div>
     </section>
   </main>
@@ -304,6 +1116,82 @@
       due.setHours(0, 0, 0, 0);
 
       return due < today;
+    }
+
+    function billCountText(count) {
+      return `${count} ${count === 1 ? "bill" : "bills"}`;
+    }
+
+    function setKpiSubtext(totalId, text) {
+      const total = document.getElementById(totalId);
+
+      if (!total) return;
+
+      let subtext = total.nextElementSibling;
+
+      if (!subtext || !subtext.classList.contains("kpi-subtext")) {
+        subtext = document.createElement("div");
+        subtext.className = "kpi-subtext";
+        total.insertAdjacentElement("afterend", subtext);
+      }
+
+      subtext.textContent = text;
+    }
+
+    function updateStatusChart(unpaidValue, paidValue, overdueValue, totalValue) {
+      const donut = document.getElementById("statusDonut");
+
+      const activeUnpaid = Math.max(unpaidValue - overdueValue, 0);
+      const chartTotal = activeUnpaid + paidValue + overdueValue;
+
+      const unpaidPct = chartTotal ? (activeUnpaid / chartTotal) * 100 : 0;
+      const paidPct = chartTotal ? (paidValue / chartTotal) * 100 : 0;
+      const overduePct = chartTotal ? (overdueValue / chartTotal) * 100 : 0;
+
+      const unpaidEnd = unpaidPct;
+      const paidEnd = unpaidEnd + paidPct;
+      const overdueEnd = paidEnd + overduePct;
+
+      if (donut) {
+        donut.style.background = chartTotal
+          ? `conic-gradient(#0077B6 0 ${unpaidEnd}%, #22c55e ${unpaidEnd}% ${paidEnd}%, #f97316 ${paidEnd}% ${overdueEnd}%, #e2e8f0 ${overdueEnd}% 100%)`
+          : "conic-gradient(#e2e8f0 0 100%)";
+      }
+
+      document.getElementById("statusChartUnpaid").textContent =
+        `${money(activeUnpaid)} (${Math.round(unpaidPct)}%)`;
+
+      document.getElementById("statusChartPaid").textContent =
+        `${money(paidValue)} (${Math.round(paidPct)}%)`;
+
+      document.getElementById("statusChartOverdue").textContent =
+        `${money(overdueValue)} (${Math.round(overduePct)}%)`;
+    }
+
+    function formatBillDate(value) {
+      if (!value) return "No due date";
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+
+      return date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      });
+    }
+
+    function billStatusLabel(bill) {
+      return isOverdue(bill) ? "Overdue" : (bill.status || "Unpaid");
+    }
+
+    function billStatusClass(bill) {
+      if (isOverdue(bill)) return "pill-overdue";
+      if (bill.status === "Paid") return "pill-paid";
+      return "pill-unpaid";
     }
 
     function saveBill() {
@@ -386,47 +1274,81 @@
         .reduce((sum, b) => sum + Number(b.total || 0), 0);
 
       const overdue = bills.filter(isOverdue).length;
+      const unpaidCount = bills.filter(b => b.status !== "Paid").length;
+      const paidCount = bills.filter(b => b.status === "Paid").length;
+      const overdueValue = bills
+        .filter(isOverdue)
+        .reduce((sum, b) => sum + Number(b.total || 0), 0);
+      const totalValue = unpaid + paid;
+      const averageValue = bills.length ? totalValue / bills.length : 0;
 
       document.getElementById("unpaidTotal").textContent = money(unpaid);
       document.getElementById("paidTotal").textContent = money(paid);
       document.getElementById("overdueCount").textContent = overdue;
       document.getElementById("billCount").textContent = bills.length;
+      document.getElementById("totalBills").textContent = money(totalValue);
+      document.getElementById("averageBill").textContent = money(averageValue);
+
+      setKpiSubtext("unpaidTotal", billCountText(unpaidCount));
+      setKpiSubtext("paidTotal", billCountText(paidCount));
+      setKpiSubtext("overdueCount", money(overdueValue));
+      setKpiSubtext("billCount", "This year");
+      setKpiSubtext("totalBills", billCountText(bills.length));
+
+      document.querySelector('[data-bills-overview="unpaid"]').textContent = money(unpaid);
+      document.querySelector('[data-bills-overview="paid"]').textContent = money(paid);
+      document.querySelector('[data-bills-overview="overdue"]').textContent =
+        `${billCountText(overdue)} / ${money(overdueValue)}`;
+      document.querySelector('[data-bills-overview="count"]').textContent = bills.length;
+
+      updateStatusChart(unpaid, paid, overdueValue, totalValue);
 
       const list = document.getElementById("billsList");
+      const recentFooter = document.getElementById("recentBillsFooter");
+
+      if (recentFooter) {
+        recentFooter.textContent = `Showing ${bills.length} of ${bills.length} bills`;
+      }
 
       if (bills.length === 0) {
         list.innerHTML = `<p class="muted">No bills yet.</p>`;
         return;
       }
 
-      list.innerHTML = bills.map(bill => `
+      list.innerHTML = `
+        <div class="bill-row bill-table-header">
+          <div>Supplier</div>
+          <div>Due date</div>
+          <div>Total</div>
+          <div>Status</div>
+          <div></div>
+        </div>
+      ` + bills.map(bill => `
         <div class="bill-row">
           <div>
-            <strong>${bill.supplier}</strong><br>
-            <span class="muted">${bill.billNumber || "No bill number"}</span>
+            <div class="bill-supplier">${bill.supplier}</div>
+            <div class="bill-number">${bill.billNumber || "No bill number"}</div>
           </div>
 
           <div>
-            <span class="muted">Due</span><br>
-            <strong class="${isOverdue(bill) ? "danger" : ""}">
-              ${bill.dueDate || "No due date"}
-            </strong>
+            <span class="bill-date-label">Due</span>
+            <span class="bill-date ${isOverdue(bill) ? "danger" : ""}">${formatBillDate(bill.dueDate)}</span>
           </div>
 
           <div>
-            <span class="muted">Total</span><br>
-            <strong>${money(bill.total)}</strong>
+            <span class="bill-date-label">Total</span>
+            <span class="bill-total">${money(bill.total)}</span>
           </div>
 
           <div>
-            <span class="pill">${bill.status}</span>
+            <span class="pill ${billStatusClass(bill)}">${billStatusLabel(bill)}</span>
           </div>
 
-          <div>
+          <div class="row-actions">
             ${bill.status !== "Paid"
-              ? `<button class="btn" onclick="markBillPaid(${bill.id})">Mark paid</button>`
+              ? `<button class="btn btn-positive" onclick="markBillPaid(${bill.id})">Mark paid</button>`
               : ""}
-            <button class="btn" onclick="deleteBill(${bill.id})">Delete</button>
+            <button class="btn btn-danger-subtle" onclick="deleteBill(${bill.id})">Delete</button>
           </div>
         </div>
       `).join("");
