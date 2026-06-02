@@ -199,6 +199,28 @@
       margin-top:18px;
     }
 
+    .attachment-placeholder{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    .attachment-placeholder-button{
+      border:1px dashed #cbd5e1;
+      background:#f8fafc;
+      color:#64748b;
+      cursor:not-allowed;
+      opacity:.9;
+    }
+
+    .attachment-helper{
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+    }
+
     .btn {
       border: 0;
       background: #0077B6;
@@ -768,6 +790,13 @@
       font-weight:700;
     }
 
+    .bill-attachment-label{
+      color:#94a3b8;
+      font-size:12px;
+      font-weight:700;
+      margin-top:4px;
+    }
+
     .bill-date-label{
       display:block;
       color:#7b8ba0;
@@ -1007,6 +1036,16 @@
         <div class="field-wide">
           <label>Notes</label>
           <textarea id="notes" placeholder="Optional notes"></textarea>
+        </div>
+
+        <div class="field-wide">
+          <label>Attachment</label>
+          <div class="attachment-placeholder">
+            <button class="btn attachment-placeholder-button" type="button" disabled>
+              Attach PDF receipt/bill
+            </button>
+            <span class="attachment-helper">PDF upload coming soon</span>
+          </div>
         </div>
 
         <div class="form-actions">
@@ -1328,6 +1367,7 @@
           <div>
             <div class="bill-supplier">${bill.supplier}</div>
             <div class="bill-number">${bill.billNumber || "No bill number"}</div>
+            <div class="bill-attachment-label">No attachment</div>
           </div>
 
           <div>
