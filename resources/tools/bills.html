@@ -454,12 +454,27 @@
     }
 
     .summary{
+      position:relative;
       display:grid;
       grid-template-columns:auto minmax(0, 1fr);
       gap:12px;
       align-items:center;
       min-height:92px;
       padding:16px;
+      overflow:hidden;
+      border-color:#e6edf5;
+      box-shadow:0 14px 30px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+
+    .summary::before{
+      content:"";
+      position:absolute;
+      top:0;
+      left:0;
+      right:0;
+      height:4px;
+      background:var(--kpi-accent, #0077B6);
     }
 
     .summary h2{
@@ -473,6 +488,10 @@
       font-weight:650;
     }
 
+    .summary-content{
+      min-width:0;
+    }
+
     .kpi-subtext{
       color:#5b6b7c;
       font-size:13px;
@@ -481,21 +500,38 @@
     }
 
     .kpi-icon{
-      width:42px;
-      height:42px;
+      width:38px;
+      height:38px;
       border-radius:50%;
       display:grid;
       place-items:center;
       font-weight:900;
-      font-size:18px;
+      font-size:16px;
       flex:0 0 auto;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.65), 0 8px 18px rgba(15,23,42,.08);
     }
 
-    .kpi-blue{ background:#e8f3ff; color:#0077B6; }
-    .kpi-green{ background:#dcfce7; color:#16a34a; }
-    .kpi-orange{ background:#ffedd5; color:#f97316; }
-    .kpi-purple{ background:#ede9fe; color:#7c3aed; }
-    .kpi-teal{ background:#ccfbf1; color:#0f9f9a; }
+    .kpi-blue{ --kpi-accent:#0077B6; background:#e8f3ff; color:#0077B6; }
+    .kpi-green{ --kpi-accent:#16a34a; background:#dcfce7; color:#16a34a; }
+    .kpi-orange{ --kpi-accent:#f97316; background:#ffedd5; color:#f97316; }
+    .kpi-purple{ --kpi-accent:#7c3aed; background:#ede9fe; color:#7c3aed; }
+    .kpi-teal{ --kpi-accent:#0f9f9a; background:#ccfbf1; color:#0f9f9a; }
+    .kpi-slate{ --kpi-accent:#475569; background:#eef2f7; color:#475569; }
+
+    .summary-kpi-blue{ --kpi-accent:#0077B6; }
+    .summary-kpi-green{ --kpi-accent:#16a34a; }
+    .summary-kpi-orange{ --kpi-accent:#f97316; }
+    .summary-kpi-purple{ --kpi-accent:#7c3aed; }
+    .summary-kpi-teal{ --kpi-accent:#0f9f9a; }
+    .summary-kpi-slate{ --kpi-accent:#475569; }
+
+    @media (hover:hover) and (pointer:fine){
+      .summary:hover{
+        transform:translateY(-2px);
+        border-color:#d8e4ef;
+        box-shadow:0 18px 38px rgba(15,23,42,.11), 0 2px 5px rgba(15,23,42,.05);
+      }
+    }
 
     .bills-workspace{
       grid-template-columns:minmax(0, 1fr) 440px;
@@ -671,11 +707,6 @@
       .grid{
         grid-template-columns:1fr;
       }
-    }
-
-    .summary{
-      display:block;
-      min-height:92px;
     }
 
     .bills-workspace{
@@ -980,35 +1011,53 @@
     </section>
 
     <section class="summary-grid">
-      <div class="card summary">
-        <div class="muted">Unpaid bills</div>
-        <h2 id="unpaidTotal">£0.00</h2>
+      <div class="card summary summary-kpi-blue">
+        <span class="kpi-icon kpi-blue" aria-hidden="true">U</span>
+        <div class="summary-content">
+          <div class="muted">Unpaid bills</div>
+          <h2 id="unpaidTotal">£0.00</h2>
+        </div>
       </div>
 
-      <div class="card summary">
-        <div class="muted">Paid bills</div>
-        <h2 id="paidTotal">£0.00</h2>
+      <div class="card summary summary-kpi-green">
+        <span class="kpi-icon kpi-green" aria-hidden="true">P</span>
+        <div class="summary-content">
+          <div class="muted">Paid bills</div>
+          <h2 id="paidTotal">£0.00</h2>
+        </div>
       </div>
 
-      <div class="card summary">
-        <div class="muted">Overdue bills</div>
-        <h2 id="overdueCount">0</h2>
+      <div class="card summary summary-kpi-orange">
+        <span class="kpi-icon kpi-orange" aria-hidden="true">!</span>
+        <div class="summary-content">
+          <div class="muted">Overdue bills</div>
+          <h2 id="overdueCount">0</h2>
+        </div>
       </div>
 
-      <div class="card summary">
-        <div class="muted">Saved bills</div>
-        <h2 id="billCount">0</h2>
+      <div class="card summary summary-kpi-purple">
+        <span class="kpi-icon kpi-purple" aria-hidden="true">S</span>
+        <div class="summary-content">
+          <div class="muted">Saved bills</div>
+          <h2 id="billCount">0</h2>
+        </div>
       </div>
-      <div class="card summary">
-        <div class="muted">Total bills</div>
-        <h2 id="totalBills">&pound;0.00</h2>
-        <div class="kpi-subtext" id="totalBillsMeta">0 bills</div>
+      <div class="card summary summary-kpi-teal">
+        <span class="kpi-icon kpi-teal" aria-hidden="true">T</span>
+        <div class="summary-content">
+          <div class="muted">Total bills</div>
+          <h2 id="totalBills">&pound;0.00</h2>
+          <div class="kpi-subtext" id="totalBillsMeta">0 bills</div>
+        </div>
       </div>
 
-      <div class="card summary">
-        <div class="muted">Average bill</div>
-        <h2 id="averageBill">&pound;0.00</h2>
-        <div class="kpi-subtext">This year</div>
+      <div class="card summary summary-kpi-slate">
+        <span class="kpi-icon kpi-slate" aria-hidden="true">A</span>
+        <div class="summary-content">
+          <div class="muted">Average bill</div>
+          <h2 id="averageBill">&pound;0.00</h2>
+          <div class="kpi-subtext">This year</div>
+        </div>
       </div>
     </section>
 
