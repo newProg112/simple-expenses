@@ -211,7 +211,6 @@
       border:1px dashed #cbd5e1;
       background:#f8fafc;
       color:#64748b;
-      cursor:not-allowed;
       opacity:.9;
     }
 
@@ -219,6 +218,40 @@
       color:#64748b;
       font-size:13px;
       font-weight:700;
+    }
+
+    .attachment-input{
+      display:none;
+    }
+
+    .attachment-progress{
+      width:100%;
+      height:8px;
+      border:0;
+      border-radius:999px;
+      overflow:hidden;
+      accent-color:#0077B6;
+    }
+
+    .attachment-status{
+      flex-basis:100%;
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .attachment-error{
+      color:#b91c1c;
+    }
+
+    .bill-attachment-link{
+      color:#0077B6;
+      text-decoration:none;
+    }
+
+    .bill-attachment-link:hover{
+      color:#005f91;
+      text-decoration:underline;
     }
 
     .btn {
@@ -1041,15 +1074,18 @@
         <div class="field-wide">
           <label>Attachment</label>
           <div class="attachment-placeholder">
-            <button class="btn attachment-placeholder-button" type="button" disabled>
+            <label class="btn attachment-placeholder-button" for="billAttachment">
               Attach PDF receipt/bill
-            </button>
-            <span class="attachment-helper">PDF upload coming soon</span>
+            </label>
+            <input class="attachment-input" id="billAttachment" type="file" accept="application/pdf,.pdf">
+            <span class="attachment-helper" id="attachmentFileName">No file selected</span>
+            <progress class="attachment-progress" id="attachmentProgress" max="100" value="0" hidden></progress>
+            <span class="attachment-status" id="attachmentStatus"></span>
           </div>
         </div>
 
         <div class="form-actions">
-          <button class="btn" onclick="saveBill()">Save bill</button>
+          <button class="btn" id="saveBillButton" onclick="saveBill()">Save bill</button>
         </div>
       </section>
 
@@ -1132,7 +1168,33 @@
     </section>
   </main>
 
-  <script>
+  <script type="module">
+    import { app, auth, db } from "../../firebase-config.js";
+    import {
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      deleteDoc,
+      doc,
+      setDoc,
+      updateDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      getDownloadURL,
+      getStorage,
+      ref as storageRef,
+      uploadBytesResumable
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+    const storage = getStorage(app);
+    let selectedAttachment = null;
+    const currentUserPromise = new Promise(resolve => {
+      const unsubscribe = onAuthStateChanged(auth, user => {
+        unsubscribe();
+        resolve(user);
+      });
+    });
+
     function getBills() {
       return JSON.parse(localStorage.getItem("simpleBooksBills") || "[]");
     }
@@ -1233,7 +1295,109 @@
       return "pill-unpaid";
     }
 
-    function saveBill() {
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function billDocRef(id) {
+      const user = auth.currentUser;
+      if (!user) return null;
+      return doc(db, "users", user.uid, "bills", String(id));
+    }
+
+    async function getCurrentUser() {
+      return auth.currentUser || await currentUserPromise;
+    }
+
+    function setAttachmentStatus(message, isError = false) {
+      const status = document.getElementById("attachmentStatus");
+      status.textContent = message || "";
+      status.classList.toggle("attachment-error", Boolean(isError));
+    }
+
+    function resetAttachmentUI() {
+      selectedAttachment = null;
+      document.getElementById("billAttachment").value = "";
+      document.getElementById("attachmentFileName").textContent = "No file selected";
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus("");
+    }
+
+    function handleAttachmentSelection(event) {
+      const file = event.target.files[0];
+
+      if (!file) {
+        resetAttachmentUI();
+        return;
+      }
+
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+      if (!isPdf) {
+        event.target.value = "";
+        selectedAttachment = null;
+        document.getElementById("attachmentFileName").textContent = "No file selected";
+        setAttachmentStatus("Please choose a PDF file.", true);
+        return;
+      }
+
+      selectedAttachment = file;
+      document.getElementById("attachmentFileName").textContent = file.name;
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus("");
+    }
+
+    function uploadAttachment(file, billId) {
+      return new Promise((resolve, reject) => {
+        const progress = document.getElementById("attachmentProgress");
+        const safeFileName = file.name.replace(/[^\w.\-() ]+/g, "_");
+        const fileRef = storageRef(storage, `bills/${billId}/${safeFileName}`);
+        const uploadTask = uploadBytesResumable(fileRef, file, {
+          contentType: "application/pdf"
+        });
+
+        progress.hidden = false;
+        progress.value = 0;
+        setAttachmentStatus("Uploading PDF... 0%");
+
+        uploadTask.on(
+          "state_changed",
+          snapshot => {
+            const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            progress.value = percent;
+            setAttachmentStatus(`Uploading PDF... ${percent}%`);
+          },
+          error => {
+            setAttachmentStatus(`Upload failed: ${error.message}`, true);
+            reject(error);
+          },
+          async () => {
+            try {
+              const attachmentUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              setAttachmentStatus("PDF uploaded.");
+              resolve({
+                attachmentName: file.name,
+                attachmentUrl
+              });
+            } catch (error) {
+              setAttachmentStatus(`Upload failed: ${error.message}`, true);
+              reject(error);
+            }
+          }
+        );
+      });
+    }
+
+    async function saveBill() {
       const supplier = document.getElementById("supplier").value.trim();
 
       if (!supplier) {
@@ -1241,13 +1405,36 @@
         return;
       }
 
+      const saveButton = document.getElementById("saveBillButton");
+      saveButton.disabled = true;
+
+      const user = await getCurrentUser();
+
+      if (!user) {
+        saveButton.disabled = false;
+        setAttachmentStatus("Please sign in before saving bills with attachments.", true);
+        return;
+      }
+
       const net = Number(document.getElementById("netAmount").value || 0);
       const vatRate = Number(document.getElementById("vatRate").value || 0);
       const vat = net * vatRate;
       const total = net + vat;
+      const billId = Date.now();
+
+      let attachment = {};
+
+      try {
+        if (selectedAttachment) {
+          attachment = await uploadAttachment(selectedAttachment, billId);
+        }
+      } catch (error) {
+        saveButton.disabled = false;
+        return;
+      }
 
       const bill = {
-        id: Date.now(),
+        id: billId,
         supplier,
         billNumber: document.getElementById("billNumber").value.trim(),
         billDate: document.getElementById("billDate").value,
@@ -1258,8 +1445,20 @@
         total,
         status: document.getElementById("status").value,
         notes: document.getElementById("notes").value.trim(),
+        attachmentName: attachment.attachmentName || "",
+        attachmentUrl: attachment.attachmentUrl || "",
         createdAt: new Date().toISOString()
       };
+
+      const ref = doc(db, "users", user.uid, "bills", String(billId));
+
+      try {
+        await setDoc(ref, bill);
+      } catch (error) {
+        setAttachmentStatus(`Firestore save failed: ${error.message}`, true);
+        saveButton.disabled = false;
+        return;
+      }
 
       const bills = getBills();
       bills.unshift(bill);
@@ -1267,6 +1466,7 @@
 
       clearForm();
       renderBills();
+      saveButton.disabled = false;
       alert("Bill saved.");
     }
 
@@ -1279,9 +1479,10 @@
       document.getElementById("vatRate").value = "0.20";
       document.getElementById("status").value = "Unpaid";
       document.getElementById("notes").value = "";
+      resetAttachmentUI();
     }
 
-    function markBillPaid(id) {
+    async function markBillPaid(id) {
       const bills = getBills();
       const bill = bills.find(b => b.id === id);
 
@@ -1290,15 +1491,38 @@
         bill.paidAt = new Date().toISOString();
         saveBills(bills);
         renderBills();
+
+        const ref = billDocRef(id);
+
+        if (ref) {
+          try {
+            await updateDoc(ref, {
+              status: "Paid",
+              paidAt: bill.paidAt
+            });
+          } catch (error) {
+            console.error("Firestore bill update failed", error);
+          }
+        }
       }
     }
 
-    function deleteBill(id) {
+    async function deleteBill(id) {
       if (!confirm("Delete this bill?")) return;
 
       const bills = getBills().filter(b => b.id !== id);
       saveBills(bills);
       renderBills();
+
+      const ref = billDocRef(id);
+
+      if (ref) {
+        try {
+          await deleteDoc(ref);
+        } catch (error) {
+          console.error("Firestore bill delete failed", error);
+        }
+      }
     }
 
     function renderBills() {
@@ -1362,12 +1586,20 @@
           <div>Status</div>
           <div></div>
         </div>
-      ` + bills.map(bill => `
+      ` + bills.map(bill => {
+        const attachmentLabel = bill.attachmentName
+          ? `<a class="bill-attachment-link" href="${escapeHtml(bill.attachmentUrl)}" target="_blank" rel="noopener">${escapeHtml(bill.attachmentName)}</a>`
+          : "No attachment";
+        const viewPdfButton = bill.attachmentUrl
+          ? `<a class="btn btn-secondary" href="${escapeHtml(bill.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
+          : "";
+
+        return `
         <div class="bill-row">
           <div>
-            <div class="bill-supplier">${bill.supplier}</div>
-            <div class="bill-number">${bill.billNumber || "No bill number"}</div>
-            <div class="bill-attachment-label">No attachment</div>
+            <div class="bill-supplier">${escapeHtml(bill.supplier)}</div>
+            <div class="bill-number">${escapeHtml(bill.billNumber || "No bill number")}</div>
+            <div class="bill-attachment-label">${attachmentLabel}</div>
           </div>
 
           <div>
@@ -1385,14 +1617,21 @@
           </div>
 
           <div class="row-actions">
+            ${viewPdfButton}
             ${bill.status !== "Paid"
               ? `<button class="btn btn-positive" onclick="markBillPaid(${bill.id})">Mark paid</button>`
               : ""}
             <button class="btn btn-danger-subtle" onclick="deleteBill(${bill.id})">Delete</button>
           </div>
         </div>
-      `).join("");
+      `;
+      }).join("");
     }
+
+    document.getElementById("billAttachment").addEventListener("change", handleAttachmentSelection);
+    window.saveBill = saveBill;
+    window.markBillPaid = markBillPaid;
+    window.deleteBill = deleteBill;
 
     renderBills();
   </script>
