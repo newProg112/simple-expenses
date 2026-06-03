@@ -113,6 +113,39 @@
       white-space:nowrap;
     }
 
+    .trend-badge{
+      display:inline-flex;
+      align-items:center;
+      width:max-content;
+      max-width:100%;
+      margin-top:4px;
+      padding:4px 8px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:850;
+      line-height:1.15;
+      white-space:nowrap;
+      border:1px solid transparent;
+    }
+
+    .trend-positive{
+      background:#dcfce7;
+      border-color:#bbf7d0;
+      color:#15803d;
+    }
+
+    .trend-negative{
+      background:#fee2e2;
+      border-color:#fecaca;
+      color:#b91c1c;
+    }
+
+    .trend-neutral{
+      background:#eef2f7;
+      border-color:#e2e8f0;
+      color:#64748b;
+    }
+
     .summary-content{
       min-width:0;
     }
@@ -342,6 +375,10 @@
         grid-template-columns:1fr;
       }
 
+      .trend-badge{
+        white-space:normal;
+      }
+
       .onboarding-header{
         flex-direction:column;
         gap:10px;
@@ -532,6 +569,7 @@
           <div class="summary-content">
             <div class="muted">Outstanding invoices</div>
             <h2 id="outstandingTotal">&pound;0.00</h2>
+            <div class="trend-badge trend-neutral" id="outstandingTrend">No change</div>
           </div>
         </a>
 
@@ -540,6 +578,7 @@
           <div class="summary-content">
             <div class="muted">Paid invoices</div>
             <h2 id="paidTotal">&pound;0.00</h2>
+            <div class="trend-badge trend-neutral" id="paidTrend">No change</div>
           </div>
         </a>
 
@@ -548,6 +587,7 @@
           <div class="summary-content">
             <div class="muted">Overdue invoices</div>
             <h2 id="overdueCount">0</h2>
+            <div class="trend-badge trend-neutral" id="overdueTrend">No change</div>
           </div>
         </a>
 
@@ -556,6 +596,7 @@
           <div class="summary-content">
             <div class="muted">Saved invoices</div>
             <h2 id="invoiceCount">0</h2>
+            <div class="trend-badge trend-neutral" id="invoiceCountTrend">No change</div>
           </div>
         </a>
 
@@ -564,6 +605,7 @@
           <div class="summary-content">
             <div class="muted">Unpaid bills</div>
             <h2 id="unpaidBills">&pound;0.00</h2>
+            <div class="trend-badge trend-neutral" id="unpaidBillsTrend">No change</div>
           </div>
         </a>
 
@@ -572,6 +614,7 @@
           <div class="summary-content">
             <div class="muted">Net position</div>
             <h2 id="netPosition">&pound;0.00</h2>
+            <div class="trend-badge trend-neutral" id="netPositionTrend">No change</div>
           </div>
         </a>
 
@@ -580,6 +623,7 @@
           <div class="summary-content">
             <div class="muted">Overdue bills</div>
             <h2 id="overdueBills">0</h2>
+            <div class="trend-badge trend-neutral" id="overdueBillsTrend">No change</div>
           </div>
         </a>
 
@@ -588,6 +632,7 @@
           <div class="summary-content">
             <div class="muted">Cashflow position</div>
             <h2 id="cashflowPosition">&pound;0.00</h2>
+            <div class="trend-badge trend-neutral" id="cashflowPositionTrend">No change</div>
           </div>
         </a>
 
@@ -718,6 +763,107 @@
       }
     }
 
+    function parseDashboardDate(value) {
+      if (!value) return null;
+
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+      }
+
+      if (typeof value === "object") {
+        if (typeof value.toDate === "function") {
+          return value.toDate();
+        }
+
+        if (typeof value.seconds === "number") {
+          return new Date(value.seconds * 1000);
+        }
+      }
+
+      const stringValue = String(value);
+
+      if (stringValue.includes("/")) {
+        const parts = stringValue.split("/");
+
+        if (parts.length === 3) {
+          const date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+      }
+
+      const date = new Date(stringValue);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function startOfMonth(date) {
+      return new Date(date.getFullYear(), date.getMonth(), 1);
+    }
+
+    function previousMonth(date) {
+      return new Date(date.getFullYear(), date.getMonth() - 1, 1);
+    }
+
+    function isSameMonth(value, month) {
+      const date = parseDashboardDate(value);
+
+      return Boolean(
+        date &&
+        date.getFullYear() === month.getFullYear() &&
+        date.getMonth() === month.getMonth()
+      );
+    }
+
+    function invoiceActivityDate(invoice) {
+      return invoice.date || invoice.invoiceDate || invoice.createdAt || invoice.dueDate;
+    }
+
+    function billActivityDate(bill) {
+      return bill.billDate || bill.dueDate || bill.createdAt;
+    }
+
+    function isBillOverdue(bill) {
+      if (bill.status === "Paid" || !bill.dueDate) return false;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const due = parseDashboardDate(bill.dueDate);
+      if (!due) return false;
+
+      due.setHours(0, 0, 0, 0);
+      return due < today;
+    }
+
+    function trendPercent(current, previous) {
+      if (current === previous) return 0;
+      if (previous === 0) return 100;
+
+      return Math.round(Math.abs((current - previous) / Math.abs(previous)) * 100);
+    }
+
+    function setTrendBadge(id, current, previous) {
+      const badge = document.getElementById(id);
+
+      if (!badge) return;
+
+      badge.classList.remove("trend-positive", "trend-negative", "trend-neutral");
+
+      if (current > previous) {
+        badge.textContent = `↑ ${trendPercent(current, previous)}% vs previous month`;
+        badge.classList.add("trend-positive");
+        return;
+      }
+
+      if (current < previous) {
+        badge.textContent = `↓ ${trendPercent(current, previous)}% vs previous month`;
+        badge.classList.add("trend-negative");
+        return;
+      }
+
+      badge.textContent = "No change";
+      badge.classList.add("trend-neutral");
+    }
+
     function loadDashboard() {
       const invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
 
@@ -761,6 +907,67 @@
 
       const netPosition = outstanding - unpaidBills;
 
+      const currentMonth = startOfMonth(new Date());
+      const previousMonthStart = previousMonth(currentMonth);
+
+      const currentMonthInvoices =
+        invoices.filter(inv => isSameMonth(invoiceActivityDate(inv), currentMonth));
+
+      const previousMonthInvoices =
+        invoices.filter(inv => isSameMonth(invoiceActivityDate(inv), previousMonthStart));
+
+      const currentOutstanding = currentMonthInvoices
+        .filter(inv => inv.status !== "Paid")
+        .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+
+      const previousOutstanding = previousMonthInvoices
+        .filter(inv => inv.status !== "Paid")
+        .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+
+      const currentPaid = currentMonthInvoices
+        .filter(inv => inv.status === "Paid")
+        .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+
+      const previousPaid = previousMonthInvoices
+        .filter(inv => inv.status === "Paid")
+        .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+
+      const currentOverdue = invoices
+        .filter(inv => inv.status !== "Paid" && isSameMonth(inv.dueDate, currentMonth))
+        .length;
+
+      const previousOverdue = invoices
+        .filter(inv => inv.status !== "Paid" && isSameMonth(inv.dueDate, previousMonthStart))
+        .length;
+
+      const currentMonthBills =
+        bills.filter(bill => isSameMonth(billActivityDate(bill), currentMonth));
+
+      const previousMonthBills =
+        bills.filter(bill => isSameMonth(billActivityDate(bill), previousMonthStart));
+
+      const currentUnpaidBills = currentMonthBills
+        .filter(b => b.status !== "Paid")
+        .reduce((sum, bill) => sum + Number(bill.total || 0), 0);
+
+      const previousUnpaidBills = previousMonthBills
+        .filter(b => b.status !== "Paid")
+        .reduce((sum, bill) => sum + Number(bill.total || 0), 0);
+
+      const currentNetPosition = currentOutstanding - currentUnpaidBills;
+      const previousNetPosition = previousOutstanding - previousUnpaidBills;
+
+      const currentOverdueBills = bills
+        .filter(bill => isBillOverdue(bill) && isSameMonth(bill.dueDate, currentMonth))
+        .length;
+
+      const previousOverdueBills = bills
+        .filter(bill => isBillOverdue(bill) && isSameMonth(bill.dueDate, previousMonthStart))
+        .length;
+
+      const currentCashflowPosition = currentOutstanding - currentUnpaidBills;
+      const previousCashflowPosition = previousOutstanding - previousUnpaidBills;
+
       document.getElementById("outstandingTotal").textContent = money(outstanding);
       document.getElementById("paidTotal").textContent = money(paid);
       document.getElementById("overdueCount").textContent = overdue;
@@ -777,6 +984,15 @@
 
       document.getElementById("cashflowPosition").textContent =
         money(cashflowPosition);
+
+      setTrendBadge("outstandingTrend", currentOutstanding, previousOutstanding);
+      setTrendBadge("paidTrend", currentPaid, previousPaid);
+      setTrendBadge("overdueTrend", currentOverdue, previousOverdue);
+      setTrendBadge("invoiceCountTrend", currentMonthInvoices.length, previousMonthInvoices.length);
+      setTrendBadge("unpaidBillsTrend", currentUnpaidBills, previousUnpaidBills);
+      setTrendBadge("netPositionTrend", currentNetPosition, previousNetPosition);
+      setTrendBadge("overdueBillsTrend", currentOverdueBills, previousOverdueBills);
+      setTrendBadge("cashflowPositionTrend", currentCashflowPosition, previousCashflowPosition);
 
       const recent = invoices.slice(0, 5);
 
