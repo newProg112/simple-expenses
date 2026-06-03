@@ -260,6 +260,25 @@
       overflow-wrap:anywhere;
     }
 
+    .client-attachment{
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.35;
+      margin-top:6px;
+      overflow-wrap:anywhere;
+    }
+
+    .client-attachment-link{
+      color:#0077B6;
+      text-decoration:none;
+    }
+
+    .client-attachment-link:hover{
+      color:#005f91;
+      text-decoration:underline;
+    }
+
     .status-badge{
       display:inline-flex;
       align-items:center;
@@ -394,6 +413,68 @@
       border-radius:9px;
       font-size:12px;
       line-height:1;
+    }
+
+    .client-actions a{
+      display:inline-block;
+      text-decoration:none;
+      padding:8px 10px;
+      border-radius:9px;
+      font-size:12px;
+      line-height:1;
+      font-weight:800;
+    }
+
+    .attachment-placeholder{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:10px;
+      margin-bottom:12px;
+    }
+
+    .attachment-placeholder-button{
+      border:1px dashed #cbd5e1;
+      background:#f8fafc;
+      color:#64748b;
+      opacity:.9;
+      display:inline-block;
+      padding:12px 16px;
+      border-radius:10px;
+      font-weight:800;
+      cursor:pointer;
+      font-family:inherit;
+      margin:0;
+    }
+
+    .attachment-helper{
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .attachment-input{
+      display:none;
+    }
+
+    .attachment-progress{
+      width:100%;
+      height:8px;
+      border:0;
+      border-radius:999px;
+      overflow:hidden;
+      accent-color:#0077B6;
+    }
+
+    .attachment-status{
+      flex-basis:100%;
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .attachment-error{
+      color:#b91c1c;
     }
 
     .app-header{
@@ -621,8 +702,19 @@
         <label>Notes</label>
         <textarea id="clientNotes"></textarea>
 
+        <label>Attachment</label>
+        <div class="attachment-placeholder">
+          <label class="attachment-placeholder-button" for="clientAttachment">
+            Attach PDF
+          </label>
+          <input class="attachment-input" id="clientAttachment" type="file" accept="application/pdf,.pdf">
+          <span class="attachment-helper" id="attachmentFileName">No file selected</span>
+          <progress class="attachment-progress" id="attachmentProgress" max="100" value="0" hidden></progress>
+          <span class="attachment-status" id="attachmentStatus"></span>
+        </div>
+
         <div class="form-actions">
-          <button onclick="saveClient()">
+          <button id="saveClientButton" onclick="saveClient()">
             Save Client
           </button>
 
@@ -676,7 +768,28 @@
 
   </main>
 
-  <script>
+  <script type="module">
+    import { app, auth } from "../../firebase-config.js";
+    import {
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      deleteObject,
+      getDownloadURL,
+      getStorage,
+      ref as storageRef,
+      uploadBytesResumable
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+    const storage = getStorage(app);
+    const maxAttachmentSize = 10 * 1024 * 1024;
+    let selectedAttachment = null;
+    const currentUserPromise = new Promise(resolve => {
+      const unsubscribe = onAuthStateChanged(auth, user => {
+        unsubscribe();
+        resolve(user);
+      });
+    });
 
     let clients = JSON.parse(
       localStorage.getItem("simpleBooksClients") || "[]"
@@ -684,10 +797,155 @@
 
     let editingClientId = null;
 
-    function saveClient(){
+    async function getCurrentUser() {
+      return auth.currentUser || await currentUserPromise;
+    }
+
+    function saveClients(){
+      localStorage.setItem(
+        "simpleBooksClients",
+        JSON.stringify(clients)
+      );
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function setAttachmentStatus(message, isError = false) {
+      const status = document.getElementById("attachmentStatus");
+      status.textContent = message || "";
+      status.classList.toggle("attachment-error", Boolean(isError));
+    }
+
+    function resetAttachmentUI() {
+      selectedAttachment = null;
+      document.getElementById("clientAttachment").value = "";
+      document.getElementById("attachmentFileName").textContent = "No file selected";
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus("");
+    }
+
+    function showExistingAttachment(client) {
+      selectedAttachment = null;
+      document.getElementById("clientAttachment").value = "";
+      document.getElementById("attachmentFileName").textContent =
+        client.attachmentName || "No file selected";
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus(client.attachmentName ? "Current attachment will be kept unless replaced." : "");
+    }
+
+    function handleAttachmentSelection(event) {
+      const file = event.target.files[0];
+
+      if (!file) {
+        if (window.editingClientId) {
+          const client = clients.find(client => client.id === window.editingClientId);
+          showExistingAttachment(client || {});
+        } else {
+          resetAttachmentUI();
+        }
+        return;
+      }
+
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+      if (!isPdf) {
+        event.target.value = "";
+        selectedAttachment = null;
+        document.getElementById("attachmentFileName").textContent = "No file selected";
+        setAttachmentStatus("Please choose a PDF file.", true);
+        return;
+      }
+
+      if (file.size > maxAttachmentSize) {
+        event.target.value = "";
+        selectedAttachment = null;
+        document.getElementById("attachmentFileName").textContent = "No file selected";
+        setAttachmentStatus("PDF must be 10MB or smaller.", true);
+        return;
+      }
+
+      selectedAttachment = file;
+      document.getElementById("attachmentFileName").textContent = file.name;
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus("");
+    }
+
+    function uploadAttachment(file, clientId) {
+      return new Promise((resolve, reject) => {
+        const progress = document.getElementById("attachmentProgress");
+        const safeFileName = file.name.replace(/[^\w.\-() ]+/g, "_");
+        const attachmentPath = `clients/${clientId}/${safeFileName}`;
+        const fileRef = storageRef(storage, attachmentPath);
+        const uploadTask = uploadBytesResumable(fileRef, file, {
+          contentType: "application/pdf"
+        });
+
+        progress.hidden = false;
+        progress.value = 0;
+        setAttachmentStatus("Uploading PDF... 0%");
+
+        uploadTask.on(
+          "state_changed",
+          snapshot => {
+            const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            progress.value = percent;
+            setAttachmentStatus(`Uploading PDF... ${percent}%`);
+          },
+          error => {
+            setAttachmentStatus(`Upload failed: ${error.message}`, true);
+            reject(error);
+          },
+          async () => {
+            try {
+              const attachmentUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              setAttachmentStatus("PDF uploaded.");
+              resolve({
+                attachmentName: file.name,
+                attachmentUrl,
+                attachmentPath,
+                attachmentSize: file.size
+              });
+            } catch (error) {
+              setAttachmentStatus(`Upload failed: ${error.message}`, true);
+              reject(error);
+            }
+          }
+        );
+      });
+    }
+
+    async function deleteAttachment(attachmentPath) {
+      if (!attachmentPath) return;
+
+      try {
+        await deleteObject(storageRef(storage, attachmentPath));
+      } catch (error) {
+        console.error("Storage attachment delete failed", error);
+      }
+    }
+
+    async function saveClient(){
+
+      const saveButton = document.getElementById("saveClientButton");
+      saveButton.disabled = true;
+
+      const activeEditingClientId = window.editingClientId || editingClientId;
 
       const client = {
-        id: editingClientId || Date.now(),
+        id: activeEditingClientId || Date.now(),
         name:document.getElementById("clientName").value,
         email:document.getElementById("clientEmail").value,
         phone:document.getElementById("clientPhone").value,
@@ -697,18 +955,60 @@
         notes:document.getElementById("clientNotes").value
       };
 
-      if(window.editingClientId){
+      const existingClient = activeEditingClientId
+        ? clients.find(existingClient => existingClient.id === activeEditingClientId)
+        : null;
+
+      let attachment = existingClient
+        ? {
+            attachmentName: existingClient.attachmentName || "",
+            attachmentUrl: existingClient.attachmentUrl || "",
+            attachmentPath: existingClient.attachmentPath || "",
+            attachmentSize: existingClient.attachmentSize || 0
+          }
+        : {
+            attachmentName: "",
+            attachmentUrl: "",
+            attachmentPath: "",
+            attachmentSize: 0
+          };
+
+      if (selectedAttachment) {
+        const user = await getCurrentUser();
+
+        if (!user) {
+          saveButton.disabled = false;
+          setAttachmentStatus("Please sign in before saving clients with attachments.", true);
+          return;
+        }
+
+        try {
+          attachment = await uploadAttachment(selectedAttachment, client.id);
+
+          if (existingClient?.attachmentPath && existingClient.attachmentPath !== attachment.attachmentPath) {
+            await deleteAttachment(existingClient.attachmentPath);
+          }
+        } catch (error) {
+          saveButton.disabled = false;
+          return;
+        }
+      }
+
+      Object.assign(client, attachment);
+
+      if(activeEditingClientId){
 
         clients = clients.map(existingClient =>
-          existingClient.id === window.editingClientId
+          existingClient.id === activeEditingClientId
             ? {
                 ...client,
-                id: window.editingClientId
+                id: activeEditingClientId
               }
             : existingClient
         );
 
         window.editingClientId = null;
+        editingClientId = null;
 
         document.querySelector("button[onclick='saveClient()']").textContent =
           "Save Client";
@@ -719,10 +1019,7 @@
 
       }
 
-      localStorage.setItem(
-        "simpleBooksClients",
-        JSON.stringify(clients)
-      );
+      saveClients();
 
       renderClients();
 
@@ -732,6 +1029,8 @@
       document.getElementById("followUpDate").value = "";
       document.getElementById("lastContactedDate").value = "";
       document.getElementById("clientNotes").value = "";
+      resetAttachmentUI();
+      saveButton.disabled = false;
     }
 
     function renderClients(){
@@ -800,7 +1099,12 @@
         return;
       }
 
-      box.innerHTML = visibleClients.map(client => `
+      box.innerHTML = visibleClients.map(client => {
+        const attachmentLabel = client.attachmentUrl
+          ? `<a class="client-attachment-link" href="${escapeHtml(client.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
+          : "No attachment";
+
+        return `
 
         <div class="client-row ${
           client.followUp && client.followUp <= today
@@ -813,30 +1117,32 @@
             <div class="client-identity">
 
               <div class="client-name">
-                ${client.name}
+                ${escapeHtml(client.name)}
               </div>
 
               <div class="client-secondary">
-                ${client.email || "No email"}
+                ${escapeHtml(client.email || "No email")}
               </div>
 
               <div class="client-secondary">
-                ${client.phone || "No phone"}
+                ${escapeHtml(client.phone || "No phone")}
               </div>
 
             </div>
 
             <div class="status-badge status-${(client.status || "Lead").toLowerCase()}">
-              ${client.status || "Lead"}
+              ${escapeHtml(client.status || "Lead")}
             </div>
 
           </div>
 
           ${
             client.notes
-              ? `<div class="client-notes">${client.notes}</div>`
+              ? `<div class="client-notes">${escapeHtml(client.notes)}</div>`
               : ""
           }
+
+          <div class="client-attachment">${attachmentLabel}</div>
 
           <div class="client-meta">
             ${
@@ -847,17 +1153,23 @@
 
             <div>
               Follow up:
-              ${client.followUp || "-"}
+              ${escapeHtml(client.followUp || "-")}
             </div>
 
             <div>
               Last contacted:
-              ${client.lastContacted || "-"}
+              ${escapeHtml(client.lastContacted || "-")}
             </div>
 
           </div>
 
           <div class="client-actions">
+
+            ${
+              client.attachmentUrl
+                ? `<a class="btn-secondary" href="${escapeHtml(client.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
+                : ""
+            }
 
             <button onclick="editClient(${client.id})">
               Edit
@@ -887,25 +1199,28 @@
 
         </div>
 
-      `).join("");
+      `;
+      }).join("");
     }
 
     renderClients();
 
-    function deleteClient(id){
+    async function deleteClient(id){
 
       if(!confirm("Delete this client?")){
         return;
       }
 
+      const clientToDelete = clients.find(client => client.id === id);
       clients = clients.filter(client => client.id !== id);
 
-      localStorage.setItem(
-        "simpleBooksClients",
-        JSON.stringify(clients)
-      );
+      saveClients();
 
       renderClients();
+
+      if (clientToDelete?.attachmentPath) {
+        await deleteAttachment(clientToDelete.attachmentPath);
+      }
     }
 
     function editClient(id){
@@ -938,7 +1253,10 @@
       document.getElementById("clientNotes").value =
         client.notes || "";
 
+      showExistingAttachment(client);
+
       window.editingClientId = id;
+      editingClientId = id;
 
       document.querySelector("button[onclick='saveClient()']").textContent =
         "Update Client";
@@ -961,10 +1279,7 @@
 
       });
 
-      localStorage.setItem(
-        "simpleBooksClients",
-        JSON.stringify(clients)
-      );
+      saveClients();
 
       renderClients();
     }
@@ -1009,6 +1324,14 @@
 
       URL.revokeObjectURL(url);
     }
+
+    document.getElementById("clientAttachment").addEventListener("change", handleAttachmentSelection);
+    window.saveClient = saveClient;
+    window.renderClients = renderClients;
+    window.deleteClient = deleteClient;
+    window.editClient = editClient;
+    window.convertToActive = convertToActive;
+    window.exportClientsCsv = exportClientsCsv;
 
   </script>
 
