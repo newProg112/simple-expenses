@@ -263,6 +263,33 @@
       margin-top:12px;
     }
 
+    .claim-toggle{
+      display:inline-flex;
+      gap:6px;
+      padding:4px;
+      margin:0 0 14px;
+      border:1px solid #dbe3ec;
+      border-radius:12px;
+      background:#f8fafc;
+    }
+
+    .claim-toggle button{
+      border:0;
+      border-radius:9px;
+      padding:9px 13px;
+      background:transparent;
+      color:#475569;
+      font-weight:800;
+      font-family:inherit;
+      cursor:pointer;
+    }
+
+    .claim-toggle button.active{
+      background:#0077B6;
+      color:white;
+      box-shadow:0 7px 16px rgba(0,119,182,.18);
+    }
+
     label{
       display:block;
       margin:0 0 7px;
@@ -612,6 +639,27 @@
       border-color:#bbf7d0;
     }
 
+    .claim-badge{
+      display:inline-block;
+      margin-bottom:6px;
+      padding:5px 8px;
+      border-radius:999px;
+      background:#eef6ff;
+      color:#075985;
+      border:1px solid #d8ebff;
+      font-size:11px;
+      line-height:1;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.02em;
+    }
+
+    .claim-badge-mileage{
+      background:#ecfdf5;
+      color:#047857;
+      border-color:#bbf7d0;
+    }
+
     .row-actions{
       display:flex;
       align-items:center;
@@ -760,9 +808,9 @@
       <div class="card summary summary-kpi-green">
         <span class="kpi-icon kpi-green" aria-hidden="true">M</span>
         <div>
-          <div class="muted">This month</div>
-          <h2 id="monthExpenses">£0.00</h2>
-          <div class="kpi-subtext" id="monthExpensesMeta">0 expenses</div>
+          <div class="muted">Total mileage</div>
+          <h2 id="totalMileage">£0.00</h2>
+          <div class="kpi-subtext" id="totalMileageMeta">0 miles</div>
         </div>
       </div>
 
@@ -778,7 +826,7 @@
       <div class="card summary summary-kpi-purple">
         <span class="kpi-icon kpi-purple" aria-hidden="true">S</span>
         <div>
-          <div class="muted">Saved expenses</div>
+          <div class="muted">Saved claims</div>
           <h2 id="savedExpenses">0</h2>
           <div class="kpi-subtext">All statuses</div>
         </div>
@@ -813,7 +861,12 @@
             </div>
           </div>
 
-          <div class="grid">
+          <div class="claim-toggle" aria-label="Claim type">
+            <button class="active" id="expenseModeButton" type="button" onclick="setClaimType('expense')">Expense</button>
+            <button id="mileageModeButton" type="button" onclick="setClaimType('mileage')">Mileage</button>
+          </div>
+
+          <div class="grid" id="expenseFields">
             <div class="field">
               <label>Date</label>
               <input id="expenseDate" type="date">
@@ -873,9 +926,56 @@
             </div>
           </div>
 
-          <div class="field-wide">
+          <div class="grid" id="mileageFields" hidden>
+            <div class="field">
+              <label>Date</label>
+              <input id="mileageDate" type="date">
+            </div>
+
+            <div class="field">
+              <label>From</label>
+              <input id="mileageFrom" placeholder="Office">
+            </div>
+
+            <div class="field">
+              <label>To</label>
+              <input id="mileageTo" placeholder="Client site">
+            </div>
+
+            <div class="field">
+              <label>Status</label>
+              <select id="mileageStatus">
+                <option>Draft</option>
+                <option>Submitted</option>
+                <option>Approved</option>
+                <option>Paid</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Miles</label>
+              <input id="mileageMiles" type="number" step="0.1" min="0" placeholder="25">
+            </div>
+
+            <div class="field">
+              <label>Rate per mile (£)</label>
+              <input id="mileageRate" type="number" step="0.01" min="0" value="0.55">
+            </div>
+
+            <div class="field">
+              <label>Amount (£)</label>
+              <input id="mileageAmount" type="number" step="0.01" min="0" readonly>
+            </div>
+          </div>
+
+          <div class="field-wide" id="expenseDescriptionField">
             <label>Description</label>
             <input id="description" placeholder="What was this expense for?">
+          </div>
+
+          <div class="field-wide" id="mileagePurposeField" hidden>
+            <label>Business purpose</label>
+            <input id="mileagePurpose" placeholder="Client meeting">
           </div>
 
           <div class="field-wide">
@@ -883,7 +983,7 @@
             <textarea id="notes" placeholder="Optional notes"></textarea>
           </div>
 
-          <div class="field-wide">
+          <div class="field-wide" id="attachmentField">
             <label>Attachment</label>
             <div class="attachment-placeholder">
               <label class="btn attachment-placeholder-button" for="expenseAttachment">
@@ -1014,6 +1114,7 @@
     const maxAttachmentSize = 10 * 1024 * 1024;
     let expenses = dedupeExpensesById(getExpenses());
     let editingExpenseId = null;
+    let claimType = "expense";
     let selectedAttachment = null;
     let vatManuallyEdited = false;
     let unsubscribeExpenses = null;
@@ -1040,6 +1141,10 @@
 
     function money(value) {
       return "£" + Number(value || 0).toFixed(2);
+    }
+
+    function roundCurrency(value) {
+      return Number(Number(value || 0).toFixed(2));
     }
 
     function expenseCountText(count) {
@@ -1080,19 +1185,36 @@
     }
 
     function normaliseExpense(rawExpense) {
+      const type = rawExpense.type === "mileage" ? "mileage" : "expense";
       const net = Number(rawExpense.net ?? rawExpense.netAmount ?? 0);
       const vatRate = Number(rawExpense.vatRate || 0);
       const vat = Number(rawExpense.vat ?? rawExpense.vatAmount ?? (net * vatRate));
-      const gross = Number(rawExpense.gross ?? rawExpense.grossAmount ?? rawExpense.total ?? (net + vat));
+      const miles = Number(rawExpense.miles || 0);
+      const ratePerMile = Number(rawExpense.ratePerMile ?? rawExpense.mileageRate ?? 0.55);
+      const calculatedMileageAmount = roundCurrency(miles * ratePerMile);
+      const storedMileageAmount = Number(rawExpense.amount ?? rawExpense.mileageAmount ?? rawExpense.gross ?? 0);
+      const mileageAmount = type === "mileage" && storedMileageAmount === 0 && calculatedMileageAmount > 0
+        ? calculatedMileageAmount
+        : storedMileageAmount;
+      const gross = type === "mileage"
+        ? mileageAmount
+        : Number(rawExpense.gross ?? rawExpense.grossAmount ?? rawExpense.total ?? (net + vat));
       const id = String(rawExpense.id || "");
 
       return {
         ...rawExpense,
         id,
+        type,
         date: rawExpense.date || "",
         merchant: rawExpense.merchant || rawExpense.supplier || "",
         category: rawExpense.category || "General",
         description: rawExpense.description || "",
+        from: rawExpense.from || "",
+        to: rawExpense.to || "",
+        businessPurpose: rawExpense.businessPurpose || rawExpense.purpose || "",
+        miles,
+        ratePerMile,
+        amount: mileageAmount,
         net,
         vatRate,
         vat,
@@ -1132,6 +1254,37 @@
 
       const vat = Number(vatInput.value || 0);
       document.getElementById("grossAmount").value = (net + vat).toFixed(2);
+    }
+
+    function calculateMileageAmount() {
+      const miles = Number(document.getElementById("mileageMiles").value || 0);
+      const rate = Number(document.getElementById("mileageRate").value || 0);
+      const amount = roundCurrency(miles * rate);
+      document.getElementById("mileageAmount").value = amount.toFixed(2);
+      return amount;
+    }
+
+    function setClaimType(nextType) {
+      claimType = nextType === "mileage" ? "mileage" : "expense";
+      const isMileage = claimType === "mileage";
+
+      document.getElementById("expenseModeButton").classList.toggle("active", !isMileage);
+      document.getElementById("mileageModeButton").classList.toggle("active", isMileage);
+      document.getElementById("expenseFields").hidden = isMileage;
+      document.getElementById("mileageFields").hidden = !isMileage;
+      document.getElementById("expenseDescriptionField").hidden = isMileage;
+      document.getElementById("mileagePurposeField").hidden = !isMileage;
+      document.getElementById("attachmentField").hidden = isMileage;
+      const claimLabel = isMileage ? "mileage" : "expense";
+      document.getElementById("formTitle").textContent =
+        editingExpenseId ? `Edit ${claimLabel}` : `Add ${claimLabel}`;
+      document.getElementById("saveExpenseButton").textContent =
+        editingExpenseId ? `Update ${claimLabel}` : `Save ${claimLabel}`;
+
+      if (isMileage) {
+        resetAttachmentUI();
+        calculateMileageAmount();
+      }
     }
 
     function setAttachmentStatus(message, isError = false) {
@@ -1259,7 +1412,6 @@
       editingExpenseId = null;
       vatManuallyEdited = false;
 
-      document.getElementById("formTitle").textContent = "Add expense";
       document.getElementById("saveExpenseButton").textContent = "Save expense";
       document.getElementById("cancelEditButton").hidden = true;
       document.getElementById("expenseDate").value = "";
@@ -1271,8 +1423,17 @@
       document.getElementById("vatAmount").value = "";
       document.getElementById("grossAmount").value = "";
       document.getElementById("status").value = "Draft";
+      document.getElementById("mileageDate").value = "";
+      document.getElementById("mileageFrom").value = "";
+      document.getElementById("mileageTo").value = "";
+      document.getElementById("mileagePurpose").value = "";
+      document.getElementById("mileageMiles").value = "";
+      document.getElementById("mileageRate").value = "0.55";
+      document.getElementById("mileageAmount").value = "";
+      document.getElementById("mileageStatus").value = "Draft";
       document.getElementById("notes").value = "";
       resetAttachmentUI();
+      setClaimType("expense");
     }
 
     function expenseDocRef(id) {
@@ -1282,14 +1443,41 @@
     }
 
     async function saveExpense() {
+      const isMileage = claimType === "mileage";
       const merchant = document.getElementById("merchant").value.trim();
+      const mileageFrom = document.getElementById("mileageFrom").value.trim();
+      const mileageTo = document.getElementById("mileageTo").value.trim();
 
-      if (!merchant) {
+      if (!isMileage && !merchant) {
         alert("Enter a merchant or supplier.");
         return;
       }
 
-      calculateAmounts();
+      if (isMileage && (!mileageFrom || !mileageTo)) {
+        alert("Enter the mileage route.");
+        return;
+      }
+
+      if (isMileage && Number(document.getElementById("mileageMiles").value || 0) <= 0) {
+        alert("Enter the mileage miles.");
+        return;
+      }
+
+      if (isMileage) {
+        calculateMileageAmount();
+      } else {
+        calculateAmounts();
+      }
+
+      const mileageMiles = Number(document.getElementById("mileageMiles").value || 0);
+      const mileageRatePerMile = isMileage
+        ? Number(document.getElementById("mileageRate").value || 0.55)
+        : 0;
+      const mileageAmount = isMileage ? roundCurrency(mileageMiles * mileageRatePerMile) : 0;
+
+      if (isMileage) {
+        document.getElementById("mileageAmount").value = mileageAmount.toFixed(2);
+      }
 
       const saveButton = document.getElementById("saveExpenseButton");
       saveButton.disabled = true;
@@ -1323,7 +1511,7 @@
           };
       let replacedAttachmentPath = "";
 
-      if (selectedAttachment) {
+      if (!isMileage && selectedAttachment) {
         try {
           attachment = await uploadAttachment(selectedAttachment, expenseId);
 
@@ -1336,19 +1524,41 @@
         }
       }
 
+      if (isMileage && existingExpense?.attachmentPath) {
+        replacedAttachmentPath = existingExpense.attachmentPath;
+      }
+
       const expense = normaliseExpense({
         id: expenseId,
-        date: document.getElementById("expenseDate").value,
-        merchant,
-        category: document.getElementById("category").value,
-        description: document.getElementById("description").value.trim(),
-        net: Number(document.getElementById("netAmount").value || 0),
-        vatRate: Number(document.getElementById("vatRate").value || 0),
-        vat: Number(document.getElementById("vatAmount").value || 0),
-        gross: Number(document.getElementById("grossAmount").value || 0),
-        status: document.getElementById("status").value,
+        type: claimType,
+        date: isMileage
+          ? document.getElementById("mileageDate").value
+          : document.getElementById("expenseDate").value,
+        merchant: isMileage ? "" : merchant,
+        category: isMileage ? "Mileage" : document.getElementById("category").value,
+        description: isMileage ? "" : document.getElementById("description").value.trim(),
+        from: isMileage ? mileageFrom : "",
+        to: isMileage ? mileageTo : "",
+        businessPurpose: isMileage ? document.getElementById("mileagePurpose").value.trim() : "",
+        miles: isMileage ? mileageMiles : 0,
+        ratePerMile: isMileage ? mileageRatePerMile : 0,
+        amount: isMileage ? mileageAmount : 0,
+        net: isMileage ? 0 : Number(document.getElementById("netAmount").value || 0),
+        vatRate: isMileage ? 0 : Number(document.getElementById("vatRate").value || 0),
+        vat: isMileage ? 0 : Number(document.getElementById("vatAmount").value || 0),
+        gross: isMileage
+          ? mileageAmount
+          : Number(document.getElementById("grossAmount").value || 0),
+        status: isMileage
+          ? document.getElementById("mileageStatus").value
+          : document.getElementById("status").value,
         notes: document.getElementById("notes").value.trim(),
-        ...attachment,
+        ...(isMileage ? {
+          attachmentName: "",
+          attachmentUrl: "",
+          attachmentPath: "",
+          attachmentSize: 0
+        } : attachment),
         createdAt: existingExpense?.createdAt || now,
         updatedAt: editingExpenseId ? now : ""
       });
@@ -1391,9 +1601,9 @@
       editingExpenseId = expense.id;
       vatManuallyEdited = true;
 
-      document.getElementById("formTitle").textContent = "Edit expense";
       document.getElementById("saveExpenseButton").textContent = "Update expense";
       document.getElementById("cancelEditButton").hidden = false;
+      setClaimType(expense.type || "expense");
       document.getElementById("expenseDate").value = expense.date || "";
       document.getElementById("merchant").value = expense.merchant || "";
       document.getElementById("category").value = expense.category || "General";
@@ -1403,9 +1613,22 @@
       document.getElementById("vatAmount").value = Number(expense.vat || 0).toFixed(2);
       document.getElementById("grossAmount").value = Number(expense.gross || 0).toFixed(2);
       document.getElementById("status").value = expense.status || "Draft";
+      document.getElementById("mileageDate").value = expense.date || "";
+      document.getElementById("mileageFrom").value = expense.from || "";
+      document.getElementById("mileageTo").value = expense.to || "";
+      document.getElementById("mileagePurpose").value = expense.businessPurpose || "";
+      document.getElementById("mileageMiles").value = expense.miles ? Number(expense.miles).toString() : "";
+      document.getElementById("mileageRate").value = Number(expense.ratePerMile || 0.55).toFixed(2);
+      document.getElementById("mileageAmount").value = Number(expense.amount || expense.gross || 0).toFixed(2);
+      document.getElementById("mileageStatus").value = expense.status || "Draft";
       document.getElementById("notes").value = expense.notes || "";
-      showExistingAttachment(expense);
-      document.getElementById("merchant").focus();
+      if (expense.type === "mileage") {
+        resetAttachmentUI();
+        document.getElementById("mileageFrom").focus();
+      } else {
+        showExistingAttachment(expense);
+        document.getElementById("merchant").focus();
+      }
     }
 
     function cancelEdit() {
@@ -1498,12 +1721,13 @@
     function renderExpenses() {
       expenses = sortExpenses(dedupeExpensesById(expenses));
 
-      const now = new Date();
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const expenseClaims = expenses.filter(expense => expense.type !== "mileage");
+      const mileageClaims = expenses.filter(expense => expense.type === "mileage");
       const totalValue = expenses.reduce((sum, expense) => sum + Number(expense.gross || 0), 0);
-      const monthExpenses = expenses.filter(expense => String(expense.date || "").startsWith(currentMonth));
-      const monthValue = monthExpenses.reduce((sum, expense) => sum + Number(expense.gross || 0), 0);
-      const vatValue = expenses.reduce((sum, expense) => sum + Number(expense.vat || 0), 0);
+      const totalExpenseValue = expenseClaims.reduce((sum, expense) => sum + Number(expense.gross || 0), 0);
+      const totalMileageValue = mileageClaims.reduce((sum, expense) => sum + Number(expense.amount || expense.gross || 0), 0);
+      const totalMiles = mileageClaims.reduce((sum, expense) => sum + Number(expense.miles || 0), 0);
+      const vatValue = expenseClaims.reduce((sum, expense) => sum + Number(expense.vat || 0), 0);
       const paidExpenses = expenses.filter(expense => expense.status === "Paid");
       const outstandingExpenses = expenses.filter(expense => expense.status !== "Paid");
       const paidValue = paidExpenses.reduce((sum, expense) => sum + Number(expense.gross || 0), 0);
@@ -1517,10 +1741,11 @@
         return totals;
       }, {});
 
-      document.getElementById("totalExpenses").textContent = money(totalValue);
-      document.getElementById("totalExpensesMeta").textContent = expenseCountText(expenses.length);
-      document.getElementById("monthExpenses").textContent = money(monthValue);
-      document.getElementById("monthExpensesMeta").textContent = expenseCountText(monthExpenses.length);
+      document.getElementById("totalExpenses").textContent = money(totalExpenseValue);
+      document.getElementById("totalExpensesMeta").textContent = expenseCountText(expenseClaims.length);
+      document.getElementById("totalMileage").textContent = money(totalMileageValue);
+      document.getElementById("totalMileageMeta").textContent =
+        `${Number(totalMiles || 0).toFixed(1)} miles`;
       document.getElementById("vatReclaimable").textContent = money(vatValue);
       document.getElementById("savedExpenses").textContent = expenses.length;
       document.getElementById("paidExpenses").textContent = money(paidValue);
@@ -1549,17 +1774,34 @@
           <div>Status</div>
           <div></div>
         </div>
-      ` + expenses.map(expense => `
-        <div class="expense-row">
-          <div>
-            <div class="expense-merchant">${escapeHtml(expense.merchant)}</div>
-            <div class="expense-secondary">${escapeHtml(expense.category || "General")}</div>
-            <div class="expense-secondary">${escapeHtml(expense.description || "No description")}</div>
-            <div class="expense-secondary">${
+      ` + expenses.map(expense => {
+        const isMileage = expense.type === "mileage";
+        const primaryText = isMileage
+          ? `${escapeHtml(expense.from || "From")} &rarr; ${escapeHtml(expense.to || "To")}`
+          : escapeHtml(expense.merchant);
+        const secondaryText = isMileage
+          ? escapeHtml(expense.businessPurpose || "No business purpose")
+          : escapeHtml(expense.category || "General");
+        const detailText = isMileage
+          ? `${Number(expense.miles || 0).toFixed(1)} miles at ${money(expense.ratePerMile)} per mile`
+          : escapeHtml(expense.description || "No description");
+        const attachmentLabel = !isMileage
+          ? `<div class="expense-secondary">${
               expense.attachmentUrl
                 ? `<a class="expense-attachment-link" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
                 : "No attachment"
-            }</div>
+            }</div>`
+          : "";
+        const rowAmount = isMileage ? Number(expense.amount || expense.gross || 0) : Number(expense.gross || 0);
+
+        return `
+        <div class="expense-row">
+          <div>
+            <span class="claim-badge ${isMileage ? "claim-badge-mileage" : ""}">${isMileage ? "Mileage" : "Expense"}</span>
+            <div class="expense-merchant">${primaryText}</div>
+            <div class="expense-secondary">${secondaryText}</div>
+            <div class="expense-secondary">${detailText}</div>
+            ${attachmentLabel}
           </div>
 
           <div>
@@ -1569,8 +1811,8 @@
 
           <div>
             <span class="expense-label">Gross</span>
-            <span class="expense-value">${money(expense.gross)}</span>
-            <div class="expense-secondary">VAT ${money(expense.vat)}</div>
+            <span class="expense-value">${money(rowAmount)}</span>
+            <div class="expense-secondary">${isMileage ? "Mileage claim" : `VAT ${money(expense.vat)}`}</div>
           </div>
 
           <div>
@@ -1578,7 +1820,7 @@
           </div>
 
           <div class="row-actions">
-            ${expense.attachmentUrl
+            ${!isMileage && expense.attachmentUrl
               ? `<a class="btn btn-secondary" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
               : ""}
             <button class="btn" onclick="editExpense('${escapeJsString(expense.id)}')">Edit</button>
@@ -1588,7 +1830,8 @@
             <button class="btn btn-danger-subtle" onclick="deleteExpense('${escapeJsString(expense.id)}')">Delete</button>
           </div>
         </div>
-      `).join("");
+      `;
+      }).join("");
     }
 
     function subscribeToExpenses(user) {
@@ -1634,6 +1877,8 @@
       vatManuallyEdited = true;
       calculateAmounts();
     });
+    document.getElementById("mileageMiles").addEventListener("input", calculateMileageAmount);
+    document.getElementById("mileageRate").addEventListener("input", calculateMileageAmount);
     document.getElementById("expenseAttachment").addEventListener("change", handleAttachmentSelection);
 
     onAuthStateChanged(auth, subscribeToExpenses);
@@ -1643,7 +1888,9 @@
     window.cancelEdit = cancelEdit;
     window.markExpensePaid = markExpensePaid;
     window.deleteExpense = deleteExpense;
+    window.setClaimType = setClaimType;
 
+    setClaimType("expense");
     renderExpenses();
   </script>
 </body>
