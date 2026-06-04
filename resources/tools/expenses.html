@@ -335,6 +335,61 @@
       padding-inline:8px;
     }
 
+    .attachment-placeholder{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:10px;
+      margin-top:0;
+    }
+
+    .attachment-placeholder-button{
+      border:1px dashed #cbd5e1;
+      background:#f8fafc;
+      color:#64748b;
+      opacity:.9;
+    }
+
+    .attachment-helper{
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .attachment-input{
+      display:none;
+    }
+
+    .attachment-progress{
+      width:100%;
+      height:8px;
+      border:0;
+      border-radius:999px;
+      overflow:hidden;
+      accent-color:#0077B6;
+    }
+
+    .attachment-status{
+      flex-basis:100%;
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .attachment-error{
+      color:#b91c1c;
+    }
+
+    .expense-attachment-link{
+      color:#0077B6;
+      text-decoration:none;
+    }
+
+    .expense-attachment-link:hover{
+      color:#005f91;
+      text-decoration:underline;
+    }
+
     .overview-list{
       display:grid;
       gap:12px;
@@ -828,6 +883,19 @@
             <textarea id="notes" placeholder="Optional notes"></textarea>
           </div>
 
+          <div class="field-wide">
+            <label>Attachment</label>
+            <div class="attachment-placeholder">
+              <label class="btn attachment-placeholder-button" for="expenseAttachment">
+                Attach PDF receipt
+              </label>
+              <input class="attachment-input" id="expenseAttachment" type="file" accept="application/pdf,.pdf">
+              <span class="attachment-helper" id="attachmentFileName">No file selected</span>
+              <progress class="attachment-progress" id="attachmentProgress" max="100" value="0" hidden></progress>
+              <span class="attachment-status" id="attachmentStatus"></span>
+            </div>
+          </div>
+
           <div class="form-actions">
             <button class="btn btn-secondary" type="button" id="cancelEditButton" onclick="cancelEdit()" hidden>Cancel edit</button>
             <button class="btn" id="saveExpenseButton" onclick="saveExpense()">Save expense</button>
@@ -920,7 +988,7 @@
   </main>
 
   <script type="module">
-    import { auth, db } from "../../firebase-config.js";
+    import { app, auth, db } from "../../firebase-config.js";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -933,10 +1001,20 @@
       query,
       setDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      deleteObject,
+      getDownloadURL,
+      getStorage,
+      ref as storageRef,
+      uploadBytesResumable
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
     const statuses = ["Draft", "Submitted", "Approved", "Paid"];
+    const storage = getStorage(app);
+    const maxAttachmentSize = 10 * 1024 * 1024;
     let expenses = dedupeExpensesById(getExpenses());
     let editingExpenseId = null;
+    let selectedAttachment = null;
     let vatManuallyEdited = false;
     let unsubscribeExpenses = null;
 
@@ -1021,6 +1099,10 @@
         gross,
         status: statuses.includes(rawExpense.status) ? rawExpense.status : "Draft",
         notes: rawExpense.notes || "",
+        attachmentName: rawExpense.attachmentName || "",
+        attachmentUrl: rawExpense.attachmentUrl || "",
+        attachmentPath: rawExpense.attachmentPath || "",
+        attachmentSize: Number(rawExpense.attachmentSize || 0),
         createdAt: rawExpense.createdAt || new Date().toISOString(),
         updatedAt: rawExpense.updatedAt || ""
       };
@@ -1052,6 +1134,127 @@
       document.getElementById("grossAmount").value = (net + vat).toFixed(2);
     }
 
+    function setAttachmentStatus(message, isError = false) {
+      const status = document.getElementById("attachmentStatus");
+      status.textContent = message || "";
+      status.classList.toggle("attachment-error", Boolean(isError));
+    }
+
+    function resetAttachmentUI() {
+      selectedAttachment = null;
+      document.getElementById("expenseAttachment").value = "";
+      document.getElementById("attachmentFileName").textContent = "No file selected";
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus("");
+    }
+
+    function showExistingAttachment(expense) {
+      selectedAttachment = null;
+      document.getElementById("expenseAttachment").value = "";
+      document.getElementById("attachmentFileName").textContent =
+        expense.attachmentName || "No file selected";
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus(expense.attachmentName ? "Current attachment will be kept unless replaced." : "");
+    }
+
+    function handleAttachmentSelection(event) {
+      const file = event.target.files[0];
+
+      if (!file) {
+        if (editingExpenseId) {
+          const expense = expenses.find(expense => String(expense.id) === String(editingExpenseId));
+          showExistingAttachment(expense || {});
+        } else {
+          resetAttachmentUI();
+        }
+
+        return;
+      }
+
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+      if (!isPdf) {
+        event.target.value = "";
+        selectedAttachment = null;
+        document.getElementById("attachmentFileName").textContent = "No file selected";
+        setAttachmentStatus("Please choose a PDF file.", true);
+        return;
+      }
+
+      if (file.size > maxAttachmentSize) {
+        event.target.value = "";
+        selectedAttachment = null;
+        document.getElementById("attachmentFileName").textContent = "No file selected";
+        setAttachmentStatus("PDF must be 10MB or smaller.", true);
+        return;
+      }
+
+      selectedAttachment = file;
+      document.getElementById("attachmentFileName").textContent = file.name;
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus("");
+    }
+
+    function uploadAttachment(file, expenseId) {
+      return new Promise((resolve, reject) => {
+        const progress = document.getElementById("attachmentProgress");
+        const safeFileName = file.name.replace(/[^\w.\-() ]+/g, "_");
+        const attachmentPath = `expenses/${expenseId}/${safeFileName}`;
+        const fileRef = storageRef(storage, attachmentPath);
+        const uploadTask = uploadBytesResumable(fileRef, file, {
+          contentType: "application/pdf"
+        });
+
+        progress.hidden = false;
+        progress.value = 0;
+        setAttachmentStatus("Uploading PDF... 0%");
+
+        uploadTask.on(
+          "state_changed",
+          snapshot => {
+            const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            progress.value = percent;
+            setAttachmentStatus(`Uploading PDF... ${percent}%`);
+          },
+          error => {
+            setAttachmentStatus(`Upload failed: ${error.message}`, true);
+            reject(error);
+          },
+          async () => {
+            try {
+              const attachmentUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              setAttachmentStatus("PDF uploaded.");
+              resolve({
+                attachmentName: file.name,
+                attachmentUrl,
+                attachmentPath,
+                attachmentSize: file.size
+              });
+            } catch (error) {
+              setAttachmentStatus(`Upload failed: ${error.message}`, true);
+              reject(error);
+            }
+          }
+        );
+      });
+    }
+
+    async function deleteAttachment(attachmentPath) {
+      if (!attachmentPath) return;
+
+      try {
+        await deleteObject(storageRef(storage, attachmentPath));
+      } catch (error) {
+        console.error("Storage attachment delete failed", error);
+      }
+    }
+
     function clearForm() {
       editingExpenseId = null;
       vatManuallyEdited = false;
@@ -1069,6 +1272,7 @@
       document.getElementById("grossAmount").value = "";
       document.getElementById("status").value = "Draft";
       document.getElementById("notes").value = "";
+      resetAttachmentUI();
     }
 
     function expenseDocRef(id) {
@@ -1104,6 +1308,34 @@
       const expenseId = String(editingExpenseId || Date.now());
       const now = new Date().toISOString();
 
+      let attachment = existingExpense
+        ? {
+            attachmentName: existingExpense.attachmentName || "",
+            attachmentUrl: existingExpense.attachmentUrl || "",
+            attachmentPath: existingExpense.attachmentPath || "",
+            attachmentSize: existingExpense.attachmentSize || 0
+          }
+        : {
+            attachmentName: "",
+            attachmentUrl: "",
+            attachmentPath: "",
+            attachmentSize: 0
+          };
+      let replacedAttachmentPath = "";
+
+      if (selectedAttachment) {
+        try {
+          attachment = await uploadAttachment(selectedAttachment, expenseId);
+
+          if (existingExpense?.attachmentPath && existingExpense.attachmentPath !== attachment.attachmentPath) {
+            replacedAttachmentPath = existingExpense.attachmentPath;
+          }
+        } catch (error) {
+          saveButton.disabled = false;
+          return;
+        }
+      }
+
       const expense = normaliseExpense({
         id: expenseId,
         date: document.getElementById("expenseDate").value,
@@ -1116,6 +1348,7 @@
         gross: Number(document.getElementById("grossAmount").value || 0),
         status: document.getElementById("status").value,
         notes: document.getElementById("notes").value.trim(),
+        ...attachment,
         createdAt: existingExpense?.createdAt || now,
         updatedAt: editingExpenseId ? now : ""
       });
@@ -1126,6 +1359,10 @@
         saveButton.disabled = false;
         alert(`Firestore save failed: ${error.message}`);
         return;
+      }
+
+      if (replacedAttachmentPath) {
+        await deleteAttachment(replacedAttachmentPath);
       }
 
       const nextExpenses = editingExpenseId
@@ -1167,6 +1404,7 @@
       document.getElementById("grossAmount").value = Number(expense.gross || 0).toFixed(2);
       document.getElementById("status").value = expense.status || "Draft";
       document.getElementById("notes").value = expense.notes || "";
+      showExistingAttachment(expense);
       document.getElementById("merchant").focus();
     }
 
@@ -1205,6 +1443,7 @@
     async function deleteExpense(id) {
       if (!confirm("Delete this expense?")) return;
 
+      const expenseToDelete = expenses.find(expense => String(expense.id) === String(id));
       saveExpenses(expenses.filter(expense => String(expense.id) !== String(id)));
       renderExpenses();
 
@@ -1216,6 +1455,10 @@
         } catch (error) {
           console.error("Firestore expense delete failed", error);
         }
+      }
+
+      if (expenseToDelete?.attachmentPath) {
+        await deleteAttachment(expenseToDelete.attachmentPath);
       }
     }
 
@@ -1312,6 +1555,11 @@
             <div class="expense-merchant">${escapeHtml(expense.merchant)}</div>
             <div class="expense-secondary">${escapeHtml(expense.category || "General")}</div>
             <div class="expense-secondary">${escapeHtml(expense.description || "No description")}</div>
+            <div class="expense-secondary">${
+              expense.attachmentUrl
+                ? `<a class="expense-attachment-link" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
+                : "No attachment"
+            }</div>
           </div>
 
           <div>
@@ -1330,6 +1578,9 @@
           </div>
 
           <div class="row-actions">
+            ${expense.attachmentUrl
+              ? `<a class="btn btn-secondary" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
+              : ""}
             <button class="btn" onclick="editExpense('${escapeJsString(expense.id)}')">Edit</button>
             ${expense.status !== "Paid"
               ? `<button class="btn btn-positive" onclick="markExpensePaid('${escapeJsString(expense.id)}')">Mark paid</button>`
@@ -1383,6 +1634,7 @@
       vatManuallyEdited = true;
       calculateAmounts();
     });
+    document.getElementById("expenseAttachment").addEventListener("change", handleAttachmentSelection);
 
     onAuthStateChanged(auth, subscribeToExpenses);
 
