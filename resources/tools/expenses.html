@@ -986,10 +986,10 @@
           <div class="field-wide" id="attachmentField">
             <label>Attachment</label>
             <div class="attachment-placeholder">
-              <label class="btn attachment-placeholder-button" for="expenseAttachment">
+              <label class="btn attachment-placeholder-button" id="attachmentButtonLabel" for="expenseAttachment">
                 Attach PDF receipt
               </label>
-              <input class="attachment-input" id="expenseAttachment" type="file" accept="application/pdf,.pdf">
+              <input class="attachment-input" id="expenseAttachment" type="file" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png">
               <span class="attachment-helper" id="attachmentFileName">No file selected</span>
               <progress class="attachment-progress" id="attachmentProgress" max="100" value="0" hidden></progress>
               <span class="attachment-status" id="attachmentStatus"></span>
@@ -1225,6 +1225,7 @@
         attachmentUrl: rawExpense.attachmentUrl || "",
         attachmentPath: rawExpense.attachmentPath || "",
         attachmentSize: Number(rawExpense.attachmentSize || 0),
+        attachmentType: rawExpense.attachmentType || "",
         createdAt: rawExpense.createdAt || new Date().toISOString(),
         updatedAt: rawExpense.updatedAt || ""
       };
@@ -1274,17 +1275,17 @@
       document.getElementById("mileageFields").hidden = !isMileage;
       document.getElementById("expenseDescriptionField").hidden = isMileage;
       document.getElementById("mileagePurposeField").hidden = !isMileage;
-      document.getElementById("attachmentField").hidden = isMileage;
+      document.getElementById("attachmentField").hidden = false;
+      document.getElementById("attachmentButtonLabel").textContent = isMileage
+        ? "Attach mileage file"
+        : "Attach PDF receipt";
       const claimLabel = isMileage ? "mileage" : "expense";
       document.getElementById("formTitle").textContent =
         editingExpenseId ? `Edit ${claimLabel}` : `Add ${claimLabel}`;
       document.getElementById("saveExpenseButton").textContent =
         editingExpenseId ? `Update ${claimLabel}` : `Save ${claimLabel}`;
 
-      if (isMileage) {
-        resetAttachmentUI();
-        calculateMileageAmount();
-      }
+      if (isMileage) calculateMileageAmount();
     }
 
     function setAttachmentStatus(message, isError = false) {
@@ -1316,6 +1317,7 @@
 
     function handleAttachmentSelection(event) {
       const file = event.target.files[0];
+      const isMileage = claimType === "mileage";
 
       if (!file) {
         if (editingExpenseId) {
@@ -1329,12 +1331,18 @@
       }
 
       const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      const isJpeg = file.type === "image/jpeg" || /\.(jpe?g)$/i.test(file.name);
+      const isPng = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
+      const isAllowedFile = isMileage ? (isPdf || isJpeg || isPng) : isPdf;
 
-      if (!isPdf) {
+      if (!isAllowedFile) {
         event.target.value = "";
         selectedAttachment = null;
         document.getElementById("attachmentFileName").textContent = "No file selected";
-        setAttachmentStatus("Please choose a PDF file.", true);
+        setAttachmentStatus(
+          isMileage ? "Please choose a PDF, JPG or PNG file." : "Please choose a PDF file.",
+          true
+        );
         return;
       }
 
@@ -1354,14 +1362,24 @@
       setAttachmentStatus("");
     }
 
+    function attachmentContentType(file) {
+      const lowerName = file.name.toLowerCase();
+
+      if (file.type) return file.type;
+      if (lowerName.endsWith(".png")) return "image/png";
+      if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) return "image/jpeg";
+      return "application/pdf";
+    }
+
     function uploadAttachment(file, expenseId) {
       return new Promise((resolve, reject) => {
         const progress = document.getElementById("attachmentProgress");
         const safeFileName = file.name.replace(/[^\w.\-() ]+/g, "_");
         const attachmentPath = `expenses/${expenseId}/${safeFileName}`;
         const fileRef = storageRef(storage, attachmentPath);
+        const attachmentType = attachmentContentType(file);
         const uploadTask = uploadBytesResumable(fileRef, file, {
-          contentType: "application/pdf"
+          contentType: attachmentType
         });
 
         progress.hidden = false;
@@ -1387,7 +1405,8 @@
                 attachmentName: file.name,
                 attachmentUrl,
                 attachmentPath,
-                attachmentSize: file.size
+                attachmentSize: file.size,
+                attachmentType
               });
             } catch (error) {
               setAttachmentStatus(`Upload failed: ${error.message}`, true);
@@ -1495,23 +1514,37 @@
         : null;
       const expenseId = String(editingExpenseId || Date.now());
       const now = new Date().toISOString();
+      const existingType = existingExpense?.type === "mileage" ? "mileage" : "expense";
 
       let attachment = existingExpense
         ? {
             attachmentName: existingExpense.attachmentName || "",
             attachmentUrl: existingExpense.attachmentUrl || "",
             attachmentPath: existingExpense.attachmentPath || "",
-            attachmentSize: existingExpense.attachmentSize || 0
+            attachmentSize: existingExpense.attachmentSize || 0,
+            attachmentType: existingExpense.attachmentType || ""
           }
         : {
             attachmentName: "",
             attachmentUrl: "",
             attachmentPath: "",
-            attachmentSize: 0
+            attachmentSize: 0,
+            attachmentType: ""
           };
       let replacedAttachmentPath = "";
 
-      if (!isMileage && selectedAttachment) {
+      if (selectedAttachment) {
+        if (existingExpense?.attachmentPath && existingType !== claimType) {
+          replacedAttachmentPath = existingExpense.attachmentPath;
+          attachment = {
+            attachmentName: "",
+            attachmentUrl: "",
+            attachmentPath: "",
+            attachmentSize: 0,
+            attachmentType: ""
+          };
+        }
+
         try {
           attachment = await uploadAttachment(selectedAttachment, expenseId);
 
@@ -1522,10 +1555,15 @@
           saveButton.disabled = false;
           return;
         }
-      }
-
-      if (isMileage && existingExpense?.attachmentPath) {
+      } else if (existingExpense?.attachmentPath && existingType !== claimType) {
         replacedAttachmentPath = existingExpense.attachmentPath;
+        attachment = {
+          attachmentName: "",
+          attachmentUrl: "",
+          attachmentPath: "",
+          attachmentSize: 0,
+          attachmentType: ""
+        };
       }
 
       const expense = normaliseExpense({
@@ -1553,12 +1591,7 @@
           ? document.getElementById("mileageStatus").value
           : document.getElementById("status").value,
         notes: document.getElementById("notes").value.trim(),
-        ...(isMileage ? {
-          attachmentName: "",
-          attachmentUrl: "",
-          attachmentPath: "",
-          attachmentSize: 0
-        } : attachment),
+        ...attachment,
         createdAt: existingExpense?.createdAt || now,
         updatedAt: editingExpenseId ? now : ""
       });
@@ -1785,13 +1818,11 @@
         const detailText = isMileage
           ? `${Number(expense.miles || 0).toFixed(1)} miles at ${money(expense.ratePerMile)} per mile`
           : escapeHtml(expense.description || "No description");
-        const attachmentLabel = !isMileage
-          ? `<div class="expense-secondary">${
+        const attachmentLabel = `<div class="expense-secondary">${
               expense.attachmentUrl
-                ? `<a class="expense-attachment-link" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
+                ? `<a class="expense-attachment-link" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">${isMileage ? "View attachment" : "View PDF"}</a>`
                 : "No attachment"
-            }</div>`
-          : "";
+            }</div>`;
         const rowAmount = isMileage ? Number(expense.amount || expense.gross || 0) : Number(expense.gross || 0);
 
         return `
@@ -1820,8 +1851,8 @@
           </div>
 
           <div class="row-actions">
-            ${!isMileage && expense.attachmentUrl
-              ? `<a class="btn btn-secondary" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
+            ${expense.attachmentUrl
+              ? `<a class="btn btn-secondary" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">${isMileage ? "View attachment" : "View PDF"}</a>`
               : ""}
             <button class="btn" onclick="editExpense('${escapeJsString(expense.id)}')">Edit</button>
             ${expense.status !== "Paid"
