@@ -290,6 +290,34 @@
       box-shadow:0 7px 16px rgba(0,119,182,.18);
     }
 
+    .list-filter{
+      display:inline-flex;
+      flex-wrap:wrap;
+      gap:6px;
+      padding:4px;
+      margin:0 0 14px;
+      border:1px solid #dbe3ec;
+      border-radius:12px;
+      background:#f8fafc;
+    }
+
+    .list-filter button{
+      border:0;
+      border-radius:9px;
+      padding:8px 12px;
+      background:transparent;
+      color:#475569;
+      font-weight:800;
+      font-family:inherit;
+      cursor:pointer;
+    }
+
+    .list-filter button.active{
+      background:#0077B6;
+      color:white;
+      box-shadow:0 7px 16px rgba(0,119,182,.18);
+    }
+
     label{
       display:block;
       margin:0 0 7px;
@@ -1063,6 +1091,20 @@
             <a class="view-all-link" href="#expensesList">View all expenses</a>
           </div>
 
+          <div class="list-filter" aria-label="Filter recent expenses">
+            <button class="active" id="recentFilterAll" type="button" onclick="setRecentExpensesFilter('all')">All</button>
+            <button id="recentFilterExpense" type="button" onclick="setRecentExpensesFilter('expense')">Expenses</button>
+            <button id="recentFilterMileage" type="button" onclick="setRecentExpensesFilter('mileage')">Mileage</button>
+          </div>
+
+          <div class="list-filter" aria-label="Filter recent expenses by status">
+            <button class="active" id="recentStatusFilterAll" type="button" onclick="setRecentStatusFilter('all')">All statuses</button>
+            <button id="recentStatusFilterDraft" type="button" onclick="setRecentStatusFilter('Draft')">Draft</button>
+            <button id="recentStatusFilterSubmitted" type="button" onclick="setRecentStatusFilter('Submitted')">Submitted</button>
+            <button id="recentStatusFilterApproved" type="button" onclick="setRecentStatusFilter('Approved')">Approved</button>
+            <button id="recentStatusFilterPaid" type="button" onclick="setRecentStatusFilter('Paid')">Paid</button>
+          </div>
+
           <div id="expensesList">
             <p class="muted">No expenses yet.</p>
           </div>
@@ -1230,6 +1272,8 @@
     let expenses = dedupeExpensesById(getExpenses());
     let editingExpenseId = null;
     let claimType = "expense";
+    let recentExpensesFilter = "all";
+    let recentStatusFilter = "all";
     let selectedAttachment = null;
     let vatManuallyEdited = false;
     let unsubscribeExpenses = null;
@@ -1407,6 +1451,27 @@
         editingExpenseId ? `Update ${claimLabel}` : `Save ${claimLabel}`;
 
       if (isMileage) calculateMileageAmount();
+    }
+
+    function setRecentExpensesFilter(nextFilter) {
+      recentExpensesFilter = ["expense", "mileage"].includes(nextFilter) ? nextFilter : "all";
+
+      document.getElementById("recentFilterAll").classList.toggle("active", recentExpensesFilter === "all");
+      document.getElementById("recentFilterExpense").classList.toggle("active", recentExpensesFilter === "expense");
+      document.getElementById("recentFilterMileage").classList.toggle("active", recentExpensesFilter === "mileage");
+
+      renderExpenses();
+    }
+
+    function setRecentStatusFilter(nextStatus) {
+      recentStatusFilter = statuses.includes(nextStatus) ? nextStatus : "all";
+
+      document.getElementById("recentStatusFilterAll").classList.toggle("active", recentStatusFilter === "all");
+      statuses.forEach(status => {
+        document.getElementById(`recentStatusFilter${status}`).classList.toggle("active", recentStatusFilter === status);
+      });
+
+      renderExpenses();
     }
 
     function setAttachmentStatus(message, isError = false) {
@@ -1931,12 +1996,22 @@
 
       const list = document.getElementById("expensesList");
       const recentFooter = document.getElementById("recentExpensesFooter");
+      const visibleExpenses = expenses.filter(expense => {
+        const matchesType = recentExpensesFilter === "all" || expense.type === recentExpensesFilter;
+        const matchesStatus = recentStatusFilter === "all" || expense.status === recentStatusFilter;
+        return matchesType && matchesStatus;
+      });
 
-      recentFooter.textContent = `Showing ${expenses.length} of ${expenses.length} expenses`;
+      recentFooter.textContent = `Showing ${visibleExpenses.length} of ${expenses.length} expenses`;
       list.innerHTML = "";
 
       if (!expenses.length) {
         list.innerHTML = `<p class="muted">No expenses yet.</p>`;
+        return;
+      }
+
+      if (!visibleExpenses.length) {
+        list.innerHTML = `<p class="muted">No records match these filters.</p>`;
         return;
       }
 
@@ -1948,7 +2023,7 @@
           <div>Status</div>
           <div></div>
         </div>
-      ` + expenses.map(expense => {
+      ` + visibleExpenses.map(expense => {
         const isMileage = expense.type === "mileage";
         const primaryText = isMileage
           ? `${escapeHtml(expense.from || "From")} &rarr; ${escapeHtml(expense.to || "To")}`
@@ -2061,9 +2136,12 @@
     window.markExpensePaid = markExpensePaid;
     window.deleteExpense = deleteExpense;
     window.setClaimType = setClaimType;
+    window.setRecentExpensesFilter = setRecentExpensesFilter;
+    window.setRecentStatusFilter = setRecentStatusFilter;
 
     setClaimType("expense");
-    renderExpenses();
+    setRecentExpensesFilter("all");
+    setRecentStatusFilter("all");
   </script>
 </body>
 </html>
