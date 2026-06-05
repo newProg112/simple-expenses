@@ -2997,6 +2997,20 @@ async function reopenInvoice(invoiceId){
 
   updateBusinessPreview();
 
+  const invoiceNet = Number(invoice.amount || 0);
+  const invoiceVat = Number(invoice.vat || 0);
+
+  if(invoiceNet > 0){
+    const reopenedVatRate = invoiceVat / invoiceNet;
+    const vatRateSelect = document.getElementById("vatRate");
+    const matchingVatOption = Array.from(vatRateSelect.options)
+      .find(option => Math.abs(Number(option.value) - reopenedVatRate) < 0.001);
+
+    if(matchingVatOption){
+      vatRateSelect.value = matchingVatOption.value;
+    }
+  }
+
   const items = invoice.items || [];
 
   document.getElementById("description1").value = items[0]?.description || "";
@@ -3008,7 +3022,7 @@ async function reopenInvoice(invoiceId){
   document.getElementById("description3").value = items[2]?.description || "";
   document.getElementById("amount3").value = items[2]?.amount || "";
 
-  // generateInvoice(false);
+  await generateInvoice(false, invoice.date);
 
   alert("Invoice loaded for editing. Make changes, then click Update Invoice.");
 }
@@ -3340,7 +3354,7 @@ function exportInvoiceRegisterCsv(){
   URL.revokeObjectURL(link.href);
 }
 
-async function generateInvoice(saveToHistory = true){
+async function generateInvoice(saveToHistory = true, previewDate = ""){
   const client = document.getElementById("clientName").value;
   const clientEmail = document.getElementById("clientEmail").value;
   const invoiceNo = document.getElementById("invoiceNumber").value;
@@ -3403,7 +3417,7 @@ async function generateInvoice(saveToHistory = true){
     setInitialInvoiceNumber();
   }
 
-  const today = new Date().toLocaleDateString("en-GB");
+  const today = previewDate || new Date().toLocaleDateString("en-GB");
 
   const clientAddress =
     document.getElementById("clientAddress")?.value || "";
