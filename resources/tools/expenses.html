@@ -318,6 +318,14 @@
       box-shadow:0 7px 16px rgba(0,119,182,.18);
     }
 
+    .list-search{
+      margin:0 0 14px;
+    }
+
+    .list-search input{
+      background:#f8fafc;
+    }
+
     label{
       display:block;
       margin:0 0 7px;
@@ -1091,6 +1099,11 @@
             <a class="view-all-link" href="#expensesList">View all expenses</a>
           </div>
 
+          <div class="list-search">
+            <label for="recentExpensesSearch">Search expenses</label>
+            <input id="recentExpensesSearch" type="search" placeholder="Search merchant, route, status or attachment">
+          </div>
+
           <div class="list-filter" aria-label="Filter recent expenses">
             <button class="active" id="recentFilterAll" type="button" onclick="setRecentExpensesFilter('all')">All</button>
             <button id="recentFilterExpense" type="button" onclick="setRecentExpensesFilter('expense')">Expenses</button>
@@ -1103,6 +1116,13 @@
             <button id="recentStatusFilterSubmitted" type="button" onclick="setRecentStatusFilter('Submitted')">Submitted</button>
             <button id="recentStatusFilterApproved" type="button" onclick="setRecentStatusFilter('Approved')">Approved</button>
             <button id="recentStatusFilterPaid" type="button" onclick="setRecentStatusFilter('Paid')">Paid</button>
+          </div>
+
+          <div class="list-filter" aria-label="Filter recent expenses by date range">
+            <button class="active" id="recentDateFilterAll" type="button" onclick="setRecentDateFilter('all')">All time</button>
+            <button id="recentDateFilterThisMonth" type="button" onclick="setRecentDateFilter('thisMonth')">This month</button>
+            <button id="recentDateFilterLastMonth" type="button" onclick="setRecentDateFilter('lastMonth')">Last month</button>
+            <button id="recentDateFilterThisYear" type="button" onclick="setRecentDateFilter('thisYear')">This year</button>
           </div>
 
           <div id="expensesList">
@@ -1274,6 +1294,7 @@
     let claimType = "expense";
     let recentExpensesFilter = "all";
     let recentStatusFilter = "all";
+    let recentDateFilter = "all";
     let selectedAttachment = null;
     let vatManuallyEdited = false;
     let unsubscribeExpenses = null;
@@ -1472,6 +1493,85 @@
       });
 
       renderExpenses();
+    }
+
+    function setRecentDateFilter(nextFilter) {
+      recentDateFilter = ["thisMonth", "lastMonth", "thisYear"].includes(nextFilter) ? nextFilter : "all";
+
+      document.getElementById("recentDateFilterAll").classList.toggle("active", recentDateFilter === "all");
+      document.getElementById("recentDateFilterThisMonth").classList.toggle("active", recentDateFilter === "thisMonth");
+      document.getElementById("recentDateFilterLastMonth").classList.toggle("active", recentDateFilter === "lastMonth");
+      document.getElementById("recentDateFilterThisYear").classList.toggle("active", recentDateFilter === "thisYear");
+
+      renderExpenses();
+    }
+
+    function claimDateFromValue(value) {
+      if (!value) return null;
+
+      const dateParts = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateParts) {
+        return new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]));
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return null;
+
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    function dateRangeBounds(filter) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+
+      if (filter === "thisMonth") {
+        return {
+          start: new Date(year, month, 1),
+          end: new Date(year, month + 1, 1)
+        };
+      }
+
+      if (filter === "lastMonth") {
+        return {
+          start: new Date(year, month - 1, 1),
+          end: new Date(year, month, 1)
+        };
+      }
+
+      if (filter === "thisYear") {
+        return {
+          start: new Date(year, 0, 1),
+          end: new Date(year + 1, 0, 1)
+        };
+      }
+
+      return null;
+    }
+
+    function expenseMatchesDateFilter(expense) {
+      if (recentDateFilter === "all") return true;
+
+      const claimDate = claimDateFromValue(expense.date);
+      if (!claimDate) return false;
+
+      const bounds = dateRangeBounds(recentDateFilter);
+      return bounds && claimDate >= bounds.start && claimDate < bounds.end;
+    }
+
+    function expenseMatchesSearch(expense, searchTerm) {
+      if (!searchTerm) return true;
+
+      return [
+        expense.merchant,
+        expense.description,
+        expense.category,
+        expense.from,
+        expense.to,
+        expense.businessPurpose,
+        expense.status,
+        expense.attachmentName
+      ].some(value => String(value || "").toLowerCase().includes(searchTerm));
     }
 
     function setAttachmentStatus(message, isError = false) {
@@ -1996,10 +2096,13 @@
 
       const list = document.getElementById("expensesList");
       const recentFooter = document.getElementById("recentExpensesFooter");
+      const recentSearchTerm = document.getElementById("recentExpensesSearch").value.trim().toLowerCase();
       const visibleExpenses = expenses.filter(expense => {
         const matchesType = recentExpensesFilter === "all" || expense.type === recentExpensesFilter;
         const matchesStatus = recentStatusFilter === "all" || expense.status === recentStatusFilter;
-        return matchesType && matchesStatus;
+        const matchesDate = expenseMatchesDateFilter(expense);
+        const matchesSearch = expenseMatchesSearch(expense, recentSearchTerm);
+        return matchesType && matchesStatus && matchesDate && matchesSearch;
       });
 
       recentFooter.textContent = `Showing ${visibleExpenses.length} of ${expenses.length} expenses`;
@@ -2011,7 +2114,7 @@
       }
 
       if (!visibleExpenses.length) {
-        list.innerHTML = `<p class="muted">No records match these filters.</p>`;
+        list.innerHTML = `<p class="muted">No matching expenses or mileage claims found.</p>`;
         return;
       }
 
@@ -2127,6 +2230,7 @@
     document.getElementById("mileageMiles").addEventListener("input", calculateMileageAmount);
     document.getElementById("mileageRate").addEventListener("input", calculateMileageAmount);
     document.getElementById("expenseAttachment").addEventListener("change", handleAttachmentSelection);
+    document.getElementById("recentExpensesSearch").addEventListener("input", renderExpenses);
 
     onAuthStateChanged(auth, subscribeToExpenses);
 
@@ -2138,10 +2242,12 @@
     window.setClaimType = setClaimType;
     window.setRecentExpensesFilter = setRecentExpensesFilter;
     window.setRecentStatusFilter = setRecentStatusFilter;
+    window.setRecentDateFilter = setRecentDateFilter;
 
     setClaimType("expense");
     setRecentExpensesFilter("all");
     setRecentStatusFilter("all");
+    setRecentDateFilter("all");
   </script>
 </body>
 </html>
