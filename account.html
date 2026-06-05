@@ -450,12 +450,30 @@
         <label>Business name</label>
         <input id="businessName" type="text" placeholder="Simple Books Ltd" />
 
+        <label>Business email</label>
+        <input id="businessEmail" type="email" placeholder="hello@example.co.uk" />
+
+        <label>Phone number</label>
+        <input id="phoneNumber" type="tel" placeholder="01234 567890" />
+
         <label>Business type</label>
         <select id="businessType">
           <option>Sole trader</option>
           <option>Limited company</option>
           <option>Partnership</option>
         </select>
+
+        <label>Address line 1</label>
+        <input id="addressLine1" type="text" placeholder="1 High Street" />
+
+        <label>Address line 2</label>
+        <input id="addressLine2" type="text" placeholder="Suite 4" />
+
+        <label>Town / City</label>
+        <input id="townCity" type="text" placeholder="London" />
+
+        <label>Postcode</label>
+        <input id="postcode" type="text" placeholder="SW1A 1AA" />
 
         <label>VAT registered?</label>
         <select id="vatRegistered">
@@ -469,8 +487,26 @@
         <label>Business website</label>
         <input id="businessWebsite" type="text" placeholder="simple-books.co.uk" />
 
+        <label>Company number</label>
+        <input id="companyNumber" type="text" placeholder="12345678" />
+
         <label>Default payment terms</label>
         <input id="paymentTermsDefault" type="text" placeholder="14 days" />
+
+      </div>
+
+      <div class="card">
+
+        <h2>Payment details</h2>
+
+        <label>Account name</label>
+        <input id="accountName" type="text" placeholder="Simple Books Ltd" />
+
+        <label>Sort code</label>
+        <input id="sortCode" type="text" placeholder="00-00-00" />
+
+        <label>Account number</label>
+        <input id="accountNumber" type="text" placeholder="12345678" />
 
       </div>
 
@@ -546,11 +582,21 @@
       setField("role", saved.role || "Owner");
       setField("currentPlan", saved.currentPlan || "Starter");
       setField("businessName", saved.businessName);
+      setField("businessEmail", saved.businessEmail);
+      setField("phoneNumber", saved.phoneNumber);
       setField("businessType", saved.businessType || "Sole trader");
+      setField("addressLine1", saved.addressLine1);
+      setField("addressLine2", saved.addressLine2);
+      setField("townCity", saved.townCity);
+      setField("postcode", saved.postcode);
       setField("vatRegistered", saved.vatRegistered || "No");
       setField("vatNumber", saved.vatNumber);
       setField("businessWebsite", saved.businessWebsite);
+      setField("companyNumber", saved.companyNumber);
       setField("paymentTermsDefault", saved.paymentTermsDefault || "14 days");
+      setField("accountName", saved.accountName);
+      setField("sortCode", saved.sortCode);
+      setField("accountNumber", saved.accountNumber);
 
       document.getElementById("welcomeTitle").textContent =
         "Account settings";
@@ -601,11 +647,21 @@
         role: getField("role"),
         currentPlan: getField("currentPlan"),
         businessName: getField("businessName"),
+        businessEmail: getField("businessEmail"),
+        phoneNumber: getField("phoneNumber"),
         businessType: getField("businessType"),
+        addressLine1: getField("addressLine1"),
+        addressLine2: getField("addressLine2"),
+        townCity: getField("townCity"),
+        postcode: getField("postcode"),
         vatRegistered: getField("vatRegistered"),
         vatNumber: getField("vatNumber"),
         businessWebsite: getField("businessWebsite"),
-        paymentTermsDefault: getField("paymentTermsDefault")
+        companyNumber: getField("companyNumber"),
+        paymentTermsDefault: getField("paymentTermsDefault"),
+        accountName: getField("accountName"),
+        sortCode: getField("sortCode"),
+        accountNumber: getField("accountNumber")
       };
 
       localStorage.setItem(

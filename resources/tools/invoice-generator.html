@@ -2232,19 +2232,19 @@
 
     const account = userSnap.data();
 
+    localStorage.setItem("simpleBooksAccount", JSON.stringify(account));
+
     document.getElementById("businessName").value =
       account.businessName || "";
 
     document.getElementById("businessEmail").value =
-      account.email || user.email || "";
+      account.businessEmail || account.email || user.email || "";
 
     document.getElementById("businessWebsite").value =
       account.businessWebsite || "";
 
     document.getElementById("businessVat").value =
-      account.vatRegistered === "Yes"
-        ? account.vatNumber || ""
-        : "";
+      account.vatNumber || "";
 
     document.getElementById("paymentTerms").value =
       account.paymentTermsDefault || "14 days";
@@ -3354,6 +3354,27 @@ function exportInvoiceRegisterCsv(){
   URL.revokeObjectURL(link.href);
 }
 
+function getAccountProfile(){
+  return JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+}
+
+function accountAddressLines(account){
+  return [
+    account.addressLine1,
+    account.addressLine2,
+    account.townCity,
+    account.postcode
+  ].filter(Boolean);
+}
+
+function accountPaymentLines(account){
+  return [
+    account.accountName ? `Account Name: ${account.accountName}` : "",
+    account.sortCode ? `Sort Code: ${account.sortCode}` : "",
+    account.accountNumber ? `Account Number: ${account.accountNumber}` : ""
+  ].filter(Boolean);
+}
+
 async function generateInvoice(saveToHistory = true, previewDate = ""){
   const client = document.getElementById("clientName").value;
   const clientEmail = document.getElementById("clientEmail").value;
@@ -3425,17 +3446,22 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
   const paymentTerms =
     document.getElementById("paymentTerms")?.value || "14 days";
 
+  const accountProfile = getAccountProfile();
+  const accountAddress = accountAddressLines(accountProfile);
+  const accountPayments = accountPaymentLines(accountProfile);
+  const businessContactLines = [
+    accountProfile.businessEmail || document.getElementById("businessEmail")?.value || "",
+    accountProfile.phoneNumber || "",
+    accountProfile.businessWebsite || document.getElementById("businessWebsite")?.value || ""
+  ].filter(Boolean);
+  const accountVatNumber = accountProfile.vatNumber || document.getElementById("businessVat")?.value || "";
+  const businessRegistrationLines = [
+    accountVatNumber ? `VAT No: ${accountVatNumber}` : "",
+    accountProfile.companyNumber ? `Company No: ${accountProfile.companyNumber}` : ""
+  ].filter(Boolean);
+
   const businessName =
-    document.getElementById("businessName")?.value || "SIMPLE BOOKS";
-
-  const businessEmail =
-    document.getElementById("businessEmail")?.value || "adam@simple-books.co.uk";
-
-  const businessWebsite =
-    document.getElementById("businessWebsite")?.value || "simple-books.co.uk";
-
-  const businessVat =
-    document.getElementById("businessVat")?.value || "";
+    accountProfile.businessName || document.getElementById("businessName")?.value || "SIMPLE BOOKS";
 
   document.getElementById("invoicePreview").innerHTML = `
     <div class="invoice-header">
@@ -3446,12 +3472,17 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
           <div class="invoice-title">${businessName}</div>
         </div>
 
-        <div class="muted" style="margin-top:14px;">${businessEmail}</div>
-        <div class="muted">${businessWebsite}</div>
-
-        <div class="muted">
-          ${businessVat ? `VAT No: ${businessVat}` : ""}
+        <div class="muted" style="margin-top:14px; white-space:pre-line;">
+          ${accountAddress.join("\n")}
         </div>
+
+        ${businessContactLines.map(line => `
+          <div class="muted">${line}</div>
+        `).join("")}
+
+        ${businessRegistrationLines.map(line => `
+          <div class="muted">${line}</div>
+        `).join("")}
       </div>
 
       <div class="invoice-meta">
@@ -3522,15 +3553,15 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
       Payment terms: ${paymentTerms}
     </div>
 
-    <div class="invoice-section">
-      <h3>Payment Details</h3>
+    ${accountPayments.length ? `
+      <div class="invoice-section">
+        <h3>Payment Details</h3>
 
-      <p style="margin:0; line-height:1.7;">
-        Account Name: Simple Books<br>
-        Sort Code: 00-00-00<br>
-        Account Number: 00000000
-      </p>
-    </div>
+        <p style="margin:0; line-height:1.7;">
+          ${accountPayments.join("<br>")}
+        </p>
+      </div>
+    ` : ""}
   `;
   }
 
@@ -4144,13 +4175,13 @@ function setupMobileSections(){
 }
 
 function loadBusinessProfileIntoInvoice() {
-  const account = JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+  const account = getAccountProfile();
 
   document.getElementById("businessName").value =
     account.businessName || "";
 
   document.getElementById("businessEmail").value =
-    account.email || "";
+    account.businessEmail || account.email || "";
 
   document.getElementById("businessWebsite").value =
     account.businessWebsite || "";
@@ -4165,15 +4196,23 @@ function loadBusinessProfileIntoInvoice() {
 }
 
 function updateBusinessPreview() {
-    const name = document.getElementById("businessName").value || "SIMPLE BOOKS";
-    const email = document.getElementById("businessEmail").value || "adam@simple-books.co.uk";
-    const website = document.getElementById("businessWebsite").value || "simple-books.co.uk";
-    const vat = document.getElementById("businessVat").value;
+    const account = getAccountProfile();
+    const name = account.businessName || document.getElementById("businessName").value || "SIMPLE BOOKS";
+    const email = account.businessEmail || document.getElementById("businessEmail").value || "";
+    const website = account.businessWebsite || document.getElementById("businessWebsite").value || "";
+    const vat = account.vatNumber || document.getElementById("businessVat").value;
 
-    document.getElementById("previewBusinessName").textContent = name;
-    document.getElementById("previewBusinessEmail").textContent = email;
-    document.getElementById("previewBusinessWebsite").textContent = website;
-    document.getElementById("previewBusinessVat").textContent = vat ? `VAT No: ${vat}` : "";
+    const previewName = document.getElementById("previewBusinessName");
+    const previewEmail = document.getElementById("previewBusinessEmail");
+    const previewWebsite = document.getElementById("previewBusinessWebsite");
+    const previewVat = document.getElementById("previewBusinessVat");
+
+    if(!previewName || !previewEmail || !previewWebsite || !previewVat) return;
+
+    previewName.textContent = name;
+    previewEmail.textContent = email;
+    previewWebsite.textContent = website;
+    previewVat.textContent = vat ? `VAT No: ${vat}` : "";
   }
 
   ["businessName", "businessEmail", "businessWebsite", "businessVat"].forEach(id => {
