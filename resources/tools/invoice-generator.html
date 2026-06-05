@@ -977,6 +977,174 @@
       }
     }
 
+    .invoice-creation-area{
+      margin:18px 0 28px;
+    }
+
+    .section-heading{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:14px;
+    }
+
+    .section-heading h2{
+      margin:0;
+      font-size:20px;
+      line-height:1.2;
+    }
+
+    .section-heading p{
+      margin:5px 0 0;
+    }
+
+    .invoice-builder-grid{
+      display:grid;
+      grid-template-columns:minmax(0, 1.15fr) minmax(360px, .85fr);
+      gap:18px;
+      align-items:start;
+    }
+
+    .invoice-form-stack{
+      display:grid;
+      gap:14px;
+      min-width:0;
+    }
+
+    .invoice-form-card{
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
+    .invoice-form-card:hover,
+    .invoice-preview-panel:hover{
+      transform:none;
+    }
+
+    .invoice-form-card h3{
+      margin:0 0 14px;
+      font-size:20px;
+      line-height:1.2;
+    }
+
+    .invoice-form-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:12px;
+    }
+
+    .invoice-field,
+    .invoice-field-wide{
+      min-width:0;
+    }
+
+    .invoice-field-wide{
+      grid-column:1 / -1;
+    }
+
+    .invoice-form-stack label{
+      margin:0 0 7px;
+      color:var(--text);
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .invoice-form-stack input,
+    .invoice-form-stack select,
+    .invoice-form-stack textarea{
+      width:100%;
+      min-height:42px;
+      margin:0;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:var(--card);
+      color:var(--text);
+      font:inherit;
+      font-size:15px;
+    }
+
+    .invoice-form-stack input:focus,
+    .invoice-form-stack select:focus,
+    .invoice-form-stack textarea:focus{
+      outline:3px solid rgba(0,119,182,.16);
+      border-color:var(--accent);
+    }
+
+    .invoice-form-stack textarea{
+      min-height:78px;
+      resize:vertical;
+    }
+
+    .invoice-actions{
+      justify-content:flex-end;
+      align-items:center;
+      margin-top:0;
+    }
+
+    .invoice-actions button{
+      min-width:0;
+      border-radius:10px;
+      padding:12px 14px;
+    }
+
+    .invoice-preview-panel{
+      position:sticky;
+      top:18px;
+      padding:20px;
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
+    .invoice-preview-panel .section-heading{
+      margin-bottom:14px;
+    }
+
+    .invoice-preview{
+      border-radius:16px;
+      box-shadow:0 10px 24px rgba(15,23,42,.06);
+    }
+
+    .invoice-empty-copy{
+      color:var(--muted);
+      line-height:1.5;
+      margin:0;
+    }
+
+    .invoice-admin-section{
+      margin-top:28px;
+    }
+
+    body.dark-mode .invoice-form-card,
+    body.dark-mode .invoice-preview-panel{
+      border-color:var(--border);
+    }
+
+    @media (max-width:1100px){
+      .invoice-builder-grid{
+        grid-template-columns:1fr;
+      }
+
+      .invoice-preview-panel{
+        position:static;
+      }
+    }
+
+    @media (max-width:700px){
+      .invoice-form-grid{
+        grid-template-columns:1fr;
+      }
+
+      .invoice-actions{
+        display:grid;
+        grid-template-columns:1fr;
+      }
+    }
+
     @media print {
 
         body{
@@ -1001,6 +1169,24 @@
 
         .grid > div:first-child{
             display:none;
+        }
+
+        .invoice-form-stack,
+        .invoice-creation-area > .section-heading,
+        .invoice-preview-panel > .section-heading,
+        .invoice-admin-section{
+            display:none;
+        }
+
+        .invoice-builder-grid{
+            display:block;
+        }
+
+        .invoice-preview-panel{
+            position:static;
+            border:none;
+            box-shadow:none;
+            padding:0;
         }
 
         button{
@@ -1213,96 +1399,163 @@
 
       </div>
 
-      <div class="grid">
-
-        <div>
-
-          <div class="card">
-            <h3>Your Business</h3>
-
-            <div class="grid-2">
-              <input type="text" id="businessName" placeholder="Business name" />
-
-              <input type="email" id="businessEmail" placeholder="Business email" />
-
-              <input type="text" id="businessWebsite" placeholder="Website" />
-
-              <input type="text" id="businessVat" placeholder="VAT number" />
-            </div>
+      <section class="invoice-creation-area" aria-labelledby="createInvoiceTitle">
+        <div class="section-heading">
+          <div>
+            <h2 id="createInvoiceTitle">Create invoice</h2>
+            <p class="muted">Build the invoice details and preview before saving or sending.</p>
           </div>
+        </div>
 
-          <label>Saved Customer</label>
-          <select id="savedCustomerSelect" onchange="selectSavedCustomer()">
-            <option value="">Choose saved customer...</option>
-          </select>
+        <div class="invoice-builder-grid">
+          <div class="invoice-form-stack">
 
-          <label>Client Name</label>
-          <input id="clientName" placeholder="ABC Plumbing Ltd">
+            <div class="card invoice-form-card">
+              <h3>Your Business</h3>
 
-          <label>Client Email</label>
-          <input id="clientEmail" type="email" placeholder="client@example.com">
+              <div class="invoice-form-grid">
+                <div class="invoice-field">
+                  <label for="businessName">Business name</label>
+                  <input type="text" id="businessName" placeholder="Business name" />
+                </div>
 
-          <label>Client Address</label>
-          <textarea id="clientAddress" placeholder="Customer address"></textarea>
+                <div class="invoice-field">
+                  <label for="businessEmail">Business email</label>
+                  <input type="email" id="businessEmail" placeholder="Business email" />
+                </div>
 
-          <label>Payment Terms</label>
-          <input id="paymentTerms" type="text" value="14 days">
+                <div class="invoice-field">
+                  <label for="businessWebsite">Website</label>
+                  <input type="text" id="businessWebsite" placeholder="Website" />
+                </div>
 
-          <label>Due Date</label>
-          <input id="dueDate" type="date">
+                <div class="invoice-field">
+                  <label for="businessVat">VAT number</label>
+                  <input type="text" id="businessVat" placeholder="VAT number" />
+                </div>
+              </div>
+            </div>
 
-          <label>Recurring invoice?</label>
-          <select id="recurringInvoice">
-            <option value="No">No</option>
-            <option value="Yes">Yes</option>
-          </select>
+            <div class="card invoice-form-card">
+              <h3>Client details</h3>
 
-          <label>Frequency</label>
-          <select id="recurringFrequency">
-            <option value="">Choose frequency...</option>
-            <option value="Monthly">Monthly</option>
-            <option value="Quarterly">Quarterly</option>
-            <option value="Yearly">Yearly</option>
-          </select>
+              <div class="invoice-form-grid">
+                <div class="invoice-field-wide">
+                  <label for="savedCustomerSelect">Saved Customer</label>
+                  <select id="savedCustomerSelect" onchange="selectSavedCustomer()">
+                    <option value="">Choose saved customer...</option>
+                  </select>
+                </div>
 
-          <label>Next invoice date</label>
-          <input id="nextInvoiceDate" type="date">
+                <div class="invoice-field">
+                  <label for="clientName">Client Name</label>
+                  <input id="clientName" placeholder="ABC Plumbing Ltd">
+                </div>
 
-          <label>Reminder date</label>
-          <input id="reminderDate" type="date">
+                <div class="invoice-field">
+                  <label for="clientEmail">Client Email</label>
+                  <input id="clientEmail" type="email" placeholder="client@example.com">
+                </div>
 
-          <button type="button" onclick="saveCurrentCustomer()">
-            Save Customer
-          </button>
+                <div class="invoice-field-wide">
+                  <label for="clientAddress">Client Address</label>
+                  <textarea id="clientAddress" placeholder="Customer address"></textarea>
+                </div>
 
-          <label>Invoice Number</label>
-          <input id="invoiceNumber" placeholder="INV-001" value="">
+                <div class="invoice-field">
+                  <label for="paymentTerms">Payment Terms</label>
+                  <input id="paymentTerms" type="text" value="14 days">
+                </div>
 
-          <label>Item 1 Description</label>
-          <input id="description1" placeholder="Bookkeeping services">
+                <div class="invoice-field">
+                  <label for="dueDate">Due Date</label>
+                  <input id="dueDate" type="date">
+                </div>
 
-          <label>Item 1 Amount Before VAT (£)</label>
-          <input id="amount1" type="number" placeholder="100">
+                <div class="invoice-field">
+                  <label for="recurringInvoice">Recurring invoice?</label>
+                  <select id="recurringInvoice">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
 
-          <label>Item 2 Description</label>
-          <input id="description2" placeholder="VAT return preparation">
+                <div class="invoice-field">
+                  <label for="recurringFrequency">Frequency</label>
+                  <select id="recurringFrequency">
+                    <option value="">Choose frequency...</option>
+                    <option value="Monthly">Monthly</option>
+                    <option value="Quarterly">Quarterly</option>
+                    <option value="Yearly">Yearly</option>
+                  </select>
+                </div>
 
-          <label>Item 2 Amount Before VAT (£)</label>
-          <input id="amount2" type="number" placeholder="75">
+                <div class="invoice-field">
+                  <label for="nextInvoiceDate">Next invoice date</label>
+                  <input id="nextInvoiceDate" type="date">
+                </div>
 
-          <label>Item 3 Description</label>
-          <input id="description3" placeholder="Accounts clean-up work">
+                <div class="invoice-field">
+                  <label for="reminderDate">Reminder date</label>
+                  <input id="reminderDate" type="date">
+                </div>
+              </div>
 
-          <label>Item 3 Amount Before VAT (£)</label>
-          <input id="amount3" type="number" placeholder="50">
+              <div class="invoice-actions">
+                <button type="button" onclick="saveCurrentCustomer()">
+                  Save Customer
+                </button>
+              </div>
+            </div>
 
-          <label>VAT Rate</label>
+            <div class="card invoice-form-card">
+              <h3>Invoice details</h3>
 
-          <select id="vatRate">
-            <option value="0.20">20%</option>
-            <option value="0.05">5%</option>
-            <option value="0">0%</option>
-          </select>
+              <div class="invoice-form-grid">
+                <div class="invoice-field-wide">
+                  <label for="invoiceNumber">Invoice Number</label>
+                  <input id="invoiceNumber" placeholder="INV-001" value="">
+                </div>
+
+                <div class="invoice-field">
+                  <label for="description1">Item 1 Description</label>
+                  <input id="description1" placeholder="Bookkeeping services">
+                </div>
+
+                <div class="invoice-field">
+                  <label for="amount1">Item 1 Amount Before VAT (&pound;)</label>
+                  <input id="amount1" type="number" placeholder="100">
+                </div>
+
+                <div class="invoice-field">
+                  <label for="description2">Item 2 Description</label>
+                  <input id="description2" placeholder="VAT return preparation">
+                </div>
+
+                <div class="invoice-field">
+                  <label for="amount2">Item 2 Amount Before VAT (&pound;)</label>
+                  <input id="amount2" type="number" placeholder="75">
+                </div>
+
+                <div class="invoice-field">
+                  <label for="description3">Item 3 Description</label>
+                  <input id="description3" placeholder="Accounts clean-up work">
+                </div>
+
+                <div class="invoice-field">
+                  <label for="amount3">Item 3 Amount Before VAT (&pound;)</label>
+                  <input id="amount3" type="number" placeholder="50">
+                </div>
+
+                <div class="invoice-field">
+                  <label for="vatRate">VAT Rate</label>
+                  <select id="vatRate">
+                    <option value="0.20">20%</option>
+                    <option value="0.05">5%</option>
+                    <option value="0">0%</option>
+                  </select>
+                </div>
+              </div>
 
           <div class="invoice-actions">
 
@@ -1352,15 +1605,24 @@
               Dark Mode
             </button>
 
+              </div>
+
+              <p id="editModeStatus" class="muted" style="margin:10px 0 0;">
+                Creating new invoice
+              </p>
+            </div>
+
           </div>
 
-          <p id="editModeStatus" class="muted" style="margin-top:10px;">
-            Creating new invoice
-          </p>
+          <aside class="card invoice-preview-panel" aria-labelledby="invoicePreviewTitle">
+            <div class="section-heading">
+              <div>
+                <h2 id="invoicePreviewTitle">Invoice preview</h2>
+                <p class="muted">A clean customer-facing preview of this invoice.</p>
+              </div>
+            </div>
 
-        </div>
-
-        <div class="invoice-preview" id="invoicePreview">
+            <div class="invoice-preview" id="invoicePreview">
 
           <div style="display:flex; align-items:center; gap:14px;">
             <img src="/assets/logo.png"
@@ -1384,13 +1646,16 @@
 
           <hr style="margin:24px 0;">
 
-          <p>
+          <p class="invoice-empty-copy">
             Fill in the form to generate an invoice preview.
           </p>
 
+            </div>
+          </aside>
         </div>
+      </section>
 
-        <div style="margin-top:28px;">
+        <div class="invoice-admin-section">
 
           <div style="margin-top:28px;">
 
@@ -1465,13 +1730,11 @@
             Showing 0 invoices
           </div>
 
-          <div id="recentInvoices" class="invoice-preview" style="min-height:auto;">
+        <div id="recentInvoices" class="invoice-preview" style="min-height:auto;">
             No invoices saved yet.
           </div>
 
         </div>
-
-      </div>
 
   </div>
 
