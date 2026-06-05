@@ -695,6 +695,31 @@
       color:var(--muted);
     }
 
+    .payment-detail-grid{
+      display:grid;
+      gap:8px;
+      max-width:420px;
+    }
+
+    .payment-detail-row{
+      display:grid;
+      grid-template-columns:150px minmax(0, 1fr);
+      gap:16px;
+      align-items:baseline;
+      line-height:1.5;
+    }
+
+    .payment-detail-label{
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    .payment-detail-value{
+      color:var(--text);
+      font-weight:700;
+      overflow-wrap:anywhere;
+    }
+
     .invoice-title{
       font-size:2rem;
       margin-bottom:8px;
@@ -3377,12 +3402,31 @@ function accountAddressLines(account){
   ].filter(Boolean);
 }
 
+function formatSortCodeForDisplay(value){
+  const sortCode = String(value || "").trim();
+
+  if(/^\d{6}$/.test(sortCode)){
+    return `${sortCode.slice(0, 2)}-${sortCode.slice(2, 4)}-${sortCode.slice(4, 6)}`;
+  }
+
+  return sortCode;
+}
+
 function accountPaymentLines(account){
   return [
-    account.accountName ? `Account Name: ${account.accountName}` : "",
-    account.sortCode ? `Sort Code: ${account.sortCode}` : "",
-    account.accountNumber ? `Account Number: ${account.accountNumber}` : ""
-  ].filter(Boolean);
+    {
+      label: "Account Name",
+      value: account.accountName || ""
+    },
+    {
+      label: "Sort Code",
+      value: formatSortCodeForDisplay(account.sortCode)
+    },
+    {
+      label: "Account Number",
+      value: account.accountNumber || ""
+    }
+  ].filter(row => row.value);
 }
 
 async function generateInvoice(saveToHistory = true, previewDate = ""){
@@ -3568,9 +3612,14 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
       <div class="invoice-section">
         <h3>Payment Details</h3>
 
-        <p style="margin:0; line-height:1.7;">
-          ${accountPayments.join("<br>")}
-        </p>
+        <div class="payment-detail-grid">
+          ${accountPayments.map(row => `
+            <div class="payment-detail-row">
+              <div class="payment-detail-label">${row.label}</div>
+              <div class="payment-detail-value">${row.value}</div>
+            </div>
+          `).join("")}
+        </div>
       </div>
     ` : ""}
   `;
