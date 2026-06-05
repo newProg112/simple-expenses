@@ -64,6 +64,7 @@
       font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
       background:var(--bg);
       color:var(--text);
+      overflow-x:hidden;
     }
 
     .wrap{
@@ -103,7 +104,7 @@
     .invoice-kpi-grid{
       grid-template-columns:repeat(4, minmax(0, 1fr));
       gap:12px;
-      margin:0 0 18px;
+      margin:0 auto 18px;
     }
 
     .invoice-kpi-grid .card{
@@ -1145,6 +1146,412 @@
       }
     }
 
+    .wrap{
+      max-width:1360px;
+      width:100%;
+      margin:0 auto;
+      padding:24px 32px 56px;
+    }
+
+    .card{
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
+    .card:hover{
+      transform:none;
+    }
+
+    .invoice-kpi-grid{
+      grid-template-columns:repeat(4, minmax(180px, 1fr));
+      gap:12px;
+      margin:0 auto 18px;
+      max-width:1120px;
+    }
+
+    .invoice-kpi-grid .kpi-card{
+      display:grid;
+      grid-template-columns:minmax(0, 1fr);
+      align-content:center;
+      min-height:92px;
+      padding:16px;
+      border-color:#e6edf5;
+      box-shadow:0 14px 30px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
+    }
+
+    .invoice-kpi-grid .kpi-card::before{
+      content:"";
+      position:absolute;
+      top:0;
+      left:0;
+      right:0;
+      height:4px;
+      background:var(--kpi-accent, var(--accent));
+    }
+
+    .invoice-kpi-grid .kpi-card:nth-child(1){ --kpi-accent:#0077B6; }
+    .invoice-kpi-grid .kpi-card:nth-child(2){ --kpi-accent:#16a34a; }
+    .invoice-kpi-grid .kpi-card:nth-child(3){ --kpi-accent:#f97316; }
+    .invoice-kpi-grid .kpi-card:nth-child(4){ --kpi-accent:#7c3aed; }
+    .invoice-kpi-grid .kpi-card:nth-child(5){ --kpi-accent:#0f9f9a; }
+    .invoice-kpi-grid .kpi-card:nth-child(6){ --kpi-accent:#475569; }
+    .invoice-kpi-grid .kpi-card:nth-child(7){ --kpi-accent:#0077B6; }
+    .invoice-kpi-grid .kpi-card:nth-child(8){ --kpi-accent:#f97316; }
+
+    .analytics-grid{
+      gap:18px;
+      margin:18px 0 34px;
+      min-width:0;
+    }
+
+    .chart-card{
+      border-radius:16px;
+      padding:20px;
+      overflow:hidden;
+    }
+
+    .chart-shell{
+      min-width:0;
+    }
+
+    .invoice-creation-area{
+      margin:0 0 34px;
+    }
+
+    .section-heading{
+      margin-bottom:14px;
+    }
+
+    .invoice-builder-grid{
+      grid-template-columns:minmax(0, 1fr) minmax(390px, 520px);
+      gap:18px;
+      min-width:0;
+    }
+
+    .invoice-form-stack{
+      gap:18px;
+      min-width:0;
+    }
+
+    .invoice-form-card,
+    .invoice-preview-panel{
+      box-shadow:0 14px 30px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
+    }
+
+    .invoice-preview-panel{
+      min-width:0;
+      width:100%;
+    }
+
+    .invoice-preview-panel .invoice-preview{
+      min-height:560px;
+      overflow:hidden;
+    }
+
+    .invoice-actions,
+    .statement-actions{
+      gap:8px;
+      justify-content:flex-end;
+    }
+
+    .invoice-actions button,
+    .statement-actions button,
+    .invoice-row-actions button{
+      min-width:0;
+      border-radius:9px;
+      padding:10px 12px;
+      font-size:13px;
+      line-height:1;
+    }
+
+    .invoice-actions button:nth-child(3),
+    .invoice-actions button:nth-child(n+6){
+      background:#f8fafc;
+      color:#475569;
+      border:1px solid #dbe3ec;
+    }
+
+    .invoice-admin-section{
+      display:grid;
+      gap:18px;
+      margin-top:0;
+    }
+
+    .invoice-admin-section > div{
+      margin-top:0 !important;
+    }
+
+    .statement-card,
+    .recent-invoices-card{
+      background:var(--card);
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+      overflow:hidden;
+      min-width:0;
+    }
+
+    .statement-card h2{
+      margin:0 0 5px;
+      font-size:20px;
+      line-height:1.2;
+    }
+
+    .list-title-row h2{
+      margin:0;
+      font-size:20px;
+      line-height:1.2;
+    }
+
+    .statement-card::before,
+    .recent-invoices-card::before{
+      content:"";
+      display:block;
+      height:0;
+    }
+
+    .statement-toolbar{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:12px;
+      margin:16px 0 14px;
+    }
+
+    .statement-toolbar input{
+      width:100%;
+      min-height:42px;
+      margin:0;
+      padding:10px 12px;
+      border-radius:10px;
+      font-size:15px;
+    }
+
+    #statementUnpaidOnly{
+      width:auto;
+      min-height:0;
+      margin:0;
+      accent-color:var(--accent);
+    }
+
+    .statement-shell{
+      border-radius:14px;
+      padding:18px;
+      margin-top:0;
+      box-shadow:none;
+    }
+
+    .statement-actions{
+      margin-top:12px;
+    }
+
+    .statement-empty{
+      border-radius:12px;
+      padding:20px;
+    }
+
+    .recent-invoices-card .list-header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:18px;
+      margin-bottom:14px;
+    }
+
+    .list-title-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .recent-title-icon{
+      width:30px;
+      height:30px;
+      border-radius:10px;
+      display:grid;
+      place-items:center;
+      background:#eef6ff;
+      color:var(--accent);
+      font-size:16px;
+      font-weight:900;
+      flex:0 0 auto;
+    }
+
+    .view-all-link{
+      color:var(--accent);
+      text-decoration:none;
+      font-size:13px;
+      font-weight:800;
+      white-space:nowrap;
+      padding-top:6px;
+    }
+
+    .invoice-toolbar{
+      display:grid;
+      grid-template-columns:minmax(220px, 1fr) minmax(160px, auto) minmax(160px, auto);
+      gap:12px;
+      margin-bottom:12px;
+    }
+
+    .invoice-toolbar input,
+    .invoice-toolbar select{
+      width:100%;
+      min-height:42px;
+      margin:0;
+      padding:10px 12px;
+      border-radius:10px;
+      font-size:15px;
+    }
+
+    .invoice-results-count{
+      margin:0 0 12px;
+      font-size:13px;
+    }
+
+    #recentInvoices{
+      min-height:auto !important;
+      padding:0;
+      border:0;
+      box-shadow:none;
+      background:transparent;
+      overflow:visible;
+    }
+
+    .invoice-list{
+      gap:8px;
+    }
+
+    .invoice-row{
+      grid-template-columns:minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(96px, .7fr) minmax(86px, .6fr) minmax(190px, auto);
+      gap:12px;
+      min-width:0;
+      border:0;
+      border-radius:14px;
+      padding:14px 12px;
+      transition:background .16s ease, box-shadow .16s ease, transform .16s ease;
+    }
+
+    .invoice-row:nth-child(odd){
+      background:#fbfdff;
+    }
+
+    .invoice-row:hover{
+      background:#f4f9ff;
+      box-shadow:0 10px 22px rgba(15,23,42,.06);
+      transform:translateY(-1px);
+    }
+
+    .invoice-row-title{
+      font-size:15px;
+      font-weight:900;
+      line-height:1.25;
+      overflow-wrap:anywhere;
+    }
+
+    .invoice-row-sub{
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.35;
+      overflow-wrap:anywhere;
+    }
+
+    .invoice-row strong{
+      font-size:14px;
+      font-weight:900;
+      font-variant-numeric:tabular-nums;
+    }
+
+    .status-badge{
+      border:1px solid transparent;
+      border-radius:999px;
+      font-size:12px;
+      line-height:1;
+    }
+
+    .invoice-row-actions{
+      gap:6px;
+    }
+
+    .invoice-row-actions button{
+      margin:0;
+    }
+
+    .invoice-row-actions button:nth-child(2){
+      background:#f8fafc;
+      color:#475569;
+      border:1px solid #dbe3ec;
+    }
+
+    body.dark-mode .statement-card,
+    body.dark-mode .recent-invoices-card{
+      background:var(--card);
+      border-color:var(--border);
+    }
+
+    body.dark-mode .invoice-row:nth-child(odd),
+    body.dark-mode .invoice-row:hover{
+      background:#0b1220;
+    }
+
+    @media (max-width:1180px){
+      .invoice-kpi-grid{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+
+      .invoice-builder-grid{
+        grid-template-columns:1fr;
+      }
+
+      .invoice-preview-panel{
+        position:static;
+      }
+    }
+
+    @media (max-width:900px){
+      .wrap{
+        padding:24px 20px 48px;
+      }
+
+      .analytics-grid,
+      .statement-toolbar,
+      .invoice-toolbar{
+        grid-template-columns:1fr;
+      }
+
+      .invoice-row{
+        grid-template-columns:1fr;
+        border:1px solid #e8eef7;
+      }
+
+      .invoice-row-actions{
+        justify-content:flex-start;
+      }
+    }
+
+    @media (max-width:640px){
+      .wrap{
+        padding:24px 16px 44px;
+      }
+
+      .invoice-kpi-grid,
+      .invoice-form-grid{
+        grid-template-columns:1fr;
+      }
+
+      .recent-invoices-card .list-header{
+        flex-direction:column;
+        gap:10px;
+      }
+
+      .invoice-actions,
+      .statement-actions{
+        display:grid;
+        grid-template-columns:1fr;
+      }
+    }
+
     @media print {
 
         body{
@@ -1701,38 +2108,49 @@
 
           </div>
 
-          <h2>Recent Invoices</h2>
+          <section class="recent-invoices-card" aria-labelledby="recentInvoicesTitle">
+            <div class="list-header">
+              <div>
+                <div class="list-title-row">
+                  <span class="recent-title-icon" aria-hidden="true">&#9776;</span>
+                  <h2 id="recentInvoicesTitle">Recent invoices</h2>
+                </div>
+                <p class="muted">Saved invoices and their current payment status.</p>
+              </div>
+              <a class="view-all-link" href="#recentInvoices">View all invoices</a>
+            </div>
 
-          <div class="invoice-toolbar">
-            <input
-              id="invoiceSearch"
-              placeholder="Search customer or invoice..."
-              oninput="renderRecentInvoices()"
-            >
+            <div class="invoice-toolbar">
+              <input
+                id="invoiceSearch"
+                placeholder="Search customer or invoice..."
+                oninput="renderRecentInvoices()"
+              >
 
-            <select id="invoiceStatusFilter" onchange="renderRecentInvoices()">
-              <option value="All">All statuses</option>
-              <option value="Unpaid">Unpaid</option>
-              <option value="Paid">Paid</option>
-              <option value="Overdue">Overdue</option>
-            </select>
+              <select id="invoiceStatusFilter" onchange="renderRecentInvoices()">
+                <option value="All">All statuses</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Paid">Paid</option>
+                <option value="Overdue">Overdue</option>
+              </select>
 
-            <select id="invoiceSort" onchange="renderRecentInvoices()">
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="highest">Highest total</option>
-              <option value="lowest">Lowest total</option>
-            </select>
+              <select id="invoiceSort" onchange="renderRecentInvoices()">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="highest">Highest total</option>
+                <option value="lowest">Lowest total</option>
+              </select>
 
-          </div>
+            </div>
 
-          <div id="invoiceResultsCount" class="invoice-results-count">
-            Showing 0 invoices
-          </div>
+            <div id="invoiceResultsCount" class="invoice-results-count">
+              Showing 0 invoices
+            </div>
 
-        <div id="recentInvoices" class="invoice-preview" style="min-height:auto;">
-            No invoices saved yet.
-          </div>
+            <div id="recentInvoices" class="invoice-preview" style="min-height:auto;">
+              No invoices saved yet.
+            </div>
+          </section>
 
         </div>
 
