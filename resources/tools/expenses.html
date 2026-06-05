@@ -455,6 +455,55 @@
     .status-approved{ background:#7c3aed; }
     .status-paid{ background:#22c55e; }
 
+    .claim-type-chart{
+      display:grid;
+      gap:12px;
+      margin-top:22px;
+    }
+
+    .claim-type-chart h3{
+      margin:0;
+      font-size:15px;
+    }
+
+    .claim-type-row{
+      display:grid;
+      gap:7px;
+    }
+
+    .claim-type-label{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      color:#475569;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .claim-type-track{
+      height:10px;
+      border-radius:999px;
+      overflow:hidden;
+      background:#eef2f7;
+      box-shadow:inset 0 0 0 1px rgba(15,23,42,.04);
+    }
+
+    .claim-type-fill{
+      width:0%;
+      height:100%;
+      border-radius:999px;
+      transition:width .2s ease;
+    }
+
+    .claim-type-fill-expense{
+      background:#0077B6;
+    }
+
+    .claim-type-fill-mileage{
+      background:#16a34a;
+    }
+
     .status-chart{
       display:grid;
       grid-template-columns:150px minmax(0, 1fr);
@@ -1052,6 +1101,72 @@
           </div>
         </aside>
 
+        <aside class="card overview-card" aria-labelledby="claimsSummaryTitle">
+          <h2 id="claimsSummaryTitle">Claims summary</h2>
+          <p class="muted">Combined reporting for expenses and mileage claims.</p>
+
+          <div class="overview-list">
+            <div class="overview-item">
+              <span class="muted">Total expense value</span>
+              <strong id="claimsExpenseValue">£0.00</strong>
+            </div>
+
+            <div class="overview-item">
+              <span class="muted">Total mileage value</span>
+              <strong id="claimsMileageValue">£0.00</strong>
+            </div>
+
+            <div class="overview-item">
+              <span class="muted">Combined claim value</span>
+              <strong id="claimsCombinedValue">£0.00</strong>
+            </div>
+
+            <div class="overview-item">
+              <span class="muted">VAT reclaimable</span>
+              <strong id="claimsVatValue">£0.00</strong>
+            </div>
+
+            <div class="overview-item">
+              <span class="muted">Total miles recorded</span>
+              <strong id="claimsMilesValue">0.0 miles</strong>
+            </div>
+
+            <div class="overview-item">
+              <span class="muted">Paid claims value</span>
+              <strong id="claimsPaidValue">£0.00</strong>
+            </div>
+
+            <div class="overview-item">
+              <span class="muted">Outstanding/unpaid</span>
+              <strong id="claimsOutstandingValue">£0.00</strong>
+            </div>
+          </div>
+
+          <div class="claim-type-chart" aria-labelledby="claimsByTypeTitle">
+            <h3 id="claimsByTypeTitle">Claims by type</h3>
+
+            <div class="claim-type-row">
+              <div class="claim-type-label">
+                <span>Expenses total</span>
+                <strong id="claimsByTypeExpenseValue">£0.00</strong>
+              </div>
+              <div class="claim-type-track" aria-hidden="true">
+                <div class="claim-type-fill claim-type-fill-expense" id="claimsByTypeExpenseBar"></div>
+              </div>
+            </div>
+
+            <div class="claim-type-row">
+              <div class="claim-type-label">
+                <span>Mileage total</span>
+                <strong id="claimsByTypeMileageValue">£0.00</strong>
+              </div>
+              <div class="claim-type-track" aria-hidden="true">
+                <div class="claim-type-fill claim-type-fill-mileage" id="claimsByTypeMileageBar"></div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
         <section class="card chart-card" aria-labelledby="expensesStatusTitle">
           <h2 id="expensesStatusTitle">Expenses by status</h2>
 
@@ -1149,6 +1264,12 @@
 
     function expenseCountText(count) {
       return `${count} ${count === 1 ? "expense" : "expenses"}`;
+    }
+
+    function claimValue(expense) {
+      return expense.type === "mileage"
+        ? Number(expense.amount || expense.gross || 0)
+        : Number(expense.gross || 0);
     }
 
     function escapeHtml(value) {
@@ -1751,25 +1872,36 @@
       });
     }
 
+    function updateClaimsTypeChart(totalExpenseValue, totalMileageValue) {
+      const combinedValue = totalExpenseValue + totalMileageValue;
+      const expensePercent = combinedValue ? (totalExpenseValue / combinedValue) * 100 : 0;
+      const mileagePercent = combinedValue ? (totalMileageValue / combinedValue) * 100 : 0;
+
+      document.getElementById("claimsByTypeExpenseValue").textContent = money(totalExpenseValue);
+      document.getElementById("claimsByTypeMileageValue").textContent = money(totalMileageValue);
+      document.getElementById("claimsByTypeExpenseBar").style.width = `${expensePercent}%`;
+      document.getElementById("claimsByTypeMileageBar").style.width = `${mileagePercent}%`;
+    }
+
     function renderExpenses() {
       expenses = sortExpenses(dedupeExpensesById(expenses));
 
       const expenseClaims = expenses.filter(expense => expense.type !== "mileage");
       const mileageClaims = expenses.filter(expense => expense.type === "mileage");
-      const totalValue = expenses.reduce((sum, expense) => sum + Number(expense.gross || 0), 0);
+      const totalValue = expenses.reduce((sum, expense) => sum + claimValue(expense), 0);
       const totalExpenseValue = expenseClaims.reduce((sum, expense) => sum + Number(expense.gross || 0), 0);
-      const totalMileageValue = mileageClaims.reduce((sum, expense) => sum + Number(expense.amount || expense.gross || 0), 0);
+      const totalMileageValue = mileageClaims.reduce((sum, expense) => sum + claimValue(expense), 0);
       const totalMiles = mileageClaims.reduce((sum, expense) => sum + Number(expense.miles || 0), 0);
       const vatValue = expenseClaims.reduce((sum, expense) => sum + Number(expense.vat || 0), 0);
       const paidExpenses = expenses.filter(expense => expense.status === "Paid");
       const outstandingExpenses = expenses.filter(expense => expense.status !== "Paid");
-      const paidValue = paidExpenses.reduce((sum, expense) => sum + Number(expense.gross || 0), 0);
-      const outstandingValue = outstandingExpenses.reduce((sum, expense) => sum + Number(expense.gross || 0), 0);
+      const paidValue = paidExpenses.reduce((sum, expense) => sum + claimValue(expense), 0);
+      const outstandingValue = outstandingExpenses.reduce((sum, expense) => sum + claimValue(expense), 0);
       const totalsByStatus = statuses.reduce((totals, status) => {
         const matching = expenses.filter(expense => expense.status === status);
         totals[status] = {
           count: matching.length,
-          value: matching.reduce((sum, expense) => sum + Number(expense.gross || 0), 0)
+          value: matching.reduce((sum, expense) => sum + claimValue(expense), 0)
         };
         return totals;
       }, {});
@@ -1786,7 +1918,16 @@
       document.getElementById("outstandingExpenses").textContent = money(outstandingValue);
       document.getElementById("outstandingExpensesMeta").textContent = expenseCountText(outstandingExpenses.length);
 
+      document.getElementById("claimsExpenseValue").textContent = money(totalExpenseValue);
+      document.getElementById("claimsMileageValue").textContent = money(totalMileageValue);
+      document.getElementById("claimsCombinedValue").textContent = money(totalValue);
+      document.getElementById("claimsVatValue").textContent = money(vatValue);
+      document.getElementById("claimsMilesValue").textContent = `${Number(totalMiles || 0).toFixed(1)} miles`;
+      document.getElementById("claimsPaidValue").textContent = money(paidValue);
+      document.getElementById("claimsOutstandingValue").textContent = money(outstandingValue);
+
       updateStatusChart(totalsByStatus, totalValue);
+      updateClaimsTypeChart(totalExpenseValue, totalMileageValue);
 
       const list = document.getElementById("expensesList");
       const recentFooter = document.getElementById("recentExpensesFooter");
