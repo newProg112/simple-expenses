@@ -165,6 +165,47 @@
       display:none;
     }
 
+    .logo-preview-box{
+      display:grid;
+      gap:12px;
+      margin-bottom:18px;
+    }
+
+    .logo-preview{
+      width:150px;
+      max-width:100%;
+      min-height:82px;
+      display:grid;
+      place-items:center;
+      border:1px dashed var(--line);
+      border-radius:18px;
+      background:#f9fbfd;
+      overflow:hidden;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:700;
+      text-align:center;
+      padding:12px;
+    }
+
+    .logo-preview img{
+      max-width:100%;
+      max-height:82px;
+      object-fit:contain;
+      display:block;
+    }
+
+    .logo-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+    }
+
+    .logo-actions input{
+      margin-bottom:0;
+    }
+
     .app-header{
       display:flex;
       align-items:center;
@@ -510,6 +551,29 @@
 
       </div>
 
+      <div class="card">
+
+        <h2>Company logo</h2>
+
+        <p class="muted">
+          Upload a PNG, JPG or WEBP logo up to 1MB for invoice previews and PDFs.
+        </p>
+
+        <div class="logo-preview-box">
+          <div class="logo-preview" id="companyLogoPreview">
+            No logo selected
+          </div>
+
+          <div class="logo-actions">
+            <input id="companyLogo" type="file" accept="image/png,image/jpeg,image/webp" />
+            <button class="btn" id="removeLogoBtn" type="button">
+              Remove logo
+            </button>
+          </div>
+        </div>
+
+      </div>
+
     </div>
 
     <div class="card" style="margin-top:24px;">
@@ -545,8 +609,11 @@
 
     const saveBtn = document.getElementById("saveBtn");
     const successMessage = document.getElementById("successMessage");
+    const companyLogoInput = document.getElementById("companyLogo");
+    const removeLogoBtn = document.getElementById("removeLogoBtn");
 
     let currentUser = null;
+    let companyLogoDataUrl = "";
 
     function setField(id, value){
       const el = document.getElementById(id);
@@ -558,6 +625,26 @@
     function getField(id){
       const el = document.getElementById(id);
       return el ? el.value : "";
+    }
+
+    function renderLogoPreview(){
+      const preview = document.getElementById("companyLogoPreview");
+
+      if(!preview) return;
+
+      preview.innerHTML = companyLogoDataUrl
+        ? `<img src="${companyLogoDataUrl}" alt="Company logo preview">`
+        : "No logo selected";
+
+      if(removeLogoBtn){
+        removeLogoBtn.disabled = !companyLogoDataUrl;
+      }
+    }
+
+    function updateLocalLogo(){
+      const saved = JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+      saved.companyLogoDataUrl = companyLogoDataUrl;
+      localStorage.setItem("simpleBooksAccount", JSON.stringify(saved));
     }
 
     async function loadAccount(){
@@ -572,7 +659,11 @@
         const snap = await getDoc(userRef);
 
         if(snap.exists()){
-          saved = snap.data();
+          saved = {
+            ...localSaved,
+            ...snap.data(),
+            companyLogoDataUrl: localSaved.companyLogoDataUrl || ""
+          };
           localStorage.setItem("simpleBooksAccount", JSON.stringify(saved));
         }
       }
@@ -597,6 +688,8 @@
       setField("accountName", saved.accountName);
       setField("sortCode", saved.sortCode);
       setField("accountNumber", saved.accountNumber);
+      companyLogoDataUrl = saved.companyLogoDataUrl || "";
+      renderLogoPreview();
 
       document.getElementById("welcomeTitle").textContent =
         "Account settings";
@@ -661,7 +754,8 @@
         paymentTermsDefault: getField("paymentTermsDefault"),
         accountName: getField("accountName"),
         sortCode: getField("sortCode"),
-        accountNumber: getField("accountNumber")
+        accountNumber: getField("accountNumber"),
+        companyLogoDataUrl
       };
 
       localStorage.setItem(
@@ -670,10 +764,15 @@
       );
 
       if(currentUser){
+        const {
+          companyLogoDataUrl: _companyLogoDataUrl,
+          ...firestoreData
+        } = data;
+
         await setDoc(
           doc(db, "users", currentUser.uid),
           {
-            ...data,
+            ...firestoreData,
             uid: currentUser.uid,
             updatedAt: serverTimestamp()
           },
@@ -710,9 +809,49 @@
       }
     }
 
+    function handleLogoUpload(event){
+      const file = event.target.files[0];
+
+      if(!file) return;
+
+      const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
+
+      if(!allowedTypes.includes(file.type)){
+        alert("Please choose a PNG, JPG or WEBP image.");
+        event.target.value = "";
+        return;
+      }
+
+      if(file.size > 1024 * 1024){
+        alert("Logo must be 1MB or smaller.");
+        event.target.value = "";
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        companyLogoDataUrl = reader.result;
+        renderLogoPreview();
+        updateLocalLogo();
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    function removeLogo(){
+      companyLogoDataUrl = "";
+      companyLogoInput.value = "";
+      renderLogoPreview();
+      updateLocalLogo();
+    }
+
     document
       .getElementById("vatRegistered")
       .addEventListener("change", updateVatNumberState);
+
+    companyLogoInput.addEventListener("change", handleLogoUpload);
+    removeLogoBtn.addEventListener("click", removeLogo);
 
     const accountLogoutBtn = document.getElementById("accountLogoutBtn");
 

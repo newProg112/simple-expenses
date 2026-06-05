@@ -2032,7 +2032,8 @@
             <div class="invoice-preview" id="invoicePreview">
 
           <div style="display:flex; align-items:center; gap:14px;">
-            <img src="/assets/logo.png"
+            <img id="previewLogo"
+                src="/assets/logo.png"
                 alt="Simple Books logo"
                 style="width:54px; height:auto;">
 
@@ -2230,7 +2231,12 @@
 
     if(!userSnap.exists()) return;
 
-    const account = userSnap.data();
+    const localAccount = getAccountProfile();
+    const account = {
+      ...localAccount,
+      ...userSnap.data(),
+      companyLogoDataUrl: localAccount.companyLogoDataUrl || ""
+    };
 
     localStorage.setItem("simpleBooksAccount", JSON.stringify(account));
 
@@ -3358,6 +3364,10 @@ function getAccountProfile(){
   return JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
 }
 
+function accountLogoSrc(account = getAccountProfile()){
+  return account.companyLogoDataUrl || "/assets/logo.png";
+}
+
 function accountAddressLines(account){
   return [
     account.addressLine1,
@@ -3447,6 +3457,7 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
     document.getElementById("paymentTerms")?.value || "14 days";
 
   const accountProfile = getAccountProfile();
+  const logoSrc = accountLogoSrc(accountProfile);
   const accountAddress = accountAddressLines(accountProfile);
   const accountPayments = accountPaymentLines(accountProfile);
   const businessContactLines = [
@@ -3468,7 +3479,7 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
 
       <div>
         <div class="invoice-brand">
-          <img src="/assets/logo.png" alt="Simple Books logo">
+          <img src="${logoSrc}" alt="Company logo">
           <div class="invoice-title">${businessName}</div>
         </div>
 
@@ -4206,8 +4217,14 @@ function updateBusinessPreview() {
     const previewEmail = document.getElementById("previewBusinessEmail");
     const previewWebsite = document.getElementById("previewBusinessWebsite");
     const previewVat = document.getElementById("previewBusinessVat");
+    const previewLogo = document.getElementById("previewLogo");
 
     if(!previewName || !previewEmail || !previewWebsite || !previewVat) return;
+
+    if(previewLogo){
+      previewLogo.src = accountLogoSrc(account);
+      previewLogo.alt = account.companyLogoDataUrl ? "Company logo" : "Simple Books logo";
+    }
 
     previewName.textContent = name;
     previewEmail.textContent = email;
