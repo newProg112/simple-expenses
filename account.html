@@ -593,7 +593,7 @@
   </div>
 
   <script type="module">
-    import { auth, db } from "./firebase-config.js";
+    import { app, auth, db } from "./firebase-config.js";
 
     import {
       onAuthStateChanged,
@@ -602,10 +602,19 @@
 
     import {
       doc,
+      deleteField,
       getDoc,
       setDoc,
       serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    import {
+      deleteObject,
+      getDownloadURL,
+      getStorage,
+      ref,
+      uploadBytes
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
     const saveBtn = document.getElementById("saveBtn");
     const successMessage = document.getElementById("successMessage");
@@ -613,7 +622,12 @@
     const removeLogoBtn = document.getElementById("removeLogoBtn");
 
     let currentUser = null;
-    let companyLogoDataUrl = "";
+    const storage = getStorage(app);
+    const companyLogoPath = uid => `users/${uid}/branding/company-logo`;
+    const allowedLogoTypes = ["image/png", "image/jpeg", "image/webp"];
+    const allowedLogoExtensions = [".png", ".jpg", ".jpeg", ".webp"];
+
+    let companyLogoUrl = "";
 
     function setField(id, value){
       const el = document.getElementById(id);
@@ -632,18 +646,26 @@
 
       if(!preview) return;
 
-      preview.innerHTML = companyLogoDataUrl
-        ? `<img src="${companyLogoDataUrl}" alt="Company logo preview">`
-        : "No logo selected";
+      preview.innerHTML = "";
+
+      if(companyLogoUrl){
+        const image = document.createElement("img");
+        image.src = companyLogoUrl;
+        image.alt = "Company logo preview";
+        preview.appendChild(image);
+      } else {
+        preview.textContent = "No logo selected";
+      }
 
       if(removeLogoBtn){
-        removeLogoBtn.disabled = !companyLogoDataUrl;
+        removeLogoBtn.disabled = !companyLogoUrl;
       }
     }
 
     function updateLocalLogo(){
       const saved = JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
-      saved.companyLogoDataUrl = companyLogoDataUrl;
+      delete saved.companyLogoDataUrl;
+      saved.companyLogoUrl = companyLogoUrl;
       localStorage.setItem("simpleBooksAccount", JSON.stringify(saved));
     }
 
@@ -661,8 +683,7 @@
         if(snap.exists()){
           saved = {
             ...localSaved,
-            ...snap.data(),
-            companyLogoDataUrl: localSaved.companyLogoDataUrl || ""
+            ...snap.data()
           };
           localStorage.setItem("simpleBooksAccount", JSON.stringify(saved));
         }
@@ -688,7 +709,7 @@
       setField("accountName", saved.accountName);
       setField("sortCode", saved.sortCode);
       setField("accountNumber", saved.accountNumber);
-      companyLogoDataUrl = saved.companyLogoDataUrl || "";
+      companyLogoUrl = saved.companyLogoUrl || "";
       renderLogoPreview();
 
       document.getElementById("welcomeTitle").textContent =
@@ -755,7 +776,7 @@
         accountName: getField("accountName"),
         sortCode: getField("sortCode"),
         accountNumber: getField("accountNumber"),
-        companyLogoDataUrl
+        companyLogoUrl
       };
 
       localStorage.setItem(
@@ -764,15 +785,10 @@
       );
 
       if(currentUser){
-        const {
-          companyLogoDataUrl: _companyLogoDataUrl,
-          ...firestoreData
-        } = data;
-
         await setDoc(
           doc(db, "users", currentUser.uid),
           {
-            ...firestoreData,
+            ...data,
             uid: currentUser.uid,
             updatedAt: serverTimestamp()
           },
@@ -809,14 +825,34 @@
       }
     }
 
-    function handleLogoUpload(event){
+    async function saveLogoUrlToFirestore(){
+      if(!currentUser) return;
+
+      await setDoc(
+        doc(db, "users", currentUser.uid),
+        {
+          companyLogoUrl,
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+    }
+
+    function isValidLogoFile(file){
+      const fileName = file.name.toLowerCase();
+      const hasAllowedExtension = allowedLogoExtensions.some(extension =>
+        fileName.endsWith(extension)
+      );
+
+      return allowedLogoTypes.includes(file.type) && hasAllowedExtension;
+    }
+
+    async function handleLogoUpload(event){
       const file = event.target.files[0];
 
       if(!file) return;
 
-      const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
-
-      if(!allowedTypes.includes(file.type)){
+      if(!isValidLogoFile(file)){
         alert("Please choose a PNG, JPG or WEBP image.");
         event.target.value = "";
         return;
@@ -828,22 +864,72 @@
         return;
       }
 
-      const reader = new FileReader();
+      if(!currentUser){
+        alert("Please log in before uploading a company logo.");
+        event.target.value = "";
+        return;
+      }
 
-      reader.onload = () => {
-        companyLogoDataUrl = reader.result;
+      companyLogoInput.disabled = true;
+
+      try {
+        const logoRef = ref(storage, companyLogoPath(currentUser.uid));
+
+        await uploadBytes(logoRef, file, {
+          contentType: file.type,
+          customMetadata: {
+            ownerUid: currentUser.uid
+          }
+        });
+
+        companyLogoUrl = await getDownloadURL(logoRef);
+        await saveLogoUrlToFirestore();
         renderLogoPreview();
         updateLocalLogo();
-      };
-
-      reader.readAsDataURL(file);
+        successMessage.textContent = "Company logo uploaded to Firebase.";
+        successMessage.style.display = "block";
+        setTimeout(() => {
+          successMessage.style.display = "none";
+        }, 2500);
+      } catch(error) {
+        console.error("Company logo upload failed", error);
+        alert(`Logo upload failed: ${error.message}`);
+      } finally {
+        companyLogoInput.disabled = false;
+        event.target.value = "";
+      }
     }
 
-    function removeLogo(){
-      companyLogoDataUrl = "";
+    async function removeLogo(){
+      const previousLogoUrl = companyLogoUrl;
+      companyLogoUrl = "";
       companyLogoInput.value = "";
       renderLogoPreview();
       updateLocalLogo();
+
+      if(!currentUser) return;
+
+      try {
+        await setDoc(
+          doc(db, "users", currentUser.uid),
+          {
+            companyLogoUrl: deleteField(),
+            updatedAt: serverTimestamp()
+          },
+          { merge: true }
+        );
+
+        if(previousLogoUrl){
+          try {
+            await deleteObject(ref(storage, companyLogoPath(currentUser.uid)));
+          } catch(storageError) {
+            console.warn("Company logo Storage delete skipped", storageError);
+          }
+        }
+      } catch(error) {
+        console.error("Company logo remove failed", error);
+        alert(`Logo remove failed: ${error.message}`);
+      }
     }
 
     document

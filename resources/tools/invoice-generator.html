@@ -2259,8 +2259,7 @@
     const localAccount = getAccountProfile();
     const account = {
       ...localAccount,
-      ...userSnap.data(),
-      companyLogoDataUrl: localAccount.companyLogoDataUrl || ""
+      ...userSnap.data()
     };
 
     localStorage.setItem("simpleBooksAccount", JSON.stringify(account));
@@ -2279,6 +2278,10 @@
 
     document.getElementById("paymentTerms").value =
       account.paymentTermsDefault || "14 days";
+
+    if(typeof updateBusinessPreview === "function"){
+      updateBusinessPreview();
+    }
   }
 
   onAuthStateChanged(auth, function(user){
@@ -3390,7 +3393,7 @@ function getAccountProfile(){
 }
 
 function accountLogoSrc(account = getAccountProfile()){
-  return account.companyLogoDataUrl || "/assets/logo.png";
+  return account.companyLogoUrl || "/assets/logo.png";
 }
 
 function accountAddressLines(account){
@@ -4272,7 +4275,7 @@ function updateBusinessPreview() {
 
     if(previewLogo){
       previewLogo.src = accountLogoSrc(account);
-      previewLogo.alt = account.companyLogoDataUrl ? "Company logo" : "Simple Books logo";
+      previewLogo.alt = account.companyLogoUrl ? "Company logo" : "Simple Books logo";
     }
 
     previewName.textContent = name;
