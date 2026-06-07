@@ -138,6 +138,18 @@
       background:var(--primary-dark);
     }
 
+    .btn-secondary{
+      width:100%;
+      margin-top:16px;
+      background:#ffffff;
+      color:var(--primary);
+      border:1px solid rgba(0,119,182,.28);
+    }
+
+    .btn-secondary:hover{
+      background:#eef7ff;
+    }
+
     .btn:disabled{
       opacity:.6;
       cursor:not-allowed;
@@ -153,6 +165,13 @@
       color:var(--primary);
       font-weight:800;
       text-decoration:none;
+    }
+
+    .demo-helper{
+      margin:10px 0 0;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.45;
     }
 
     .message{
@@ -220,6 +239,14 @@
           Do not have an account? <a href="/signup.html">Create one</a>.
         </p>
 
+        <button class="btn btn-secondary" id="demoLoginBtn" type="button">
+          Login as Demo
+        </button>
+
+        <p class="demo-helper">
+          Explore Simple Books with sample data. Please don't enter real business information in the demo account.
+        </p>
+
         <p class="message" id="loginMessage"></p>
       </form>
     </section>
@@ -234,6 +261,7 @@
 
     const loginForm = document.getElementById("loginForm");
     const loginBtn = document.getElementById("loginBtn");
+    const demoLoginBtn = document.getElementById("demoLoginBtn");
     const loginMessage = document.getElementById("loginMessage");
 
     function showMessage(text, type){
@@ -261,6 +289,35 @@
         showMessage(error.message || "Could not log in.", "error");
         loginBtn.disabled = false;
         loginBtn.textContent = "Login";
+      }
+    });
+
+    demoLoginBtn.addEventListener("click", async () => {
+      const emailInput = document.getElementById("email");
+      const passwordInput = document.getElementById("password");
+
+      emailInput.value = "demo@simple-books.co.uk";
+      passwordInput.value = "demo123";
+
+      demoLoginBtn.disabled = true;
+      loginBtn.disabled = true;
+      demoLoginBtn.textContent = "Opening demo...";
+
+      try{
+        await signInWithEmailAndPassword(
+          auth,
+          "demo@simple-books.co.uk",
+          "demo123"
+        );
+
+        showMessage("Demo login successful. Opening dashboard...", "success");
+        window.location.href = "/dashboard.html";
+      }catch(error){
+        console.error(error);
+        showMessage(error.message || "Could not open the demo account.", "error");
+        demoLoginBtn.disabled = false;
+        loginBtn.disabled = false;
+        demoLoginBtn.textContent = "Login as Demo";
       }
     });
   </script>
