@@ -1578,6 +1578,26 @@
     }
 
     @media print {
+      body.printing-invoice * {
+        visibility: hidden !important;
+      }
+
+      body.printing-invoice #invoicePreview,
+      body.printing-invoice #invoicePreview * {
+        visibility: visible !important;
+      }
+
+      body.printing-invoice #invoicePreview {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        background: white !important;
+      }
+    }
+
+    @media print {
 
         body{
             background:white;
@@ -3629,7 +3649,19 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
   }
 
 function printInvoice(){
+  const invoice = document.getElementById("invoicePreview");
+
+  if(!invoice || !invoice.innerHTML.trim()){
+    alert("Generate the invoice first.");
+    return;
+  }
+
+  document.body.classList.add("printing-invoice");
   window.print();
+
+  setTimeout(function(){
+    document.body.classList.remove("printing-invoice");
+  }, 500);
 }
 
 function printStatement(){
