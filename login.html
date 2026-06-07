@@ -292,7 +292,7 @@
       }
     });
 
-    demoLoginBtn.addEventListener("click", async () => {
+    async function loginAsDemo(){
       const emailInput = document.getElementById("email");
       const passwordInput = document.getElementById("password");
 
@@ -319,7 +319,13 @@
         loginBtn.disabled = false;
         demoLoginBtn.textContent = "Login as Demo";
       }
-    });
+    }
+
+    demoLoginBtn.addEventListener("click", loginAsDemo);
+
+    if(new URLSearchParams(window.location.search).get("demo") === "1"){
+      loginAsDemo();
+    }
   </script>
 </body>
 </html>

@@ -136,9 +136,28 @@
       background:var(--primary-dark);
     }
 
+    .btn-secondary{
+      width:100%;
+      margin-top:16px;
+      background:#ffffff;
+      color:var(--primary);
+      border:1px solid rgba(0,119,182,.28);
+    }
+
+    .btn-secondary:hover{
+      background:#eef7ff;
+    }
+
     .btn:disabled{
       opacity:.6;
       cursor:not-allowed;
+    }
+
+    .demo-helper{
+      margin:10px 0 0;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.45;
     }
 
     .message{
@@ -217,6 +236,14 @@
         <button class="btn" id="signupBtn" type="submit">
           Create account
         </button>
+
+        <a class="btn btn-secondary" href="/login.html?demo=1">
+          Login as Demo
+        </a>
+
+        <p class="demo-helper">
+          Explore Simple Books with sample data. Please don't enter real business information in the demo account.
+        </p>
 
         <p class="message" id="signupMessage"></p>
       </form>
