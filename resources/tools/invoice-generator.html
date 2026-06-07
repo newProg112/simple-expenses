@@ -1141,6 +1141,30 @@
       margin:0;
     }
 
+    .login-prompt-card{
+      max-width:520px;
+      margin:42px auto;
+      text-align:center;
+    }
+
+    .login-prompt-card h2{
+      margin:0 0 10px;
+      font-size:24px;
+    }
+
+    .login-prompt-card .button-link{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      margin-top:18px;
+      padding:12px 18px;
+      border-radius:10px;
+      background:var(--accent);
+      color:#ffffff;
+      font-weight:800;
+      text-decoration:none;
+    }
+
     .invoice-admin-section{
       margin-top:28px;
     }
@@ -1802,7 +1826,7 @@
         <img src="/assets/logo.png" alt="Simple Books logo">
       </a>
 
-      <nav class="app-nav">
+      <nav class="app-nav" id="invoiceAppNav" style="display:none;">
         <a href="/dashboard.html">Dashboard</a>
         <span>|</span>
 
@@ -1831,20 +1855,12 @@
 
     </header>
 
-      <div class="card" id="authBox" style="margin-bottom:24px;">
-        <h2>Login</h2>
-
-        <label>Email</label>
-        <input id="authEmail" type="email" placeholder="you@example.com">
-
-        <label>Password</label>
-        <input id="authPassword" type="password" placeholder="Password">
-
-        <button type="button" onclick="signUpUser()">Sign Up</button>
-        <button type="button" onclick="loginUser()">Login</button>
-        <button type="button" onclick="logoutUser()">Logout</button>
-
-        <p id="authStatus" class="muted">Not logged in.</p>
+      <div class="card login-prompt-card" id="loginPrompt" style="display:none;">
+        <h2>Please log in to use Invoices.</h2>
+        <p class="muted">
+          Sign in to access invoice creation, saved invoices and customer data.
+        </p>
+        <a class="button-link" href="/login.html">Log in</a>
       </div>
 
       <div id="appContent" style="display:none;">
@@ -2352,9 +2368,6 @@
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   import {
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut,
     onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -2363,30 +2376,6 @@
   // const auth = getAuth(app);
 
   window.currentUser = null;
-
-  window.signUpUser = async function(){
-    const email = document.getElementById("authEmail").value;
-    const password = document.getElementById("authPassword").value;
-
-    await createUserWithEmailAndPassword(auth, email, password);
-  };
-
-  window.loginUser = async function(){
-    const email = document.getElementById("authEmail").value;
-    const password = document.getElementById("authPassword").value;
-
-    await signInWithEmailAndPassword(auth, email, password);
-  };
-
-  window.logoutUser = async function(){
-    await signOut(auth);
-  };
-
-  const topLogoutBtn = document.getElementById("topLogoutBtn");
-
-  if(topLogoutBtn){
-    topLogoutBtn.addEventListener("click", logoutUser);
-  }
 
   if(localStorage.getItem("simpleBooksDarkMode") === "true"){
 
@@ -2440,19 +2429,25 @@
   onAuthStateChanged(auth, function(user){
     window.currentUser = user;
 
-    const status = document.getElementById("authStatus");
-
     const appContent = document.getElementById("appContent");
 
-    const authBox = document.getElementById("authBox");
+    const loginPrompt = document.getElementById("loginPrompt");
+
+    const invoiceAppNav = document.getElementById("invoiceAppNav");
 
     if(user){
-      status.textContent = "Logged in as " + user.email;
-
       loadBusinessDetailsFromAccount(user);
 
       if(appContent){
         appContent.style.display = "block";
+      }
+
+      if(loginPrompt){
+        loginPrompt.style.display = "none";
+      }
+
+      if(invoiceAppNav){
+        invoiceAppNav.style.display = "flex";
       }
 
       renderCustomerDropdown();
@@ -2463,24 +2458,18 @@
         window.loadCustomersFromFirestore();
       }
 
-      if(authBox){
-        authBox.style.display = "none";
-      }
-
-      document.getElementById("topLogoutBtn").style.display = "inline-flex";
-
     } else {
-      status.textContent = "Not logged in.";
-
       if(appContent){
         appContent.style.display = "none";
       }
 
-      if(authBox){
-        authBox.style.display = "block";
+      if(loginPrompt){
+        loginPrompt.style.display = "block";
       }
 
-      document.getElementById("topLogoutBtn").style.display = "none";
+      if(invoiceAppNav){
+        invoiceAppNav.style.display = "none";
+      }
     }
   });
 

@@ -56,35 +56,6 @@
       transform:translateY(-8px);
     }
 
-    .app-nav{
-      display:flex;
-      flex-wrap:wrap;
-      align-items:center;
-      gap:12px;
-      margin-left:auto;
-      margin-bottom:18px;
-      font-weight:700;
-    }
-
-    .app-nav a{
-      text-decoration:none;
-      color:#475569;
-    }
-
-    .app-nav a:hover{
-      color:var(--primary);
-    }
-
-    .app-nav a.active{
-      color:var(--primary);
-      border-bottom:3px solid var(--primary);
-      padding-bottom:4px;
-    }
-
-    .app-nav span{
-      color:#cbd5e1;
-    }
-
     .signup-shell{
       display:grid;
       grid-template-columns:minmax(0, .9fr) minmax(360px, .7fr);
@@ -196,15 +167,6 @@
         grid-template-columns:1fr;
       }
 
-      .app-header{
-        align-items:flex-start;
-        flex-direction:column;
-      }
-
-      .app-nav{
-        margin-left:0;
-      }
-
       h1{
         font-size:36px;
       }
@@ -215,31 +177,9 @@
 <body>
   <main class="wrap">
     <header class="app-header">
-      <a class="app-brand" href="/dashboard.html">
+      <a class="app-brand" href="/signup.html">
         <img src="/assets/logo.png" alt="Simple Books logo">
       </a>
-
-      <nav class="app-nav">
-        <a href="/dashboard.html">Dashboard</a>
-        <span>|</span>
-
-        <a href="/resources/tools/invoice-generator.html">Invoices</a>
-        <span>|</span>
-
-        <a href="/resources/tools/bills.html">Bills</a>
-        <span>|</span>
-
-        <a href="/resources/tools/client-tracker.html">Clients</a>
-        <span>|</span>
-
-        <a href="/resources/tools/expenses.html">Expenses</a>
-        <span>|</span>
-
-        <a href="/exports.html">Exports</a>
-        <span>|</span>
-
-        <a href="/account.html">Account</a>
-      </nav>
     </header>
 
     <section class="signup-shell">
