@@ -3514,12 +3514,18 @@ async function generateStatement(){
   `;
 }
 
-function exportInvoiceRegisterCsv(){
-  const invoices =
-    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+async function exportInvoiceRegisterCsv(){
+  let invoices = [];
+
+  if(window.currentUser && window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  } else {
+    invoices =
+      JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  }
 
   if(!invoices.length){
-    alert("No invoices to export.");
+    alert("No invoices found to export.");
     return;
   }
 
