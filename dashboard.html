@@ -663,14 +663,58 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <script>
+  <script type="module">
+    import { auth, db } from "./firebase-config.js";
+
+    import {
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    import {
+      doc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const dashboardUserPromise = new Promise(resolve => {
+      const unsubscribe = onAuthStateChanged(auth, user => {
+        unsubscribe();
+        resolve(user);
+      });
+    });
+
+    async function getDashboardUser(){
+      return auth.currentUser || await dashboardUserPromise;
+    }
+
     function money(value) {
       return "£" + Number(value || 0).toFixed(2);
     }
 
-    function loadAccountSummary(){
-      const account =
+    async function loadAccountSummary(){
+      const localAccount =
         JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+
+      let account = localAccount;
+
+      const user = await getDashboardUser();
+
+      if(user){
+        try{
+          const userRef = doc(db, "users", user.uid);
+          const snap = await getDoc(userRef);
+
+          if(snap.exists()){
+            account = {
+              ...localAccount,
+              ...snap.data()
+            };
+
+            localStorage.setItem("simpleBooksAccount", JSON.stringify(account));
+          }
+        }catch(error){
+          console.error("Could not load account summary from Firestore", error);
+        }
+      }
 
       const firstName =
         account.fullName ? account.fullName.split(" ")[0] : "";
@@ -1138,7 +1182,7 @@
       });
     }
 
-    loadAccountSummary();
+    await loadAccountSummary();
     loadDashboard();
     updateOnboardingChecklist();
   </script>
