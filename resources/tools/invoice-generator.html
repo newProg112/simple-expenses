@@ -2667,24 +2667,49 @@ function saveLastInvoiceNumber(invoiceNo){
   localStorage.setItem("simpleBooksLastInvoiceNumber", invoiceNo);
 }
 
-function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items){
+async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items){
+  const invoice = {
+    invoiceNo: invoiceNo,
+    client: client,
+    clientEmail: document.getElementById("clientEmail")?.value || "",
+    clientAddress: document.getElementById("clientAddress")?.value || "",
+    paymentTerms: document.getElementById("paymentTerms")?.value || "14 days",
+    dueDate: document.getElementById("dueDate")?.value || "",
+    amount: amount,
+    vat: vat,
+    total: total,
+    items: items,
+    status: "Unpaid",
+    date: new Date().toLocaleDateString("en-GB"),
+    createdAt: new Date().toISOString(),
+    recurringInvoice: document.getElementById("recurringInvoice")?.value || "No",
+    recurringFrequency: document.getElementById("recurringFrequency")?.value || "",
+    nextInvoiceDate: document.getElementById("nextInvoiceDate")?.value || "",
+    reminderDate: document.getElementById("reminderDate")?.value || "",
+  };
+
+  if(window.currentUser){
+    if(!window.saveInvoiceToFirestore){
+      alert("Invoice saving is not ready yet. Please try again.");
+      return false;
+    }
+
+    await window.saveInvoiceToFirestore(invoice);
+    await renderRecentInvoices();
+    return true;
+  }
+
   const invoices =
     JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
 
-  const invoice = {
-    invoiceNo,
-    client,
-    amount,
-    vat,
-    total,
-    items,
-    status: "Unpaid",
-    date: new Date().toLocaleDateString("en-GB")
-  };
+  invoice.id = Date.now();
 
   invoices.unshift(invoice);
 
   localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
+
+  renderRecentInvoices();
+  return true;
 }
 
 function isInvoiceOverdue(invoice){
@@ -3609,32 +3634,14 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
   const total = amount + vat;
 
   if(saveToHistory){
-    saveInvoiceToHistory(invoiceNo, client, amount, vat, total, activeItems);
+    const invoiceSaved =
+      await saveInvoiceToHistory(invoiceNo, client, amount, vat, total, activeItems);
 
-    if(window.saveInvoiceToFirestore){
-      window.saveInvoiceToFirestore({
-        invoiceNo: invoiceNo,
-        client: client,
-        clientEmail: clientEmail,
-        clientAddress: document.getElementById("clientAddress")?.value || "",
-        paymentTerms: document.getElementById("paymentTerms")?.value || "14 days",
-        dueDate: document.getElementById("dueDate")?.value || "",
-        amount: amount,
-        vat: vat,
-        total: total,
-        items: activeItems,
-        status: "Unpaid",
-        date: new Date().toLocaleDateString("en-GB"),
-        createdAt: new Date().toISOString(),
-        recurringInvoice: document.getElementById("recurringInvoice")?.value || "No",
-        recurringFrequency: document.getElementById("recurringFrequency")?.value || "",
-        nextInvoiceDate: document.getElementById("nextInvoiceDate")?.value || "",
-        reminderDate: document.getElementById("reminderDate")?.value || "",
-      });
+    if(!invoiceSaved){
+      return;
     }
 
-    renderRecentInvoices();
-    setInitialInvoiceNumber();
+    await setInitialInvoiceNumber();
   }
 
   const today = previewDate || new Date().toLocaleDateString("en-GB");
