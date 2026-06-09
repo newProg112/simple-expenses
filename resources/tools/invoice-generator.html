@@ -3900,13 +3900,64 @@ function importInvoiceBackup(event){
 
   const reader = new FileReader();
 
-  reader.onload = function(e){
+  reader.onload = async function(e){
     try{
       const backup =
         JSON.parse(e.target.result);
 
       if(!backup.invoices || !Array.isArray(backup.invoices)){
         alert("Invalid backup file.");
+        return;
+      }
+
+      if(window.currentUser){
+        if(!window.saveInvoiceToFirestore){
+          alert("Could not import backup to Firestore. Please try again.");
+          return;
+        }
+
+        const existingInvoices =
+          window.getInvoicesFromFirestore
+            ? await window.getInvoicesFromFirestore()
+            : [];
+
+        const existingInvoiceNumbers = new Set(
+          existingInvoices
+            .map(invoice => (invoice.invoiceNo || "").toLowerCase())
+            .filter(Boolean)
+        );
+
+        let importedCount = 0;
+        let skippedCount = 0;
+
+        for(const invoice of backup.invoices){
+          const invoiceNo =
+            (invoice.invoiceNo || "").toLowerCase();
+
+          if(invoiceNo && existingInvoiceNumbers.has(invoiceNo)){
+            skippedCount += 1;
+            continue;
+          }
+
+          await window.saveInvoiceToFirestore({
+            ...invoice
+          });
+
+          if(invoiceNo){
+            existingInvoiceNumbers.add(invoiceNo);
+          }
+
+          importedCount += 1;
+        }
+
+        alert(
+          "Backup imported successfully. " +
+          importedCount +
+          " invoices imported to Firestore." +
+          (skippedCount ? " " + skippedCount + " duplicates skipped." : "")
+        );
+
+        await renderRecentInvoices();
         return;
       }
 
