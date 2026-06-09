@@ -3852,9 +3852,15 @@ function createEmailDraft(){
   window.location.href = mailtoLink;
 }
 
-function exportInvoiceBackup(){
-  const invoices =
-    JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+async function exportInvoiceBackup(){
+  let invoices = [];
+
+  if(window.currentUser && window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  } else {
+    invoices =
+      JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  }
 
   if(invoices.length === 0){
     alert("No invoices found to export.");
