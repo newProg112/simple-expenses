@@ -2360,6 +2360,7 @@
   import {
     collection,
     addDoc,
+    setDoc,
     getDocs,
     getDoc,
     doc,
@@ -2376,6 +2377,12 @@
   // const auth = getAuth(app);
 
   window.currentUser = null;
+  let invoiceAuthReadyResolved = false;
+  let resolveInvoiceAuthReady;
+
+  window.invoiceAuthReady = new Promise(resolve => {
+    resolveInvoiceAuthReady = resolve;
+  });
 
   if(localStorage.getItem("simpleBooksDarkMode") === "true"){
 
@@ -2406,6 +2413,9 @@
       localStorage.removeItem("simpleBooksAccount");
     }
   }
+
+  window.readSimpleBooksAccountCache = readAccountCache;
+  window.writeSimpleBooksAccountCache = writeAccountCache;
 
   async function loadBusinessDetailsFromAccount(user){
     if(!user) return;
@@ -2447,6 +2457,11 @@
 
   onAuthStateChanged(auth, function(user){
     window.currentUser = user;
+
+    if(!invoiceAuthReadyResolved){
+      invoiceAuthReadyResolved = true;
+      resolveInvoiceAuthReady(user);
+    }
 
     const appContent = document.getElementById("appContent");
 
@@ -2492,17 +2507,38 @@
     }
   });
 
-  window.saveCustomerToFirestore = async function(customer){
+  window.saveCustomerToFirestore = async function(customer, customerId = ""){
     if(!window.currentUser){
       alert("Please log in first.");
-      return;
+      return null;
     }
 
-    await addDoc(
+    if(customerId){
+      await setDoc(
+        doc(db, "users", window.currentUser.uid, "customers", String(customerId)),
+        customer,
+        { merge: true }
+      );
+
+      console.log("Customer updated in Firestore");
+
+      return {
+        id: customerId,
+        ...customer
+      };
+    }
+
+    const customerRef = await addDoc(
       collection(db, "users", window.currentUser.uid, "customers"),
       customer
     );
+
     console.log("Customer saved to Firestore");
+
+    return {
+      id: customerRef.id,
+      ...customer
+    };
   };
 
   window.saveInvoiceToFirestore = async function(invoice){
@@ -2614,6 +2650,8 @@
     if(window.renderCustomerDropdown){
       window.renderCustomerDropdown();
     }
+
+    return customers;
   };
 
   console.log("Firestore connected");
@@ -2630,8 +2668,9 @@ let editingInvoiceIndex = null;
 
 async function invoiceNumberExists(invoiceNo){
   let invoices = [];
+  const user = await getInvoiceUser();
 
-  if(window.getInvoicesFromFirestore){
+  if(user && window.getInvoicesFromFirestore){
     invoices = await window.getInvoicesFromFirestore();
   } else {
     invoices =
@@ -2645,8 +2684,9 @@ async function invoiceNumberExists(invoiceNo){
 
 async function getNextInvoiceNumber(){
   let invoices = [];
+  const user = await getInvoiceUser();
 
-  if(window.getInvoicesFromFirestore){
+  if(user && window.getInvoicesFromFirestore){
     invoices = await window.getInvoicesFromFirestore();
   } else {
     invoices =
@@ -2686,6 +2726,11 @@ function saveLastInvoiceNumber(invoiceNo){
   localStorage.setItem("simpleBooksLastInvoiceNumber", invoiceNo);
 }
 
+async function getInvoiceUser(){
+  return window.currentUser ||
+    await (window.invoiceAuthReady || Promise.resolve(null));
+}
+
 async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items){
   const invoice = {
     invoiceNo: invoiceNo,
@@ -2707,14 +2752,17 @@ async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items
     reminderDate: document.getElementById("reminderDate")?.value || "",
   };
 
-  if(window.currentUser){
+  const user = await getInvoiceUser();
+
+  if(user){
     if(!window.saveInvoiceToFirestore){
       alert("Invoice saving is not ready yet. Please try again.");
       return false;
     }
 
+    console.log("Invoice generation: saving invoice to Firestore", invoiceNo);
     await window.saveInvoiceToFirestore(invoice);
-    await renderRecentInvoices();
+    console.log("Invoice generation: Firestore save complete", invoiceNo);
     return true;
   }
 
@@ -2727,7 +2775,6 @@ async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items
 
   localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
 
-  renderRecentInvoices();
   return true;
 }
 
@@ -3017,8 +3064,9 @@ function toggleDarkMode(){
 
 async function renderRecentInvoices(){
   let invoices = [];
+  const user = await getInvoiceUser();
 
-  if(window.getInvoicesFromFirestore){
+  if(user && window.getInvoicesFromFirestore){
     invoices = await window.getInvoicesFromFirestore();
   }else{
     invoices =
@@ -3581,7 +3629,23 @@ async function exportInvoiceRegisterCsv(){
 }
 
 function getAccountProfile(){
-  return readAccountCache();
+  try{
+    if(typeof window.readSimpleBooksAccountCache === "function"){
+      return window.readSimpleBooksAccountCache() || {};
+    }
+  }catch(error){
+    console.error("Could not read account profile cache", error);
+  }
+
+  try{
+    const user = window.currentUser;
+    const key = user ? `simpleBooksAccount:${user.uid}` : "simpleBooksAccount";
+
+    return JSON.parse(localStorage.getItem(key) || "{}");
+  }catch(error){
+    console.error("Could not read fallback account profile", error);
+    return {};
+  }
 }
 
 function accountLogoSrc(account = getAccountProfile()){
@@ -3665,8 +3729,6 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
     if(!invoiceSaved){
       return;
     }
-
-    await setInitialInvoiceNumber();
   }
 
   const today = previewDate || new Date().toLocaleDateString("en-GB");
@@ -3800,7 +3862,27 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
       </div>
     ` : ""}
   `;
+
+  console.log("Invoice generation: preview rendered", invoiceNo);
+
+  if(saveToHistory){
+    try{
+      console.log("Invoice generation: refreshing recent invoices");
+      await renderRecentInvoices();
+      console.log("Invoice generation: recent invoices refreshed");
+    }catch(error){
+      console.error("Could not refresh recent invoices", error);
+    }
+
+    try{
+      console.log("Invoice generation: refreshing next invoice number");
+      await setInitialInvoiceNumber();
+      console.log("Invoice generation: next invoice number refreshed");
+    }catch(error){
+      console.error("Could not refresh invoice number", error);
+    }
   }
+}
 
 function printInvoice(){
   const invoice = document.getElementById("invoicePreview");
@@ -4002,6 +4084,8 @@ function importInvoiceBackup(event){
   reader.readAsText(file);
 }
 
+let selectedCustomerId = "";
+
 function getCustomers(){
   return JSON.parse(localStorage.getItem("simpleBooksCustomers") || "[]");
 }
@@ -4010,7 +4094,7 @@ function saveCustomers(customers){
   localStorage.setItem("simpleBooksCustomers", JSON.stringify(customers));
 }
 
-function saveCurrentCustomer(){
+async function saveCurrentCustomer(){
   const name = document.getElementById("clientName").value.trim();
   const email = document.getElementById("clientEmail").value.trim();
   const address = document.getElementById("clientAddress").value.trim();
@@ -4023,10 +4107,67 @@ function saveCurrentCustomer(){
 
   const customers = getCustomers();
 
-  const existingCustomer =
+  const existingCustomerById =
+    selectedCustomerId
+      ? customers.find(customer =>
+          String(customer.id) === String(selectedCustomerId)
+        )
+      : null;
+
+  const existingCustomerByName =
     customers.find(customer =>
       customer.name.toLowerCase() === name.toLowerCase()
     );
+
+  const existingCustomer = existingCustomerById || existingCustomerByName;
+
+  const customerData = {
+    name: name,
+    email: email,
+    address: address,
+    paymentTerms: paymentTerms
+  };
+
+  if(window.currentUser){
+    if(!window.saveCustomerToFirestore){
+      alert("Customer saving is not ready yet. Please try again.");
+      return;
+    }
+
+    try{
+      const savedCustomer = await window.saveCustomerToFirestore(
+        {
+          ...customerData,
+          createdAt:
+            existingCustomer?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        existingCustomer?.id || ""
+      );
+
+      if(!savedCustomer){
+        return;
+      }
+
+      if(existingCustomer){
+        Object.assign(existingCustomer, savedCustomer);
+      } else {
+        customers.push(savedCustomer);
+      }
+
+      selectedCustomerId = String(savedCustomer.id || "");
+
+      saveCustomers(customers);
+      renderCustomerDropdown();
+
+      alert("Customer saved.");
+      return;
+    }catch(error){
+      console.error("Customer save failed", error);
+      alert("Could not save customer. Please try again.");
+      return;
+    }
+  }
 
   if(existingCustomer){
     existingCustomer.email = email;
@@ -4035,24 +4176,13 @@ function saveCurrentCustomer(){
   } else {
     customers.push({
       id: Date.now(),
-      name: name,
-      email: email,
-      address: address,
-      paymentTerms: paymentTerms
+      ...customerData
     });
   }
+
+  selectedCustomerId = String(existingCustomer?.id || customers[customers.length - 1]?.id || "");
 
   saveCustomers(customers);
-
-  if(window.saveCustomerToFirestore){
-    window.saveCustomerToFirestore({
-      name: name,
-      email: email,
-      address: address,
-      paymentTerms: paymentTerms,
-      createdAt: new Date().toISOString()
-    });
-  }
 
   renderCustomerDropdown();
 
@@ -4083,8 +4213,11 @@ function selectSavedCustomer(){
   const selectedId = document.getElementById("savedCustomerSelect").value;
 
   if(!selectedId){
+    selectedCustomerId = "";
     return;
   }
+
+  selectedCustomerId = selectedId;
 
   const customers = getCustomers();
 
