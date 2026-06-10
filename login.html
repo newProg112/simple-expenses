@@ -270,6 +270,16 @@
       loginMessage.style.display = "block";
     }
 
+    function clearAccountCacheForUserChange(user){
+      const previousUid = localStorage.getItem("simpleBooksAccountUid");
+
+      if(previousUid && previousUid !== user.uid){
+        localStorage.removeItem("simpleBooksAccount");
+      }
+
+      localStorage.setItem("simpleBooksAccountUid", user.uid);
+    }
+
     loginForm.addEventListener("submit", async (event) => {
       event.preventDefault();
 
@@ -280,7 +290,8 @@
       loginBtn.textContent = "Logging in...";
 
       try{
-        await signInWithEmailAndPassword(auth, email, password);
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        clearAccountCacheForUserChange(credential.user);
 
         showMessage("Login successful. Opening dashboard...", "success");
         window.location.href = "/dashboard.html";
@@ -304,11 +315,12 @@
       demoLoginBtn.textContent = "Opening demo...";
 
       try{
-        await signInWithEmailAndPassword(
+        const credential = await signInWithEmailAndPassword(
           auth,
           "demo@simple-books.co.uk",
           "demo123"
         );
+        clearAccountCacheForUserChange(credential.user);
 
         showMessage("Demo login successful. Opening dashboard...", "success");
         window.location.href = "/dashboard.html";

@@ -2390,21 +2390,40 @@
 
   }
 
+  function accountStorageKey(user = window.currentUser){
+    return user ? `simpleBooksAccount:${user.uid}` : "simpleBooksAccount";
+  }
+
+  function readAccountCache(user = window.currentUser){
+    return JSON.parse(localStorage.getItem(accountStorageKey(user)) || "{}");
+  }
+
+  function writeAccountCache(account, user = window.currentUser){
+    localStorage.setItem(accountStorageKey(user), JSON.stringify(account));
+
+    if(user){
+      localStorage.setItem("simpleBooksAccountUid", user.uid);
+      localStorage.removeItem("simpleBooksAccount");
+    }
+  }
+
   async function loadBusinessDetailsFromAccount(user){
     if(!user) return;
 
-    const userRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userRef);
+    let account = {};
 
-    if(!userSnap.exists()) return;
+    try{
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
 
-    const localAccount = getAccountProfile();
-    const account = {
-      ...localAccount,
-      ...userSnap.data()
-    };
-
-    localStorage.setItem("simpleBooksAccount", JSON.stringify(account));
+      if(userSnap.exists()){
+        account = userSnap.data();
+        writeAccountCache(account, user);
+      }
+    }catch(error){
+      console.error("Could not load business details from Firestore", error);
+      account = readAccountCache(user);
+    }
 
     document.getElementById("businessName").value =
       account.businessName || "";
@@ -3562,7 +3581,7 @@ async function exportInvoiceRegisterCsv(){
 }
 
 function getAccountProfile(){
-  return JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+  return readAccountCache();
 }
 
 function accountLogoSrc(account = getAccountProfile()){

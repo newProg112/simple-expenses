@@ -690,17 +690,30 @@
       return auth.currentUser || await dashboardUserPromise;
     }
 
+    function accountStorageKey(user){
+      return user ? `simpleBooksAccount:${user.uid}` : "simpleBooksAccount";
+    }
+
+    function readAccountCache(user){
+      return JSON.parse(localStorage.getItem(accountStorageKey(user)) || "{}");
+    }
+
+    function writeAccountCache(account, user){
+      localStorage.setItem(accountStorageKey(user), JSON.stringify(account));
+
+      if(user){
+        localStorage.setItem("simpleBooksAccountUid", user.uid);
+        localStorage.removeItem("simpleBooksAccount");
+      }
+    }
+
     function money(value) {
       return "£" + Number(value || 0).toFixed(2);
     }
 
     async function loadAccountSummary(){
-      const localAccount =
-        JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
-
-      let account = localAccount;
-
       const user = await getDashboardUser();
+      let account = user ? {} : readAccountCache(null);
 
       if(user){
         try{
@@ -708,15 +721,12 @@
           const snap = await getDoc(userRef);
 
           if(snap.exists()){
-            account = {
-              ...localAccount,
-              ...snap.data()
-            };
-
-            localStorage.setItem("simpleBooksAccount", JSON.stringify(account));
+            account = snap.data();
+            writeAccountCache(account, user);
           }
         }catch(error){
           console.error("Could not load account summary from Firestore", error);
+          account = readAccountCache(user);
         }
       }
 
@@ -767,8 +777,9 @@
     }
 
     async function updateOnboardingChecklist(){
-      let account =
-        JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+      const user = await getDashboardUser();
+
+      let account = user ? {} : readAccountCache(null);
 
       let clients =
         JSON.parse(localStorage.getItem("simpleBooksClients") || "[]");
@@ -779,20 +790,17 @@
       let invoices =
         JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
 
-      const user = await getDashboardUser();
-
       if(user){
         try{
           const userSnap = await getDoc(doc(db, "users", user.uid));
 
           if(userSnap.exists()){
-            account = {
-              ...account,
-              ...userSnap.data()
-            };
+            account = userSnap.data();
+            writeAccountCache(account, user);
           }
         }catch(error){
           console.error("Could not load onboarding profile from Firestore", error);
+          account = readAccountCache(user);
         }
 
         try{

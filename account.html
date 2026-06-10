@@ -629,6 +629,39 @@
 
     let companyLogoUrl = "";
 
+    function accountStorageKey(user = currentUser){
+      return user ? `simpleBooksAccount:${user.uid}` : "simpleBooksAccount";
+    }
+
+    function readAccountCache(user = currentUser){
+      return JSON.parse(localStorage.getItem(accountStorageKey(user)) || "{}");
+    }
+
+    function writeAccountCache(account, user = currentUser){
+      localStorage.setItem(accountStorageKey(user), JSON.stringify(account));
+
+      if(user){
+        localStorage.setItem("simpleBooksAccountUid", user.uid);
+        localStorage.removeItem("simpleBooksAccount");
+      }
+    }
+
+    function clearAccountCacheForUserChange(user){
+      const previousUid = localStorage.getItem("simpleBooksAccountUid");
+
+      if(user){
+        if(previousUid && previousUid !== user.uid){
+          localStorage.removeItem("simpleBooksAccount");
+        }
+
+        localStorage.setItem("simpleBooksAccountUid", user.uid);
+        return;
+      }
+
+      localStorage.removeItem("simpleBooksAccountUid");
+      localStorage.removeItem("simpleBooksAccount");
+    }
+
     function setField(id, value){
       const el = document.getElementById(id);
       if(el){
@@ -663,29 +696,28 @@
     }
 
     function updateLocalLogo(){
-      const saved = JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
+      const saved = readAccountCache();
       delete saved.companyLogoDataUrl;
       saved.companyLogoUrl = companyLogoUrl;
-      localStorage.setItem("simpleBooksAccount", JSON.stringify(saved));
+      writeAccountCache(saved);
     }
 
     async function loadAccount(){
 
-      const localSaved =
-        JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
-
-      let saved = localSaved;
+      let saved = currentUser ? {} : readAccountCache(null);
 
       if(currentUser){
-        const userRef = doc(db, "users", currentUser.uid);
-        const snap = await getDoc(userRef);
+        try{
+          const userRef = doc(db, "users", currentUser.uid);
+          const snap = await getDoc(userRef);
 
-        if(snap.exists()){
-          saved = {
-            ...localSaved,
-            ...snap.data()
-          };
-          localStorage.setItem("simpleBooksAccount", JSON.stringify(saved));
+          if(snap.exists()){
+            saved = snap.data();
+            writeAccountCache(saved);
+          }
+        }catch(error){
+          console.error("Could not load account from Firestore", error);
+          saved = readAccountCache();
         }
       }
 
@@ -779,10 +811,7 @@
         companyLogoUrl
       };
 
-      localStorage.setItem(
-        "simpleBooksAccount",
-        JSON.stringify(data)
-      );
+      writeAccountCache(data);
 
       if(currentUser){
         await setDoc(
@@ -952,6 +981,7 @@
 
     onAuthStateChanged(auth, async (user) => {
       currentUser = user;
+      clearAccountCacheForUserChange(user);
       await loadAccount();
     });
   </script>
