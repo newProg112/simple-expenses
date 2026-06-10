@@ -769,10 +769,17 @@
   </main>
 
   <script type="module">
-    import { app, auth } from "../../firebase-config.js";
+    import { app, auth, db } from "../../firebase-config.js";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      collection,
+      deleteDoc,
+      doc,
+      getDocs,
+      setDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import {
       deleteObject,
       getDownloadURL,
@@ -806,6 +813,39 @@
         "simpleBooksClients",
         JSON.stringify(clients)
       );
+    }
+
+    async function loadClients(){
+      clients = JSON.parse(
+        localStorage.getItem("simpleBooksClients") || "[]"
+      );
+
+      const user = await getCurrentUser();
+
+      if(!user){
+        return clients;
+      }
+
+      try{
+        const snapshot = await getDocs(
+          collection(db, "users", user.uid, "clients")
+        );
+
+        clients = snapshot.docs.map(snap => {
+          const fallbackId = Number(snap.id);
+
+          return {
+            id: Number.isNaN(fallbackId) ? snap.id : fallbackId,
+            ...snap.data()
+          };
+        });
+
+        saveClients();
+      }catch(error){
+        console.error("Firestore clients load failed", error);
+      }
+
+      return clients;
     }
 
     function escapeHtml(value) {
@@ -973,9 +1013,9 @@
             attachmentSize: 0
           };
 
-      if (selectedAttachment) {
-        const user = await getCurrentUser();
+      const user = await getCurrentUser();
 
+      if (selectedAttachment) {
         if (!user) {
           saveButton.disabled = false;
           setAttachmentStatus("Please sign in before saving clients with attachments.", true);
@@ -995,6 +1035,19 @@
       }
 
       Object.assign(client, attachment);
+
+      if(user){
+        try{
+          await setDoc(
+            doc(db, "users", user.uid, "clients", String(client.id)),
+            client
+          );
+        }catch(error){
+          saveButton.disabled = false;
+          setAttachmentStatus(`Firestore client save failed: ${error.message}`, true);
+          return;
+        }
+      }
 
       if(activeEditingClientId){
 
@@ -1203,20 +1256,30 @@
       }).join("");
     }
 
-    renderClients();
-
     async function deleteClient(id){
 
       if(!confirm("Delete this client?")){
         return;
       }
 
-      const clientToDelete = clients.find(client => client.id === id);
-      clients = clients.filter(client => client.id !== id);
+      const clientToDelete = clients.find(client => String(client.id) === String(id));
+      clients = clients.filter(client => String(client.id) !== String(id));
 
       saveClients();
 
       renderClients();
+
+      const user = await getCurrentUser();
+
+      if(user){
+        try{
+          await deleteDoc(
+            doc(db, "users", user.uid, "clients", String(id))
+          );
+        }catch(error){
+          console.error("Firestore client delete failed", error);
+        }
+      }
 
       if (clientToDelete?.attachmentPath) {
         await deleteAttachment(clientToDelete.attachmentPath);
@@ -1262,11 +1325,11 @@
         "Update Client";
     }
 
-    function convertToActive(id){
+    async function convertToActive(id){
 
       clients = clients.map(client => {
 
-        if(client.id === id){
+        if(String(client.id) === String(id)){
 
           return {
             ...client,
@@ -1282,6 +1345,19 @@
       saveClients();
 
       renderClients();
+
+      const user = await getCurrentUser();
+
+      if(user){
+        try{
+          await setDoc(
+            doc(db, "users", user.uid, "clients", String(id)),
+            clients.find(client => String(client.id) === String(id))
+          );
+        }catch(error){
+          console.error("Firestore client status update failed", error);
+        }
+      }
     }
 
     function exportClientsCsv(){
@@ -1333,6 +1409,8 @@
     window.convertToActive = convertToActive;
     window.exportClientsCsv = exportClientsCsv;
 
+    await loadClients();
+    renderClients();
   </script>
 
 </body>
