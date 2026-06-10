@@ -955,11 +955,41 @@
       badge.classList.add("trend-neutral");
     }
 
-    function loadDashboard() {
-      const invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+    async function loadDashboard() {
+      let invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
 
-      const bills =
+      let bills =
         JSON.parse(localStorage.getItem("simpleBooksBills") || "[]");
+
+      const user = await getDashboardUser();
+
+      if(user){
+        try{
+          const invoicesSnap = await getDocs(
+            collection(db, "users", user.uid, "invoices")
+          );
+
+          invoices = invoicesSnap.docs.map(snap => ({
+            id: snap.id,
+            ...snap.data()
+          }));
+        }catch(error){
+          console.error("Could not load dashboard invoices from Firestore", error);
+        }
+
+        try{
+          const billsSnap = await getDocs(
+            collection(db, "users", user.uid, "bills")
+          );
+
+          bills = billsSnap.docs.map(snap => ({
+            id: snap.id,
+            ...snap.data()
+          }));
+        }catch(error){
+          console.error("Could not load dashboard bills from Firestore", error);
+        }
+      }
 
       const reminders = invoices
         .filter(inv => inv.reminderDate)
@@ -1230,7 +1260,7 @@
     }
 
     await loadAccountSummary();
-    loadDashboard();
+    await loadDashboard();
     await updateOnboardingChecklist();
   </script>
 </body>
