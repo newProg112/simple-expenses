@@ -672,7 +672,11 @@
 
     import {
       doc,
-      getDoc
+      getDoc,
+      collection,
+      getDocs,
+      query,
+      limit
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const dashboardUserPromise = new Promise(resolve => {
@@ -762,18 +766,61 @@
       }
     }
 
-    function updateOnboardingChecklist(){
-      const account =
+    async function updateOnboardingChecklist(){
+      let account =
         JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");
 
-      const clients =
+      let clients =
         JSON.parse(localStorage.getItem("simpleBooksClients") || "[]");
 
-      const customers =
+      let customers =
         JSON.parse(localStorage.getItem("simpleBooksCustomers") || "[]");
 
-      const invoices =
+      let invoices =
         JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+
+      const user = await getDashboardUser();
+
+      if(user){
+        try{
+          const userSnap = await getDoc(doc(db, "users", user.uid));
+
+          if(userSnap.exists()){
+            account = {
+              ...account,
+              ...userSnap.data()
+            };
+          }
+        }catch(error){
+          console.error("Could not load onboarding profile from Firestore", error);
+        }
+
+        try{
+          const customersSnap = await getDocs(
+            query(collection(db, "users", user.uid, "customers"), limit(1))
+          );
+
+          customers = customersSnap.docs.map(snap => ({
+            id: snap.id,
+            ...snap.data()
+          }));
+        }catch(error){
+          console.error("Could not load onboarding customers from Firestore", error);
+        }
+
+        try{
+          const invoicesSnap = await getDocs(
+            query(collection(db, "users", user.uid, "invoices"), limit(1))
+          );
+
+          invoices = invoicesSnap.docs.map(snap => ({
+            id: snap.id,
+            ...snap.data()
+          }));
+        }catch(error){
+          console.error("Could not load onboarding invoices from Firestore", error);
+        }
+      }
 
       const checks = {
         onboardingProfile: Boolean(
@@ -1184,7 +1231,7 @@
 
     await loadAccountSummary();
     loadDashboard();
-    updateOnboardingChecklist();
+    await updateOnboardingChecklist();
   </script>
 </body>
 </html>
