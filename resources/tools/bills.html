@@ -1223,8 +1223,10 @@
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
+      collection,
       deleteDoc,
       doc,
+      getDocs,
       setDoc,
       updateDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -1237,6 +1239,7 @@
 
     const storage = getStorage(app);
     let selectedAttachment = null;
+    let currentBills = [];
     const currentUserPromise = new Promise(resolve => {
       const unsubscribe = onAuthStateChanged(auth, user => {
         unsubscribe();
@@ -1250,6 +1253,31 @@
 
     function saveBills(bills) {
       localStorage.setItem("simpleBooksBills", JSON.stringify(bills));
+    }
+
+    async function loadBills() {
+      currentBills = getBills();
+
+      const user = await getCurrentUser();
+
+      if (!user) {
+        return currentBills;
+      }
+
+      try {
+        const snapshot = await getDocs(
+          collection(db, "users", user.uid, "bills")
+        );
+
+        currentBills = snapshot.docs.map(snap => ({
+          id: snap.id,
+          ...snap.data()
+        }));
+      } catch (error) {
+        console.error("Firestore bills load failed", error);
+      }
+
+      return currentBills;
     }
 
     function money(value) {
@@ -1509,12 +1537,13 @@
         return;
       }
 
-      const bills = getBills();
+      const bills = currentBills;
       bills.unshift(bill);
+      currentBills = bills;
       saveBills(bills);
 
       clearForm();
-      renderBills();
+      renderBills(currentBills);
       saveButton.disabled = false;
       alert("Bill saved.");
     }
@@ -1532,14 +1561,17 @@
     }
 
     async function markBillPaid(id) {
-      const bills = getBills();
-      const bill = bills.find(b => b.id === id);
+      if (!currentBills.length) {
+        await loadBills();
+      }
+
+      const bill = currentBills.find(b => String(b.id) === String(id));
 
       if (bill) {
         bill.status = "Paid";
         bill.paidAt = new Date().toISOString();
-        saveBills(bills);
-        renderBills();
+        saveBills(currentBills);
+        renderBills(currentBills);
 
         const ref = billDocRef(id);
 
@@ -1559,9 +1591,13 @@
     async function deleteBill(id) {
       if (!confirm("Delete this bill?")) return;
 
-      const bills = getBills().filter(b => b.id !== id);
-      saveBills(bills);
-      renderBills();
+      if (!currentBills.length) {
+        await loadBills();
+      }
+
+      currentBills = currentBills.filter(b => String(b.id) !== String(id));
+      saveBills(currentBills);
+      renderBills(currentBills);
 
       const ref = billDocRef(id);
 
@@ -1574,8 +1610,7 @@
       }
     }
 
-    function renderBills() {
-      const bills = getBills();
+    function renderBills(bills = currentBills) {
 
       const unpaid = bills
         .filter(b => b.status !== "Paid")
@@ -1682,7 +1717,8 @@
     window.markBillPaid = markBillPaid;
     window.deleteBill = deleteBill;
 
-    renderBills();
+    await loadBills();
+    renderBills(currentBills);
   </script>
 </body>
 </html>
