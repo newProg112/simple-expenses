@@ -2377,6 +2377,8 @@
   // const auth = getAuth(app);
 
   window.currentUser = null;
+  window.simpleBooksFirestoreCustomers = [];
+  window.simpleBooksCustomersLoaded = false;
   let invoiceAuthReadyResolved = false;
   let resolveInvoiceAuthReady;
 
@@ -2416,6 +2418,70 @@
 
   window.readSimpleBooksAccountCache = readAccountCache;
   window.writeSimpleBooksAccountCache = writeAccountCache;
+
+  function normaliseCustomerLookup(value){
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function findLoadedCustomerMatch(customer){
+    const nameKey =
+      customer.nameKey || normaliseCustomerLookup(customer.name);
+
+    const emailKey =
+      customer.emailKey || normaliseCustomerLookup(customer.email);
+
+    return (window.simpleBooksFirestoreCustomers || []).find(item => {
+      const itemNameKey =
+        item.nameKey || normaliseCustomerLookup(item.name);
+
+      const itemEmailKey =
+        item.emailKey || normaliseCustomerLookup(item.email);
+
+      return (
+        (nameKey && itemNameKey === nameKey) ||
+        (emailKey && itemEmailKey === emailKey)
+      );
+    });
+  }
+
+  function cacheFirestoreCustomer(customer){
+    const nextCustomer = {
+      ...customer,
+      nameKey:
+        customer.nameKey || normaliseCustomerLookup(customer.name),
+      emailKey:
+        customer.emailKey || normaliseCustomerLookup(customer.email)
+    };
+
+    const customers =
+      Array.isArray(window.simpleBooksFirestoreCustomers)
+        ? window.simpleBooksFirestoreCustomers
+        : [];
+
+    const existingIndex =
+      customers.findIndex(item =>
+        String(item.id) === String(nextCustomer.id)
+      );
+
+    if(existingIndex >= 0){
+      customers[existingIndex] = {
+        ...customers[existingIndex],
+        ...nextCustomer
+      };
+    } else {
+      customers.push(nextCustomer);
+    }
+
+    window.simpleBooksFirestoreCustomers = customers;
+    window.simpleBooksCustomersLoaded = true;
+
+    localStorage.setItem(
+      "simpleBooksCustomers",
+      JSON.stringify(customers)
+    );
+
+    return nextCustomer;
+  }
 
   async function loadBusinessDetailsFromAccount(user){
     if(!user) return;
@@ -2457,6 +2523,8 @@
 
   onAuthStateChanged(auth, function(user){
     window.currentUser = user;
+    window.simpleBooksFirestoreCustomers = [];
+    window.simpleBooksCustomersLoaded = false;
 
     if(!invoiceAuthReadyResolved){
       invoiceAuthReadyResolved = true;
@@ -2489,7 +2557,10 @@
       setupMobileSections();
 
       if(window.loadCustomersFromFirestore){
-        window.loadCustomersFromFirestore();
+        window.loadCustomersFromFirestore().catch(error => {
+          console.error("Customer load failed", error);
+          alert("Could not load saved customers. Local customer cache will be used until you retry.");
+        });
       }
 
     } else {
@@ -2513,32 +2584,60 @@
       return null;
     }
 
+    const customerWithKeys = {
+      ...customer,
+      nameKey: normaliseCustomerLookup(customer.name),
+      emailKey: normaliseCustomerLookup(customer.email)
+    };
+
     if(customerId){
       await setDoc(
         doc(db, "users", window.currentUser.uid, "customers", String(customerId)),
-        customer,
+        customerWithKeys,
         { merge: true }
       );
 
       console.log("Customer updated in Firestore");
 
-      return {
+      return cacheFirestoreCustomer({
         id: customerId,
-        ...customer
-      };
+        ...customerWithKeys
+      });
+    }
+
+    if(!window.simpleBooksCustomersLoaded && window.loadCustomersFromFirestore){
+      await window.loadCustomersFromFirestore();
+    }
+
+    const existingCustomer =
+      findLoadedCustomerMatch(customerWithKeys);
+
+    if(existingCustomer){
+      await setDoc(
+        doc(db, "users", window.currentUser.uid, "customers", String(existingCustomer.id)),
+        customerWithKeys,
+        { merge: true }
+      );
+
+      console.log("Existing customer matched and updated in Firestore");
+
+      return cacheFirestoreCustomer({
+        ...existingCustomer,
+        ...customerWithKeys
+      });
     }
 
     const customerRef = await addDoc(
       collection(db, "users", window.currentUser.uid, "customers"),
-      customer
+      customerWithKeys
     );
 
     console.log("Customer saved to Firestore");
 
-    return {
+    return cacheFirestoreCustomer({
       id: customerRef.id,
-      ...customer
-    };
+      ...customerWithKeys
+    });
   };
 
   window.saveInvoiceToFirestore = async function(invoice){
@@ -2637,8 +2736,15 @@
 
     const customers = snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
+      nameKey:
+        doc.data().nameKey || normaliseCustomerLookup(doc.data().name),
+      emailKey:
+        doc.data().emailKey || normaliseCustomerLookup(doc.data().email)
     }));
+
+    window.simpleBooksFirestoreCustomers = customers;
+    window.simpleBooksCustomersLoaded = true;
 
     localStorage.setItem(
       "simpleBooksCustomers",
@@ -4086,12 +4192,53 @@ function importInvoiceBackup(event){
 
 let selectedCustomerId = "";
 
+function normaliseCustomerValue(value){
+  return String(value || "").trim().toLowerCase();
+}
+
 function getCustomers(){
+  if(window.currentUser){
+    if(
+      window.simpleBooksCustomersLoaded &&
+      Array.isArray(window.simpleBooksFirestoreCustomers)
+    ){
+      return window.simpleBooksFirestoreCustomers;
+    }
+
+    if(
+      Array.isArray(window.simpleBooksFirestoreCustomers) &&
+      window.simpleBooksFirestoreCustomers.length
+    ){
+      return window.simpleBooksFirestoreCustomers;
+    }
+  }
+
   return JSON.parse(localStorage.getItem("simpleBooksCustomers") || "[]");
 }
 
 function saveCustomers(customers){
+  if(window.currentUser){
+    window.simpleBooksFirestoreCustomers = customers;
+    window.simpleBooksCustomersLoaded = true;
+  }
+
   localStorage.setItem("simpleBooksCustomers", JSON.stringify(customers));
+}
+
+async function ensureCustomersReady(){
+  if(!window.currentUser){
+    return getCustomers();
+  }
+
+  if(window.simpleBooksCustomersLoaded){
+    return getCustomers();
+  }
+
+  if(!window.loadCustomersFromFirestore){
+    throw new Error("Customer loading is not ready yet.");
+  }
+
+  return await window.loadCustomersFromFirestore();
 }
 
 async function saveCurrentCustomer(){
@@ -4105,7 +4252,15 @@ async function saveCurrentCustomer(){
     return;
   }
 
-  const customers = getCustomers();
+  let customers = [];
+
+  try{
+    customers = await ensureCustomersReady();
+  }catch(error){
+    console.error("Customer load failed", error);
+    alert("Could not load saved customers. Please try again.");
+    return;
+  }
 
   const existingCustomerById =
     selectedCustomerId
@@ -4116,7 +4271,11 @@ async function saveCurrentCustomer(){
 
   const existingCustomerByName =
     customers.find(customer =>
-      customer.name.toLowerCase() === name.toLowerCase()
+      normaliseCustomerValue(customer.name) === normaliseCustomerValue(name) ||
+      (
+        email &&
+        normaliseCustomerValue(customer.email) === normaliseCustomerValue(email)
+      )
     );
 
   const existingCustomer = existingCustomerById || existingCustomerByName;
@@ -4125,7 +4284,9 @@ async function saveCurrentCustomer(){
     name: name,
     email: email,
     address: address,
-    paymentTerms: paymentTerms
+    paymentTerms: paymentTerms,
+    nameKey: normaliseCustomerValue(name),
+    emailKey: normaliseCustomerValue(email)
   };
 
   if(window.currentUser){
@@ -4149,15 +4310,9 @@ async function saveCurrentCustomer(){
         return;
       }
 
-      if(existingCustomer){
-        Object.assign(existingCustomer, savedCustomer);
-      } else {
-        customers.push(savedCustomer);
-      }
-
       selectedCustomerId = String(savedCustomer.id || "");
 
-      saveCustomers(customers);
+      saveCustomers(getCustomers());
       renderCustomerDropdown();
 
       alert("Customer saved.");
@@ -4671,7 +4826,10 @@ loadBusinessProfileIntoInvoice();
 
 setTimeout(function(){
   if(window.loadCustomersFromFirestore){
-    window.loadCustomersFromFirestore();
+    window.loadCustomersFromFirestore().catch(error => {
+      console.error("Customer load failed", error);
+      alert("Could not load saved customers. Local customer cache will be used until you retry.");
+    });
   } else {
     console.log("Firestore customer loader not ready yet");
   }
