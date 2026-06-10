@@ -253,27 +253,41 @@
 
   </main>
 
+  <script type="module">
+    import { auth, db } from "/firebase-config.js";
+
+    import {
+      collection,
+      doc,
+      getDoc,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    import {
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    window.simpleBooksBackupServices = {
+      auth,
+      db,
+      collection,
+      doc,
+      getDoc,
+      getDocs
+    };
+
+    window.simpleBooksBackupUserReady = new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        unsubscribe();
+        resolve(user);
+      });
+    });
+  </script>
+
   <script>
-    function downloadFullBackup(){
+    async function downloadFullBackup(){
 
-        const backupData = {
-        exportedAt: new Date().toISOString(),
-
-        invoices:
-            JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]"),
-
-        bills:
-            JSON.parse(localStorage.getItem("simpleBooksBills") || "[]"),
-
-        clients:
-            JSON.parse(localStorage.getItem("simpleBooksClients") || "[]"),
-
-        account:
-            JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}"),
-
-        customers:
-            JSON.parse(localStorage.getItem("simpleBooksCustomers") || "[]")
-        };
+        const backupData = await buildFullBackupData();
 
         const blob = new Blob(
         [JSON.stringify(backupData, null, 2)],
@@ -294,6 +308,79 @@
         localStorage.setItem("simpleBooksBackupDownloaded", "true");
 
         URL.revokeObjectURL(url);
+    }
+
+    async function buildFullBackupData(){
+        const services = window.simpleBooksBackupServices;
+        const user = services?.auth?.currentUser ||
+          await (window.simpleBooksBackupUserReady || Promise.resolve(null));
+
+        if(user && services){
+          return buildFirestoreBackupData(user, services);
+        }
+
+        const backupData = {
+        exportedAt: new Date().toISOString(),
+
+        invoices:
+            JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]"),
+
+        bills:
+            JSON.parse(localStorage.getItem("simpleBooksBills") || "[]"),
+
+        clients:
+            JSON.parse(localStorage.getItem("simpleBooksClients") || "[]"),
+
+        account:
+            JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}"),
+
+        customers:
+            JSON.parse(localStorage.getItem("simpleBooksCustomers") || "[]")
+        };
+
+        return backupData;
+    }
+
+    async function buildFirestoreBackupData(user, services){
+        const accountSnap = await services.getDoc(
+          services.doc(services.db, "users", user.uid)
+        );
+
+        return {
+        exportedAt: new Date().toISOString(),
+
+        invoices:
+            await readFirestoreCollection(user, services, "invoices"),
+
+        bills:
+            await readFirestoreCollection(user, services, "bills"),
+
+        clients:
+            await readFirestoreCollection(user, services, "clients"),
+
+        account:
+            accountSnap.exists() ? accountSnap.data() : {},
+
+        customers:
+            await readFirestoreCollection(user, services, "customers")
+        };
+    }
+
+    async function readFirestoreCollection(user, services, collectionName){
+        const snapshot = await services.getDocs(
+          services.collection(services.db, "users", user.uid, collectionName)
+        );
+
+        const records = [];
+
+        snapshot.forEach((item) => {
+          records.push({
+            id: item.id,
+            ...item.data()
+          });
+        });
+
+        return records;
     }
 
     function importFullBackup(event){
