@@ -527,6 +527,55 @@
       font-variant-numeric:tabular-nums;
     }
 
+    .client-activity-card{
+      grid-column:1 / -1;
+    }
+
+    .client-activity-feed{
+      display:grid;
+      gap:0;
+      margin-top:18px;
+    }
+
+    .client-activity-row{
+      display:grid;
+      grid-template-columns:minmax(0, 1fr) auto;
+      gap:14px;
+      align-items:start;
+      padding:13px 0;
+      border-bottom:1px solid #eef2f7;
+    }
+
+    .client-activity-row:last-child{
+      border-bottom:0;
+      padding-bottom:0;
+    }
+
+    .client-activity-name{
+      color:#102033;
+      font-size:14px;
+      font-weight:900;
+      line-height:1.25;
+      overflow-wrap:anywhere;
+    }
+
+    .client-activity-description{
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.35;
+      margin-top:4px;
+      overflow-wrap:anywhere;
+    }
+
+    .client-activity-date{
+      color:#102033;
+      font-size:13px;
+      font-weight:900;
+      white-space:nowrap;
+      font-variant-numeric:tabular-nums;
+    }
+
     .list-title-row{
       display:flex;
       align-items:center;
@@ -763,6 +812,10 @@
         grid-template-columns:1fr;
       }
 
+      .client-activity-row{
+        grid-template-columns:1fr;
+      }
+
     }
 
     @media (max-width:520px){
@@ -899,6 +952,15 @@
 
         <div class="follow-up-schedule" id="followUpSchedule">
           <p class="muted">No follow-ups scheduled yet.</p>
+        </div>
+      </section>
+
+      <section class="card client-activity-card" aria-labelledby="recentClientActivityTitle">
+        <h2 id="recentClientActivityTitle">Recent client activity</h2>
+        <p class="muted">A lightweight feed from saved client dates.</p>
+
+        <div class="client-activity-feed" id="recentClientActivity">
+          <p class="muted">No recent client activity yet.</p>
         </div>
       </section>
     </section>
@@ -1388,6 +1450,7 @@
 
       updateRevenueByClientChart();
       updateFollowUpSchedule();
+      updateRecentClientActivity();
 
       const today =
         new Date().toISOString().split("T")[0];
@@ -1714,6 +1777,87 @@
           </div>
         `;
       }).join("");
+    }
+
+    function clientCreatedDate(client) {
+      const createdAt = parseFollowUpDate(client.createdAt);
+
+      if (createdAt) return createdAt;
+
+      const numericId = Number(client.id);
+      const firstUsefulTimestamp = new Date("2020-01-01").getTime();
+      const tomorrow = Date.now() + (24 * 60 * 60 * 1000);
+
+      if (
+        Number.isFinite(numericId) &&
+        numericId >= firstUsefulTimestamp &&
+        numericId <= tomorrow
+      ) {
+        const date = new Date(numericId);
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      }
+
+      return null;
+    }
+
+    function updateRecentClientActivity() {
+      const feed = document.getElementById("recentClientActivity");
+
+      if (!feed) return;
+
+      const activities = [];
+
+      clients.forEach(client => {
+        const clientName = client.name || "Unnamed client";
+        const addedDate = clientCreatedDate(client);
+        const lastContactedDate = parseFollowUpDate(client.lastContacted);
+        const followUpDate = parseFollowUpDate(client.followUp);
+
+        if (addedDate) {
+          activities.push({
+            clientName,
+            description: "Client added",
+            date: addedDate
+          });
+        }
+
+        if (lastContactedDate) {
+          activities.push({
+            clientName,
+            description: "Last contacted date updated",
+            date: lastContactedDate
+          });
+        }
+
+        if (followUpDate) {
+          activities.push({
+            clientName,
+            description: "Follow-up date updated",
+            date: followUpDate
+          });
+        }
+      });
+
+      const recentActivities = activities
+        .sort((a, b) => b.date - a.date)
+        .slice(0, 5);
+
+      if (!recentActivities.length) {
+        feed.innerHTML = `<p class="muted">No recent client activity yet. Add follow-up or contact dates to start the feed.</p>`;
+        return;
+      }
+
+      feed.innerHTML = recentActivities.map(activity => `
+        <div class="client-activity-row">
+          <div>
+            <div class="client-activity-name">${escapeHtml(activity.clientName)}</div>
+            <div class="client-activity-description">${escapeHtml(activity.description)}</div>
+          </div>
+          <div class="client-activity-date">
+            ${formatFollowUpDate(activity.date)}
+          </div>
+        </div>
+      `).join("");
     }
 
     async function deleteClient(id){
