@@ -583,6 +583,19 @@
       background:#0077B6;
     }
 
+    .trend-chart-shell{
+      position:relative;
+      width:100%;
+      height:220px;
+      margin-top:18px;
+    }
+
+    .trend-chart-shell canvas{
+      display:block;
+      width:100%;
+      height:100%;
+    }
+
     .status-chart{
       display:grid;
       grid-template-columns:150px minmax(0, 1fr);
@@ -1287,6 +1300,15 @@
           </div>
         </section>
 
+        <section class="card chart-card" aria-labelledby="monthlyExpenseTrendTitle">
+          <h2 id="monthlyExpenseTrendTitle">Monthly expense trend</h2>
+          <p class="muted">Gross expense value by month.</p>
+
+          <div class="trend-chart-shell">
+            <canvas id="monthlyExpenseTrendChart"></canvas>
+          </div>
+        </section>
+
         <section class="card chart-card" aria-labelledby="expensesStatusTitle">
           <h2 id="expensesStatusTitle">Expenses by status</h2>
 
@@ -1321,6 +1343,8 @@
       </div>
     </section>
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script type="module">
     import { app, auth, db } from "../../firebase-config.js";
@@ -2146,6 +2170,96 @@
       }).join("");
     }
 
+    function updateMonthlyExpenseTrendChart(expenseClaims) {
+      const ctx = document.getElementById("monthlyExpenseTrendChart");
+
+      if (!ctx) return;
+      if (typeof Chart === "undefined") return;
+
+      const monthlyTotals = expenseClaims.reduce((totals, expense) => {
+        const date = claimDateFromValue(expense.date);
+
+        if (!date) return totals;
+
+        const monthKey =
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+        if (!totals[monthKey]) {
+          totals[monthKey] = {
+            date: new Date(date.getFullYear(), date.getMonth(), 1),
+            value: 0
+          };
+        }
+
+        totals[monthKey].value += Number(expense.gross || 0);
+        return totals;
+      }, {});
+
+      const months = Object.values(monthlyTotals)
+        .filter(month => month.value > 0)
+        .sort((a, b) => a.date - b.date);
+
+      const labels = months.map(month =>
+        month.date.toLocaleDateString("en-GB", {
+          month: "short",
+          year: "2-digit"
+        })
+      );
+
+      const values = months.map(month => month.value);
+      const existingChart = Chart.getChart(ctx);
+
+      if (existingChart) {
+        existingChart.destroy();
+      }
+
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Gross expenses",
+              data: values,
+              borderColor: "#0077B6",
+              backgroundColor: "rgba(0, 119, 182, 0.12)",
+              borderWidth: 3,
+              fill: true,
+              pointBackgroundColor: "#0077B6",
+              pointRadius: 4,
+              tension: 0.35
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return money(context.raw);
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return money(value);
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
     function renderExpenses() {
       expenses = sortExpenses(dedupeExpensesById(expenses));
 
@@ -2192,6 +2306,7 @@
       updateStatusChart(totalsByStatus, totalValue);
       updateClaimsTypeChart(totalExpenseValue, totalMileageValue);
       updateCategoryChart(expenseClaims);
+      updateMonthlyExpenseTrendChart(expenseClaims);
 
       const list = document.getElementById("expensesList");
       const recentFooter = document.getElementById("recentExpensesFooter");
