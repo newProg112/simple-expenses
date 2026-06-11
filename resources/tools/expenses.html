@@ -540,6 +540,49 @@
       background:#16a34a;
     }
 
+    .category-chart{
+      display:grid;
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .category-chart-row{
+      display:grid;
+      gap:7px;
+    }
+
+    .category-chart-label{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      color:#475569;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .category-chart-label span{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .category-chart-track{
+      height:10px;
+      border-radius:999px;
+      overflow:hidden;
+      background:#eef2f7;
+      box-shadow:inset 0 0 0 1px rgba(15,23,42,.04);
+    }
+
+    .category-chart-fill{
+      width:0%;
+      height:100%;
+      border-radius:999px;
+      background:#0077B6;
+    }
+
     .status-chart{
       display:grid;
       grid-template-columns:150px minmax(0, 1fr);
@@ -780,6 +823,12 @@
 
       .expenses-workspace{
         grid-template-columns:1fr;
+      }
+
+      .category-chart-label{
+        align-items:flex-start;
+        flex-direction:column;
+        gap:4px;
       }
     }
 
@@ -1228,6 +1277,15 @@
             </div>
           </div>
         </aside>
+
+        <section class="card chart-card" aria-labelledby="expensesCategoryTitle">
+          <h2 id="expensesCategoryTitle">Expenses by category</h2>
+          <p class="muted">Gross expense value grouped by saved category.</p>
+
+          <div class="category-chart" id="categoryChart">
+            <p class="muted">No expenses yet.</p>
+          </div>
+        </section>
 
         <section class="card chart-card" aria-labelledby="expensesStatusTitle">
           <h2 id="expensesStatusTitle">Expenses by status</h2>
@@ -2048,6 +2106,46 @@
       document.getElementById("claimsByTypeMileageBar").style.width = `${mileagePercent}%`;
     }
 
+    function updateCategoryChart(expenseClaims) {
+      const chart = document.getElementById("categoryChart");
+
+      if (!chart) return;
+
+      const totalsByCategory = expenseClaims.reduce((totals, expense) => {
+        const category = expense.category || "General";
+        totals[category] = (totals[category] || 0) + Number(expense.gross || 0);
+        return totals;
+      }, {});
+
+      const categories = Object.entries(totalsByCategory)
+        .map(([category, value]) => ({ category, value }))
+        .filter(item => item.value > 0)
+        .sort((a, b) => b.value - a.value);
+
+      if (!categories.length) {
+        chart.innerHTML = `<p class="muted">No expenses yet.</p>`;
+        return;
+      }
+
+      const maxValue = categories[0].value;
+
+      chart.innerHTML = categories.map(item => {
+        const percent = maxValue ? (item.value / maxValue) * 100 : 0;
+
+        return `
+          <div class="category-chart-row">
+            <div class="category-chart-label">
+              <span>${escapeHtml(item.category)}</span>
+              <strong>${money(item.value)}</strong>
+            </div>
+            <div class="category-chart-track" aria-hidden="true">
+              <div class="category-chart-fill" style="width:${percent}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
     function renderExpenses() {
       expenses = sortExpenses(dedupeExpensesById(expenses));
 
@@ -2093,6 +2191,7 @@
 
       updateStatusChart(totalsByStatus, totalValue);
       updateClaimsTypeChart(totalExpenseValue, totalMileageValue);
+      updateCategoryChart(expenseClaims);
 
       const list = document.getElementById("expensesList");
       const recentFooter = document.getElementById("recentExpensesFooter");
