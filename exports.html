@@ -123,6 +123,13 @@
       align-items: stretch;
     }
 
+    .export-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0 0 18px;
+    }
+
     .card {
       background: white;
       border: 1px solid #e2e8f0;
@@ -137,6 +144,56 @@
     .card h2 {
       font-size: 21px;
       margin: 0 0 8px;
+    }
+
+    .export-kpi {
+      position: relative;
+      min-height: 92px;
+      padding: 16px;
+      overflow: hidden;
+      border-color: #e6edf5;
+      border-radius: 16px;
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .export-kpi::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--kpi-accent, #0077B6);
+    }
+
+    .export-kpi .muted {
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .export-kpi strong {
+      display: block;
+      margin-top: 5px;
+      color: #102033;
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .export-kpi-blue { --kpi-accent: #0077B6; }
+    .export-kpi-green { --kpi-accent: #16a34a; }
+    .export-kpi-purple { --kpi-accent: #7c3aed; }
+    .export-kpi-slate { --kpi-accent: #475569; }
+
+    @media (hover:hover) and (pointer:fine) {
+      .export-kpi {
+        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      }
+
+      .export-kpi:hover {
+        transform: translateY(-2px);
+        border-color: #d8e4ef;
+        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.11), 0 2px 5px rgba(15, 23, 42, 0.05);
+      }
     }
 
     .btn {
@@ -184,10 +241,15 @@
       .exports-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
+
+      .export-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 560px) {
-      .exports-grid {
+      .exports-grid,
+      .export-kpi-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -230,6 +292,28 @@
       <div>
         <h1>Exports</h1>
         <p class="muted">Download backups, export records and prepare accountant-ready data.</p>
+      </div>
+    </section>
+
+    <section class="export-kpi-grid" aria-label="Export status">
+      <div class="card export-kpi export-kpi-green">
+        <span class="muted">Full backup</span>
+        <strong>Ready</strong>
+      </div>
+
+      <div class="card export-kpi export-kpi-blue">
+        <span class="muted">Last backup</span>
+        <strong id="lastBackupStatus">Not yet downloaded</strong>
+      </div>
+
+      <div class="card export-kpi export-kpi-purple">
+        <span class="muted">Export tools</span>
+        <strong>4 ready</strong>
+      </div>
+
+      <div class="card export-kpi export-kpi-slate">
+        <span class="muted">Accountant pack</span>
+        <strong>Coming soon</strong>
       </div>
     </section>
 
@@ -300,7 +384,8 @@
       collection,
       doc,
       getDoc,
-      getDocs
+      getDocs,
+      setDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     import {
@@ -313,7 +398,8 @@
       collection,
       doc,
       getDoc,
-      getDocs
+      getDocs,
+      setDoc
     };
 
     window.simpleBooksBackupUserReady = new Promise((resolve) => {
@@ -346,6 +432,7 @@
         a.click();
 
         localStorage.setItem("simpleBooksBackupDownloaded", "true");
+        await saveBackupDownloadedAt(new Date().toISOString());
 
         URL.revokeObjectURL(url);
     }
@@ -423,6 +510,107 @@
         return records;
     }
 
+    async function getBackupUserAndServices(){
+        const services = window.simpleBooksBackupServices;
+        const user = services?.auth?.currentUser ||
+          await (window.simpleBooksBackupUserReady || Promise.resolve(null));
+
+        return { services, user };
+    }
+
+    async function saveBackupDownloadedAt(timestamp){
+        const { services, user } = await getBackupUserAndServices();
+
+        localStorage.setItem("simpleBooksLastBackupDownloadedAt", timestamp);
+
+        if(user && services?.setDoc){
+          try{
+            await services.setDoc(
+              services.doc(services.db, "users", user.uid),
+              { lastBackupDownloadedAt: timestamp },
+              { merge: true }
+            );
+          }catch(error){
+            console.error("Backup status save failed", error);
+          }
+        }
+
+        renderLastBackupStatus(timestamp);
+    }
+
+    async function loadLastBackupDownloadedAt(){
+        const { services, user } = await getBackupUserAndServices();
+
+        if(user && services){
+          try{
+            const accountSnap = await services.getDoc(
+              services.doc(services.db, "users", user.uid)
+            );
+
+            if(accountSnap.exists()){
+              const data = accountSnap.data();
+              const timestamp = normaliseBackupTimestamp(data.lastBackupDownloadedAt);
+
+              if(timestamp){
+                localStorage.setItem("simpleBooksLastBackupDownloadedAt", timestamp);
+                renderLastBackupStatus(timestamp);
+                return;
+              }
+            }
+          }catch(error){
+            console.error("Backup status load failed", error);
+          }
+        }
+
+        renderLastBackupStatus(
+          localStorage.getItem("simpleBooksLastBackupDownloadedAt")
+        );
+    }
+
+    function normaliseBackupTimestamp(value){
+        if(!value){
+          return "";
+        }
+
+        if(typeof value === "string"){
+          return value;
+        }
+
+        if(typeof value.toDate === "function"){
+          return value.toDate().toISOString();
+        }
+
+        return "";
+    }
+
+    function renderLastBackupStatus(timestamp){
+        const status = document.getElementById("lastBackupStatus");
+
+        if(!status){
+          return;
+        }
+
+        if(!timestamp){
+          status.textContent = "Not yet downloaded";
+          return;
+        }
+
+        const date = new Date(timestamp);
+
+        if(Number.isNaN(date.getTime())){
+          status.textContent = "Not yet downloaded";
+          return;
+        }
+
+        status.textContent = date.toLocaleString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+    }
+
     function importFullBackup(event){
       const file = event.target.files[0];
 
@@ -463,6 +651,8 @@
 
       reader.readAsText(file);
     }
+
+    loadLastBackupDownloadedAt();
   </script>
 </body>
 </html>
