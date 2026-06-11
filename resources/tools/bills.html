@@ -657,6 +657,66 @@
       padding-bottom:0;
     }
 
+    .supplier-chart{
+      display:grid;
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .supplier-chart-row{
+      display:grid;
+      gap:7px;
+    }
+
+    .supplier-chart-label{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      color:#475569;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .supplier-chart-label span{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .supplier-chart-label strong{
+      white-space:nowrap;
+    }
+
+    .supplier-chart-track{
+      height:10px;
+      border-radius:999px;
+      overflow:hidden;
+      background:#eef2f7;
+      box-shadow:inset 0 0 0 1px rgba(15,23,42,.04);
+    }
+
+    .supplier-chart-fill{
+      width:0%;
+      height:100%;
+      border-radius:999px;
+      background:#0077B6;
+    }
+
+    .trend-chart-shell{
+      position:relative;
+      width:100%;
+      height:220px;
+      margin-top:18px;
+    }
+
+    .trend-chart-shell canvas{
+      display:block;
+      width:100%;
+      height:100%;
+    }
+
     .bill-row{
       padding:12px 0;
       min-width:0;
@@ -691,6 +751,12 @@
 
       .status-chart{
         grid-template-columns:1fr;
+      }
+
+      .supplier-chart-label{
+        align-items:flex-start;
+        flex-direction:column;
+        gap:4px;
       }
     }
 
@@ -1187,6 +1253,24 @@
           </div>
         </div>
       </aside>
+      <section class="card chart-card" aria-labelledby="topSuppliersTitle">
+        <h2 id="topSuppliersTitle">Top suppliers</h2>
+        <p class="muted">Highest supplier bill totals saved so far.</p>
+
+        <div class="supplier-chart" id="topSuppliersChart">
+          <p class="muted">No bills yet.</p>
+        </div>
+      </section>
+
+      <section class="card chart-card" aria-labelledby="monthlyBillsTrendTitle">
+        <h2 id="monthlyBillsTrendTitle">Monthly bills trend</h2>
+        <p class="muted">Total bill value by month.</p>
+
+        <div class="trend-chart-shell">
+          <canvas id="monthlyBillsTrendChart"></canvas>
+        </div>
+      </section>
+
       <section class="card chart-card" aria-labelledby="billsStatusTitle">
         <h2 id="billsStatusTitle">Bills by status</h2>
 
@@ -1216,6 +1300,8 @@
       </div>
     </section>
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script type="module">
     import { app, auth, db } from "../../firebase-config.js";
@@ -1344,6 +1430,155 @@
 
       document.getElementById("statusChartOverdue").textContent =
         `${money(overdueValue)} (${Math.round(overduePct)}%)`;
+    }
+
+    function updateTopSuppliersChart(bills) {
+      const chart = document.getElementById("topSuppliersChart");
+
+      if (!chart) return;
+
+      const supplierTotals = bills.reduce((totals, bill) => {
+        const supplier = bill.supplier || "Unknown supplier";
+        totals[supplier] = (totals[supplier] || 0) + Number(bill.total || 0);
+        return totals;
+      }, {});
+
+      const suppliers = Object.entries(supplierTotals)
+        .map(([supplier, value]) => ({ supplier, value }))
+        .filter(item => item.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+
+      if (!suppliers.length) {
+        chart.innerHTML = `<p class="muted">No bills yet.</p>`;
+        return;
+      }
+
+      const maxValue = suppliers[0].value;
+
+      chart.innerHTML = suppliers.map(item => {
+        const percent = maxValue ? (item.value / maxValue) * 100 : 0;
+
+        return `
+          <div class="supplier-chart-row">
+            <div class="supplier-chart-label">
+              <span>${escapeHtml(item.supplier)}</span>
+              <strong>${money(item.value)}</strong>
+            </div>
+            <div class="supplier-chart-track" aria-hidden="true">
+              <div class="supplier-chart-fill" style="width:${percent}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function billMonthDate(bill) {
+      const value = bill.billDate || bill.dueDate || bill.createdAt;
+
+      if (!value) return null;
+
+      const isoDate = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+      if (isoDate) {
+        return new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, 1);
+      }
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) return null;
+
+      return new Date(date.getFullYear(), date.getMonth(), 1);
+    }
+
+    function updateMonthlyBillsTrendChart(bills) {
+      const ctx = document.getElementById("monthlyBillsTrendChart");
+
+      if (!ctx) return;
+      if (typeof Chart === "undefined") return;
+
+      const monthlyTotals = bills.reduce((totals, bill) => {
+        const date = billMonthDate(bill);
+
+        if (!date) return totals;
+
+        const monthKey =
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+        if (!totals[monthKey]) {
+          totals[monthKey] = {
+            date,
+            value: 0
+          };
+        }
+
+        totals[monthKey].value += Number(bill.total || 0);
+        return totals;
+      }, {});
+
+      const months = Object.values(monthlyTotals)
+        .filter(month => month.value > 0)
+        .sort((a, b) => a.date - b.date);
+
+      const labels = months.map(month =>
+        month.date.toLocaleDateString("en-GB", {
+          month: "short",
+          year: "2-digit"
+        })
+      );
+
+      const values = months.map(month => month.value);
+      const existingChart = Chart.getChart(ctx);
+
+      if (existingChart) {
+        existingChart.destroy();
+      }
+
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Bill value",
+              data: values,
+              borderColor: "#0077B6",
+              backgroundColor: "rgba(0, 119, 182, 0.12)",
+              borderWidth: 3,
+              fill: true,
+              pointBackgroundColor: "#0077B6",
+              pointRadius: 4,
+              tension: 0.35
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return money(context.raw);
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return money(value);
+                }
+              }
+            }
+          }
+        }
+      });
     }
 
     function formatBillDate(value) {
@@ -1649,6 +1884,8 @@
       document.querySelector('[data-bills-overview="count"]').textContent = bills.length;
 
       updateStatusChart(unpaid, paid, overdueValue, totalValue);
+      updateTopSuppliersChart(bills);
+      updateMonthlyBillsTrendChart(bills);
 
       const list = document.getElementById("billsList");
       const recentFooter = document.getElementById("recentBillsFooter");
