@@ -79,6 +79,14 @@
       margin:18px 0 24px;
     }
 
+    .dashboard-panels{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:16px;
+      align-items:start;
+      margin:0 0 24px;
+    }
+
     .dashboard-link-card{
       position:relative;
       display:grid;
@@ -181,6 +189,7 @@
       flex-direction:column;
       align-self:start;
       padding:14px;
+      min-width:0;
     }
 
     .chart-card h2{
@@ -368,6 +377,10 @@
 
     @media(max-width:800px){
       .dashboard-overview{
+        grid-template-columns:1fr;
+      }
+
+      .dashboard-panels{
         grid-template-columns:1fr;
       }
 
@@ -646,6 +659,16 @@
         </div>
       </section>
 
+    </section>
+
+    <section class="dashboard-panels">
+      <section class="card chart-card">
+        <h2>Outstanding Invoice Ageing</h2>
+        <p class="muted">Unpaid invoice value by days since due date.</p>
+        <div class="chart-shell">
+          <canvas id="invoiceAgeingChart"></canvas>
+        </div>
+      </section>
     </section>
 
     <h2 class="section-title">Recent Activity</h2>
@@ -1156,6 +1179,108 @@
         : `<p class="muted">No upcoming reminders yet.</p>`;
 
       renderIncomeBillsChart(invoices, bills);
+      renderInvoiceAgeingChart(invoices);
+    }
+
+    function isOutstandingInvoice(invoice) {
+      const status = String(invoice.status || "Unpaid").toLowerCase();
+
+      return (
+        status === "unpaid" ||
+        status === "outstanding" ||
+        status === "overdue"
+      );
+    }
+
+    function renderInvoiceAgeingChart(invoices) {
+      const buckets = {
+        "0-30 days": 0,
+        "31-60 days": 0,
+        "61+ days": 0
+      };
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      invoices.forEach(invoice => {
+        if (!isOutstandingInvoice(invoice)) return;
+
+        const ageingDate = parseDashboardDate(invoice.dueDate || invoice.date || invoice.invoiceDate);
+        if (!ageingDate) return;
+
+        ageingDate.setHours(0, 0, 0, 0);
+
+        const daysOld = Math.max(
+          0,
+          Math.floor((today - ageingDate) / (1000 * 60 * 60 * 24))
+        );
+
+        const total = Number(invoice.total || 0);
+
+        if (daysOld <= 30) {
+          buckets["0-30 days"] += total;
+          return;
+        }
+
+        if (daysOld <= 60) {
+          buckets["31-60 days"] += total;
+          return;
+        }
+
+        buckets["61+ days"] += total;
+      });
+
+      const ctx = document.getElementById("invoiceAgeingChart");
+
+      if (!ctx) return;
+
+      const existingChart = Chart.getChart(ctx);
+
+      if (existingChart) {
+        existingChart.destroy();
+      }
+
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: Object.keys(buckets),
+          datasets: [
+            {
+              label: "Outstanding value",
+              data: Object.values(buckets),
+              backgroundColor: ["#0077B6", "#f97316", "#dc2626"],
+              borderRadius: 8,
+              maxBarThickness: 56
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return money(context.raw);
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return money(value);
+                }
+              }
+            }
+          }
+        }
+      });
     }
 
     function renderIncomeBillsChart(invoices, bills) {
