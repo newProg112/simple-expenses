@@ -321,6 +321,121 @@
       font-weight:600;
     }
 
+    .account-insights{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:24px;
+      margin-bottom:24px;
+    }
+
+    .insight-card{
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+    }
+
+    .insight-heading{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+    }
+
+    .insight-heading h2{
+      margin:0;
+      font-size:22px;
+    }
+
+    .completion-value{
+      color:var(--primary);
+      font-size:30px;
+      font-weight:900;
+      line-height:1;
+    }
+
+    .completion-track{
+      height:10px;
+      overflow:hidden;
+      border-radius:999px;
+      background:#e8eef6;
+    }
+
+    .completion-fill{
+      width:0%;
+      height:100%;
+      border-radius:inherit;
+      background:var(--primary);
+      transition:width .2s ease;
+    }
+
+    .setup-checklist,
+    .usage-list{
+      display:grid;
+      gap:12px;
+      margin:0;
+      padding:0;
+      list-style:none;
+    }
+
+    .setup-checklist li,
+    .usage-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:#f9fbfd;
+      padding:12px 14px;
+      font-weight:700;
+    }
+
+    .check-state{
+      width:22px;
+      height:22px;
+      flex:0 0 22px;
+      border:2px solid #cbd5e1;
+      border-radius:50%;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .check-state.complete{
+      border-color:#15803d;
+      background:#dcfce7;
+    }
+
+    .check-state.complete::after{
+      content:"";
+      width:6px;
+      height:11px;
+      border:solid #15803d;
+      border-width:0 2px 2px 0;
+      transform:rotate(45deg) translate(-1px, -1px);
+    }
+
+    .usage-count{
+      color:var(--primary);
+      font-size:24px;
+      font-weight:900;
+    }
+
+    .plan-badge{
+      align-self:flex-start;
+      border-radius:999px;
+      background:#e0f2fe;
+      color:#075985;
+      padding:8px 12px;
+      font-weight:900;
+    }
+
+    .subscription-price{
+      font-size:26px;
+      font-weight:900;
+      line-height:1.2;
+    }
+
     @media (max-width:800px){
       .account-summary{
         grid-template-columns:1fr;
@@ -331,6 +446,10 @@
 
       .hero,
       .grid{
+        grid-template-columns:1fr;
+      }
+
+      .account-insights{
         grid-template-columns:1fr;
       }
 
@@ -453,6 +572,90 @@
 
       </div>
 
+    </section>
+
+    <section class="account-insights" aria-label="Account overview">
+      <div class="card insight-card">
+        <div class="insight-heading">
+          <div>
+            <h2>Account setup</h2>
+            <div class="muted">Profile completion</div>
+          </div>
+          <div class="completion-value" id="setupCompletionValue">0%</div>
+        </div>
+
+        <div class="completion-track" aria-hidden="true">
+          <div class="completion-fill" id="setupCompletionFill"></div>
+        </div>
+
+        <ul class="setup-checklist" id="setupChecklist">
+          <li>
+            <span>Business name</span>
+            <span class="check-state" aria-label="Not complete"></span>
+          </li>
+          <li>
+            <span>Email address</span>
+            <span class="check-state" aria-label="Not complete"></span>
+          </li>
+          <li>
+            <span>VAT details</span>
+            <span class="check-state" aria-label="Not complete"></span>
+          </li>
+          <li>
+            <span>Bank details</span>
+            <span class="check-state" aria-label="Not complete"></span>
+          </li>
+          <li>
+            <span>Logo uploaded</span>
+            <span class="check-state" aria-label="Not complete"></span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card insight-card">
+        <div class="insight-heading">
+          <div>
+            <h2>Usage statistics</h2>
+            <div class="muted">Records saved in Simple Books</div>
+          </div>
+        </div>
+
+        <div class="usage-list">
+          <div class="usage-row">
+            <span>Invoices</span>
+            <strong class="usage-count" id="usageInvoices">0</strong>
+          </div>
+          <div class="usage-row">
+            <span>Bills</span>
+            <strong class="usage-count" id="usageBills">0</strong>
+          </div>
+          <div class="usage-row">
+            <span>Clients</span>
+            <strong class="usage-count" id="usageClients">0</strong>
+          </div>
+          <div class="usage-row">
+            <span>Expenses</span>
+            <strong class="usage-count" id="usageExpenses">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="card insight-card">
+        <div class="insight-heading">
+          <div>
+            <h2>Subscription</h2>
+            <div class="muted">Billing is not live yet</div>
+          </div>
+          <span class="plan-badge" id="subscriptionPlan">Starter</span>
+        </div>
+
+        <div>
+          <div class="subscription-price">£5/month when billing launches</div>
+          <p class="muted">
+            Your current plan is active. Payment collection will be added later.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="grid">
@@ -601,9 +804,11 @@
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     import {
+      collection,
       doc,
       deleteField,
       getDoc,
+      getDocs,
       setDoc,
       serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -628,6 +833,12 @@
     const allowedLogoExtensions = [".png", ".jpg", ".jpeg", ".webp"];
 
     let companyLogoUrl = "";
+    let usageCounts = {
+      invoices: 0,
+      bills: 0,
+      clients: 0,
+      expenses: 0
+    };
 
     function accountStorageKey(user = currentUser){
       return user ? `simpleBooksAccount:${user.uid}` : "simpleBooksAccount";
@@ -672,6 +883,177 @@
     function getField(id){
       const el = document.getElementById(id);
       return el ? el.value : "";
+    }
+
+    function hasValue(value){
+      return Boolean(String(value || "").trim());
+    }
+
+    function vatDetailsComplete(account){
+      return account.vatRegistered === "Yes"
+        ? hasValue(account.vatNumber)
+        : true;
+    }
+
+    function bankDetailsComplete(account){
+      return [
+        account.accountName,
+        account.sortCode,
+        account.accountNumber
+      ].every(hasValue);
+    }
+
+    function accountSetupItems(account){
+      const email = account.businessEmail || account.email || currentUser?.email;
+
+      return [
+        {
+          label: "Business name",
+          complete: hasValue(account.businessName)
+        },
+        {
+          label: "Email address",
+          complete: hasValue(email)
+        },
+        {
+          label: "VAT details",
+          complete: vatDetailsComplete(account)
+        },
+        {
+          label: "Bank details",
+          complete: bankDetailsComplete(account)
+        },
+        {
+          label: "Logo uploaded",
+          complete: hasValue(account.companyLogoUrl)
+        }
+      ];
+    }
+
+    function renderSetupCard(account){
+      const checklist = document.getElementById("setupChecklist");
+      const completionValue = document.getElementById("setupCompletionValue");
+      const completionFill = document.getElementById("setupCompletionFill");
+
+      if(!checklist || !completionValue || !completionFill) return;
+
+      const items = accountSetupItems(account);
+      const completed = items.filter(item => item.complete).length;
+      const percentage = Math.round((completed / items.length) * 100);
+
+      completionValue.textContent = `${percentage}%`;
+      completionFill.style.width = `${percentage}%`;
+
+      checklist.innerHTML = items.map(item => `
+        <li>
+          <span>${item.label}</span>
+          <span
+            class="check-state ${item.complete ? "complete" : ""}"
+            aria-label="${item.complete ? "Complete" : "Not complete"}"
+          ></span>
+        </li>
+      `).join("");
+    }
+
+    function setText(id, value){
+      const el = document.getElementById(id);
+      if(el){
+        el.textContent = value;
+      }
+    }
+
+    function renderUsageStats(){
+      setText("usageInvoices", usageCounts.invoices);
+      setText("usageBills", usageCounts.bills);
+      setText("usageClients", usageCounts.clients);
+      setText("usageExpenses", usageCounts.expenses);
+    }
+
+    function resetUsageStats(){
+      usageCounts = {
+        invoices: 0,
+        bills: 0,
+        clients: 0,
+        expenses: 0
+      };
+      renderUsageStats();
+    }
+
+    async function getUserCollectionCount(collectionName){
+      if(!currentUser) return 0;
+
+      try {
+        const snapshot = await getDocs(
+          collection(db, "users", currentUser.uid, collectionName)
+        );
+        return snapshot.size;
+      } catch(error) {
+        console.error(`Could not load ${collectionName} count from Firestore`, error);
+        return 0;
+      }
+    }
+
+    async function loadUsageStatsFromFirestore(){
+      if(!currentUser){
+        resetUsageStats();
+        return;
+      }
+
+      const [
+        invoices,
+        bills,
+        clients,
+        expenses
+      ] = await Promise.all([
+        getUserCollectionCount("invoices"),
+        getUserCollectionCount("bills"),
+        getUserCollectionCount("clients"),
+        getUserCollectionCount("expenses")
+      ]);
+
+      usageCounts = {
+        invoices,
+        bills,
+        clients,
+        expenses
+      };
+      renderUsageStats();
+    }
+
+    function renderSubscriptionCard(account){
+      setText("subscriptionPlan", account.currentPlan || "Starter");
+    }
+
+    function renderAccountInsightCards(account){
+      renderSetupCard(account);
+      renderUsageStats();
+      renderSubscriptionCard(account);
+    }
+
+    function currentAccountSnapshot(){
+      return {
+        fullName: getField("fullName"),
+        email: getField("email"),
+        role: getField("role"),
+        currentPlan: getField("currentPlan"),
+        businessName: getField("businessName"),
+        businessEmail: getField("businessEmail"),
+        phoneNumber: getField("phoneNumber"),
+        businessType: getField("businessType"),
+        addressLine1: getField("addressLine1"),
+        addressLine2: getField("addressLine2"),
+        townCity: getField("townCity"),
+        postcode: getField("postcode"),
+        vatRegistered: getField("vatRegistered"),
+        vatNumber: getField("vatNumber"),
+        businessWebsite: getField("businessWebsite"),
+        companyNumber: getField("companyNumber"),
+        paymentTermsDefault: getField("paymentTermsDefault"),
+        accountName: getField("accountName"),
+        sortCode: getField("sortCode"),
+        accountNumber: getField("accountNumber"),
+        companyLogoUrl
+      };
     }
 
     function renderLogoPreview(){
@@ -783,33 +1165,13 @@
         saved.fullName || saved.businessName || "Your Simple Books profile";
 
       updateVatNumberState();
+      renderAccountInsightCards(saved);
+      await loadUsageStatsFromFirestore();
     }
 
     async function saveAccount(){
 
-      const data = {
-        fullName: getField("fullName"),
-        email: getField("email"),
-        role: getField("role"),
-        currentPlan: getField("currentPlan"),
-        businessName: getField("businessName"),
-        businessEmail: getField("businessEmail"),
-        phoneNumber: getField("phoneNumber"),
-        businessType: getField("businessType"),
-        addressLine1: getField("addressLine1"),
-        addressLine2: getField("addressLine2"),
-        townCity: getField("townCity"),
-        postcode: getField("postcode"),
-        vatRegistered: getField("vatRegistered"),
-        vatNumber: getField("vatNumber"),
-        businessWebsite: getField("businessWebsite"),
-        companyNumber: getField("companyNumber"),
-        paymentTermsDefault: getField("paymentTermsDefault"),
-        accountName: getField("accountName"),
-        sortCode: getField("sortCode"),
-        accountNumber: getField("accountNumber"),
-        companyLogoUrl
-      };
+      const data = currentAccountSnapshot();
 
       writeAccountCache(data);
 
@@ -830,6 +1192,11 @@
         : "Account saved locally. Log in to save to Firebase.";
 
       successMessage.style.display = "block";
+      setText("summaryPlan", data.currentPlan || "Starter");
+      setText("planStatus", data.currentPlan || "Starter");
+      setText("summaryBusiness", data.businessName || "Not set");
+      setText("summaryEmail", data.email || currentUser?.email || "Not signed in");
+      renderAccountInsightCards(data);
 
       setTimeout(() => {
         successMessage.style.display = "none";
@@ -852,6 +1219,8 @@
       if(!isVatRegistered){
         vatNumber.value = "";
       }
+
+      renderAccountInsightCards(currentAccountSnapshot());
     }
 
     async function saveLogoUrlToFirestore(){
@@ -915,6 +1284,7 @@
         await saveLogoUrlToFirestore();
         renderLogoPreview();
         updateLocalLogo();
+        renderAccountInsightCards(currentAccountSnapshot());
         successMessage.textContent = "Company logo uploaded to Firebase.";
         successMessage.style.display = "block";
         setTimeout(() => {
@@ -935,6 +1305,7 @@
       companyLogoInput.value = "";
       renderLogoPreview();
       updateLocalLogo();
+      renderAccountInsightCards(currentAccountSnapshot());
 
       if(!currentUser) return;
 
@@ -965,6 +1336,27 @@
       .getElementById("vatRegistered")
       .addEventListener("change", updateVatNumberState);
 
+    [
+      "businessName",
+      "email",
+      "businessEmail",
+      "vatNumber",
+      "accountName",
+      "sortCode",
+      "accountNumber",
+      "currentPlan"
+    ].forEach(id => {
+      const field = document.getElementById(id);
+      if(field){
+        field.addEventListener("input", () => {
+          renderAccountInsightCards(currentAccountSnapshot());
+        });
+        field.addEventListener("change", () => {
+          renderAccountInsightCards(currentAccountSnapshot());
+        });
+      }
+    });
+
     companyLogoInput.addEventListener("change", handleLogoUpload);
     removeLogoBtn.addEventListener("click", removeLogo);
 
@@ -981,6 +1373,7 @@
 
     onAuthStateChanged(auth, async (user) => {
       currentUser = user;
+      resetUsageStats();
       clearAccountCacheForUserChange(user);
       await loadAccount();
     });
