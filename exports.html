@@ -72,6 +72,38 @@
       padding-bottom: 4px;
     }
 
+    .page-title-row{
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      gap:14px;
+      margin:14px 0 18px;
+    }
+
+    .page-title-row h1{
+      margin:0 0 5px;
+      font-size:30px;
+      line-height:1.1;
+    }
+
+    .page-title-row p{
+      margin:0;
+      font-size:14px;
+    }
+
+    .page-title-icon{
+      width:44px;
+      height:44px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      background:#e8f3ff;
+      color:#0077B6;
+      font-weight:900;
+      font-size:22px;
+      flex:0 0 auto;
+    }
+
     h1 {
       font-size: 42px;
       margin: 0 0 10px;
@@ -192,6 +224,14 @@
         <a href="/account.html">Account</a>
       </nav>
     </header>
+
+    <section class="page-title-row">
+      <div class="page-title-icon" aria-hidden="true">E</div>
+      <div>
+        <h1>Exports</h1>
+        <p class="muted">Download backups, export records and prepare accountant-ready data.</p>
+      </div>
+    </section>
 
     <section class="exports-grid">
 
