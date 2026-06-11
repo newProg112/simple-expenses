@@ -352,6 +352,78 @@
       min-width:0;
     }
 
+    .client-reporting-grid{
+      display:grid;
+      grid-template-columns:minmax(0, 1fr);
+      gap:18px;
+      margin:0 0 18px;
+    }
+
+    .pipeline-chart{
+      display:grid;
+      grid-template-columns:150px minmax(0, 1fr);
+      gap:18px;
+      align-items:center;
+      margin-top:18px;
+    }
+
+    .pipeline-donut{
+      width:150px;
+      aspect-ratio:1;
+      border-radius:50%;
+      background:conic-gradient(#e2e8f0 0 100%);
+      position:relative;
+      box-shadow:inset 0 0 0 1px rgba(15,23,42,.06);
+    }
+
+    .pipeline-donut::after{
+      content:"";
+      position:absolute;
+      inset:38px;
+      border-radius:50%;
+      background:white;
+      box-shadow:0 0 0 1px rgba(226,232,240,.9);
+    }
+
+    .pipeline-legend{
+      display:grid;
+      gap:10px;
+      min-width:0;
+    }
+
+    .pipeline-legend-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      padding-bottom:10px;
+      border-bottom:1px solid #eef2f7;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .pipeline-legend-row:last-child{
+      border-bottom:0;
+      padding-bottom:0;
+    }
+
+    .pipeline-legend-row strong{
+      white-space:nowrap;
+    }
+
+    .pipeline-dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      display:inline-block;
+      margin-right:8px;
+      vertical-align:middle;
+    }
+
+    .pipeline-dot-active{ background:#16a34a; }
+    .pipeline-dot-lead{ background:#0077B6; }
+    .pipeline-dot-dormant{ background:#94a3b8; }
+
     .list-title-row{
       display:flex;
       align-items:center;
@@ -530,6 +602,10 @@
         grid-template-columns:1fr;
       }
 
+      .pipeline-chart{
+        grid-template-columns:1fr;
+      }
+
     }
 
     @media (max-width:900px){
@@ -664,6 +740,34 @@
       </div>
 
     </div>
+
+    <section class="client-reporting-grid">
+      <section class="card" aria-labelledby="clientPipelineTitle">
+        <h2 id="clientPipelineTitle">Client pipeline</h2>
+        <p class="muted">Clients grouped by current status.</p>
+
+        <div class="pipeline-chart">
+          <div class="pipeline-donut" id="clientPipelineDonut" aria-hidden="true"></div>
+
+          <div class="pipeline-legend">
+            <div class="pipeline-legend-row">
+              <span><i class="pipeline-dot pipeline-dot-active"></i>Active</span>
+              <strong id="pipelineActive">0 clients (0%)</strong>
+            </div>
+
+            <div class="pipeline-legend-row">
+              <span><i class="pipeline-dot pipeline-dot-lead"></i>Lead</span>
+              <strong id="pipelineLead">0 clients (0%)</strong>
+            </div>
+
+            <div class="pipeline-legend-row">
+              <span><i class="pipeline-dot pipeline-dot-dormant"></i>Dormant</span>
+              <strong id="pipelineDormant">0 clients (0%)</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
 
     <div class="grid">
 
@@ -1091,14 +1195,29 @@
       const box =
         document.getElementById("clientList");
 
-      document.getElementById("leadCount").textContent =
+      const leadCount =
         clients.filter(c => c.status === "Lead").length;
 
-      document.getElementById("activeCount").textContent =
+      const activeCount =
         clients.filter(c => c.status === "Active").length;
 
-      document.getElementById("dormantCount").textContent =
+      const dormantCount =
         clients.filter(c => c.status === "Dormant").length;
+
+      document.getElementById("leadCount").textContent =
+        leadCount;
+
+      document.getElementById("activeCount").textContent =
+        activeCount;
+
+      document.getElementById("dormantCount").textContent =
+        dormantCount;
+
+      updateClientPipelineChart({
+        Active: activeCount,
+        Lead: leadCount,
+        Dormant: dormantCount
+      });
 
       const today =
         new Date().toISOString().split("T")[0];
@@ -1254,6 +1373,33 @@
 
       `;
       }).join("");
+    }
+
+    function updateClientPipelineChart(counts) {
+      const total = counts.Active + counts.Lead + counts.Dormant;
+      const colors = {
+        Active: "#16a34a",
+        Lead: "#0077B6",
+        Dormant: "#94a3b8"
+      };
+      let cursor = 0;
+
+      const stops = ["Active", "Lead", "Dormant"].map(status => {
+        const percent = total ? (counts[status] / total) * 100 : 0;
+        const start = cursor;
+        cursor += percent;
+        return `${colors[status]} ${start}% ${cursor}%`;
+      });
+
+      document.getElementById("clientPipelineDonut").style.background = total
+        ? `conic-gradient(${stops.join(", ")}, #e2e8f0 ${cursor}% 100%)`
+        : "conic-gradient(#e2e8f0 0 100%)";
+
+      ["Active", "Lead", "Dormant"].forEach(status => {
+        const percent = total ? Math.round((counts[status] / total) * 100) : 0;
+        document.getElementById(`pipeline${status}`).textContent =
+          `${counts[status]} client${counts[status] === 1 ? "" : "s"} (${percent}%)`;
+      });
     }
 
     async function deleteClient(id){
