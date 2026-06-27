@@ -354,6 +354,10 @@
           Download backup
         </button>
 
+        <button class="btn" onclick="downloadExcelExport()">
+          Export Excel
+        </button>
+
         <input
           type="file"
           id="backupImportInput"
@@ -435,6 +439,284 @@
         await saveBackupDownloadedAt(new Date().toISOString());
 
         URL.revokeObjectURL(url);
+    }
+
+    async function downloadExcelExport(){
+        const { services, user } = await getBackupUserAndServices();
+
+        if(!user || !services){
+          alert("Please log in before exporting Excel data.");
+          return;
+        }
+
+        let XLSX;
+
+        try{
+          XLSX = await loadExcelLibrary();
+        }catch(error){
+          console.error("Excel export library failed to load", error);
+          alert("Could not load the Excel export library. Please check your connection and try again.");
+          return;
+        }
+
+        try{
+          const exportData = await buildFirestoreExcelData(user, services);
+          const workbook = XLSX.utils.book_new();
+
+          appendFormattedSheet(XLSX, workbook, "Invoices", exportData.invoices.map(invoiceExcelRow));
+          appendFormattedSheet(XLSX, workbook, "Bills", exportData.bills.map(billExcelRow));
+          appendFormattedSheet(XLSX, workbook, "Expenses", exportData.expenses.map(expenseExcelRow));
+          appendFormattedSheet(XLSX, workbook, "Mileage", exportData.mileage.map(mileageExcelRow));
+          appendFormattedSheet(XLSX, workbook, "Summary", summaryExcelRows(exportData));
+
+          XLSX.writeFile(workbook, `simple-books-export-${exportTimestamp()}.xlsx`);
+        }catch(error){
+          console.error("Excel export failed", error);
+          alert("Could not export Excel data. Please try again.");
+        }
+    }
+
+    async function loadExcelLibrary(){
+        if(window.simpleBooksXLSX){
+          return window.simpleBooksXLSX;
+        }
+
+        const library = await import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
+        window.simpleBooksXLSX = library;
+        return library;
+    }
+
+    function appendFormattedSheet(XLSX, workbook, sheetName, rows){
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        formatExcelSheet(XLSX, worksheet, rows);
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    }
+
+    function formatExcelSheet(XLSX, worksheet, rows){
+        const range = worksheet["!ref"];
+
+        if(!range){
+          return;
+        }
+
+        const decodedRange = XLSX.utils.decode_range(range);
+        const headers = Object.keys(rows[0] || {});
+
+        worksheet["!cols"] = headers.map((header) => ({
+          wch: Math.min(
+            42,
+            Math.max(
+              12,
+              header.length + 2,
+              ...rows.map(row => String(row[header] ?? "").length + 2)
+            )
+          )
+        }));
+
+        worksheet["!freeze"] = {
+          xSplit: 0,
+          ySplit: 1,
+          topLeftCell: "A2",
+          activePane: "bottomLeft",
+          state: "frozen"
+        };
+
+        for(let column = decodedRange.s.c; column <= decodedRange.e.c; column += 1){
+          const headerCell = worksheet[XLSX.utils.encode_cell({ r: 0, c: column })];
+
+          if(headerCell){
+            headerCell.s = {
+              ...(headerCell.s || {}),
+              font: {
+                ...((headerCell.s && headerCell.s.font) || {}),
+                bold: true
+              }
+            };
+          }
+        }
+
+        for(let row = decodedRange.s.r + 1; row <= decodedRange.e.r; row += 1){
+          for(let column = decodedRange.s.c; column <= decodedRange.e.c; column += 1){
+            const header = headers[column];
+            const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
+
+            if(!cell || cell.t !== "n"){
+              continue;
+            }
+
+            if(isCurrencyColumn(header)){
+              cell.z = "\"£\"#,##0.00;[Red]-\"£\"#,##0.00";
+            }else if(header === "VAT Rate"){
+              cell.z = "0.00%";
+            }else if(header === "Miles"){
+              cell.z = "0.0";
+            }
+          }
+        }
+    }
+
+    function isCurrencyColumn(header){
+        return [
+          "Net",
+          "VAT",
+          "Total",
+          "Gross",
+          "Amount",
+          "Value",
+          "Rate Per Mile"
+        ].includes(header);
+    }
+
+    async function buildFirestoreExcelData(user, services){
+        const allExpenses = await readFirestoreCollection(user, services, "expenses");
+
+        return {
+          exportedAt: new Date().toISOString(),
+          invoices: await readFirestoreCollection(user, services, "invoices"),
+          bills: await readFirestoreCollection(user, services, "bills"),
+          expenses: allExpenses.filter(item => item.type !== "mileage"),
+          mileage: allExpenses.filter(item => item.type === "mileage")
+        };
+    }
+
+    function invoiceExcelRow(invoice){
+        return {
+          "Invoice ID": invoice.id || "",
+          "Invoice Number": invoice.invoiceNo || "",
+          "Date": excelValue(invoice.date),
+          "Client": invoice.client || "",
+          "Client Email": invoice.clientEmail || "",
+          "Due Date": excelValue(invoice.dueDate),
+          "Payment Terms": invoice.paymentTerms || "",
+          "Net": numberValue(invoice.amount),
+          "VAT": numberValue(invoice.vat),
+          "Total": numberValue(invoice.total),
+          "Status": invoice.status || "Unpaid",
+          "Recurring": invoice.recurringInvoice || "",
+          "Next Invoice Date": excelValue(invoice.nextInvoiceDate),
+          "Reminder Date": excelValue(invoice.reminderDate),
+          "Created At": excelValue(invoice.createdAt)
+        };
+    }
+
+    function billExcelRow(bill){
+        return {
+          "Bill ID": bill.id || "",
+          "Supplier": bill.supplier || "",
+          "Bill Number": bill.billNumber || "",
+          "Bill Date": excelValue(bill.billDate),
+          "Due Date": excelValue(bill.dueDate),
+          "Net": numberValue(bill.net),
+          "VAT Rate": numberValue(bill.vatRate),
+          "VAT": numberValue(bill.vat),
+          "Total": numberValue(bill.total),
+          "Status": bill.status || "Unpaid",
+          "Notes": bill.notes || "",
+          "Attachment": bill.attachmentName || "",
+          "Created At": excelValue(bill.createdAt)
+        };
+    }
+
+    function expenseExcelRow(expense){
+        return {
+          "Expense ID": expense.id || "",
+          "Date": excelValue(expense.date),
+          "Merchant": expense.merchant || expense.supplier || "",
+          "Category": expense.category || "",
+          "Description": expense.description || "",
+          "Net": numberValue(expense.net ?? expense.netAmount),
+          "VAT Rate": numberValue(expense.vatRate),
+          "VAT": numberValue(expense.vat ?? expense.vatAmount),
+          "Gross": expenseTotal(expense),
+          "Status": expense.status || "",
+          "Notes": expense.notes || "",
+          "Attachment": expense.attachmentName || "",
+          "Created At": excelValue(expense.createdAt)
+        };
+    }
+
+    function mileageExcelRow(mileage){
+        return {
+          "Mileage ID": mileage.id || "",
+          "Date": excelValue(mileage.date),
+          "From": mileage.from || "",
+          "To": mileage.to || "",
+          "Business Purpose": mileage.businessPurpose || mileage.purpose || "",
+          "Miles": numberValue(mileage.miles),
+          "Rate Per Mile": numberValue(mileage.ratePerMile ?? mileage.mileageRate),
+          "Amount": mileageTotal(mileage),
+          "Status": mileage.status || "",
+          "Notes": mileage.notes || "",
+          "Attachment": mileage.attachmentName || "",
+          "Created At": excelValue(mileage.createdAt)
+        };
+    }
+
+    function summaryExcelRows(data){
+        const invoiceTotal = data.invoices.reduce((sum, invoice) => sum + numberValue(invoice.total), 0);
+        const paidInvoiceTotal = data.invoices
+          .filter(invoice => invoice.status === "Paid")
+          .reduce((sum, invoice) => sum + numberValue(invoice.total), 0);
+        const unpaidBillsTotal = data.bills
+          .filter(bill => bill.status !== "Paid")
+          .reduce((sum, bill) => sum + numberValue(bill.total), 0);
+        const expensesTotal = data.expenses.reduce((sum, expense) => sum + expenseTotal(expense), 0);
+        const mileageTotalValue = data.mileage.reduce((sum, mileage) => sum + mileageTotal(mileage), 0);
+
+        return [
+          { "Metric": "Exported at", "Value": data.exportedAt },
+          { "Metric": "Invoice total", "Value": roundCurrency(invoiceTotal) },
+          { "Metric": "Paid invoice total", "Value": roundCurrency(paidInvoiceTotal) },
+          { "Metric": "Unpaid bills total", "Value": roundCurrency(unpaidBillsTotal) },
+          { "Metric": "Expenses total", "Value": roundCurrency(expensesTotal) },
+          { "Metric": "Mileage total", "Value": roundCurrency(mileageTotalValue) }
+        ];
+    }
+
+    function excelValue(value){
+        if(!value){
+          return "";
+        }
+
+        if(typeof value.toDate === "function"){
+          return value.toDate().toISOString();
+        }
+
+        return value;
+    }
+
+    function numberValue(value){
+        const number = Number(value || 0);
+        return Number.isFinite(number) ? number : 0;
+    }
+
+    function expenseTotal(expense){
+        return numberValue(expense.gross ?? expense.grossAmount ?? expense.total);
+    }
+
+    function mileageTotal(mileage){
+        const storedAmount = numberValue(mileage.amount ?? mileage.mileageAmount ?? mileage.gross);
+
+        if(storedAmount){
+          return storedAmount;
+        }
+
+        return numberValue(mileage.miles) * numberValue(mileage.ratePerMile ?? mileage.mileageRate);
+    }
+
+    function roundCurrency(value){
+        return Math.round(numberValue(value) * 100) / 100;
+    }
+
+    function exportTimestamp(){
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        const hours = String(now.getHours()).padStart(2, "0");
+        const minutes = String(now.getMinutes()).padStart(2, "0");
+
+        return `${year}-${month}-${day}-${hours}${minutes}`;
     }
 
     async function buildFullBackupData(){
