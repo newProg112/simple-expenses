@@ -308,7 +308,7 @@
 
       <div class="card export-kpi export-kpi-purple">
         <span class="muted">Export tools</span>
-        <strong>4 ready</strong>
+        <strong>5 ready</strong>
       </div>
 
       <div class="card export-kpi export-kpi-slate">
@@ -320,31 +320,7 @@
     <section class="exports-grid">
 
       <div class="card">
-        <h2>Invoice exports</h2>
-        <p class="muted">Export invoice registers, invoice backups and customer invoice data.</p>
-        <a class="btn" href="/resources/tools/invoice-generator.html">Open invoices</a>
-      </div>
-
-      <div class="card">
-        <h2>Bills exports</h2>
-        <p class="muted">Export supplier bills, unpaid bills and payment records.</p>
-        <a class="btn" href="/resources/tools/bills.html">Open bills</a>
-      </div>
-
-      <div class="card">
-        <h2>Client exports</h2>
-        <p class="muted">Export client records, notes and follow-up information.</p>
-        <a class="btn" href="/resources/tools/client-tracker.html">Open clients</a>
-      </div>
-
-      <div class="card">
-        <h2>Expenses exports</h2>
-        <p class="muted">Open Simple Expenses to export expenses, mileage and receipt records.</p>
-        <a class="btn" href="/resources/tools/expenses.html">Open expenses</a>
-      </div>
-
-      <div class="card">
-        <h2>Full backup</h2>
+        <h2>Backup &amp; Restore</h2>
 
         <p class="muted">
           Download or restore all locally stored invoices, bills, clients and account data.
@@ -352,10 +328,6 @@
 
         <button class="btn" onclick="downloadFullBackup()">
           Download backup
-        </button>
-
-        <button class="btn" onclick="downloadExcelExport()">
-          Export Excel
         </button>
 
         <input
@@ -368,6 +340,18 @@
 
         <button class="btn" onclick="document.getElementById('backupImportInput').click()">
           Import backup
+        </button>
+      </div>
+
+      <div class="card">
+        <h2>Excel export</h2>
+
+        <p class="muted">
+          Download a multi-sheet Excel workbook containing invoices, bills, expenses, mileage and a summary sheet.
+        </p>
+
+        <button class="btn" onclick="downloadExcelExport()">
+          Export Excel
         </button>
       </div>
 
@@ -849,6 +833,40 @@
         );
     }
 
+    async function loadBusinessRecordsTotal(){
+        const totalElement = document.getElementById("businessRecordsTotal");
+
+        if(!totalElement){
+          return;
+        }
+
+        const { services, user } = await getBackupUserAndServices();
+
+        if(!user || !services){
+          totalElement.textContent = "Unable to load";
+          return;
+        }
+
+        try{
+          const [excelData, clients] = await Promise.all([
+            buildFirestoreExcelData(user, services),
+            readFirestoreCollection(user, services, "clients")
+          ]);
+
+          const total =
+            excelData.invoices.length +
+            excelData.bills.length +
+            clients.length +
+            excelData.expenses.length +
+            excelData.mileage.length;
+
+          totalElement.textContent = String(total);
+        }catch(error){
+          console.error("Business records count failed", error);
+          totalElement.textContent = "Unable to load";
+        }
+    }
+
     function normaliseBackupTimestamp(value){
         if(!value){
           return "";
@@ -935,6 +953,7 @@
     }
 
     loadLastBackupDownloadedAt();
+    loadBusinessRecordsTotal();
   </script>
 </body>
 </html>
