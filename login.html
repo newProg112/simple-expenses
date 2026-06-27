@@ -167,6 +167,22 @@
       text-decoration:none;
     }
 
+    .text-button{
+      border:none;
+      background:none;
+      color:var(--primary);
+      cursor:pointer;
+      font:inherit;
+      font-weight:800;
+      padding:0;
+      text-decoration:none;
+    }
+
+    .text-button:hover,
+    .helper a:hover{
+      text-decoration:underline;
+    }
+
     .demo-helper{
       margin:10px 0 0;
       color:var(--muted);
@@ -236,6 +252,10 @@
         </button>
 
         <p class="helper">
+          <button class="text-button" id="showResetBtn" type="button">Forgot password?</button>
+        </p>
+
+        <p class="helper">
           Do not have an account? <a href="/signup.html">Create one</a>.
         </p>
 
@@ -249,6 +269,23 @@
 
         <p class="message" id="loginMessage"></p>
       </form>
+
+      <form class="card" id="resetForm" hidden>
+        <h2>Reset password</h2>
+
+        <label for="resetEmail">Email address</label>
+        <input id="resetEmail" type="email" autocomplete="email">
+
+        <button class="btn" id="sendResetBtn" type="submit">
+          Send reset link
+        </button>
+
+        <p class="helper">
+          <button class="text-button" id="cancelResetBtn" type="button">Back to login</button>
+        </p>
+
+        <p class="message" id="resetMessage"></p>
+      </form>
     </section>
   </main>
 
@@ -256,18 +293,58 @@
     import { auth } from "./firebase-config.js";
 
     import {
+      sendPasswordResetEmail,
       signInWithEmailAndPassword
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const loginForm = document.getElementById("loginForm");
+    const resetForm = document.getElementById("resetForm");
     const loginBtn = document.getElementById("loginBtn");
     const demoLoginBtn = document.getElementById("demoLoginBtn");
+    const showResetBtn = document.getElementById("showResetBtn");
+    const cancelResetBtn = document.getElementById("cancelResetBtn");
+    const sendResetBtn = document.getElementById("sendResetBtn");
     const loginMessage = document.getElementById("loginMessage");
+    const resetMessage = document.getElementById("resetMessage");
 
-    function showMessage(text, type){
-      loginMessage.textContent = text;
-      loginMessage.className = `message ${type}`;
-      loginMessage.style.display = "block";
+    function showMessage(element, text, type){
+      element.textContent = text;
+      element.className = `message ${type}`;
+      element.style.display = "block";
+    }
+
+    function hideMessage(element){
+      element.textContent = "";
+      element.style.display = "none";
+    }
+
+    function friendlyAuthError(error, fallback){
+      switch(error?.code){
+        case "auth/invalid-email":
+          return "Please enter a valid email address.";
+        case "auth/user-not-found":
+          return "If an account exists for this email, a password reset link has been sent.";
+        case "auth/too-many-requests":
+          return "Too many attempts. Please wait a moment and try again.";
+        default:
+          return error?.message || fallback;
+      }
+    }
+
+    function showResetForm(){
+      document.getElementById("resetEmail").value = document.getElementById("email").value.trim();
+      hideMessage(loginMessage);
+      hideMessage(resetMessage);
+      loginForm.hidden = true;
+      resetForm.hidden = false;
+      document.getElementById("resetEmail").focus();
+    }
+
+    function showLoginForm(){
+      hideMessage(resetMessage);
+      resetForm.hidden = true;
+      loginForm.hidden = false;
+      document.getElementById("email").focus();
     }
 
     function clearAccountCacheForUserChange(user){
@@ -293,13 +370,38 @@
         const credential = await signInWithEmailAndPassword(auth, email, password);
         clearAccountCacheForUserChange(credential.user);
 
-        showMessage("Login successful. Opening dashboard...", "success");
+        showMessage(loginMessage, "Login successful. Opening dashboard...", "success");
         window.location.href = "/dashboard.html";
       }catch(error){
         console.error(error);
-        showMessage(error.message || "Could not log in.", "error");
+        showMessage(loginMessage, error.message || "Could not log in.", "error");
         loginBtn.disabled = false;
         loginBtn.textContent = "Login";
+      }
+    });
+
+    resetForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById("resetEmail").value.trim();
+
+      if(!email){
+        showMessage(resetMessage, "Please enter your email address.", "error");
+        return;
+      }
+
+      sendResetBtn.disabled = true;
+      sendResetBtn.textContent = "Sending...";
+
+      try{
+        await sendPasswordResetEmail(auth, email);
+        showMessage(resetMessage, "If an account exists for this email, a password reset link has been sent.", "success");
+      }catch(error){
+        console.error(error);
+        showMessage(resetMessage, friendlyAuthError(error, "Could not send the reset email. Please try again."), "error");
+      }finally{
+        sendResetBtn.disabled = false;
+        sendResetBtn.textContent = "Send reset link";
       }
     });
 
@@ -322,17 +424,19 @@
         );
         clearAccountCacheForUserChange(credential.user);
 
-        showMessage("Demo login successful. Opening dashboard...", "success");
+        showMessage(loginMessage, "Demo login successful. Opening dashboard...", "success");
         window.location.href = "/dashboard.html";
       }catch(error){
         console.error(error);
-        showMessage(error.message || "Could not open the demo account.", "error");
+        showMessage(loginMessage, error.message || "Could not open the demo account.", "error");
         demoLoginBtn.disabled = false;
         loginBtn.disabled = false;
         demoLoginBtn.textContent = "Login as Demo";
       }
     }
 
+    showResetBtn.addEventListener("click", showResetForm);
+    cancelResetBtn.addEventListener("click", showLoginForm);
     demoLoginBtn.addEventListener("click", loginAsDemo);
 
     if(new URLSearchParams(window.location.search).get("demo") === "1"){
