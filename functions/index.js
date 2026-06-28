@@ -1,15 +1,16 @@
 /**
  * Import function triggers from their respective submodules:
  *
- * const {onCall} = require("firebase-functions/v2/https");
+ * const {onRequest} = require("firebase-functions/v2/https");
  * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
  *
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
 const {setGlobalOptions} = require("firebase-functions/v2");
-const {HttpsError, onCall} = require("firebase-functions/v2/https");
+const {onRequest} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
+const admin = require("firebase-admin");
 const Stripe = require("stripe");
 
 // For cost control, you can set the maximum number of containers that can be
@@ -23,55 +24,100 @@ const Stripe = require("stripe");
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
+admin.initializeApp();
 
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
-const simpleBooksProPriceId = "price_1TnHNJjmLqrFk5SqIhT6dtVi";
+const simpleBooksProPriceId = "price_1TnLTCJmLqrFk5SqusEJiIhu";
 const successUrl = "https://simple-books.co.uk/account.html?checkout=success";
 const cancelUrl = "https://simple-books.co.uk/account.html?checkout=cancelled";
 
-exports.createCheckoutSession = onCall(
-    {secrets: [stripeSecretKey]},
-    async (request) => {
-      if (!request.auth) {
-        throw new HttpsError(
-            "unauthenticated",
-            "You must be signed in to start checkout.",
-        );
+exports.createCheckoutSession = onRequest(
+    {
+      secrets: [stripeSecretKey],
+      cors: [
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "https://simple-books.co.uk",
+      ],
+      invoker: "public",
+    },
+    async (request, response) => {
+      if (request.method !== "POST") {
+        response.status(405).json({error: "Method not allowed."});
+        return;
       }
 
-      const stripe = new Stripe(stripeSecretKey.value());
-      const uid = request.auth.uid;
+      const authorization = request.get("Authorization") || "";
+      const match = authorization.match(/^Bearer (.+)$/);
 
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        line_items: [
-          {
-            price: simpleBooksProPriceId,
-            quantity: 1,
-          },
-        ],
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        client_reference_id: uid,
-        metadata: {
-          firebaseUid: uid,
-        },
-        subscription_data: {
+      if (!match) {
+        response.status(401).json({
+          error: "You must be signed in to start checkout.",
+        });
+        return;
+      }
+
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(match[1]);
+
+        const stripe = new Stripe(stripeSecretKey.value());
+        console.log("Stripe account:", await stripe.accounts.retrieve());
+        console.log(await stripe.prices.retrieve(simpleBooksProPriceId));
+        const uid = decodedToken.uid;
+
+        const session = await stripe.checkout.sessions.create({
+          mode: "subscription",
+          line_items: [
+            {
+              price: simpleBooksProPriceId,
+              quantity: 1,
+            },
+          ],
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          client_reference_id: uid,
           metadata: {
             firebaseUid: uid,
           },
-        },
-      });
+          subscription_data: {
+            metadata: {
+              firebaseUid: uid,
+            },
+          },
+        });
 
-      if (!session.url) {
-        throw new HttpsError(
-            "internal",
-            "Stripe did not return a Checkout Session URL.",
+        if (!session.url) {
+          response.status(500).json({
+            error: "Stripe did not return a Checkout Session URL.",
+          });
+          return;
+        }
+
+        response.json({
+          url: session.url,
+        });
+      } catch (error) {
+        const errorCode = error && error.code ? String(error.code) : "";
+        const errorMessage = error && error.message ?
+          String(error.message) :
+          "Unknown checkout error.";
+        const errorStack = error && error.stack ? String(error.stack) : "";
+        const isAuthError = errorCode.startsWith("auth/");
+
+        console.error(
+            `createCheckoutSession failed:
+        Code: ${errorCode || "unknown"}
+        Message: ${errorMessage}
+        Stack:
+        ${errorStack}`,
         );
-      }
 
-      return {
-        url: session.url,
-      };
+        response.status(isAuthError ? 401 : 500).json({
+          error: isAuthError ?
+            "You must be signed in to start checkout." :
+            "Checkout session could not be created.",
+        });
+        return;
+      }
     },
 );

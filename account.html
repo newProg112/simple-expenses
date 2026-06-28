@@ -856,8 +856,8 @@
     const upgradePlanBtn = document.getElementById("upgradePlanBtn");
     const checkoutStatus = document.getElementById("checkoutStatus");
 
-    const STRIPE_PRICE_ID = "price_simple_books_placeholder";
-    const CHECKOUT_FUNCTION_URL = "";
+    const CHECKOUT_FUNCTION_URL =
+      "https://us-central1-simple-books-office.cloudfunctions.net/createCheckoutSession";
 
     let currentUser = null;
     const storage = getStorage(app);
@@ -1064,20 +1064,14 @@
     }
 
     async function startStripeCheckout(){
-      if(!CHECKOUT_FUNCTION_URL){
-        setCheckoutStatus(
-          "Stripe Checkout needs a Firebase Function before payments can start.",
-          true
-        );
-        return;
-      }
-
       if(!currentUser){
         setCheckoutStatus("Please sign in before upgrading.", true);
         return;
       }
 
+      const originalButtonText = upgradePlanBtn.textContent;
       upgradePlanBtn.disabled = true;
+      upgradePlanBtn.textContent = "Opening...";
       setCheckoutStatus("Opening Stripe Checkout...");
 
       try {
@@ -1087,10 +1081,7 @@
           headers: {
             "Authorization": `Bearer ${idToken}`,
             "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            priceId: STRIPE_PRICE_ID
-          })
+          }
         });
 
         if(!response.ok){
@@ -1106,9 +1097,11 @@
         window.location.href = session.url;
       } catch(error) {
         console.error("Stripe Checkout start failed", error);
-        setCheckoutStatus(error.message || "Checkout could not be started.", true);
+        setCheckoutStatus("Checkout could not be started.", true);
+        alert("Sorry, checkout could not be started. Please try again in a moment.");
       } finally {
         upgradePlanBtn.disabled = false;
+        upgradePlanBtn.textContent = originalButtonText;
       }
     }
 
