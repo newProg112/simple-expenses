@@ -1054,7 +1054,15 @@
     }
 
     function renderSubscriptionCard(account){
-      setText("subscriptionPlan", account.currentPlan || "Starter");
+      const currentPlan = account.currentPlan || "Starter";
+      const shouldShowUpgrade = currentPlan === "Starter";
+
+      setText("subscriptionPlan", currentPlan);
+
+      if(upgradePlanBtn){
+        upgradePlanBtn.textContent = "Upgrade to Standard";
+        upgradePlanBtn.style.display = shouldShowUpgrade ? "" : "none";
+      }
     }
 
     function setCheckoutStatus(message, isError = false){
@@ -1171,13 +1179,35 @@
 
       if(currentUser){
         try{
-          const userRef = doc(db, "users", currentUser.uid);
-          const snap = await getDoc(userRef);
+          const uid = currentUser.uid;
+          const userRef = doc(db, "users", uid);
+          const userProfileRef = doc(db, "userProfiles", uid);
+          const [snap, userProfileSnap] = await Promise.all([
+            getDoc(userRef),
+            getDoc(userProfileRef)
+          ]);
+          const userData = snap.exists() ? snap.data() : {};
+          const userProfileData = userProfileSnap.exists()
+            ? userProfileSnap.data()
+            : {};
+
+          console.log("Loaded account uid", uid);
+          console.log("Loaded users account data", userData);
+          console.log("Loaded userProfiles account data", userProfileData);
 
           if(snap.exists()){
-            saved = snap.data();
-            writeAccountCache(saved);
+            saved = userData;
           }
+
+          if(userProfileSnap.exists()){
+            saved = {
+              ...saved,
+              ...userProfileData
+            };
+          }
+
+          console.log("Merged account data before render", saved);
+          writeAccountCache(saved);
         }catch(error){
           console.error("Could not load account from Firestore", error);
           saved = readAccountCache();
