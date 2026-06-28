@@ -12,6 +12,16 @@
           "simple-expenses-app-a9ef1"
         ]
       }
+    },
+    "simple-books-office": {
+      "hosting": {
+        "main": [
+          "simple-books-office"
+        ],
+        "expenses": [
+          "simple-expenses-app-a9ef1"
+        ]
+      }
     }
   },
   "etags": {}
