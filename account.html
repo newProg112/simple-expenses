@@ -436,6 +436,25 @@
       line-height:1.2;
     }
 
+    .subscription-actions{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      gap:10px;
+    }
+
+    .checkout-status{
+      min-height:22px;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:700;
+      line-height:1.5;
+    }
+
+    .checkout-status.error{
+      color:#b45309;
+    }
+
     @media (max-width:800px){
       .account-summary{
         grid-template-columns:1fr;
@@ -650,10 +669,19 @@
         </div>
 
         <div>
-          <div class="subscription-price">£5/month when billing launches</div>
+          <div class="subscription-price">£15/month when billing launches</div>
           <p class="muted">
             Your current plan is active. Payment collection will be added later.
           </p>
+        </div>
+
+        <div class="subscription-actions">
+          <button class="btn btn-primary" id="upgradePlanBtn" type="button">
+            Upgrade
+          </button>
+          <div class="checkout-status" id="checkoutStatus" role="status" aria-live="polite">
+            Checkout is not connected yet.
+          </div>
         </div>
       </div>
     </section>
@@ -825,6 +853,11 @@
     const successMessage = document.getElementById("successMessage");
     const companyLogoInput = document.getElementById("companyLogo");
     const removeLogoBtn = document.getElementById("removeLogoBtn");
+    const upgradePlanBtn = document.getElementById("upgradePlanBtn");
+    const checkoutStatus = document.getElementById("checkoutStatus");
+
+    const STRIPE_PRICE_ID = "price_simple_books_placeholder";
+    const CHECKOUT_FUNCTION_URL = "";
 
     let currentUser = null;
     const storage = getStorage(app);
@@ -1022,6 +1055,61 @@
 
     function renderSubscriptionCard(account){
       setText("subscriptionPlan", account.currentPlan || "Starter");
+    }
+
+    function setCheckoutStatus(message, isError = false){
+      if(!checkoutStatus) return;
+      checkoutStatus.textContent = message;
+      checkoutStatus.classList.toggle("error", isError);
+    }
+
+    async function startStripeCheckout(){
+      if(!CHECKOUT_FUNCTION_URL){
+        setCheckoutStatus(
+          "Stripe Checkout needs a Firebase Function before payments can start.",
+          true
+        );
+        return;
+      }
+
+      if(!currentUser){
+        setCheckoutStatus("Please sign in before upgrading.", true);
+        return;
+      }
+
+      upgradePlanBtn.disabled = true;
+      setCheckoutStatus("Opening Stripe Checkout...");
+
+      try {
+        const idToken = await currentUser.getIdToken();
+        const response = await fetch(CHECKOUT_FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${idToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            priceId: STRIPE_PRICE_ID
+          })
+        });
+
+        if(!response.ok){
+          throw new Error("Checkout session could not be created.");
+        }
+
+        const session = await response.json();
+
+        if(!session.url){
+          throw new Error("Checkout session URL was missing.");
+        }
+
+        window.location.href = session.url;
+      } catch(error) {
+        console.error("Stripe Checkout start failed", error);
+        setCheckoutStatus(error.message || "Checkout could not be started.", true);
+      } finally {
+        upgradePlanBtn.disabled = false;
+      }
     }
 
     function renderAccountInsightCards(account){
@@ -1367,6 +1455,10 @@
         await signOut(auth);
         window.location.href = "/";
       });
+    }
+
+    if(upgradePlanBtn){
+      upgradePlanBtn.addEventListener("click", startStripeCheckout);
     }
 
     saveBtn.addEventListener("click", saveAccount);
