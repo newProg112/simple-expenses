@@ -663,24 +663,24 @@
         <div class="insight-heading">
           <div>
             <h2>Subscription</h2>
-            <div class="muted">Billing is not live yet</div>
+            <div class="muted" id="subscriptionKicker">Current plan</div>
           </div>
           <span class="plan-badge" id="subscriptionPlan">Starter</span>
         </div>
 
         <div>
-          <div class="subscription-price">£15/month when billing launches</div>
-          <p class="muted">
-            Your current plan is active. Payment collection will be added later.
+          <div class="subscription-price" id="subscriptionPrice">Starter</div>
+          <p class="muted" id="subscriptionMessage">
+            Upgrade to Pro for £15/month.
           </p>
         </div>
 
         <div class="subscription-actions">
           <button class="btn btn-primary" id="upgradePlanBtn" type="button">
-            Upgrade
+            Upgrade to Pro
           </button>
           <div class="checkout-status" id="checkoutStatus" role="status" aria-live="polite">
-            Checkout is not connected yet.
+            Upgrade to Pro for £15/month.
           </div>
         </div>
       </div>
@@ -1055,13 +1055,37 @@
 
     function renderSubscriptionCard(account){
       const currentPlan = account.currentPlan || "Starter";
-      const shouldShowUpgrade = currentPlan === "Starter";
+      const subscriptionStatus = account.subscriptionStatus || "";
+      const isStarter = currentPlan === "Starter";
+      const isCancelled = subscriptionStatus === "cancelled";
 
       setText("subscriptionPlan", currentPlan);
+      setText(
+        "subscriptionKicker",
+        isCancelled
+          ? "Subscription cancelled"
+          : "Current plan"
+      );
+      setText("subscriptionPrice", isStarter ? "Starter" : "£15/month");
+      setText(
+        "subscriptionMessage",
+        isStarter
+          ? "Upgrade to Pro for £15/month."
+          : isCancelled
+            ? "Subscription cancelled"
+            : "Subscription active"
+      );
+      setCheckoutStatus(
+        isStarter
+          ? "Upgrade to Pro for £15/month."
+          : isCancelled
+            ? "Subscription cancelled"
+            : "Your subscription is active."
+      );
 
       if(upgradePlanBtn){
-        upgradePlanBtn.textContent = "Upgrade to Standard";
-        upgradePlanBtn.style.display = shouldShowUpgrade ? "" : "none";
+        upgradePlanBtn.textContent = "Upgrade to Pro";
+        upgradePlanBtn.style.display = isStarter ? "" : "none";
       }
     }
 
