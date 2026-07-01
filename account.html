@@ -679,6 +679,9 @@
           <button class="btn btn-primary" id="upgradePlanBtn" type="button">
             Upgrade to Pro
           </button>
+          <button class="btn btn-primary" id="manageSubscriptionBtn" type="button" style="display:none;">
+            Manage Subscription
+          </button>
           <div class="checkout-status" id="checkoutStatus" role="status" aria-live="polite">
             Upgrade to Pro for £15/month.
           </div>
@@ -853,16 +856,20 @@
     const companyLogoInput = document.getElementById("companyLogo");
     const removeLogoBtn = document.getElementById("removeLogoBtn");
     const upgradePlanBtn = document.getElementById("upgradePlanBtn");
+    const manageSubscriptionBtn = document.getElementById("manageSubscriptionBtn");
     const checkoutStatus = document.getElementById("checkoutStatus");
 
     const CHECKOUT_FUNCTION_URL =
       "https://us-central1-simple-books-office.cloudfunctions.net/createCheckoutSession";
+    const BILLING_PORTAL_FUNCTION_URL =
+      "https://us-central1-simple-books-office.cloudfunctions.net/createBillingPortalSession";
     const ENSURE_PROFILE_FUNCTION_URL =
       "https://us-central1-simple-books-office.cloudfunctions.net/ensureUserProfile";
 
     let currentUser = null;
     let billingProfile = {};
     let checkoutOpening = false;
+    let billingPortalOpening = false;
     const storage = getStorage(app);
     const companyLogoPath = uid => `users/${uid}/branding/company-logo`;
     const allowedLogoTypes = ["image/png", "image/jpeg", "image/webp"];
@@ -911,7 +918,8 @@
         currentPlan: normalizePlan(profile.currentPlan),
         subscriptionStatus: normalizeSubscriptionStatus(profile.subscriptionStatus),
         billingOverride: profile.billingOverride === true,
-        billingOverrideReason: profile.billingOverrideReason || ""
+        billingOverrideReason: profile.billingOverrideReason || "",
+        stripeCustomerId: profile.stripeCustomerId || ""
       };
     }
 
@@ -923,7 +931,8 @@
         currentPlan: profile.currentPlan,
         subscriptionStatus: profile.subscriptionStatus,
         billingOverride: profile.billingOverride,
-        billingOverrideReason: profile.billingOverrideReason
+        billingOverrideReason: profile.billingOverrideReason,
+        stripeCustomerId: profile.stripeCustomerId
       };
     }
 
@@ -1123,6 +1132,9 @@
       const isComped = isPro && subscriptionStatus === "comped";
       const isDiscounted = isPro && subscriptionStatus === "discounted";
       const canUpgrade = !isActive && !isComped && !isDiscounted;
+      const canManageSubscription = isActive &&
+        account.billingOverride !== true &&
+        hasValue(account.stripeCustomerId);
 
       let kicker = "Current plan";
       let price = "Starter";
@@ -1155,13 +1167,23 @@
       setText("subscriptionPrice", price);
       setText("subscriptionMessage", message);
       setCheckoutStatus(
-        checkoutOpening ? "Opening secure Stripe Checkout. Please wait..." : statusMessage
+        checkoutOpening
+          ? "Opening secure Stripe Checkout. Please wait..."
+          : billingPortalOpening
+            ? "Opening secure Stripe Billing Portal. Please wait..."
+            : statusMessage
       );
 
       if(upgradePlanBtn){
         upgradePlanBtn.textContent = checkoutOpening ? "Opening..." : "Upgrade to Pro";
         upgradePlanBtn.disabled = checkoutOpening;
         upgradePlanBtn.style.display = canUpgrade ? "" : "none";
+      }
+
+      if(manageSubscriptionBtn){
+        manageSubscriptionBtn.textContent = billingPortalOpening ? "Opening..." : "Manage Subscription";
+        manageSubscriptionBtn.disabled = billingPortalOpening;
+        manageSubscriptionBtn.style.display = canManageSubscription ? "" : "none";
       }
     }
 
@@ -1234,6 +1256,72 @@
         checkoutOpening = false;
         upgradePlanBtn.disabled = false;
         upgradePlanBtn.textContent = originalButtonText;
+      }
+    }
+
+    async function openBillingPortal(){
+      if(billingPortalOpening){
+        return;
+      }
+
+      if(!currentUser){
+        setCheckoutStatus("Please sign in before managing your subscription.", true);
+        return;
+      }
+
+      const originalButtonText = manageSubscriptionBtn.textContent;
+      billingPortalOpening = true;
+      manageSubscriptionBtn.disabled = true;
+      manageSubscriptionBtn.textContent = "Opening...";
+      setCheckoutStatus("Opening secure Stripe Billing Portal. Please wait...");
+
+      let portalRedirecting = false;
+
+      try {
+        const idToken = await currentUser.getIdToken();
+        const response = await fetch(BILLING_PORTAL_FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${idToken}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        if(!response.ok){
+          let errorMessage = "Billing Portal session could not be created.";
+
+          try {
+            const errorBody = await response.json();
+            errorMessage = errorBody.error || errorMessage;
+          } catch(parseError) {
+            console.error("Billing Portal error response could not be read", parseError);
+          }
+
+          throw new Error(errorMessage);
+        }
+
+        const session = await response.json();
+
+        if(!session.url){
+          throw new Error("Billing Portal session URL was missing.");
+        }
+
+        portalRedirecting = true;
+        window.location.href = session.url;
+      } catch(error) {
+        console.error("Stripe Billing Portal start failed", error);
+        setCheckoutStatus(
+          "Sorry, subscription management could not be opened. Please try again in a moment.",
+          true
+        );
+      } finally {
+        if(portalRedirecting){
+          return;
+        }
+
+        billingPortalOpening = false;
+        manageSubscriptionBtn.disabled = false;
+        manageSubscriptionBtn.textContent = originalButtonText;
       }
     }
 
@@ -1618,6 +1706,10 @@
 
     if(upgradePlanBtn){
       upgradePlanBtn.addEventListener("click", startStripeCheckout);
+    }
+
+    if(manageSubscriptionBtn){
+      manageSubscriptionBtn.addEventListener("click", openBillingPortal);
     }
 
     saveBtn.addEventListener("click", saveAccount);

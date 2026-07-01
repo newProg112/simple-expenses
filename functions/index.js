@@ -32,6 +32,7 @@ const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 const simpleBooksProPriceId = "price_1TnLTCJmLqrFk5SqusEJiIhu";
 const successUrl = "https://simple-books.co.uk/account.html?checkout=success";
 const cancelUrl = "https://simple-books.co.uk/account.html?checkout=cancelled";
+const billingPortalReturnUrl = "https://simple-books.co.uk/account.html";
 const userProfiles = admin.firestore().collection("userProfiles");
 
 /**
@@ -289,6 +290,109 @@ exports.createCheckoutSession = onRequest(
             "Checkout session could not be created.",
         });
         return;
+      }
+    },
+);
+
+exports.createBillingPortalSession = onRequest(
+    {
+      secrets: [stripeSecretKey],
+      invoker: "public",
+    },
+    async (request, response) => {
+      const allowedOrigins = [
+        "https://simple-books-office.web.app",
+        "https://simple-books.co.uk",
+      ];
+      const origin = request.get("Origin") || "";
+
+      response.set("Vary", "Origin");
+
+      if (allowedOrigins.includes(origin)) {
+        response.set("Access-Control-Allow-Origin", origin);
+        response.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+        response.set(
+            "Access-Control-Allow-Headers",
+            "Authorization, Content-Type",
+        );
+        response.set("Access-Control-Max-Age", "3600");
+      }
+
+      if (request.method === "OPTIONS") {
+        response.status(204).send("");
+        return;
+      }
+
+      if (request.method !== "POST") {
+        response.status(405).json({error: "Method not allowed."});
+        return;
+      }
+
+      const authorization = request.get("Authorization") || "";
+      const match = authorization.match(/^Bearer (.+)$/);
+
+      if (!match) {
+        response.status(401).json({
+          error: "You must be signed in to manage your subscription.",
+        });
+        return;
+      }
+
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(match[1]);
+        const profileSnap = await userProfiles.doc(decodedToken.uid).get();
+        const profile = profileSnap.exists ? profileSnap.data() : {};
+        const customerId = profile.stripeCustomerId || "";
+        const hasPortalAccess = profile.currentPlan === "Pro" &&
+          profile.subscriptionStatus === "active" &&
+          profile.billingOverride !== true &&
+          customerId;
+
+        if (!hasPortalAccess) {
+          response.status(403).json({
+            error: "Billing Portal is only available for active Pro " +
+              "subscriptions.",
+          });
+          return;
+        }
+
+        const stripe = new Stripe(stripeSecretKey.value());
+        const session = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          return_url: billingPortalReturnUrl,
+        });
+
+        if (!session.url) {
+          response.status(500).json({
+            error: "Stripe did not return a Billing Portal URL.",
+          });
+          return;
+        }
+
+        response.json({
+          url: session.url,
+        });
+      } catch (error) {
+        const errorCode = error && error.code ? String(error.code) : "";
+        const errorMessage = error && error.message ?
+          String(error.message) :
+          "Unknown billing portal error.";
+        const errorStack = error && error.stack ? String(error.stack) : "";
+        const isAuthError = errorCode.startsWith("auth/");
+
+        console.error(
+            `createBillingPortalSession failed:
+        Code: ${errorCode || "unknown"}
+        Message: ${errorMessage}
+        Stack:
+        ${errorStack}`,
+        );
+
+        response.status(isAuthError ? 401 : 500).json({
+          error: isAuthError ?
+            "You must be signed in to manage your subscription." :
+            "Billing Portal session could not be created.",
+        });
       }
     },
 );
