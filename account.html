@@ -558,7 +558,7 @@
         <div class="mini-card">
           <div class="mini-title">Current plan</div>
           <div class="muted">Active subscription</div>
-          <strong id="planStatus">Standard</strong>
+          <strong id="planStatus">Starter</strong>
         </div>
 
         <div class="mini-card">
@@ -709,7 +709,6 @@
         <label>Current plan</label>
         <select id="currentPlan">
           <option>Starter</option>
-          <option>Standard</option>
           <option>Pro</option>
         </select>
 
@@ -858,8 +857,12 @@
 
     const CHECKOUT_FUNCTION_URL =
       "https://us-central1-simple-books-office.cloudfunctions.net/createCheckoutSession";
+    const ENSURE_PROFILE_FUNCTION_URL =
+      "https://us-central1-simple-books-office.cloudfunctions.net/ensureUserProfile";
 
     let currentUser = null;
+    let billingProfile = {};
+    let checkoutOpening = false;
     const storage = getStorage(app);
     const companyLogoPath = uid => `users/${uid}/branding/company-logo`;
     const allowedLogoTypes = ["image/png", "image/jpeg", "image/webp"];
@@ -888,6 +891,40 @@
         localStorage.setItem("simpleBooksAccountUid", user.uid);
         localStorage.removeItem("simpleBooksAccount");
       }
+    }
+
+    function normalizePlan(plan){
+      return plan === "Pro" ? "Pro" : "Starter";
+    }
+
+    function normalizeSubscriptionStatus(status){
+      return [
+        "active",
+        "comped",
+        "discounted",
+        "cancelled"
+      ].includes(status) ? status : "";
+    }
+
+    function readBillingProfile(profile = {}){
+      return {
+        currentPlan: normalizePlan(profile.currentPlan),
+        subscriptionStatus: normalizeSubscriptionStatus(profile.subscriptionStatus),
+        billingOverride: profile.billingOverride === true,
+        billingOverrideReason: profile.billingOverrideReason || ""
+      };
+    }
+
+    function accountWithBilling(account = {}){
+      const profile = readBillingProfile(billingProfile);
+
+      return {
+        ...account,
+        currentPlan: profile.currentPlan,
+        subscriptionStatus: profile.subscriptionStatus,
+        billingOverride: profile.billingOverride,
+        billingOverrideReason: profile.billingOverrideReason
+      };
     }
 
     function clearAccountCacheForUserChange(user){
@@ -1053,39 +1090,78 @@
       renderUsageStats();
     }
 
+    async function ensureUserProfile(){
+      if(!currentUser) return;
+
+      try {
+        const idToken = await currentUser.getIdToken();
+        const response = await fetch(ENSURE_PROFILE_FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${idToken}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        if(!response.ok){
+          throw new Error("Account profile could not be created.");
+        }
+      } catch(error) {
+        console.error("Could not ensure account profile", error);
+      }
+    }
+
     function renderSubscriptionCard(account){
-      const currentPlan = account.currentPlan || "Starter";
-      const subscriptionStatus = account.subscriptionStatus || "";
-      const isStarter = currentPlan === "Starter";
+      const currentPlan = normalizePlan(account.currentPlan);
+      const subscriptionStatus = normalizeSubscriptionStatus(account.subscriptionStatus);
+      const overrideReason = account.billingOverrideReason
+        ? ` ${account.billingOverrideReason}`
+        : "";
+      const isPro = currentPlan === "Pro";
       const isCancelled = subscriptionStatus === "cancelled";
+      const isActive = isPro && subscriptionStatus === "active";
+      const isComped = isPro && subscriptionStatus === "comped";
+      const isDiscounted = isPro && subscriptionStatus === "discounted";
+      const canUpgrade = !isActive && !isComped && !isDiscounted;
+
+      let kicker = "Current plan";
+      let price = "Starter";
+      let message = "Upgrade to Pro for £15/month.";
+      let statusMessage = "Upgrade to Pro for £15/month.";
+
+      if(isActive){
+        price = "£15/month";
+        message = "Subscription active";
+        statusMessage = "Your subscription is active.";
+      } else if(isComped){
+        price = "Free Pro";
+        message = "Free Pro account";
+        statusMessage = `Free Pro account.${overrideReason}`;
+      } else if(isDiscounted){
+        price = "Discounted Pro";
+        message = "Discounted Pro account";
+        statusMessage = `Discounted Pro account.${overrideReason}`;
+      } else if(isCancelled){
+        kicker = "Subscription cancelled";
+        price = isPro ? "Pro" : "Starter";
+        message = "Subscription cancelled";
+        statusMessage = "Subscription cancelled. You can upgrade again when ready.";
+      } else if(isPro){
+        price = "Pro";
+      }
 
       setText("subscriptionPlan", currentPlan);
-      setText(
-        "subscriptionKicker",
-        isCancelled
-          ? "Subscription cancelled"
-          : "Current plan"
-      );
-      setText("subscriptionPrice", isStarter ? "Starter" : "£15/month");
-      setText(
-        "subscriptionMessage",
-        isStarter
-          ? "Upgrade to Pro for £15/month."
-          : isCancelled
-            ? "Subscription cancelled"
-            : "Subscription active"
-      );
+      setText("subscriptionKicker", kicker);
+      setText("subscriptionPrice", price);
+      setText("subscriptionMessage", message);
       setCheckoutStatus(
-        isStarter
-          ? "Upgrade to Pro for £15/month."
-          : isCancelled
-            ? "Subscription cancelled"
-            : "Your subscription is active."
+        checkoutOpening ? "Opening secure Stripe Checkout. Please wait..." : statusMessage
       );
 
       if(upgradePlanBtn){
-        upgradePlanBtn.textContent = "Upgrade to Pro";
-        upgradePlanBtn.style.display = isStarter ? "" : "none";
+        upgradePlanBtn.textContent = checkoutOpening ? "Opening..." : "Upgrade to Pro";
+        upgradePlanBtn.disabled = checkoutOpening;
+        upgradePlanBtn.style.display = canUpgrade ? "" : "none";
       }
     }
 
@@ -1096,15 +1172,22 @@
     }
 
     async function startStripeCheckout(){
+      if(checkoutOpening){
+        return;
+      }
+
       if(!currentUser){
         setCheckoutStatus("Please sign in before upgrading.", true);
         return;
       }
 
       const originalButtonText = upgradePlanBtn.textContent;
+      checkoutOpening = true;
       upgradePlanBtn.disabled = true;
       upgradePlanBtn.textContent = "Opening...";
-      setCheckoutStatus("Opening Stripe Checkout...");
+      setCheckoutStatus("Opening secure Stripe Checkout. Please wait...");
+
+      let checkoutRedirecting = false;
 
       try {
         const idToken = await currentUser.getIdToken();
@@ -1117,7 +1200,16 @@
         });
 
         if(!response.ok){
-          throw new Error("Checkout session could not be created.");
+          let errorMessage = "Checkout session could not be created.";
+
+          try {
+            const errorBody = await response.json();
+            errorMessage = errorBody.error || errorMessage;
+          } catch(parseError) {
+            console.error("Checkout error response could not be read", parseError);
+          }
+
+          throw new Error(errorMessage);
         }
 
         const session = await response.json();
@@ -1126,12 +1218,20 @@
           throw new Error("Checkout session URL was missing.");
         }
 
+        checkoutRedirecting = true;
         window.location.href = session.url;
       } catch(error) {
         console.error("Stripe Checkout start failed", error);
-        setCheckoutStatus("Checkout could not be started.", true);
-        alert("Sorry, checkout could not be started. Please try again in a moment.");
+        setCheckoutStatus(
+          "Sorry, checkout could not be started. Please try again in a moment.",
+          true
+        );
       } finally {
+        if(checkoutRedirecting){
+          return;
+        }
+
+        checkoutOpening = false;
         upgradePlanBtn.disabled = false;
         upgradePlanBtn.textContent = originalButtonText;
       }
@@ -1148,7 +1248,6 @@
         fullName: getField("fullName"),
         email: getField("email"),
         role: getField("role"),
-        currentPlan: getField("currentPlan"),
         businessName: getField("businessName"),
         businessEmail: getField("businessEmail"),
         phoneNumber: getField("phoneNumber"),
@@ -1200,10 +1299,12 @@
     async function loadAccount(){
 
       let saved = currentUser ? {} : readAccountCache(null);
+      billingProfile = readBillingProfile();
 
       if(currentUser){
         try{
           const uid = currentUser.uid;
+          await ensureUserProfile();
           const userRef = doc(db, "users", uid);
           const userProfileRef = doc(db, "userProfiles", uid);
           const [snap, userProfileSnap] = await Promise.all([
@@ -1221,13 +1322,21 @@
 
           if(snap.exists()){
             saved = userData;
+            delete saved.currentPlan;
+            delete saved.subscriptionStatus;
+            delete saved.billingOverride;
+            delete saved.billingOverrideReason;
           }
 
           if(userProfileSnap.exists()){
+            billingProfile = readBillingProfile(userProfileData);
             saved = {
               ...saved,
-              ...userProfileData
+              ...billingProfile
             };
+          } else {
+            billingProfile = readBillingProfile();
+            saved = accountWithBilling(saved);
           }
 
           console.log("Merged account data before render", saved);
@@ -1241,7 +1350,8 @@
       setField("fullName", saved.fullName);
       setField("email", saved.email || currentUser?.email || "");
       setField("role", saved.role || "Owner");
-      setField("currentPlan", saved.currentPlan || "Starter");
+      setField("currentPlan", accountWithBilling(saved).currentPlan);
+      document.getElementById("currentPlan").disabled = true;
       setField("businessName", saved.businessName);
       setField("businessEmail", saved.businessEmail);
       setField("phoneNumber", saved.phoneNumber);
@@ -1264,11 +1374,13 @@
       document.getElementById("welcomeTitle").textContent =
         "Account settings";
 
+      const renderedAccount = accountWithBilling(saved);
+
       document.getElementById("summaryPlan").textContent =
-        saved.currentPlan || "Starter";
+        renderedAccount.currentPlan || "Starter";
 
       document.getElementById("planStatus").textContent =
-        saved.currentPlan || "Starter";
+        renderedAccount.currentPlan || "Starter";
 
       document.getElementById("summaryBusiness").textContent =
         saved.businessName || "Not set";
@@ -1300,7 +1412,7 @@
         saved.fullName || saved.businessName || "Your Simple Books profile";
 
       updateVatNumberState();
-      renderAccountInsightCards(saved);
+      renderAccountInsightCards(renderedAccount);
       await loadUsageStatsFromFirestore();
     }
 
@@ -1327,11 +1439,12 @@
         : "Account saved locally. Log in to save to Firebase.";
 
       successMessage.style.display = "block";
-      setText("summaryPlan", data.currentPlan || "Starter");
-      setText("planStatus", data.currentPlan || "Starter");
+      const renderedAccount = accountWithBilling(data);
+      setText("summaryPlan", renderedAccount.currentPlan || "Starter");
+      setText("planStatus", renderedAccount.currentPlan || "Starter");
       setText("summaryBusiness", data.businessName || "Not set");
       setText("summaryEmail", data.email || currentUser?.email || "Not signed in");
-      renderAccountInsightCards(data);
+      renderAccountInsightCards(renderedAccount);
 
       setTimeout(() => {
         successMessage.style.display = "none";
@@ -1355,7 +1468,7 @@
         vatNumber.value = "";
       }
 
-      renderAccountInsightCards(currentAccountSnapshot());
+      renderAccountInsightCards(accountWithBilling(currentAccountSnapshot()));
     }
 
     async function saveLogoUrlToFirestore(){
@@ -1419,7 +1532,7 @@
         await saveLogoUrlToFirestore();
         renderLogoPreview();
         updateLocalLogo();
-        renderAccountInsightCards(currentAccountSnapshot());
+        renderAccountInsightCards(accountWithBilling(currentAccountSnapshot()));
         successMessage.textContent = "Company logo uploaded to Firebase.";
         successMessage.style.display = "block";
         setTimeout(() => {
@@ -1440,7 +1553,7 @@
       companyLogoInput.value = "";
       renderLogoPreview();
       updateLocalLogo();
-      renderAccountInsightCards(currentAccountSnapshot());
+      renderAccountInsightCards(accountWithBilling(currentAccountSnapshot()));
 
       if(!currentUser) return;
 
@@ -1478,16 +1591,15 @@
       "vatNumber",
       "accountName",
       "sortCode",
-      "accountNumber",
-      "currentPlan"
+      "accountNumber"
     ].forEach(id => {
       const field = document.getElementById(id);
       if(field){
         field.addEventListener("input", () => {
-          renderAccountInsightCards(currentAccountSnapshot());
+          renderAccountInsightCards(accountWithBilling(currentAccountSnapshot()));
         });
         field.addEventListener("change", () => {
-          renderAccountInsightCards(currentAccountSnapshot());
+          renderAccountInsightCards(accountWithBilling(currentAccountSnapshot()));
         });
       }
     });

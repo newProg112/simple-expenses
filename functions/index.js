@@ -10,6 +10,7 @@
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onRequest} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
+const functionsV1 = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const Stripe = require("stripe");
 
@@ -32,6 +33,98 @@ const simpleBooksProPriceId = "price_1TnLTCJmLqrFk5SqusEJiIhu";
 const successUrl = "https://simple-books.co.uk/account.html?checkout=success";
 const cancelUrl = "https://simple-books.co.uk/account.html?checkout=cancelled";
 const userProfiles = admin.firestore().collection("userProfiles");
+
+/**
+ * Builds the default Simple Books billing profile for a Firebase user.
+ * @param {object} user Firebase Auth user record or decoded token.
+ * @return {object} Default user profile data.
+ */
+function defaultUserProfile(user) {
+  return {
+    currentPlan: "Starter",
+    subscriptionStatus: "",
+    billingOverride: false,
+    billingOverrideReason: "",
+    email: user.email || "",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    subscriptionUpdatedAt: null,
+  };
+}
+
+/**
+ * Creates a user profile if it does not already exist.
+ * @param {string} uid Firebase user ID.
+ * @param {object} user Firebase Auth user record or decoded token.
+ * @return {Promise<boolean>} True when a profile was created.
+ */
+async function createUserProfileIfMissing(uid, user) {
+  try {
+    await userProfiles.doc(uid).create(defaultUserProfile(user));
+    return true;
+  } catch (error) {
+    if (error && (error.code === 6 || error.code === "already-exists")) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+exports.createUserProfile = functionsV1.auth.user().onCreate(async (user) => {
+  await createUserProfileIfMissing(user.uid, user);
+});
+
+exports.ensureUserProfile = onRequest(
+    {
+      cors: [
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "https://simple-books.co.uk",
+      ],
+      invoker: "public",
+    },
+    async (request, response) => {
+      if (request.method !== "POST") {
+        response.status(405).json({error: "Method not allowed."});
+        return;
+      }
+
+      const authorization = request.get("Authorization") || "";
+      const match = authorization.match(/^Bearer (.+)$/);
+
+      if (!match) {
+        response.status(401).json({
+          error: "You must be signed in to create an account profile.",
+        });
+        return;
+      }
+
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(match[1]);
+        const created = await createUserProfileIfMissing(
+            decodedToken.uid,
+            decodedToken,
+        );
+
+        response.json({created});
+      } catch (error) {
+        const errorCode = error && error.code ? String(error.code) : "";
+        const isAuthError = errorCode.startsWith("auth/");
+
+        console.error("ensureUserProfile failed", {
+          code: errorCode || "unknown",
+          message: error && error.message ? String(error.message) : "Unknown",
+          stack: error && error.stack ? String(error.stack) : "",
+        });
+
+        response.status(isAuthError ? 401 : 500).json({
+          error: isAuthError ?
+            "You must be signed in to create an account profile." :
+            "Account profile could not be created.",
+        });
+      }
+    },
+);
 
 /**
  * Returns the first Stripe price ID on a subscription.
