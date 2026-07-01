@@ -151,6 +151,155 @@ function subscriptionStatus(subscription) {
 }
 
 /**
+ * Returns a Stripe customer ID from a subscription object.
+ * @param {object} subscription Stripe subscription object.
+ * @return {string} Stripe customer ID.
+ */
+function subscriptionCustomerId(subscription) {
+  if (!subscription.customer) {
+    return "";
+  }
+
+  return typeof subscription.customer === "string" ?
+    subscription.customer :
+    subscription.customer.id || "";
+}
+
+/**
+ * Converts a Stripe Unix timestamp into a Firestore timestamp.
+ * @param {number} seconds Stripe timestamp in seconds.
+ * @return {object|null} Firestore timestamp, or null when unavailable.
+ */
+function stripeTimestampToFirestore(seconds) {
+  const numericSeconds = Number(seconds || 0);
+
+  return numericSeconds ?
+    admin.firestore.Timestamp.fromMillis(numericSeconds * 1000) :
+    null;
+}
+
+/**
+ * Retrieves a subscription with payment method details expanded.
+ * @param {object} stripe Stripe client.
+ * @param {string|object} subscription Stripe subscription ID or object.
+ * @return {Promise<object|null>} Expanded Stripe subscription object.
+ */
+async function retrieveExpandedSubscription(stripe, subscription) {
+  const subscriptionId = typeof subscription === "string" ?
+    subscription :
+    subscription && subscription.id;
+
+  if (!subscriptionId) {
+    return null;
+  }
+
+  return stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ["default_payment_method"],
+  });
+}
+
+/**
+ * Returns current period end values from the subscription and its items.
+ * @param {object} subscription Stripe subscription object.
+ * @return {object} Stripe timestamp values in seconds.
+ */
+function subscriptionCurrentPeriodEnds(subscription) {
+  const items = subscription.items && subscription.items.data ?
+    subscription.items.data :
+    [];
+  const itemWithPeriodEnd = items.find((item) => item.current_period_end);
+
+  return {
+    subscriptionCurrentPeriodEndSeconds:
+      subscription.current_period_end || 0,
+    itemCurrentPeriodEndSeconds:
+      itemWithPeriodEnd ? itemWithPeriodEnd.current_period_end : 0,
+  };
+}
+
+/**
+ * Resolves the best available card summary for a subscription.
+ * @param {object} stripe Stripe client.
+ * @param {object} subscription Stripe subscription object.
+ * @return {Promise<object>} Payment method summary fields.
+ */
+async function subscriptionPaymentMethodSummary(stripe, subscription) {
+  const customerId = subscriptionCustomerId(subscription);
+  let paymentMethod = subscription.default_payment_method || null;
+
+  if (!paymentMethod && customerId) {
+    const customer = await stripe.customers.retrieve(customerId);
+    const invoiceSettings = customer.invoice_settings || {};
+    paymentMethod = invoiceSettings.default_payment_method || null;
+  }
+
+  if (typeof paymentMethod === "string") {
+    paymentMethod = await stripe.paymentMethods.retrieve(paymentMethod);
+  }
+
+  if (!paymentMethod && customerId) {
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: customerId,
+      type: "card",
+      limit: 1,
+    });
+    paymentMethod = paymentMethods.data[0] || null;
+  }
+
+  const card = paymentMethod && paymentMethod.card ? paymentMethod.card : {};
+
+  return {
+    paymentMethodBrand: card.brand || "",
+    paymentMethodLast4: card.last4 || "",
+  };
+}
+
+/**
+ * Builds optional display fields for the Account subscription card.
+ * @param {object} stripe Stripe client.
+ * @param {object} subscription Stripe subscription object.
+ * @return {Promise<object>} Optional billing display fields.
+ */
+async function subscriptionBillingDetails(stripe, subscription) {
+  const periodEnds = subscriptionCurrentPeriodEnds(subscription);
+  const currentPeriodEndSeconds =
+    periodEnds.subscriptionCurrentPeriodEndSeconds ||
+    periodEnds.itemCurrentPeriodEndSeconds;
+  let paymentMethod = {
+    paymentMethodBrand: "",
+    paymentMethodLast4: "",
+  };
+
+  try {
+    paymentMethod = await subscriptionPaymentMethodSummary(
+        stripe,
+        subscription,
+    );
+  } catch (error) {
+    console.warn("Subscription payment method summary unavailable", {
+      subscriptionId: subscription.id,
+      message: error && error.message ? String(error.message) : "Unknown",
+    });
+  }
+
+  console.log("Stripe subscription period end values", {
+    subscriptionId: subscription.id,
+    subscriptionCurrentPeriodEndSeconds:
+      periodEnds.subscriptionCurrentPeriodEndSeconds || null,
+    itemCurrentPeriodEndSeconds:
+      periodEnds.itemCurrentPeriodEndSeconds || null,
+    currentPeriodEndSeconds: currentPeriodEndSeconds || null,
+  });
+
+  return {
+    subscriptionCurrentPeriodEnd: stripeTimestampToFirestore(
+        currentPeriodEndSeconds,
+    ),
+    ...paymentMethod,
+  };
+}
+
+/**
  * Finds a Firebase user ID for a Stripe subscription event.
  * @param {object} subscription Stripe subscription object.
  * @return {Promise<string>} Firebase user ID, or an empty string.
@@ -171,15 +320,12 @@ async function findUidForSubscription(subscription) {
     return subscriptionSnap.docs[0].id;
   }
 
-  if (!subscription.customer) {
+  if (!subscriptionCustomerId(subscription)) {
     return "";
   }
 
-  const customerId = typeof subscription.customer === "string" ?
-    subscription.customer :
-    subscription.customer.id;
   const customerSnap = await userProfiles
-      .where("stripeCustomerId", "==", customerId)
+      .where("stripeCustomerId", "==", subscriptionCustomerId(subscription))
       .limit(1)
       .get();
 
@@ -193,12 +339,22 @@ async function findUidForSubscription(subscription) {
  * @return {Promise<void>} Resolves when Firestore has been updated.
  */
 async function updateSubscriptionProfile(uid, data) {
+  console.log("Writing subscription billing fields", {
+    uid,
+    subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd || null,
+    paymentMethodBrand: data.paymentMethodBrand || "",
+    paymentMethodLast4: data.paymentMethodLast4 || "",
+  });
+
   await userProfiles.doc(uid).set({
     currentPlan: "Pro",
     subscriptionStatus: data.subscriptionStatus,
     stripeCustomerId: data.stripeCustomerId,
     stripeSubscriptionId: data.stripeSubscriptionId,
     stripePriceId: data.stripePriceId,
+    subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd || null,
+    paymentMethodBrand: data.paymentMethodBrand || "",
+    paymentMethodLast4: data.paymentMethodLast4 || "",
     subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, {merge: true});
 }
@@ -438,7 +594,8 @@ exports.stripeWebhook = onRequest(
           }
 
           if (session.subscription) {
-            subscription = await stripe.subscriptions.retrieve(
+            subscription = await retrieveExpandedSubscription(
+                stripe,
                 session.subscription,
             );
           }
@@ -446,18 +603,32 @@ exports.stripeWebhook = onRequest(
           const stripePriceId = subscription ?
             subscriptionPriceId(subscription) :
             "";
+          const billingDetails = subscription ?
+            await subscriptionBillingDetails(stripe, subscription) :
+            {};
 
           await updateSubscriptionProfile(uid, {
             subscriptionStatus: "active",
             stripeCustomerId: session.customer || "",
             stripeSubscriptionId: session.subscription || "",
             stripePriceId,
+            ...billingDetails,
           });
         }
 
-        if (event.type === "customer.subscription.updated" ||
+        if (event.type === "customer.subscription.created" ||
+          event.type === "customer.subscription.updated" ||
           event.type === "customer.subscription.deleted") {
-          const subscription = event.data.object;
+          let subscription = event.data.object;
+
+          if (event.type === "customer.subscription.created" ||
+            event.type === "customer.subscription.updated") {
+            subscription = await retrieveExpandedSubscription(
+                stripe,
+                subscription,
+            );
+          }
+
           const uid = await findUidForSubscription(subscription);
 
           if (!uid) {
@@ -469,13 +640,19 @@ exports.stripeWebhook = onRequest(
             return;
           }
 
+          const billingDetails = await subscriptionBillingDetails(
+              stripe,
+              subscription,
+          );
+
           await updateSubscriptionProfile(uid, {
             subscriptionStatus: event.type === "customer.subscription.deleted" ?
               "cancelled" :
               subscriptionStatus(subscription),
-            stripeCustomerId: subscription.customer || "",
+            stripeCustomerId: subscriptionCustomerId(subscription),
             stripeSubscriptionId: subscription.id,
             stripePriceId: subscriptionPriceId(subscription),
+            ...billingDetails,
           });
         }
 

@@ -455,6 +455,20 @@
       color:#b45309;
     }
 
+    .subscription-meta{
+      display:grid;
+      gap:6px;
+      margin-top:12px;
+      color:#475569;
+      font-size:14px;
+      font-weight:700;
+      line-height:1.5;
+    }
+
+    .subscription-meta[hidden]{
+      display:none;
+    }
+
     @media (max-width:800px){
       .account-summary{
         grid-template-columns:1fr;
@@ -673,6 +687,10 @@
           <p class="muted" id="subscriptionMessage">
             Upgrade to Pro for £15/month.
           </p>
+          <div class="subscription-meta" id="subscriptionMeta" hidden>
+            <div id="subscriptionRenewal"></div>
+            <div id="subscriptionPaymentMethod"></div>
+          </div>
         </div>
 
         <div class="subscription-actions">
@@ -919,7 +937,10 @@
         subscriptionStatus: normalizeSubscriptionStatus(profile.subscriptionStatus),
         billingOverride: profile.billingOverride === true,
         billingOverrideReason: profile.billingOverrideReason || "",
-        stripeCustomerId: profile.stripeCustomerId || ""
+        stripeCustomerId: profile.stripeCustomerId || "",
+        subscriptionCurrentPeriodEnd: profile.subscriptionCurrentPeriodEnd || null,
+        paymentMethodBrand: profile.paymentMethodBrand || "",
+        paymentMethodLast4: profile.paymentMethodLast4 || ""
       };
     }
 
@@ -932,7 +953,10 @@
         subscriptionStatus: profile.subscriptionStatus,
         billingOverride: profile.billingOverride,
         billingOverrideReason: profile.billingOverrideReason,
-        stripeCustomerId: profile.stripeCustomerId
+        stripeCustomerId: profile.stripeCustomerId,
+        subscriptionCurrentPeriodEnd: profile.subscriptionCurrentPeriodEnd,
+        paymentMethodBrand: profile.paymentMethodBrand,
+        paymentMethodLast4: profile.paymentMethodLast4
       };
     }
 
@@ -966,6 +990,80 @@
 
     function hasValue(value){
       return Boolean(String(value || "").trim());
+    }
+
+    function billingDateValue(value){
+      if(!value) return null;
+
+      if(typeof value.toDate === "function"){
+        return value.toDate();
+      }
+
+      if(typeof value.seconds === "number"){
+        return new Date(value.seconds * 1000);
+      }
+
+      if(typeof value === "number"){
+        return new Date(value > 1000000000000 ? value : value * 1000);
+      }
+
+      const parsedDate = new Date(value);
+      return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+    }
+
+    function formatBillingDate(value){
+      const date = billingDateValue(value);
+
+      if(!date) return "";
+
+      return date.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      });
+    }
+
+    function formatCardBrand(brand){
+      const normalizedBrand = String(brand || "").trim().toLowerCase();
+      const brandLabels = {
+        amex: "American Express",
+        diners: "Diners Club",
+        discover: "Discover",
+        jcb: "JCB",
+        mastercard: "Mastercard",
+        unionpay: "UnionPay",
+        visa: "Visa"
+      };
+
+      return brandLabels[normalizedBrand] || normalizedBrand
+        .split(" ")
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    }
+
+    function renderSubscriptionMeta(account, canManageSubscription){
+      const meta = document.getElementById("subscriptionMeta");
+      const renewal = document.getElementById("subscriptionRenewal");
+      const paymentMethod = document.getElementById("subscriptionPaymentMethod");
+
+      if(!meta || !renewal || !paymentMethod) return;
+
+      const renewalDate = canManageSubscription
+        ? formatBillingDate(account.subscriptionCurrentPeriodEnd)
+        : "";
+      const brand = canManageSubscription
+        ? formatCardBrand(account.paymentMethodBrand)
+        : "";
+      const last4 = canManageSubscription ? account.paymentMethodLast4 : "";
+
+      renewal.textContent = renewalDate ? `Renews on ${renewalDate}` : "";
+      paymentMethod.textContent = brand && last4
+        ? `${brand} ending ${last4}`
+        : "";
+      renewal.hidden = !renewal.textContent;
+      paymentMethod.hidden = !paymentMethod.textContent;
+      meta.hidden = renewal.hidden && paymentMethod.hidden;
     }
 
     function vatDetailsComplete(account){
@@ -1185,6 +1283,8 @@
         manageSubscriptionBtn.disabled = billingPortalOpening;
         manageSubscriptionBtn.style.display = canManageSubscription ? "" : "none";
       }
+
+      renderSubscriptionMeta(account, canManageSubscription);
     }
 
     function setCheckoutStatus(message, isError = false){
