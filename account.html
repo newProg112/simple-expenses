@@ -31,9 +31,9 @@
     }
 
     .wrap{
-      max-width:1100px;
+      max-width:1360px;
       margin:0 auto;
-      padding:32px 20px 80px;
+      padding:24px 32px 56px;
     }
 
     .topbar{
@@ -55,8 +55,9 @@
 
     .btn{
       border:none;
-      border-radius:18px;
-      padding:14px 20px;
+      border-radius:10px;
+      min-height:42px;
+      padding:0 16px;
       font-size:15px;
       font-weight:700;
       cursor:pointer;
@@ -64,6 +65,7 @@
       display:inline-flex;
       align-items:center;
       justify-content:center;
+      line-height:1;
       transition:.2s ease;
     }
 
@@ -80,7 +82,7 @@
       display:grid;
       grid-template-columns:1.2fr .8fr;
       gap:24px;
-      margin-top:20px;
+      margin-top:14px;
       margin-bottom:28px;
     }
 
@@ -151,6 +153,7 @@
     .save-row{
       display:flex;
       justify-content:flex-end;
+      gap:8px;
     }
 
     .muted{
@@ -198,7 +201,7 @@
     .logo-actions{
       display:flex;
       flex-wrap:wrap;
-      gap:10px;
+      gap:8px;
       align-items:center;
     }
 
@@ -210,7 +213,7 @@
       display:flex;
       align-items:center;
       gap:48px;
-      margin-bottom:28px;
+      margin-bottom:14px;
     }
 
     .app-brand{
@@ -233,7 +236,7 @@
       align-items:center;
       gap:12px;
       margin-left:auto;
-      margin-bottom:32px;
+      margin-bottom:0;
       font-weight:700;
     }
 
@@ -440,7 +443,7 @@
       display:flex;
       flex-direction:column;
       align-items:flex-start;
-      gap:10px;
+      gap:8px;
     }
 
     .checkout-status{
@@ -476,6 +479,18 @@
     }
 
     @media (max-width:900px){
+      .wrap{
+        padding:32px 20px 56px;
+      }
+
+      .app-header{
+        align-items:flex-start;
+        flex-direction:column;
+      }
+
+      .app-nav{
+        margin-left:0;
+      }
 
       .hero,
       .grid{
@@ -490,6 +505,12 @@
         font-size:40px;
       }
 
+    }
+
+    @media (max-width:640px){
+      .wrap{
+        padding:24px 16px 44px;
+      }
     }
   </style>
   <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
