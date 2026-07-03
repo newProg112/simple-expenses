@@ -401,12 +401,22 @@
       min-width:0;
     }
 
+    .client-reporting-grid .card > h2{
+      margin:0;
+    }
+
+    .client-reporting-grid .card > p.muted{
+      margin:5px 0 0;
+      font-size:13px;
+      line-height:1.4;
+    }
+
     .pipeline-chart{
       display:grid;
       grid-template-columns:150px minmax(0, 1fr);
       gap:18px;
       align-items:center;
-      margin-top:18px;
+      margin-top:14px;
     }
 
     .pipeline-donut{
@@ -429,7 +439,7 @@
 
     .pipeline-legend{
       display:grid;
-      gap:10px;
+      gap:8px;
       min-width:0;
     }
 
@@ -469,7 +479,22 @@
     .revenue-client-chart{
       display:grid;
       gap:12px;
-      margin-top:18px;
+      margin-top:14px;
+    }
+
+    .revenue-client-chart > p.muted,
+    .follow-up-schedule > p.muted,
+    .client-activity-feed > p.muted{
+      margin:0;
+      padding:14px;
+      border:1px dashed #cbd5e1;
+      border-radius:12px;
+      background:#f8fafc;
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.4;
+      text-align:center;
     }
 
     .revenue-client-row{
@@ -523,7 +548,7 @@
     .follow-up-schedule{
       display:grid;
       gap:10px;
-      margin-top:18px;
+      margin-top:14px;
     }
 
     .follow-up-schedule-row{
@@ -572,7 +597,7 @@
     .client-activity-feed{
       display:grid;
       gap:0;
-      margin-top:18px;
+      margin-top:14px;
     }
 
     .client-activity-row{

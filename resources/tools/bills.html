@@ -609,6 +609,14 @@
     .overview-card h2,
     .chart-card h2{
       font-size:20px;
+      line-height:1.2;
+      margin:0;
+    }
+
+    .chart-card > p.muted{
+      margin:5px 0 0;
+      font-size:13px;
+      line-height:1.4;
     }
 
     .overview-list{
@@ -638,7 +646,7 @@
       grid-template-columns:150px minmax(0, 1fr);
       gap:18px;
       align-items:center;
-      margin-top:18px;
+      margin-top:14px;
     }
 
     .status-donut{
@@ -661,7 +669,7 @@
 
     .status-legend{
       display:grid;
-      gap:10px;
+      gap:8px;
     }
 
     .status-legend-row{
@@ -682,7 +690,21 @@
     .supplier-chart{
       display:grid;
       gap:12px;
-      margin-top:18px;
+      margin-top:14px;
+    }
+
+    .supplier-chart > p.muted,
+    #billsList > p.muted{
+      margin:0;
+      padding:14px;
+      border:1px dashed #cbd5e1;
+      border-radius:12px;
+      background:#f8fafc;
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.4;
+      text-align:center;
     }
 
     .supplier-chart-row{
@@ -730,7 +752,7 @@
       position:relative;
       width:100%;
       height:220px;
-      margin-top:18px;
+      margin-top:14px;
     }
 
     .trend-chart-shell canvas{
