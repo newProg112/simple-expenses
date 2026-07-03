@@ -14,6 +14,7 @@
       --text:#1f2937;
       --muted:#6b7280;
       --line:#dbe3ec;
+      --border:#e2e8f0;
       --primary:#0077b6;
       --primary-dark:#005f91;
       --radius:16px;
@@ -66,7 +67,12 @@
       align-items:center;
       justify-content:center;
       line-height:1;
-      transition:.2s ease;
+      transition:background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+    }
+
+    .btn:focus-visible{
+      outline:3px solid rgba(0,119,182,.16);
+      outline-offset:3px;
     }
 
     .btn-primary{
@@ -88,10 +94,10 @@
 
     .card{
       background:var(--card);
-      border:1px solid var(--line);
+      border:1px solid var(--border);
       border-radius:var(--radius);
       padding:20px;
-      box-shadow:0 10px 30px rgba(15,23,42,.04);
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
     }
 
     h1{
@@ -155,6 +161,12 @@
       margin-bottom:22px;
     }
 
+    input:focus,
+    select:focus{
+      outline:3px solid rgba(0,119,182,.16);
+      border-color:var(--primary);
+    }
+
     .save-row{
       display:flex;
       justify-content:flex-end;
@@ -185,7 +197,7 @@
       min-height:82px;
       display:grid;
       place-items:center;
-      border:1px dashed var(--line);
+      border:1px dashed #cbd5e1;
       border-radius:18px;
       background:#f9fbfd;
       overflow:hidden;
