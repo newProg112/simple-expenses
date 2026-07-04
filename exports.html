@@ -226,6 +226,11 @@
       opacity: 0.55;
     }
 
+    .btn-secondary {
+      background: #eef2f7;
+      color: #334155;
+    }
+
     .badge {
       display: inline-block;
       margin-top: 14px;
@@ -434,6 +439,79 @@
       }
     }
 
+    .import-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.38);
+      box-sizing: border-box;
+    }
+
+    .import-modal-overlay[hidden] {
+      display: none;
+    }
+
+    .import-modal {
+      width: min(100%, 460px);
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24);
+      padding: 22px;
+      box-sizing: border-box;
+    }
+
+    .import-modal h2 {
+      margin: 0 0 10px;
+      color: #102033;
+      font-size: 24px;
+      line-height: 1.15;
+    }
+
+    .import-modal p {
+      margin: 0 0 12px;
+      color: #475569;
+      line-height: 1.45;
+      font-weight: 650;
+    }
+
+    .import-modal ul {
+      margin: 0 0 14px 20px;
+      padding: 0;
+      color: #334155;
+      font-weight: 700;
+      line-height: 1.55;
+    }
+
+    .import-modal-notes {
+      display: grid;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .import-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .import-modal-actions .btn {
+      margin-top: 0;
+    }
+
     @media (max-width: 800px) {
       .app-header {
         align-items: flex-start;
@@ -457,6 +535,20 @@
 
       .import-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .import-modal {
+        border-radius: 18px;
+        padding: 18px;
+      }
+
+      .import-modal-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+
+      .import-modal-actions .btn {
+        width: 100%;
       }
     }
   </style>
@@ -628,6 +720,46 @@
     </section>
 
   </main>
+
+  <div class="import-modal-overlay" id="importAllConfirmOverlay" hidden>
+    <section
+      class="import-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="importAllConfirmTitle"
+      aria-describedby="importAllConfirmBody"
+    >
+      <h2 id="importAllConfirmTitle">Import workbook?</h2>
+
+      <p id="importAllConfirmBody">
+        This will import workbook data into Simple Books.
+      </p>
+
+      <ul>
+        <li>Clients</li>
+        <li>Invoices</li>
+        <li>Bills</li>
+        <li>Expenses</li>
+        <li>Mileage</li>
+      </ul>
+
+      <div class="import-modal-notes">
+        <span>Existing records will be skipped.</span>
+        <span>New records will be added.</span>
+        <span>This cannot be undone.</span>
+      </div>
+
+      <div class="import-modal-actions">
+        <button class="btn btn-secondary" id="cancelImportAllButton" type="button">
+          Cancel
+        </button>
+
+        <button class="btn" id="confirmImportAllButton" type="button">
+          Import Workbook
+        </button>
+      </div>
+    </section>
+  </div>
 
   <script type="module">
     import { auth, db } from "/firebase-config.js";
@@ -860,13 +992,7 @@
           return;
         }
 
-        const confirmed = confirm(
-          "Import all workbook data into Simple Books?\n\n" +
-          "\u2022 Existing records will be skipped.\n" +
-          "\u2022 New records will be added.\n" +
-          "\u2022 This cannot be undone.\n\n" +
-          "Continue?"
-        );
+        const confirmed = await showImportAllConfirmationModal();
 
         if(!confirmed){
           return;
@@ -1905,6 +2031,54 @@
           "Expenses",
           "Mileage"
         ];
+    }
+
+    function showImportAllConfirmationModal(){
+        const overlay = document.getElementById("importAllConfirmOverlay");
+        const cancelButton = document.getElementById("cancelImportAllButton");
+        const confirmButton = document.getElementById("confirmImportAllButton");
+        const previouslyFocused = document.activeElement;
+
+        if(!overlay || !cancelButton || !confirmButton){
+          return Promise.resolve(false);
+        }
+
+        return new Promise((resolve) => {
+          const closeModal = (confirmed) => {
+            overlay.hidden = true;
+            cancelButton.removeEventListener("click", cancelHandler);
+            confirmButton.removeEventListener("click", confirmHandler);
+            overlay.removeEventListener("click", overlayHandler);
+            document.removeEventListener("keydown", keyHandler);
+
+            if(previouslyFocused && typeof previouslyFocused.focus === "function"){
+              previouslyFocused.focus();
+            }
+
+            resolve(confirmed);
+          };
+
+          const cancelHandler = () => closeModal(false);
+          const confirmHandler = () => closeModal(true);
+          const overlayHandler = (event) => {
+            if(event.target === overlay){
+              closeModal(false);
+            }
+          };
+          const keyHandler = (event) => {
+            if(event.key === "Escape"){
+              closeModal(false);
+            }
+          };
+
+          cancelButton.addEventListener("click", cancelHandler);
+          confirmButton.addEventListener("click", confirmHandler);
+          overlay.addEventListener("click", overlayHandler);
+          document.addEventListener("keydown", keyHandler);
+
+          overlay.hidden = false;
+          confirmButton.focus();
+        });
     }
 
     function setWorkbookValidatedMessage(){
