@@ -232,6 +232,22 @@
       font-weight: 700;
     }
 
+    .import-message {
+      margin: 12px 0 0;
+      color: #5b6b7c;
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.4;
+    }
+
+    .import-message.success {
+      color: #15803d;
+    }
+
+    .import-message.error {
+      color: #b91c1c;
+    }
+
     @media (max-width: 800px) {
       .app-header {
         align-items: flex-start;
@@ -365,6 +381,20 @@
         <button class="btn" onclick="downloadExcelImportTemplate()">
           Download template
         </button>
+
+        <input
+          type="file"
+          id="excelImportInput"
+          accept=".xlsx"
+          style="display:none"
+          onchange="validateExcelImportWorkbook(event)"
+        >
+
+        <button class="btn" onclick="document.getElementById('excelImportInput').click()">
+          Upload workbook
+        </button>
+
+        <p class="import-message" id="excelImportMessage" aria-live="polite"></p>
       </div>
 
       <div class="card">
@@ -494,6 +524,88 @@
         appendFormattedSheet(XLSX, workbook, "Mileage", template.mileage);
 
         XLSX.writeFile(workbook, "simple-books-import-template.xlsx");
+    }
+
+    async function validateExcelImportWorkbook(event){
+        const file = event.target.files[0];
+
+        if(!file){
+          return;
+        }
+
+        setExcelImportMessage("", "");
+
+        if(!file.name.toLowerCase().endsWith(".xlsx")){
+          setExcelImportMessage("Please choose a .xlsx workbook.", "error");
+          event.target.value = "";
+          return;
+        }
+
+        let XLSX;
+
+        try{
+          XLSX = await loadExcelLibrary();
+        }catch(error){
+          console.error("Excel import validation library failed to load", error);
+          setExcelImportMessage(
+            "Could not load the Excel validation library. Please check your connection and try again.",
+            "error"
+          );
+          event.target.value = "";
+          return;
+        }
+
+        try{
+          const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+          const missingSheet = findMissingImportTemplateSheet(workbook);
+
+          if(missingSheet){
+            setExcelImportMessage(`Missing sheet: ${missingSheet}`, "error");
+            return;
+          }
+
+          setExcelImportMessage(
+            "Workbook validated successfully. Import will be available in the next update.",
+            "success"
+          );
+        }catch(error){
+          console.error("Excel import validation failed", error);
+          setExcelImportMessage("Workbook is not a Simple Books import template.", "error");
+        }finally{
+          event.target.value = "";
+        }
+    }
+
+    function findMissingImportTemplateSheet(workbook){
+        if(!workbook || !Array.isArray(workbook.SheetNames)){
+          return "README";
+        }
+
+        const availableSheets = new Set(workbook.SheetNames);
+
+        return requiredImportTemplateSheets().find(sheetName => !availableSheets.has(sheetName)) || "";
+    }
+
+    function requiredImportTemplateSheets(){
+        return [
+          "README",
+          "Clients",
+          "Invoices",
+          "Bills",
+          "Expenses",
+          "Mileage"
+        ];
+    }
+
+    function setExcelImportMessage(message, type){
+        const messageElement = document.getElementById("excelImportMessage");
+
+        if(!messageElement){
+          return;
+        }
+
+        messageElement.textContent = message;
+        messageElement.className = `import-message${type ? ` ${type}` : ""}`;
     }
 
     function buildExcelImportTemplateData(){
