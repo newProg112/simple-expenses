@@ -412,6 +412,10 @@
           Import Bills
         </button>
 
+        <button class="btn" id="importExpensesButton" onclick="importValidatedExpenses()" disabled>
+          Import Expenses
+        </button>
+
         <p class="import-message" id="excelImportMessage" aria-live="polite"></p>
       </div>
 
@@ -559,6 +563,7 @@
         setImportClientsButtonEnabled(false);
         setImportInvoicesButtonEnabled(false);
         setImportBillsButtonEnabled(false);
+        setImportExpensesButtonEnabled(false);
         setExcelImportMessage("", "");
 
         if(!file.name.toLowerCase().endsWith(".xlsx")){
@@ -594,8 +599,9 @@
           setImportClientsButtonEnabled(true);
           setImportInvoicesButtonEnabled(true);
           setImportBillsButtonEnabled(true);
+          setImportExpensesButtonEnabled(true);
           setExcelImportMessage(
-            "Workbook validated successfully. You can import Clients, Invoices or Bills now. Other sheets will be available in a future update.",
+            "Workbook validated successfully. You can import Clients, Invoices, Bills or Expenses now. Mileage will be available in a future update.",
             "success"
           );
         }catch(error){
@@ -859,6 +865,93 @@
         }
     }
 
+    async function importValidatedExpenses(){
+        if(!validatedImportWorkbook){
+          setExcelImportMessage("Please upload and validate a workbook before importing expenses.", "error");
+          setImportExpensesButtonEnabled(false);
+          return;
+        }
+
+        const { services, user } = await getBackupUserAndServices();
+
+        if(!user || !services?.addDoc){
+          setExcelImportMessage("Please log in before importing expenses.", "error");
+          return;
+        }
+
+        const importButton = document.getElementById("importExpensesButton");
+
+        if(importButton){
+          importButton.disabled = true;
+        }
+
+        try{
+          const expenseRows = readExpenseImportRows(validatedImportWorkbook);
+          const existingExpenses = await readFirestoreCollection(user, services, "expenses");
+          const existingExpenseKeys = new Set(
+            existingExpenses
+              .filter(expense => expense.type !== "mileage")
+              .map(expense => expenseDuplicateKey(expense))
+              .filter(Boolean)
+          );
+
+          const result = {
+            imported: 0,
+            skipped: 0,
+            failed: 0,
+            warnings: 0,
+            failures: [],
+            warningMessages: []
+          };
+
+          for(const row of expenseRows){
+            const duplicateKey = expenseDuplicateKey(row.expense);
+
+            if(!row.expense.merchant){
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: Missing merchant`);
+              continue;
+            }
+
+            if(!row.expense.gross){
+              result.warnings += 1;
+              result.warningMessages.push(`Row ${row.rowNumber}: Gross amount is zero or missing`);
+            }
+
+            if(duplicateKey && existingExpenseKeys.has(duplicateKey)){
+              result.skipped += 1;
+              continue;
+            }
+
+            try{
+              await services.addDoc(
+                services.collection(services.db, "users", user.uid, "expenses"),
+                row.expense
+              );
+
+              if(duplicateKey){
+                existingExpenseKeys.add(duplicateKey);
+              }
+
+              result.imported += 1;
+            }catch(error){
+              console.error(`Expense import failed on row ${row.rowNumber}`, error);
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import expense"}`);
+            }
+          }
+
+          setExcelImportMessage(formatExpenseImportSummary(result), result.failed ? "error" : "success");
+        }catch(error){
+          console.error("Expense import failed", error);
+          setExcelImportMessage(error.message || "Could not import expenses from this workbook.", "error");
+        }finally{
+          if(importButton && validatedImportWorkbook){
+            importButton.disabled = false;
+          }
+        }
+    }
+
     function readClientImportRows(workbook){
         const sheet = workbook?.Sheets?.Clients;
 
@@ -982,6 +1075,47 @@
         }, []);
     }
 
+    function readExpenseImportRows(workbook){
+        const sheet = workbook?.Sheets?.Expenses;
+
+        if(!sheet){
+          throw new Error("Missing sheet: Expenses");
+        }
+
+        const rows = window.simpleBooksXLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: "",
+          blankrows: false
+        });
+
+        if(rows.length < 2){
+          return [];
+        }
+
+        const headers = rows[0].map(header => String(header || "").trim());
+
+        return rows.slice(1).reduce((expenseRows, row, index) => {
+          if(row.every(value => String(value || "").trim() === "")){
+            return expenseRows;
+          }
+
+          const rowData = headers.reduce((data, header, columnIndex) => {
+            if(header){
+              data[header] = row[columnIndex];
+            }
+
+            return data;
+          }, {});
+
+          expenseRows.push({
+            rowNumber: index + 2,
+            expense: expenseImportRowToExpense(rowData)
+          });
+
+          return expenseRows;
+        }, []);
+    }
+
     function clientImportRowToClient(row){
         const notes = cleanText(row["Notes"]);
         const contactName = cleanText(row["Contact Name"]);
@@ -1079,6 +1213,41 @@
         };
     }
 
+    function expenseImportRowToExpense(row){
+        const net = numberValue(row["Net"] ?? row["Net Amount"] ?? row["Amount"]);
+        const vatRate = numberValue(row["VAT Rate"]);
+        const vat = numberValue(row["VAT"] ?? row["VAT Amount"]) || net * vatRate;
+        const gross = numberValue(row["Gross"] ?? row["Gross Amount"] ?? row["Total"]) || net + vat;
+        const now = new Date().toISOString();
+
+        return {
+          type: "expense",
+          date: normaliseImportDate(row["Date"]),
+          merchant: cleanText(row["Merchant"] || row["Supplier"]),
+          category: cleanText(row["Category"]) || "General",
+          description: cleanText(row["Description"]),
+          from: "",
+          to: "",
+          businessPurpose: "",
+          miles: 0,
+          ratePerMile: 0,
+          amount: 0,
+          net,
+          vatRate,
+          vat,
+          gross,
+          status: normaliseExpenseStatus(row["Status"]),
+          notes: cleanText(row["Notes"]),
+          attachmentName: "",
+          attachmentUrl: "",
+          attachmentPath: "",
+          attachmentSize: 0,
+          attachmentType: "",
+          createdAt: normaliseImportCreatedAt(row["Created At"]) || now,
+          updatedAt: ""
+        };
+    }
+
     function cleanText(value){
         return String(value ?? "").trim();
     }
@@ -1093,6 +1262,18 @@
 
     function normaliseBillNumber(value){
         return cleanText(value).toLowerCase();
+    }
+
+    function expenseDuplicateKey(expense){
+        const date = cleanText(expense.date);
+        const merchant = normaliseClientName(expense.merchant);
+        const gross = roundCurrency(expense.gross);
+
+        if(!date || !merchant){
+          return "";
+        }
+
+        return `${date}|${merchant}|${gross.toFixed(2)}`;
     }
 
     function normaliseClientStatus(value){
@@ -1161,6 +1342,16 @@
         return "Unpaid";
     }
 
+    function normaliseExpenseStatus(value){
+        const status = cleanText(value);
+
+        if(["Draft", "Submitted", "Approved", "Paid"].includes(status)){
+          return status;
+        }
+
+        return "Draft";
+    }
+
     function formatClientImportSummary(result){
         const lines = [
           `Imported: ${result.imported}`,
@@ -1195,6 +1386,25 @@
     }
 
     function formatBillImportSummary(result){
+        const lines = [
+          `Imported: ${result.imported}`,
+          `Skipped: ${result.skipped}`,
+          `Failed: ${result.failed}`,
+          `Warnings: ${result.warnings}`
+        ];
+
+        if(result.failures.length){
+          lines.push("", "Failures:", ...result.failures);
+        }
+
+        if(result.warningMessages.length){
+          lines.push("", "Warnings:", ...result.warningMessages);
+        }
+
+        return lines.join("\n");
+    }
+
+    function formatExpenseImportSummary(result){
         const lines = [
           `Imported: ${result.imported}`,
           `Skipped: ${result.skipped}`,
@@ -1263,6 +1473,14 @@
 
     function setImportBillsButtonEnabled(enabled){
         const importButton = document.getElementById("importBillsButton");
+
+        if(importButton){
+          importButton.disabled = !enabled;
+        }
+    }
+
+    function setImportExpensesButtonEnabled(enabled){
+        const importButton = document.getElementById("importExpensesButton");
 
         if(importButton){
           importButton.disabled = !enabled;
