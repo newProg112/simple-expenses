@@ -404,6 +404,10 @@
           Import Clients
         </button>
 
+        <button class="btn" id="importInvoicesButton" onclick="importValidatedInvoices()" disabled>
+          Import Invoices
+        </button>
+
         <p class="import-message" id="excelImportMessage" aria-live="polite"></p>
       </div>
 
@@ -549,6 +553,7 @@
 
         validatedImportWorkbook = null;
         setImportClientsButtonEnabled(false);
+        setImportInvoicesButtonEnabled(false);
         setExcelImportMessage("", "");
 
         if(!file.name.toLowerCase().endsWith(".xlsx")){
@@ -582,8 +587,9 @@
 
           validatedImportWorkbook = workbook;
           setImportClientsButtonEnabled(true);
+          setImportInvoicesButtonEnabled(true);
           setExcelImportMessage(
-            "Workbook validated successfully. You can import Clients now. Other sheets will be available in a future update.",
+            "Workbook validated successfully. You can import Clients or Invoices now. Other sheets will be available in a future update.",
             "success"
           );
         }catch(error){
@@ -670,6 +676,99 @@
         }
     }
 
+    async function importValidatedInvoices(){
+        if(!validatedImportWorkbook){
+          setExcelImportMessage("Please upload and validate a workbook before importing invoices.", "error");
+          setImportInvoicesButtonEnabled(false);
+          return;
+        }
+
+        const { services, user } = await getBackupUserAndServices();
+
+        if(!user || !services?.addDoc){
+          setExcelImportMessage("Please log in before importing invoices.", "error");
+          return;
+        }
+
+        const importButton = document.getElementById("importInvoicesButton");
+
+        if(importButton){
+          importButton.disabled = true;
+        }
+
+        try{
+          const invoiceRows = readInvoiceImportRows(validatedImportWorkbook);
+          const [existingInvoices, existingClients] = await Promise.all([
+            readFirestoreCollection(user, services, "invoices"),
+            readFirestoreCollection(user, services, "clients")
+          ]);
+          const existingInvoiceNumbers = new Set(
+            existingInvoices
+              .map(invoice => normaliseInvoiceNumber(invoice.invoiceNo))
+              .filter(Boolean)
+          );
+          const existingClientNames = new Set(
+            existingClients
+              .map(client => normaliseClientName(client.name))
+              .filter(Boolean)
+          );
+
+          const result = {
+            imported: 0,
+            skipped: 0,
+            failed: 0,
+            warnings: 0,
+            failures: [],
+            warningMessages: []
+          };
+
+          for(const row of invoiceRows){
+            const invoiceNumber = normaliseInvoiceNumber(row.invoice.invoiceNo);
+
+            if(!invoiceNumber){
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: Missing invoice number`);
+              continue;
+            }
+
+            if(existingInvoiceNumbers.has(invoiceNumber)){
+              result.skipped += 1;
+              continue;
+            }
+
+            const clientName = normaliseClientName(row.invoice.client);
+
+            if(clientName && !existingClientNames.has(clientName)){
+              result.warnings += 1;
+              result.warningMessages.push(`Row ${row.rowNumber}: Client not found, imported using client name text`);
+            }
+
+            try{
+              await services.addDoc(
+                services.collection(services.db, "users", user.uid, "invoices"),
+                row.invoice
+              );
+
+              existingInvoiceNumbers.add(invoiceNumber);
+              result.imported += 1;
+            }catch(error){
+              console.error(`Invoice import failed on row ${row.rowNumber}`, error);
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import invoice"}`);
+            }
+          }
+
+          setExcelImportMessage(formatInvoiceImportSummary(result), result.failed ? "error" : "success");
+        }catch(error){
+          console.error("Invoice import failed", error);
+          setExcelImportMessage(error.message || "Could not import invoices from this workbook.", "error");
+        }finally{
+          if(importButton && validatedImportWorkbook){
+            importButton.disabled = false;
+          }
+        }
+    }
+
     function readClientImportRows(workbook){
         const sheet = workbook?.Sheets?.Clients;
 
@@ -711,6 +810,47 @@
         }, []);
     }
 
+    function readInvoiceImportRows(workbook){
+        const sheet = workbook?.Sheets?.Invoices;
+
+        if(!sheet){
+          throw new Error("Missing sheet: Invoices");
+        }
+
+        const rows = window.simpleBooksXLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: "",
+          blankrows: false
+        });
+
+        if(rows.length < 2){
+          return [];
+        }
+
+        const headers = rows[0].map(header => String(header || "").trim());
+
+        return rows.slice(1).reduce((invoiceRows, row, index) => {
+          if(row.every(value => String(value || "").trim() === "")){
+            return invoiceRows;
+          }
+
+          const rowData = headers.reduce((data, header, columnIndex) => {
+            if(header){
+              data[header] = row[columnIndex];
+            }
+
+            return data;
+          }, {});
+
+          invoiceRows.push({
+            rowNumber: index + 2,
+            invoice: invoiceImportRowToInvoice(rowData)
+          });
+
+          return invoiceRows;
+        }, []);
+    }
+
     function clientImportRowToClient(row){
         const notes = cleanText(row["Notes"]);
         const contactName = cleanText(row["Contact Name"]);
@@ -744,11 +884,50 @@
         };
     }
 
+    function invoiceImportRowToInvoice(row){
+        const invoiceNo = cleanText(row["Invoice Number"] || row["Invoice No"] || row["Number"]);
+        const client = cleanText(row["Client Name"] || row["Client"]);
+        const description = cleanText(row["Description"]) || "Imported invoice";
+        const amount = numberValue(row["Net"] ?? row["Amount"]);
+        const vat = numberValue(row["VAT"]);
+        const total = numberValue(row["Total"]) || amount + vat;
+
+        return {
+          invoiceNo,
+          client,
+          clientEmail: cleanText(row["Client Email"] || row["Email"]),
+          clientAddress: cleanText(row["Client Address"] || row["Address"]),
+          paymentTerms: cleanText(row["Payment Terms"]) || "14 days",
+          dueDate: normaliseImportDate(row["Due Date"]),
+          amount,
+          vat,
+          total,
+          items: [
+            {
+              description,
+              amount
+            }
+          ],
+          status: normaliseInvoiceStatus(row["Status"]),
+          date: normaliseImportDate(row["Invoice Date"] || row["Date"]) || new Date().toLocaleDateString("en-GB"),
+          createdAt: normaliseImportCreatedAt(row["Created At"]),
+          recurringInvoice: cleanText(row["Recurring"]) || "No",
+          recurringFrequency: cleanText(row["Recurring Frequency"]),
+          nextInvoiceDate: normaliseImportDate(row["Next Invoice Date"]),
+          reminderDate: normaliseImportDate(row["Reminder Date"]),
+          notes: cleanText(row["Notes"])
+        };
+    }
+
     function cleanText(value){
         return String(value ?? "").trim();
     }
 
     function normaliseClientName(value){
+        return cleanText(value).toLowerCase();
+    }
+
+    function normaliseInvoiceNumber(value){
         return cleanText(value).toLowerCase();
     }
 
@@ -786,6 +965,28 @@
         return date.toISOString().slice(0, 10);
     }
 
+    function normaliseImportCreatedAt(value){
+        const text = cleanText(value);
+
+        if(!text){
+          return new Date().toISOString();
+        }
+
+        const date = new Date(text);
+
+        return Number.isNaN(date.getTime()) ? text : date.toISOString();
+    }
+
+    function normaliseInvoiceStatus(value){
+        const status = cleanText(value);
+
+        if(["Paid", "Unpaid", "Overdue"].includes(status)){
+          return status;
+        }
+
+        return "Unpaid";
+    }
+
     function formatClientImportSummary(result){
         const lines = [
           `Imported: ${result.imported}`,
@@ -795,6 +996,25 @@
 
         if(result.failures.length){
           lines.push("", "Failures:", ...result.failures);
+        }
+
+        return lines.join("\n");
+    }
+
+    function formatInvoiceImportSummary(result){
+        const lines = [
+          `Imported: ${result.imported}`,
+          `Skipped: ${result.skipped}`,
+          `Failed: ${result.failed}`,
+          `Warnings: ${result.warnings}`
+        ];
+
+        if(result.failures.length){
+          lines.push("", "Failures:", ...result.failures);
+        }
+
+        if(result.warningMessages.length){
+          lines.push("", "Warnings:", ...result.warningMessages);
         }
 
         return lines.join("\n");
@@ -834,6 +1054,14 @@
 
     function setImportClientsButtonEnabled(enabled){
         const importButton = document.getElementById("importClientsButton");
+
+        if(importButton){
+          importButton.disabled = !enabled;
+        }
+    }
+
+    function setImportInvoicesButtonEnabled(enabled){
+        const importButton = document.getElementById("importInvoicesButton");
 
         if(importButton){
           importButton.disabled = !enabled;
