@@ -408,6 +408,10 @@
           Import Invoices
         </button>
 
+        <button class="btn" id="importBillsButton" onclick="importValidatedBills()" disabled>
+          Import Bills
+        </button>
+
         <p class="import-message" id="excelImportMessage" aria-live="polite"></p>
       </div>
 
@@ -554,6 +558,7 @@
         validatedImportWorkbook = null;
         setImportClientsButtonEnabled(false);
         setImportInvoicesButtonEnabled(false);
+        setImportBillsButtonEnabled(false);
         setExcelImportMessage("", "");
 
         if(!file.name.toLowerCase().endsWith(".xlsx")){
@@ -588,8 +593,9 @@
           validatedImportWorkbook = workbook;
           setImportClientsButtonEnabled(true);
           setImportInvoicesButtonEnabled(true);
+          setImportBillsButtonEnabled(true);
           setExcelImportMessage(
-            "Workbook validated successfully. You can import Clients or Invoices now. Other sheets will be available in a future update.",
+            "Workbook validated successfully. You can import Clients, Invoices or Bills now. Other sheets will be available in a future update.",
             "success"
           );
         }catch(error){
@@ -769,6 +775,90 @@
         }
     }
 
+    async function importValidatedBills(){
+        if(!validatedImportWorkbook){
+          setExcelImportMessage("Please upload and validate a workbook before importing bills.", "error");
+          setImportBillsButtonEnabled(false);
+          return;
+        }
+
+        const { services, user } = await getBackupUserAndServices();
+
+        if(!user || !services?.addDoc){
+          setExcelImportMessage("Please log in before importing bills.", "error");
+          return;
+        }
+
+        const importButton = document.getElementById("importBillsButton");
+
+        if(importButton){
+          importButton.disabled = true;
+        }
+
+        try{
+          const billRows = readBillImportRows(validatedImportWorkbook);
+          const existingBills = await readFirestoreCollection(user, services, "bills");
+          const existingBillNumbers = new Set(
+            existingBills
+              .map(bill => normaliseBillNumber(bill.billNumber))
+              .filter(Boolean)
+          );
+
+          const result = {
+            imported: 0,
+            skipped: 0,
+            failed: 0,
+            warnings: 0,
+            failures: [],
+            warningMessages: []
+          };
+
+          for(const row of billRows){
+            const billNumber = normaliseBillNumber(row.bill.billNumber);
+
+            if(!row.bill.supplier){
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: Missing supplier`);
+              continue;
+            }
+
+            if(!billNumber){
+              result.warnings += 1;
+              result.warningMessages.push(`Row ${row.rowNumber}: Missing bill number, imported without duplicate protection`);
+            }else if(existingBillNumbers.has(billNumber)){
+              result.skipped += 1;
+              continue;
+            }
+
+            try{
+              await services.addDoc(
+                services.collection(services.db, "users", user.uid, "bills"),
+                row.bill
+              );
+
+              if(billNumber){
+                existingBillNumbers.add(billNumber);
+              }
+
+              result.imported += 1;
+            }catch(error){
+              console.error(`Bill import failed on row ${row.rowNumber}`, error);
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import bill"}`);
+            }
+          }
+
+          setExcelImportMessage(formatBillImportSummary(result), result.failed ? "error" : "success");
+        }catch(error){
+          console.error("Bill import failed", error);
+          setExcelImportMessage(error.message || "Could not import bills from this workbook.", "error");
+        }finally{
+          if(importButton && validatedImportWorkbook){
+            importButton.disabled = false;
+          }
+        }
+    }
+
     function readClientImportRows(workbook){
         const sheet = workbook?.Sheets?.Clients;
 
@@ -851,6 +941,47 @@
         }, []);
     }
 
+    function readBillImportRows(workbook){
+        const sheet = workbook?.Sheets?.Bills;
+
+        if(!sheet){
+          throw new Error("Missing sheet: Bills");
+        }
+
+        const rows = window.simpleBooksXLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: "",
+          blankrows: false
+        });
+
+        if(rows.length < 2){
+          return [];
+        }
+
+        const headers = rows[0].map(header => String(header || "").trim());
+
+        return rows.slice(1).reduce((billRows, row, index) => {
+          if(row.every(value => String(value || "").trim() === "")){
+            return billRows;
+          }
+
+          const rowData = headers.reduce((data, header, columnIndex) => {
+            if(header){
+              data[header] = row[columnIndex];
+            }
+
+            return data;
+          }, {});
+
+          billRows.push({
+            rowNumber: index + 2,
+            bill: billImportRowToBill(rowData)
+          });
+
+          return billRows;
+        }, []);
+    }
+
     function clientImportRowToClient(row){
         const notes = cleanText(row["Notes"]);
         const contactName = cleanText(row["Contact Name"]);
@@ -919,6 +1050,35 @@
         };
     }
 
+    function billImportRowToBill(row){
+        const net = numberValue(row["Net"] ?? row["Amount"]);
+        const vatRate = numberValue(row["VAT Rate"]);
+        const vat = numberValue(row["VAT"]) || net * vatRate;
+        const total = numberValue(row["Total"]) || net + vat;
+
+        return {
+          supplier: cleanText(row["Supplier"]),
+          billNumber: cleanText(row["Bill Number"] || row["Bill No"] || row["Number"]),
+          billDate: normaliseImportDate(row["Bill Date"] || row["Date"]),
+          dueDate: normaliseImportDate(row["Due Date"]),
+          net,
+          vatRate,
+          vat,
+          total,
+          status: normaliseBillStatus(row["Status"]),
+          notes: [
+            cleanText(row["Notes"]),
+            cleanText(row["Category"]) ? `Category: ${cleanText(row["Category"])}` : "",
+            cleanText(row["Description"]) ? `Description: ${cleanText(row["Description"])}` : ""
+          ].filter(Boolean).join("\n"),
+          attachmentName: "",
+          attachmentUrl: "",
+          attachmentPath: "",
+          attachmentSize: 0,
+          createdAt: normaliseImportCreatedAt(row["Created At"])
+        };
+    }
+
     function cleanText(value){
         return String(value ?? "").trim();
     }
@@ -928,6 +1088,10 @@
     }
 
     function normaliseInvoiceNumber(value){
+        return cleanText(value).toLowerCase();
+    }
+
+    function normaliseBillNumber(value){
         return cleanText(value).toLowerCase();
     }
 
@@ -987,6 +1151,16 @@
         return "Unpaid";
     }
 
+    function normaliseBillStatus(value){
+        const status = cleanText(value);
+
+        if(["Paid", "Unpaid", "Overdue"].includes(status)){
+          return status;
+        }
+
+        return "Unpaid";
+    }
+
     function formatClientImportSummary(result){
         const lines = [
           `Imported: ${result.imported}`,
@@ -1002,6 +1176,25 @@
     }
 
     function formatInvoiceImportSummary(result){
+        const lines = [
+          `Imported: ${result.imported}`,
+          `Skipped: ${result.skipped}`,
+          `Failed: ${result.failed}`,
+          `Warnings: ${result.warnings}`
+        ];
+
+        if(result.failures.length){
+          lines.push("", "Failures:", ...result.failures);
+        }
+
+        if(result.warningMessages.length){
+          lines.push("", "Warnings:", ...result.warningMessages);
+        }
+
+        return lines.join("\n");
+    }
+
+    function formatBillImportSummary(result){
         const lines = [
           `Imported: ${result.imported}`,
           `Skipped: ${result.skipped}`,
@@ -1062,6 +1255,14 @@
 
     function setImportInvoicesButtonEnabled(enabled){
         const importButton = document.getElementById("importInvoicesButton");
+
+        if(importButton){
+          importButton.disabled = !enabled;
+        }
+    }
+
+    function setImportBillsButtonEnabled(enabled){
+        const importButton = document.getElementById("importBillsButton");
 
         if(importButton){
           importButton.disabled = !enabled;
