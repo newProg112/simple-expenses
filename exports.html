@@ -221,6 +221,11 @@
       box-shadow:none;
     }
 
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
     .badge {
       display: inline-block;
       margin-top: 14px;
@@ -238,6 +243,7 @@
       font-size: 14px;
       font-weight: 650;
       line-height: 1.4;
+      white-space: pre-line;
     }
 
     .import-message.success {
@@ -394,6 +400,10 @@
           Upload workbook
         </button>
 
+        <button class="btn" id="importClientsButton" onclick="importValidatedClients()" disabled>
+          Import Clients
+        </button>
+
         <p class="import-message" id="excelImportMessage" aria-live="polite"></p>
       </div>
 
@@ -411,6 +421,7 @@
     import { auth, db } from "/firebase-config.js";
 
     import {
+      addDoc,
       collection,
       doc,
       getDoc,
@@ -425,6 +436,7 @@
     window.simpleBooksBackupServices = {
       auth,
       db,
+      addDoc,
       collection,
       doc,
       getDoc,
@@ -441,6 +453,8 @@
   </script>
 
   <script>
+    let validatedImportWorkbook = null;
+
     async function downloadFullBackup(){
 
         const backupData = await buildFullBackupData();
@@ -533,6 +547,8 @@
           return;
         }
 
+        validatedImportWorkbook = null;
+        setImportClientsButtonEnabled(false);
         setExcelImportMessage("", "");
 
         if(!file.name.toLowerCase().endsWith(".xlsx")){
@@ -564,8 +580,10 @@
             return;
           }
 
+          validatedImportWorkbook = workbook;
+          setImportClientsButtonEnabled(true);
           setExcelImportMessage(
-            "Workbook validated successfully. Import will be available in the next update.",
+            "Workbook validated successfully. You can import Clients now. Other sheets will be available in a future update.",
             "success"
           );
         }catch(error){
@@ -574,6 +592,212 @@
         }finally{
           event.target.value = "";
         }
+    }
+
+    async function importValidatedClients(){
+        if(!validatedImportWorkbook){
+          setExcelImportMessage("Please upload and validate a workbook before importing clients.", "error");
+          setImportClientsButtonEnabled(false);
+          return;
+        }
+
+        const { services, user } = await getBackupUserAndServices();
+
+        if(!user || !services?.addDoc){
+          setExcelImportMessage("Please log in before importing clients.", "error");
+          return;
+        }
+
+        const importButton = document.getElementById("importClientsButton");
+
+        if(importButton){
+          importButton.disabled = true;
+        }
+
+        try{
+          const clientRows = readClientImportRows(validatedImportWorkbook);
+          const existingClients = await readFirestoreCollection(user, services, "clients");
+          const existingNames = new Set(
+            existingClients
+              .map(client => normaliseClientName(client.name))
+              .filter(Boolean)
+          );
+
+          const result = {
+            imported: 0,
+            skipped: 0,
+            failed: 0,
+            failures: []
+          };
+
+          for(const row of clientRows){
+            const clientName = normaliseClientName(row.client.name);
+
+            if(!clientName){
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: Missing client name`);
+              continue;
+            }
+
+            if(existingNames.has(clientName)){
+              result.skipped += 1;
+              continue;
+            }
+
+            try{
+              await services.addDoc(
+                services.collection(services.db, "users", user.uid, "clients"),
+                row.client
+              );
+
+              existingNames.add(clientName);
+              result.imported += 1;
+            }catch(error){
+              console.error(`Client import failed on row ${row.rowNumber}`, error);
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import client"}`);
+            }
+          }
+
+          setExcelImportMessage(formatClientImportSummary(result), result.failed ? "error" : "success");
+        }catch(error){
+          console.error("Client import failed", error);
+          setExcelImportMessage(error.message || "Could not import clients from this workbook.", "error");
+        }finally{
+          if(importButton && validatedImportWorkbook){
+            importButton.disabled = false;
+          }
+        }
+    }
+
+    function readClientImportRows(workbook){
+        const sheet = workbook?.Sheets?.Clients;
+
+        if(!sheet){
+          throw new Error("Missing sheet: Clients");
+        }
+
+        const rows = window.simpleBooksXLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: "",
+          blankrows: false
+        });
+
+        if(rows.length < 2){
+          return [];
+        }
+
+        const headers = rows[0].map(header => String(header || "").trim());
+
+        return rows.slice(1).reduce((clientRows, row, index) => {
+          if(row.every(value => String(value || "").trim() === "")){
+            return clientRows;
+          }
+
+          const rowData = headers.reduce((data, header, columnIndex) => {
+            if(header){
+              data[header] = row[columnIndex];
+            }
+
+            return data;
+          }, {});
+
+          clientRows.push({
+            rowNumber: index + 2,
+            client: clientImportRowToClient(rowData)
+          });
+
+          return clientRows;
+        }, []);
+    }
+
+    function clientImportRowToClient(row){
+        const notes = cleanText(row["Notes"]);
+        const contactName = cleanText(row["Contact Name"]);
+        const addressParts = [
+          cleanText(row["Address Line 1"]),
+          cleanText(row["Address Line 2"]),
+          cleanText(row["Town/City"]),
+          cleanText(row["Postcode"]),
+          cleanText(row["Country"])
+        ].filter(Boolean);
+        const paymentTerms = cleanText(row["Payment Terms"]);
+        const importNotes = [
+          notes,
+          contactName ? `Contact: ${contactName}` : "",
+          addressParts.length ? `Address: ${addressParts.join(", ")}` : "",
+          paymentTerms ? `Payment terms: ${paymentTerms}` : ""
+        ].filter(Boolean).join("\n");
+
+        return {
+          name: cleanText(row["Client Name"] || row["Name"]),
+          email: cleanText(row["Email"]),
+          phone: cleanText(row["Phone"]),
+          status: normaliseClientStatus(row["Status"]),
+          followUp: normaliseImportDate(row["Follow Up"] || row["Follow Up Date"]),
+          lastContacted: normaliseImportDate(row["Last Contacted"] || row["Last Contacted Date"]),
+          notes: importNotes,
+          attachmentName: "",
+          attachmentUrl: "",
+          attachmentPath: "",
+          attachmentSize: 0
+        };
+    }
+
+    function cleanText(value){
+        return String(value ?? "").trim();
+    }
+
+    function normaliseClientName(value){
+        return cleanText(value).toLowerCase();
+    }
+
+    function normaliseClientStatus(value){
+        const status = cleanText(value);
+
+        if(["Lead", "Active", "Dormant"].includes(status)){
+          return status;
+        }
+
+        return "Lead";
+    }
+
+    function normaliseImportDate(value){
+        if(value instanceof Date && !Number.isNaN(value.getTime())){
+          return value.toISOString().slice(0, 10);
+        }
+
+        const text = cleanText(value);
+
+        if(!text){
+          return "";
+        }
+
+        if(/^\d{4}-\d{2}-\d{2}$/.test(text)){
+          return text;
+        }
+
+        const date = new Date(text);
+
+        if(Number.isNaN(date.getTime())){
+          return text;
+        }
+
+        return date.toISOString().slice(0, 10);
+    }
+
+    function formatClientImportSummary(result){
+        const lines = [
+          `Imported: ${result.imported}`,
+          `Skipped: ${result.skipped}`,
+          `Failed: ${result.failed}`
+        ];
+
+        if(result.failures.length){
+          lines.push("", "Failures:", ...result.failures);
+        }
+
+        return lines.join("\n");
     }
 
     function findMissingImportTemplateSheet(workbook){
@@ -606,6 +830,14 @@
 
         messageElement.textContent = message;
         messageElement.className = `import-message${type ? ` ${type}` : ""}`;
+    }
+
+    function setImportClientsButtonEnabled(enabled){
+        const importButton = document.getElementById("importClientsButton");
+
+        if(importButton){
+          importButton.disabled = !enabled;
+        }
     }
 
     function buildExcelImportTemplateData(){
