@@ -416,6 +416,10 @@
           Import Expenses
         </button>
 
+        <button class="btn" id="importMileageButton" onclick="importValidatedMileage()" disabled>
+          Import Mileage
+        </button>
+
         <p class="import-message" id="excelImportMessage" aria-live="polite"></p>
       </div>
 
@@ -564,6 +568,7 @@
         setImportInvoicesButtonEnabled(false);
         setImportBillsButtonEnabled(false);
         setImportExpensesButtonEnabled(false);
+        setImportMileageButtonEnabled(false);
         setExcelImportMessage("", "");
 
         if(!file.name.toLowerCase().endsWith(".xlsx")){
@@ -600,8 +605,9 @@
           setImportInvoicesButtonEnabled(true);
           setImportBillsButtonEnabled(true);
           setImportExpensesButtonEnabled(true);
+          setImportMileageButtonEnabled(true);
           setExcelImportMessage(
-            "Workbook validated successfully. You can import Clients, Invoices, Bills or Expenses now. Mileage will be available in a future update.",
+            "Workbook validated successfully. You can import Clients, Invoices, Bills, Expenses or Mileage now.",
             "success"
           );
         }catch(error){
@@ -952,6 +958,99 @@
         }
     }
 
+    async function importValidatedMileage(){
+        if(!validatedImportWorkbook){
+          setExcelImportMessage("Please upload and validate a workbook before importing mileage.", "error");
+          setImportMileageButtonEnabled(false);
+          return;
+        }
+
+        const { services, user } = await getBackupUserAndServices();
+
+        if(!user || !services?.addDoc){
+          setExcelImportMessage("Please log in before importing mileage.", "error");
+          return;
+        }
+
+        const importButton = document.getElementById("importMileageButton");
+
+        if(importButton){
+          importButton.disabled = true;
+        }
+
+        try{
+          const mileageRows = readMileageImportRows(validatedImportWorkbook);
+          const existingMileage = await readFirestoreCollection(user, services, "expenses");
+          const existingMileageKeys = new Set(
+            existingMileage
+              .filter(expense => expense.type === "mileage")
+              .map(expense => mileageDuplicateKey(expense))
+              .filter(Boolean)
+          );
+
+          const result = {
+            imported: 0,
+            skipped: 0,
+            failed: 0,
+            warnings: 0,
+            failures: [],
+            warningMessages: []
+          };
+
+          for(const row of mileageRows){
+            const duplicateKey = mileageDuplicateKey(row.mileage);
+
+            if(!row.mileage.from || !row.mileage.to){
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: Missing mileage route`);
+              continue;
+            }
+
+            if(!row.mileage.miles){
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: Missing miles`);
+              continue;
+            }
+
+            if(!row.mileage.date){
+              result.warnings += 1;
+              result.warningMessages.push(`Row ${row.rowNumber}: Missing date, imported without full duplicate protection`);
+            }
+
+            if(duplicateKey && existingMileageKeys.has(duplicateKey)){
+              result.skipped += 1;
+              continue;
+            }
+
+            try{
+              await services.addDoc(
+                services.collection(services.db, "users", user.uid, "expenses"),
+                row.mileage
+              );
+
+              if(duplicateKey){
+                existingMileageKeys.add(duplicateKey);
+              }
+
+              result.imported += 1;
+            }catch(error){
+              console.error(`Mileage import failed on row ${row.rowNumber}`, error);
+              result.failed += 1;
+              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import mileage"}`);
+            }
+          }
+
+          setExcelImportMessage(formatMileageImportSummary(result), result.failed ? "error" : "success");
+        }catch(error){
+          console.error("Mileage import failed", error);
+          setExcelImportMessage(error.message || "Could not import mileage from this workbook.", "error");
+        }finally{
+          if(importButton && validatedImportWorkbook){
+            importButton.disabled = false;
+          }
+        }
+    }
+
     function readClientImportRows(workbook){
         const sheet = workbook?.Sheets?.Clients;
 
@@ -1116,6 +1215,47 @@
         }, []);
     }
 
+    function readMileageImportRows(workbook){
+        const sheet = workbook?.Sheets?.Mileage;
+
+        if(!sheet){
+          throw new Error("Missing sheet: Mileage");
+        }
+
+        const rows = window.simpleBooksXLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: "",
+          blankrows: false
+        });
+
+        if(rows.length < 2){
+          return [];
+        }
+
+        const headers = rows[0].map(header => String(header || "").trim());
+
+        return rows.slice(1).reduce((mileageRows, row, index) => {
+          if(row.every(value => String(value || "").trim() === "")){
+            return mileageRows;
+          }
+
+          const rowData = headers.reduce((data, header, columnIndex) => {
+            if(header){
+              data[header] = row[columnIndex];
+            }
+
+            return data;
+          }, {});
+
+          mileageRows.push({
+            rowNumber: index + 2,
+            mileage: mileageImportRowToMileage(rowData)
+          });
+
+          return mileageRows;
+        }, []);
+    }
+
     function clientImportRowToClient(row){
         const notes = cleanText(row["Notes"]);
         const contactName = cleanText(row["Contact Name"]);
@@ -1248,6 +1388,40 @@
         };
     }
 
+    function mileageImportRowToMileage(row){
+        const miles = numberValue(row["Miles"]);
+        const ratePerMile = numberValue(row["Rate Per Mile"] ?? row["Mileage Rate"]) || 0.55;
+        const amount = numberValue(row["Amount"] ?? row["Mileage Amount"]) || roundCurrency(miles * ratePerMile);
+        const now = new Date().toISOString();
+
+        return {
+          type: "mileage",
+          date: normaliseImportDate(row["Date"]),
+          merchant: "",
+          category: "Mileage",
+          description: "",
+          from: cleanText(row["From"]),
+          to: cleanText(row["To"]),
+          businessPurpose: cleanText(row["Business Purpose"] || row["Purpose"]),
+          miles,
+          ratePerMile,
+          amount,
+          net: 0,
+          vatRate: 0,
+          vat: 0,
+          gross: amount,
+          status: normaliseExpenseStatus(row["Status"]),
+          notes: cleanText(row["Notes"]),
+          attachmentName: "",
+          attachmentUrl: "",
+          attachmentPath: "",
+          attachmentSize: 0,
+          attachmentType: "",
+          createdAt: normaliseImportCreatedAt(row["Created At"]) || now,
+          updatedAt: ""
+        };
+    }
+
     function cleanText(value){
         return String(value ?? "").trim();
     }
@@ -1274,6 +1448,19 @@
         }
 
         return `${date}|${merchant}|${gross.toFixed(2)}`;
+    }
+
+    function mileageDuplicateKey(mileage){
+        const date = cleanText(mileage.date);
+        const from = normaliseClientName(mileage.from);
+        const to = normaliseClientName(mileage.to);
+        const miles = numberValue(mileage.miles);
+
+        if(!date || !from || !to || !miles){
+          return "";
+        }
+
+        return `${date}|${from}|${to}|${miles.toFixed(1)}`;
     }
 
     function normaliseClientStatus(value){
@@ -1423,6 +1610,25 @@
         return lines.join("\n");
     }
 
+    function formatMileageImportSummary(result){
+        const lines = [
+          `Imported: ${result.imported}`,
+          `Skipped: ${result.skipped}`,
+          `Failed: ${result.failed}`,
+          `Warnings: ${result.warnings}`
+        ];
+
+        if(result.failures.length){
+          lines.push("", "Failures:", ...result.failures);
+        }
+
+        if(result.warningMessages.length){
+          lines.push("", "Warnings:", ...result.warningMessages);
+        }
+
+        return lines.join("\n");
+    }
+
     function findMissingImportTemplateSheet(workbook){
         if(!workbook || !Array.isArray(workbook.SheetNames)){
           return "README";
@@ -1481,6 +1687,14 @@
 
     function setImportExpensesButtonEnabled(enabled){
         const importButton = document.getElementById("importExpensesButton");
+
+        if(importButton){
+          importButton.disabled = !enabled;
+        }
+    }
+
+    function setImportMileageButtonEnabled(enabled){
+        const importButton = document.getElementById("importMileageButton");
 
         if(importButton){
           importButton.disabled = !enabled;
