@@ -400,6 +400,10 @@
           Upload workbook
         </button>
 
+        <button class="btn" id="importAllButton" onclick="importValidatedWorkbookAll()" disabled>
+          Import All
+        </button>
+
         <button class="btn" id="importClientsButton" onclick="importValidatedClients()" disabled>
           Import Clients
         </button>
@@ -564,11 +568,7 @@
         }
 
         validatedImportWorkbook = null;
-        setImportClientsButtonEnabled(false);
-        setImportInvoicesButtonEnabled(false);
-        setImportBillsButtonEnabled(false);
-        setImportExpensesButtonEnabled(false);
-        setImportMileageButtonEnabled(false);
+        setAllImportButtonsEnabled(false);
         setExcelImportMessage("", "");
 
         if(!file.name.toLowerCase().endsWith(".xlsx")){
@@ -601,11 +601,7 @@
           }
 
           validatedImportWorkbook = workbook;
-          setImportClientsButtonEnabled(true);
-          setImportInvoicesButtonEnabled(true);
-          setImportBillsButtonEnabled(true);
-          setImportExpensesButtonEnabled(true);
-          setImportMileageButtonEnabled(true);
+          setAllImportButtonsEnabled(true);
           setExcelImportMessage(
             "Workbook validated successfully. You can import Clients, Invoices, Bills, Expenses or Mileage now.",
             "success"
@@ -619,436 +615,398 @@
     }
 
     async function importValidatedClients(){
-        if(!validatedImportWorkbook){
-          setExcelImportMessage("Please upload and validate a workbook before importing clients.", "error");
-          setImportClientsButtonEnabled(false);
-          return;
-        }
-
-        const { services, user } = await getBackupUserAndServices();
-
-        if(!user || !services?.addDoc){
-          setExcelImportMessage("Please log in before importing clients.", "error");
-          return;
-        }
-
-        const importButton = document.getElementById("importClientsButton");
-
-        if(importButton){
-          importButton.disabled = true;
-        }
-
-        try{
-          const clientRows = readClientImportRows(validatedImportWorkbook);
-          const existingClients = await readFirestoreCollection(user, services, "clients");
-          const existingNames = new Set(
-            existingClients
-              .map(client => normaliseClientName(client.name))
-              .filter(Boolean)
-          );
-
-          const result = {
-            imported: 0,
-            skipped: 0,
-            failed: 0,
-            failures: []
-          };
-
-          for(const row of clientRows){
-            const clientName = normaliseClientName(row.client.name);
-
-            if(!clientName){
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: Missing client name`);
-              continue;
-            }
-
-            if(existingNames.has(clientName)){
-              result.skipped += 1;
-              continue;
-            }
-
-            try{
-              await services.addDoc(
-                services.collection(services.db, "users", user.uid, "clients"),
-                row.client
-              );
-
-              existingNames.add(clientName);
-              result.imported += 1;
-            }catch(error){
-              console.error(`Client import failed on row ${row.rowNumber}`, error);
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import client"}`);
-            }
-          }
-
-          setExcelImportMessage(formatClientImportSummary(result), result.failed ? "error" : "success");
-        }catch(error){
-          console.error("Client import failed", error);
-          setExcelImportMessage(error.message || "Could not import clients from this workbook.", "error");
-        }finally{
-          if(importButton && validatedImportWorkbook){
-            importButton.disabled = false;
-          }
-        }
+        await runSingleWorkbookImport(
+          "importClientsButton",
+          "clients",
+          importClientsFromWorkbook,
+          formatClientImportSummary
+        );
     }
 
     async function importValidatedInvoices(){
-        if(!validatedImportWorkbook){
-          setExcelImportMessage("Please upload and validate a workbook before importing invoices.", "error");
-          setImportInvoicesButtonEnabled(false);
-          return;
-        }
-
-        const { services, user } = await getBackupUserAndServices();
-
-        if(!user || !services?.addDoc){
-          setExcelImportMessage("Please log in before importing invoices.", "error");
-          return;
-        }
-
-        const importButton = document.getElementById("importInvoicesButton");
-
-        if(importButton){
-          importButton.disabled = true;
-        }
-
-        try{
-          const invoiceRows = readInvoiceImportRows(validatedImportWorkbook);
-          const [existingInvoices, existingClients] = await Promise.all([
-            readFirestoreCollection(user, services, "invoices"),
-            readFirestoreCollection(user, services, "clients")
-          ]);
-          const existingInvoiceNumbers = new Set(
-            existingInvoices
-              .map(invoice => normaliseInvoiceNumber(invoice.invoiceNo))
-              .filter(Boolean)
-          );
-          const existingClientNames = new Set(
-            existingClients
-              .map(client => normaliseClientName(client.name))
-              .filter(Boolean)
-          );
-
-          const result = {
-            imported: 0,
-            skipped: 0,
-            failed: 0,
-            warnings: 0,
-            failures: [],
-            warningMessages: []
-          };
-
-          for(const row of invoiceRows){
-            const invoiceNumber = normaliseInvoiceNumber(row.invoice.invoiceNo);
-
-            if(!invoiceNumber){
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: Missing invoice number`);
-              continue;
-            }
-
-            if(existingInvoiceNumbers.has(invoiceNumber)){
-              result.skipped += 1;
-              continue;
-            }
-
-            const clientName = normaliseClientName(row.invoice.client);
-
-            if(clientName && !existingClientNames.has(clientName)){
-              result.warnings += 1;
-              result.warningMessages.push(`Row ${row.rowNumber}: Client not found, imported using client name text`);
-            }
-
-            try{
-              await services.addDoc(
-                services.collection(services.db, "users", user.uid, "invoices"),
-                row.invoice
-              );
-
-              existingInvoiceNumbers.add(invoiceNumber);
-              result.imported += 1;
-            }catch(error){
-              console.error(`Invoice import failed on row ${row.rowNumber}`, error);
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import invoice"}`);
-            }
-          }
-
-          setExcelImportMessage(formatInvoiceImportSummary(result), result.failed ? "error" : "success");
-        }catch(error){
-          console.error("Invoice import failed", error);
-          setExcelImportMessage(error.message || "Could not import invoices from this workbook.", "error");
-        }finally{
-          if(importButton && validatedImportWorkbook){
-            importButton.disabled = false;
-          }
-        }
+        await runSingleWorkbookImport(
+          "importInvoicesButton",
+          "invoices",
+          importInvoicesFromWorkbook,
+          formatInvoiceImportSummary
+        );
     }
 
     async function importValidatedBills(){
-        if(!validatedImportWorkbook){
-          setExcelImportMessage("Please upload and validate a workbook before importing bills.", "error");
-          setImportBillsButtonEnabled(false);
-          return;
-        }
-
-        const { services, user } = await getBackupUserAndServices();
-
-        if(!user || !services?.addDoc){
-          setExcelImportMessage("Please log in before importing bills.", "error");
-          return;
-        }
-
-        const importButton = document.getElementById("importBillsButton");
-
-        if(importButton){
-          importButton.disabled = true;
-        }
-
-        try{
-          const billRows = readBillImportRows(validatedImportWorkbook);
-          const existingBills = await readFirestoreCollection(user, services, "bills");
-          const existingBillNumbers = new Set(
-            existingBills
-              .map(bill => normaliseBillNumber(bill.billNumber))
-              .filter(Boolean)
-          );
-
-          const result = {
-            imported: 0,
-            skipped: 0,
-            failed: 0,
-            warnings: 0,
-            failures: [],
-            warningMessages: []
-          };
-
-          for(const row of billRows){
-            const billNumber = normaliseBillNumber(row.bill.billNumber);
-
-            if(!row.bill.supplier){
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: Missing supplier`);
-              continue;
-            }
-
-            if(!billNumber){
-              result.warnings += 1;
-              result.warningMessages.push(`Row ${row.rowNumber}: Missing bill number, imported without duplicate protection`);
-            }else if(existingBillNumbers.has(billNumber)){
-              result.skipped += 1;
-              continue;
-            }
-
-            try{
-              await services.addDoc(
-                services.collection(services.db, "users", user.uid, "bills"),
-                row.bill
-              );
-
-              if(billNumber){
-                existingBillNumbers.add(billNumber);
-              }
-
-              result.imported += 1;
-            }catch(error){
-              console.error(`Bill import failed on row ${row.rowNumber}`, error);
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import bill"}`);
-            }
-          }
-
-          setExcelImportMessage(formatBillImportSummary(result), result.failed ? "error" : "success");
-        }catch(error){
-          console.error("Bill import failed", error);
-          setExcelImportMessage(error.message || "Could not import bills from this workbook.", "error");
-        }finally{
-          if(importButton && validatedImportWorkbook){
-            importButton.disabled = false;
-          }
-        }
+        await runSingleWorkbookImport(
+          "importBillsButton",
+          "bills",
+          importBillsFromWorkbook,
+          formatBillImportSummary
+        );
     }
 
     async function importValidatedExpenses(){
+        await runSingleWorkbookImport(
+          "importExpensesButton",
+          "expenses",
+          importExpensesFromWorkbook,
+          formatExpenseImportSummary
+        );
+    }
+
+    async function importValidatedMileage(){
+        await runSingleWorkbookImport(
+          "importMileageButton",
+          "mileage",
+          importMileageFromWorkbook,
+          formatMileageImportSummary
+        );
+    }
+
+    async function importValidatedWorkbookAll(){
         if(!validatedImportWorkbook){
-          setExcelImportMessage("Please upload and validate a workbook before importing expenses.", "error");
-          setImportExpensesButtonEnabled(false);
+          setExcelImportMessage("Please upload and validate a workbook before importing all data.", "error");
+          setAllImportButtonsEnabled(false);
           return;
         }
 
         const { services, user } = await getBackupUserAndServices();
 
         if(!user || !services?.addDoc){
-          setExcelImportMessage("Please log in before importing expenses.", "error");
+          setExcelImportMessage("Please log in before importing workbook data.", "error");
           return;
         }
 
-        const importButton = document.getElementById("importExpensesButton");
+        const importSteps = [
+          { label: "Clients", run: importClientsFromWorkbook },
+          { label: "Invoices", run: importInvoicesFromWorkbook },
+          { label: "Bills", run: importBillsFromWorkbook },
+          { label: "Expenses", run: importExpensesFromWorkbook },
+          { label: "Mileage", run: importMileageFromWorkbook }
+        ];
+        const context = {
+          workbook: validatedImportWorkbook,
+          services,
+          user
+        };
+        const results = [];
 
-        if(importButton){
-          importButton.disabled = true;
-        }
+        setAllImportButtonsEnabled(false);
+        setExcelImportMessage("Importing workbook...", "");
 
         try{
-          const expenseRows = readExpenseImportRows(validatedImportWorkbook);
-          const existingExpenses = await readFirestoreCollection(user, services, "expenses");
-          const existingExpenseKeys = new Set(
-            existingExpenses
-              .filter(expense => expense.type !== "mileage")
-              .map(expense => expenseDuplicateKey(expense))
-              .filter(Boolean)
-          );
-
-          const result = {
-            imported: 0,
-            skipped: 0,
-            failed: 0,
-            warnings: 0,
-            failures: [],
-            warningMessages: []
-          };
-
-          for(const row of expenseRows){
-            const duplicateKey = expenseDuplicateKey(row.expense);
-
-            if(!row.expense.merchant){
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: Missing merchant`);
-              continue;
-            }
-
-            if(!row.expense.gross){
-              result.warnings += 1;
-              result.warningMessages.push(`Row ${row.rowNumber}: Gross amount is zero or missing`);
-            }
-
-            if(duplicateKey && existingExpenseKeys.has(duplicateKey)){
-              result.skipped += 1;
-              continue;
-            }
-
-            try{
-              await services.addDoc(
-                services.collection(services.db, "users", user.uid, "expenses"),
-                row.expense
-              );
-
-              if(duplicateKey){
-                existingExpenseKeys.add(duplicateKey);
-              }
-
-              result.imported += 1;
-            }catch(error){
-              console.error(`Expense import failed on row ${row.rowNumber}`, error);
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import expense"}`);
-            }
+          for(const step of importSteps){
+            results.push({
+              label: step.label,
+              result: await step.run(context)
+            });
           }
 
-          setExcelImportMessage(formatExpenseImportSummary(result), result.failed ? "error" : "success");
+          setExcelImportMessage(formatWorkbookImportSummary(results), hasImportFailures(results) ? "error" : "success");
         }catch(error){
-          console.error("Expense import failed", error);
-          setExcelImportMessage(error.message || "Could not import expenses from this workbook.", "error");
+          console.error("Workbook import failed", error);
+          setExcelImportMessage(error.message || "Workbook import stopped because of a critical error.", "error");
         }finally{
-          if(importButton && validatedImportWorkbook){
-            importButton.disabled = false;
+          if(validatedImportWorkbook){
+            setAllImportButtonsEnabled(true);
           }
         }
     }
 
-    async function importValidatedMileage(){
+    async function runSingleWorkbookImport(buttonId, importName, importFunction, formatFunction){
         if(!validatedImportWorkbook){
-          setExcelImportMessage("Please upload and validate a workbook before importing mileage.", "error");
-          setImportMileageButtonEnabled(false);
+          setExcelImportMessage(`Please upload and validate a workbook before importing ${importName}.`, "error");
+          setButtonEnabled(buttonId, false);
           return;
         }
 
         const { services, user } = await getBackupUserAndServices();
 
         if(!user || !services?.addDoc){
-          setExcelImportMessage("Please log in before importing mileage.", "error");
+          setExcelImportMessage(`Please log in before importing ${importName}.`, "error");
           return;
         }
 
-        const importButton = document.getElementById("importMileageButton");
-
-        if(importButton){
-          importButton.disabled = true;
-        }
+        setButtonEnabled(buttonId, false);
 
         try{
-          const mileageRows = readMileageImportRows(validatedImportWorkbook);
-          const existingMileage = await readFirestoreCollection(user, services, "expenses");
-          const existingMileageKeys = new Set(
-            existingMileage
-              .filter(expense => expense.type === "mileage")
-              .map(expense => mileageDuplicateKey(expense))
-              .filter(Boolean)
-          );
+          const result = await importFunction({
+            workbook: validatedImportWorkbook,
+            services,
+            user
+          });
 
-          const result = {
-            imported: 0,
-            skipped: 0,
-            failed: 0,
-            warnings: 0,
-            failures: [],
-            warningMessages: []
-          };
-
-          for(const row of mileageRows){
-            const duplicateKey = mileageDuplicateKey(row.mileage);
-
-            if(!row.mileage.from || !row.mileage.to){
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: Missing mileage route`);
-              continue;
-            }
-
-            if(!row.mileage.miles){
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: Missing miles`);
-              continue;
-            }
-
-            if(!row.mileage.date){
-              result.warnings += 1;
-              result.warningMessages.push(`Row ${row.rowNumber}: Missing date, imported without full duplicate protection`);
-            }
-
-            if(duplicateKey && existingMileageKeys.has(duplicateKey)){
-              result.skipped += 1;
-              continue;
-            }
-
-            try{
-              await services.addDoc(
-                services.collection(services.db, "users", user.uid, "expenses"),
-                row.mileage
-              );
-
-              if(duplicateKey){
-                existingMileageKeys.add(duplicateKey);
-              }
-
-              result.imported += 1;
-            }catch(error){
-              console.error(`Mileage import failed on row ${row.rowNumber}`, error);
-              result.failed += 1;
-              result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import mileage"}`);
-            }
-          }
-
-          setExcelImportMessage(formatMileageImportSummary(result), result.failed ? "error" : "success");
+          setExcelImportMessage(formatFunction(result), result.failed ? "error" : "success");
         }catch(error){
-          console.error("Mileage import failed", error);
-          setExcelImportMessage(error.message || "Could not import mileage from this workbook.", "error");
+          console.error(`${importName} import failed`, error);
+          setExcelImportMessage(error.message || `Could not import ${importName} from this workbook.`, "error");
         }finally{
-          if(importButton && validatedImportWorkbook){
-            importButton.disabled = false;
+          if(validatedImportWorkbook){
+            setButtonEnabled(buttonId, true);
           }
         }
+    }
+
+    function createImportResult(){
+        return {
+          imported: 0,
+          skipped: 0,
+          failed: 0,
+          warnings: 0,
+          failures: [],
+          warningMessages: []
+        };
+    }
+
+    async function importClientsFromWorkbook({ workbook, services, user }){
+        const clientRows = readClientImportRows(workbook);
+        const existingClients = await readFirestoreCollection(user, services, "clients");
+        const existingNames = new Set(
+          existingClients
+            .map(client => normaliseClientName(client.name))
+            .filter(Boolean)
+        );
+        const result = createImportResult();
+
+        for(const row of clientRows){
+          const clientName = normaliseClientName(row.client.name);
+
+          if(!clientName){
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: Missing client name`);
+            continue;
+          }
+
+          if(existingNames.has(clientName)){
+            result.skipped += 1;
+            continue;
+          }
+
+          try{
+            await services.addDoc(
+              services.collection(services.db, "users", user.uid, "clients"),
+              row.client
+            );
+
+            existingNames.add(clientName);
+            result.imported += 1;
+          }catch(error){
+            console.error(`Client import failed on row ${row.rowNumber}`, error);
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import client"}`);
+          }
+        }
+
+        return result;
+    }
+
+    async function importInvoicesFromWorkbook({ workbook, services, user }){
+        const invoiceRows = readInvoiceImportRows(workbook);
+        const [existingInvoices, existingClients] = await Promise.all([
+          readFirestoreCollection(user, services, "invoices"),
+          readFirestoreCollection(user, services, "clients")
+        ]);
+        const existingInvoiceNumbers = new Set(
+          existingInvoices
+            .map(invoice => normaliseInvoiceNumber(invoice.invoiceNo))
+            .filter(Boolean)
+        );
+        const existingClientNames = new Set(
+          existingClients
+            .map(client => normaliseClientName(client.name))
+            .filter(Boolean)
+        );
+        const result = createImportResult();
+
+        for(const row of invoiceRows){
+          const invoiceNumber = normaliseInvoiceNumber(row.invoice.invoiceNo);
+
+          if(!invoiceNumber){
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: Missing invoice number`);
+            continue;
+          }
+
+          if(existingInvoiceNumbers.has(invoiceNumber)){
+            result.skipped += 1;
+            continue;
+          }
+
+          const clientName = normaliseClientName(row.invoice.client);
+
+          if(clientName && !existingClientNames.has(clientName)){
+            result.warnings += 1;
+            result.warningMessages.push(`Row ${row.rowNumber}: Client not found, imported using client name text`);
+          }
+
+          try{
+            await services.addDoc(
+              services.collection(services.db, "users", user.uid, "invoices"),
+              row.invoice
+            );
+
+            existingInvoiceNumbers.add(invoiceNumber);
+            result.imported += 1;
+          }catch(error){
+            console.error(`Invoice import failed on row ${row.rowNumber}`, error);
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import invoice"}`);
+          }
+        }
+
+        return result;
+    }
+
+    async function importBillsFromWorkbook({ workbook, services, user }){
+        const billRows = readBillImportRows(workbook);
+        const existingBills = await readFirestoreCollection(user, services, "bills");
+        const existingBillNumbers = new Set(
+          existingBills
+            .map(bill => normaliseBillNumber(bill.billNumber))
+            .filter(Boolean)
+        );
+        const result = createImportResult();
+
+        for(const row of billRows){
+          const billNumber = normaliseBillNumber(row.bill.billNumber);
+
+          if(!row.bill.supplier){
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: Missing supplier`);
+            continue;
+          }
+
+          if(!billNumber){
+            result.warnings += 1;
+            result.warningMessages.push(`Row ${row.rowNumber}: Missing bill number, imported without duplicate protection`);
+          }else if(existingBillNumbers.has(billNumber)){
+            result.skipped += 1;
+            continue;
+          }
+
+          try{
+            await services.addDoc(
+              services.collection(services.db, "users", user.uid, "bills"),
+              row.bill
+            );
+
+            if(billNumber){
+              existingBillNumbers.add(billNumber);
+            }
+
+            result.imported += 1;
+          }catch(error){
+            console.error(`Bill import failed on row ${row.rowNumber}`, error);
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import bill"}`);
+          }
+        }
+
+        return result;
+    }
+
+    async function importExpensesFromWorkbook({ workbook, services, user }){
+        const expenseRows = readExpenseImportRows(workbook);
+        const existingExpenses = await readFirestoreCollection(user, services, "expenses");
+        const existingExpenseKeys = new Set(
+          existingExpenses
+            .filter(expense => expense.type !== "mileage")
+            .map(expense => expenseDuplicateKey(expense))
+            .filter(Boolean)
+        );
+        const result = createImportResult();
+
+        for(const row of expenseRows){
+          const duplicateKey = expenseDuplicateKey(row.expense);
+
+          if(!row.expense.merchant){
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: Missing merchant`);
+            continue;
+          }
+
+          if(!row.expense.gross){
+            result.warnings += 1;
+            result.warningMessages.push(`Row ${row.rowNumber}: Gross amount is zero or missing`);
+          }
+
+          if(duplicateKey && existingExpenseKeys.has(duplicateKey)){
+            result.skipped += 1;
+            continue;
+          }
+
+          try{
+            await services.addDoc(
+              services.collection(services.db, "users", user.uid, "expenses"),
+              row.expense
+            );
+
+            if(duplicateKey){
+              existingExpenseKeys.add(duplicateKey);
+            }
+
+            result.imported += 1;
+          }catch(error){
+            console.error(`Expense import failed on row ${row.rowNumber}`, error);
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import expense"}`);
+          }
+        }
+
+        return result;
+    }
+
+    async function importMileageFromWorkbook({ workbook, services, user }){
+        const mileageRows = readMileageImportRows(workbook);
+        const existingMileage = await readFirestoreCollection(user, services, "expenses");
+        const existingMileageKeys = new Set(
+          existingMileage
+            .filter(expense => expense.type === "mileage")
+            .map(expense => mileageDuplicateKey(expense))
+            .filter(Boolean)
+        );
+        const result = createImportResult();
+
+        for(const row of mileageRows){
+          const duplicateKey = mileageDuplicateKey(row.mileage);
+
+          if(!row.mileage.from || !row.mileage.to){
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: Missing mileage route`);
+            continue;
+          }
+
+          if(!row.mileage.miles){
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: Missing miles`);
+            continue;
+          }
+
+          if(!row.mileage.date){
+            result.warnings += 1;
+            result.warningMessages.push(`Row ${row.rowNumber}: Missing date, imported without full duplicate protection`);
+          }
+
+          if(duplicateKey && existingMileageKeys.has(duplicateKey)){
+            result.skipped += 1;
+            continue;
+          }
+
+          try{
+            await services.addDoc(
+              services.collection(services.db, "users", user.uid, "expenses"),
+              row.mileage
+            );
+
+            if(duplicateKey){
+              existingMileageKeys.add(duplicateKey);
+            }
+
+            result.imported += 1;
+          }catch(error){
+            console.error(`Mileage import failed on row ${row.rowNumber}`, error);
+            result.failed += 1;
+            result.failures.push(`Row ${row.rowNumber}: ${error.message || "Could not import mileage"}`);
+          }
+        }
+
+        return result;
     }
 
     function readClientImportRows(workbook){
@@ -1543,11 +1501,16 @@
         const lines = [
           `Imported: ${result.imported}`,
           `Skipped: ${result.skipped}`,
-          `Failed: ${result.failed}`
+          `Failed: ${result.failed}`,
+          `Warnings: ${result.warnings}`
         ];
 
         if(result.failures.length){
           lines.push("", "Failures:", ...result.failures);
+        }
+
+        if(result.warningMessages.length){
+          lines.push("", "Warnings:", ...result.warningMessages);
         }
 
         return lines.join("\n");
@@ -1629,6 +1592,59 @@
         return lines.join("\n");
     }
 
+    function formatWorkbookImportSummary(results){
+        const overall = results.reduce((summary, item) => {
+          const result = normaliseImportResult(item.result);
+
+          summary.imported += result.imported;
+          summary.skipped += result.skipped;
+          summary.failed += result.failed;
+          summary.warnings += result.warnings;
+
+          return summary;
+        }, createImportResult());
+        const lines = ["Workbook import complete"];
+
+        results.forEach((item) => {
+          const result = normaliseImportResult(item.result);
+
+          lines.push(
+            "",
+            `${item.label}:`,
+            `Imported: ${result.imported}`,
+            `Skipped: ${result.skipped}`,
+            `Warnings: ${result.warnings}`,
+            `Failed: ${result.failed}`
+          );
+        });
+
+        lines.push(
+          "",
+          "Overall:",
+          `Imported: ${overall.imported}`,
+          `Skipped: ${overall.skipped}`,
+          `Warnings: ${overall.warnings}`,
+          `Failed: ${overall.failed}`
+        );
+
+        return lines.join("\n");
+    }
+
+    function normaliseImportResult(result){
+        return {
+          imported: Number(result?.imported || 0),
+          skipped: Number(result?.skipped || 0),
+          failed: Number(result?.failed || 0),
+          warnings: Number(result?.warnings || 0),
+          failures: result?.failures || [],
+          warningMessages: result?.warningMessages || []
+        };
+    }
+
+    function hasImportFailures(results){
+        return results.some(item => normaliseImportResult(item.result).failed > 0);
+    }
+
     function findMissingImportTemplateSheet(workbook){
         if(!workbook || !Array.isArray(workbook.SheetNames)){
           return "README";
@@ -1661,44 +1677,43 @@
         messageElement.className = `import-message${type ? ` ${type}` : ""}`;
     }
 
-    function setImportClientsButtonEnabled(enabled){
-        const importButton = document.getElementById("importClientsButton");
+    function setButtonEnabled(buttonId, enabled){
+        const button = document.getElementById(buttonId);
 
-        if(importButton){
-          importButton.disabled = !enabled;
+        if(button){
+          button.disabled = !enabled;
         }
+    }
+
+    function setAllImportButtonsEnabled(enabled){
+        [
+          "importAllButton",
+          "importClientsButton",
+          "importInvoicesButton",
+          "importBillsButton",
+          "importExpensesButton",
+          "importMileageButton"
+        ].forEach(buttonId => setButtonEnabled(buttonId, enabled));
+    }
+
+    function setImportClientsButtonEnabled(enabled){
+        setButtonEnabled("importClientsButton", enabled);
     }
 
     function setImportInvoicesButtonEnabled(enabled){
-        const importButton = document.getElementById("importInvoicesButton");
-
-        if(importButton){
-          importButton.disabled = !enabled;
-        }
+        setButtonEnabled("importInvoicesButton", enabled);
     }
 
     function setImportBillsButtonEnabled(enabled){
-        const importButton = document.getElementById("importBillsButton");
-
-        if(importButton){
-          importButton.disabled = !enabled;
-        }
+        setButtonEnabled("importBillsButton", enabled);
     }
 
     function setImportExpensesButtonEnabled(enabled){
-        const importButton = document.getElementById("importExpensesButton");
-
-        if(importButton){
-          importButton.disabled = !enabled;
-        }
+        setButtonEnabled("importExpensesButton", enabled);
     }
 
     function setImportMileageButtonEnabled(enabled){
-        const importButton = document.getElementById("importMileageButton");
-
-        if(importButton){
-          importButton.disabled = !enabled;
-        }
+        setButtonEnabled("importMileageButton", enabled);
     }
 
     function buildExcelImportTemplateData(){
