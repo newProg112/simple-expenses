@@ -237,21 +237,201 @@
       font-weight: 700;
     }
 
+    .import-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-top: auto;
+    }
+
+    .import-actions .btn:first-of-type {
+      margin-top: 10px;
+    }
+
+    .advanced-import-options {
+      margin-top: 12px;
+      width: 100%;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 10px;
+    }
+
+    .advanced-import-options summary {
+      cursor: pointer;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 800;
+      list-style-position: inside;
+    }
+
+    .advanced-import-buttons {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding-top: 4px;
+    }
+
     .import-message {
-      margin: 12px 0 0;
+      display: block;
+      width: 100%;
+      margin: 14px 0 0;
+      padding: 14px;
+      box-sizing: border-box;
+      border: 1px solid #dbe7f1;
+      border-left: 5px solid #0077B6;
+      border-radius: 16px;
+      background: #f8fbff;
       color: #5b6b7c;
       font-size: 14px;
-      font-weight: 650;
       line-height: 1.4;
-      white-space: pre-line;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+    }
+
+    .import-message:empty {
+      display: none;
     }
 
     .import-message.success {
-      color: #15803d;
+      border-color: #bbf7d0;
+      border-left-color: #16a34a;
+      background: #f0fdf4;
     }
 
     .import-message.error {
-      color: #b91c1c;
+      border-color: #fecaca;
+      border-left-color: #dc2626;
+      background: #fff5f5;
+    }
+
+    .import-message.warning {
+      border-color: #fde68a;
+      border-left-color: #d97706;
+      background: #fffbeb;
+    }
+
+    .import-message.loading {
+      border-color: #bfdbfe;
+      border-left-color: #0077B6;
+      background: #eff6ff;
+    }
+
+    .import-status-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 8px;
+      color: #102033;
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .import-status-icon {
+      display: inline-grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      border-radius: 50%;
+      background: #0077B6;
+      color: white;
+      font-size: 13px;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .import-message.success .import-status-icon {
+      background: #16a34a;
+    }
+
+    .import-message.error .import-status-icon {
+      background: #dc2626;
+    }
+
+    .import-message.warning .import-status-icon {
+      background: #d97706;
+    }
+
+    .import-status-body {
+      color: #475569;
+      font-weight: 650;
+    }
+
+    .import-ready-list {
+      margin: 8px 0 0 18px;
+      padding: 0;
+      color: #334155;
+    }
+
+    .import-summary-section {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .import-summary-section:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .import-summary-heading {
+      margin: 0 0 8px;
+      color: #102033;
+      font-size: 14px;
+      font-weight: 850;
+    }
+
+    .import-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .import-count {
+      min-width: 0;
+      padding: 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.68);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+    }
+
+    .import-count span {
+      display: block;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .import-count strong {
+      display: block;
+      margin-top: 2px;
+      color: #102033;
+      font-size: 17px;
+      line-height: 1.1;
+    }
+
+    .import-detail-lines {
+      margin-top: 10px;
+      color: #475569;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .import-detail-lines div {
+      margin-top: 3px;
+    }
+
+    .import-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0, 119, 182, 0.24);
+      border-top-color: #0077B6;
+      border-radius: 50%;
+      animation: import-spin .8s linear infinite;
+    }
+
+    @keyframes import-spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     @media (max-width: 800px) {
@@ -273,6 +453,10 @@
       .exports-grid,
       .export-kpi-grid {
         grid-template-columns: 1fr;
+      }
+
+      .import-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
   </style>
@@ -384,47 +568,55 @@
           Download the Simple Books Excel import template with example rows for clients, invoices, bills, expenses and mileage.
         </p>
 
-        <button class="btn" onclick="downloadExcelImportTemplate()">
-          Download template
-        </button>
+        <div class="import-actions">
+          <button class="btn" onclick="downloadExcelImportTemplate()">
+            Download template
+          </button>
 
-        <input
-          type="file"
-          id="excelImportInput"
-          accept=".xlsx"
-          style="display:none"
-          onchange="validateExcelImportWorkbook(event)"
-        >
+          <input
+            type="file"
+            id="excelImportInput"
+            accept=".xlsx"
+            style="display:none"
+            onchange="validateExcelImportWorkbook(event)"
+          >
 
-        <button class="btn" onclick="document.getElementById('excelImportInput').click()">
-          Upload workbook
-        </button>
+          <button class="btn" id="uploadWorkbookButton" onclick="document.getElementById('excelImportInput').click()">
+            Upload workbook
+          </button>
 
-        <button class="btn" id="importAllButton" onclick="importValidatedWorkbookAll()" disabled>
-          Import All
-        </button>
+          <button class="btn" id="importAllButton" onclick="importValidatedWorkbookAll()" disabled>
+            Import All
+          </button>
+        </div>
 
-        <button class="btn" id="importClientsButton" onclick="importValidatedClients()" disabled>
-          Import Clients
-        </button>
+        <details class="advanced-import-options">
+          <summary>Advanced import options</summary>
 
-        <button class="btn" id="importInvoicesButton" onclick="importValidatedInvoices()" disabled>
-          Import Invoices
-        </button>
+          <div class="advanced-import-buttons">
+            <button class="btn" id="importClientsButton" onclick="importValidatedClients()" disabled>
+              Import Clients
+            </button>
 
-        <button class="btn" id="importBillsButton" onclick="importValidatedBills()" disabled>
-          Import Bills
-        </button>
+            <button class="btn" id="importInvoicesButton" onclick="importValidatedInvoices()" disabled>
+              Import Invoices
+            </button>
 
-        <button class="btn" id="importExpensesButton" onclick="importValidatedExpenses()" disabled>
-          Import Expenses
-        </button>
+            <button class="btn" id="importBillsButton" onclick="importValidatedBills()" disabled>
+              Import Bills
+            </button>
 
-        <button class="btn" id="importMileageButton" onclick="importValidatedMileage()" disabled>
-          Import Mileage
-        </button>
+            <button class="btn" id="importExpensesButton" onclick="importValidatedExpenses()" disabled>
+              Import Expenses
+            </button>
 
-        <p class="import-message" id="excelImportMessage" aria-live="polite"></p>
+            <button class="btn" id="importMileageButton" onclick="importValidatedMileage()" disabled>
+              Import Mileage
+            </button>
+          </div>
+        </details>
+
+        <div class="import-message" id="excelImportMessage" aria-live="polite"></div>
       </div>
 
       <div class="card">
@@ -568,11 +760,13 @@
         }
 
         validatedImportWorkbook = null;
+        setUploadButtonEnabled(false);
         setAllImportButtonsEnabled(false);
-        setExcelImportMessage("", "");
+        setExcelImportMessage("Validating workbook...", "loading", { loading: true });
 
         if(!file.name.toLowerCase().endsWith(".xlsx")){
           setExcelImportMessage("Please choose a .xlsx workbook.", "error");
+          setUploadButtonEnabled(true);
           event.target.value = "";
           return;
         }
@@ -587,6 +781,7 @@
             "Could not load the Excel validation library. Please check your connection and try again.",
             "error"
           );
+          setUploadButtonEnabled(true);
           event.target.value = "";
           return;
         }
@@ -601,15 +796,14 @@
           }
 
           validatedImportWorkbook = workbook;
+          setUploadButtonEnabled(true);
           setAllImportButtonsEnabled(true);
-          setExcelImportMessage(
-            "Workbook validated successfully. You can import Clients, Invoices, Bills, Expenses or Mileage now.",
-            "success"
-          );
+          setWorkbookValidatedMessage();
         }catch(error){
           console.error("Excel import validation failed", error);
           setExcelImportMessage("Workbook is not a Simple Books import template.", "error");
         }finally{
+          setUploadButtonEnabled(true);
           event.target.value = "";
         }
     }
@@ -666,6 +860,18 @@
           return;
         }
 
+        const confirmed = confirm(
+          "Import all workbook data into Simple Books?\n\n" +
+          "\u2022 Existing records will be skipped.\n" +
+          "\u2022 New records will be added.\n" +
+          "\u2022 This cannot be undone.\n\n" +
+          "Continue?"
+        );
+
+        if(!confirmed){
+          return;
+        }
+
         const { services, user } = await getBackupUserAndServices();
 
         if(!user || !services?.addDoc){
@@ -687,8 +893,9 @@
         };
         const results = [];
 
+        setUploadButtonEnabled(false);
         setAllImportButtonsEnabled(false);
-        setExcelImportMessage("Importing workbook...", "");
+        setExcelImportMessage("Importing...", "loading", { loading: true });
 
         try{
           for(const step of importSteps){
@@ -698,11 +905,12 @@
             });
           }
 
-          setExcelImportMessage(formatWorkbookImportSummary(results), hasImportFailures(results) ? "error" : "success");
+          setExcelImportMessage(formatWorkbookImportSummary(results), workbookImportStatus(results));
         }catch(error){
           console.error("Workbook import failed", error);
           setExcelImportMessage(error.message || "Workbook import stopped because of a critical error.", "error");
         }finally{
+          setUploadButtonEnabled(true);
           if(validatedImportWorkbook){
             setAllImportButtonsEnabled(true);
           }
@@ -723,7 +931,9 @@
           return;
         }
 
-        setButtonEnabled(buttonId, false);
+        setUploadButtonEnabled(false);
+        setAllImportButtonsEnabled(false);
+        setExcelImportMessage("Importing...", "loading", { loading: true });
 
         try{
           const result = await importFunction({
@@ -732,13 +942,14 @@
             user
           });
 
-          setExcelImportMessage(formatFunction(result), result.failed ? "error" : "success");
+          setExcelImportMessage(formatFunction(result), importResultStatus(result));
         }catch(error){
           console.error(`${importName} import failed`, error);
           setExcelImportMessage(error.message || `Could not import ${importName} from this workbook.`, "error");
         }finally{
+          setUploadButtonEnabled(true);
           if(validatedImportWorkbook){
-            setButtonEnabled(buttonId, true);
+            setAllImportButtonsEnabled(true);
           }
         }
     }
@@ -1645,6 +1856,36 @@
         return results.some(item => normaliseImportResult(item.result).failed > 0);
     }
 
+    function hasImportWarnings(results){
+        return results.some(item => normaliseImportResult(item.result).warnings > 0);
+    }
+
+    function importResultStatus(result){
+        const normalised = normaliseImportResult(result);
+
+        if(normalised.failed > 0){
+          return "error";
+        }
+
+        if(normalised.warnings > 0){
+          return "warning";
+        }
+
+        return "success";
+    }
+
+    function workbookImportStatus(results){
+        if(hasImportFailures(results)){
+          return "error";
+        }
+
+        if(hasImportWarnings(results)){
+          return "warning";
+        }
+
+        return "success";
+    }
+
     function findMissingImportTemplateSheet(workbook){
         if(!workbook || !Array.isArray(workbook.SheetNames)){
           return "README";
@@ -1666,15 +1907,184 @@
         ];
     }
 
-    function setExcelImportMessage(message, type){
+    function setWorkbookValidatedMessage(){
+        setExcelImportMessage(
+          "Workbook validated successfully\nReady to import:\nClients\nInvoices\nBills\nExpenses\nMileage",
+          "success",
+          { validation: true }
+        );
+    }
+
+    function setExcelImportMessage(message, type, options = {}){
         const messageElement = document.getElementById("excelImportMessage");
 
         if(!messageElement){
           return;
         }
 
-        messageElement.textContent = message;
         messageElement.className = `import-message${type ? ` ${type}` : ""}`;
+        messageElement.innerHTML = renderExcelImportMessage(message, type, options);
+    }
+
+    function renderExcelImportMessage(message, type, options){
+        if(!message){
+          return "";
+        }
+
+        if(options.loading){
+          return `
+            <div class="import-status-title">
+              <span class="import-spinner" aria-hidden="true"></span>
+              <span>${escapeImportHtml(message)}</span>
+            </div>
+          `;
+        }
+
+        if(options.validation){
+          return `
+            <div class="import-status-title">
+              <span class="import-status-icon" aria-hidden="true">&#10003;</span>
+              <span>Workbook validated successfully</span>
+            </div>
+            <div class="import-status-body">
+              <div>Ready to import:</div>
+              <ul class="import-ready-list">
+                <li>Clients</li>
+                <li>Invoices</li>
+                <li>Bills</li>
+                <li>Expenses</li>
+                <li>Mileage</li>
+              </ul>
+            </div>
+          `;
+        }
+
+        const summaryHtml = renderImportSummary(message);
+
+        if(summaryHtml){
+          return `
+            <div class="import-status-title">
+              <span class="import-status-icon" aria-hidden="true">${importStatusIcon(type)}</span>
+              <span>${summaryHtml.title}</span>
+            </div>
+            <div class="import-status-body">${summaryHtml.body}</div>
+          `;
+        }
+
+        return `
+          <div class="import-status-title">
+            <span class="import-status-icon" aria-hidden="true">${importStatusIcon(type)}</span>
+            <span>${importStatusTitle(type)}</span>
+          </div>
+          <div class="import-status-body">${escapeImportHtml(message).replace(/\n/g, "<br>")}</div>
+        `;
+    }
+
+    function renderImportSummary(message){
+        const lines = String(message).split("\n");
+        const countLabels = new Set(["Imported", "Skipped", "Warnings", "Failed"]);
+
+        if(!lines.some(line => countLabels.has(line.split(":")[0]))){
+          return null;
+        }
+
+        const title = lines[0] === "Workbook import complete" ? "Import Complete" : "Import Summary";
+        const sections = [];
+        let currentSection = {
+          heading: title === "Import Summary" ? "" : "",
+          counts: [],
+          details: []
+        };
+
+        lines.forEach((line, index) => {
+          const trimmed = line.trim();
+
+          if(!trimmed || index === 0 && trimmed === "Workbook import complete"){
+            return;
+          }
+
+          if(trimmed.endsWith(":") && !countLabels.has(trimmed.slice(0, -1))){
+            if(currentSection.counts.length || currentSection.details.length || currentSection.heading){
+              sections.push(currentSection);
+            }
+
+            currentSection = {
+              heading: trimmed.slice(0, -1),
+              counts: [],
+              details: []
+            };
+            return;
+          }
+
+          const [label, value] = trimmed.split(":").map(part => part.trim());
+
+          if(countLabels.has(label) && value !== undefined){
+            currentSection.counts.push({ label, value });
+            return;
+          }
+
+          currentSection.details.push(trimmed);
+        });
+
+        if(currentSection.counts.length || currentSection.details.length || currentSection.heading){
+          sections.push(currentSection);
+        }
+
+        const body = sections.map((section) => `
+          <div class="import-summary-section">
+            ${section.heading ? `<h3 class="import-summary-heading">${escapeImportHtml(section.heading)}</h3>` : ""}
+            ${section.counts.length ? `
+              <div class="import-summary-grid">
+                ${section.counts.map(count => `
+                  <div class="import-count">
+                    <span>${escapeImportHtml(count.label)}</span>
+                    <strong>${escapeImportHtml(count.value)}</strong>
+                  </div>
+                `).join("")}
+              </div>
+            ` : ""}
+            ${section.details.length ? `
+              <div class="import-detail-lines">
+                ${section.details.map(detail => `<div>${escapeImportHtml(detail)}</div>`).join("")}
+              </div>
+            ` : ""}
+          </div>
+        `).join("");
+
+        return { title, body };
+    }
+
+    function importStatusIcon(type){
+        if(type === "error"){
+          return "!";
+        }
+
+        if(type === "warning"){
+          return "!";
+        }
+
+        return "&#10003;";
+    }
+
+    function importStatusTitle(type){
+        if(type === "error"){
+          return "Import Error";
+        }
+
+        if(type === "warning"){
+          return "Import Warning";
+        }
+
+        return "Import Status";
+    }
+
+    function escapeImportHtml(value){
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
     }
 
     function setButtonEnabled(buttonId, enabled){
@@ -1683,6 +2093,10 @@
         if(button){
           button.disabled = !enabled;
         }
+    }
+
+    function setUploadButtonEnabled(enabled){
+        setButtonEnabled("uploadWorkbookButton", enabled);
     }
 
     function setAllImportButtonsEnabled(enabled){
