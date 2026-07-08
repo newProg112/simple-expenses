@@ -33,7 +33,7 @@
 
     .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
       margin: 0;
     }
@@ -89,19 +89,15 @@
     }
 
     .dashboard-overview{
-      display:grid;
-      grid-template-columns:minmax(0, .78fr) minmax(320px, .92fr);
-      gap:18px;
-      align-items:start;
       margin:18px 0 24px;
     }
 
-    .dashboard-panels{
+    .charts-row{
       display:grid;
-      grid-template-columns:repeat(2, minmax(0, 1fr));
+      grid-template-columns:minmax(0, 2fr) minmax(300px, 1fr);
       gap:18px;
       align-items:start;
-      margin:0 0 24px;
+      margin:18px 0 24px;
     }
 
     .dashboard-link-card{
@@ -323,6 +319,7 @@
     .activity-row {
       display: flex;
       justify-content: space-between;
+      align-items:center;
       gap: 12px;
       padding: 14px 0;
       border-bottom: 1px solid #eef2f7;
@@ -330,6 +327,65 @@
 
     .activity-row:last-child {
       border-bottom: 0;
+    }
+
+    .activity-main,
+    .activity-meta{
+      min-width:0;
+    }
+
+    .activity-meta{
+      text-align:right;
+    }
+
+    .activity-type{
+      display:block;
+      margin-bottom:3px;
+      color:#64748b;
+      font-size:11px;
+      font-weight:850;
+      letter-spacing:0;
+      text-transform:uppercase;
+    }
+
+    .activity-row strong{
+      overflow-wrap:anywhere;
+    }
+
+    .action-row{
+      display:grid;
+      grid-template-columns:minmax(0, 1fr) auto auto;
+      gap:18px;
+      align-items:center;
+      padding:16px 0;
+      border-bottom:1px solid #eef2f7;
+    }
+
+    .action-row:last-child{
+      border-bottom:0;
+    }
+
+    .action-copy{
+      min-width:0;
+    }
+
+    .action-copy p{
+      margin:3px 0 0;
+      font-size:13px;
+    }
+
+    .action-value{
+      color:#102033;
+      font-weight:850;
+      white-space:nowrap;
+    }
+
+    .action-row .btn{
+      min-height:36px;
+      padding:0 12px;
+      border-radius:8px;
+      font-size:13px;
+      white-space:nowrap;
     }
 
     .panel > p.muted{
@@ -417,11 +473,7 @@
         padding:32px 20px 56px;
       }
 
-      .dashboard-overview{
-        grid-template-columns:1fr;
-      }
-
-      .dashboard-panels{
+      .charts-row{
         grid-template-columns:1fr;
       }
 
@@ -448,6 +500,19 @@
 
       .onboarding-item a{
         justify-self:start;
+      }
+
+      .action-row{
+        grid-template-columns:1fr auto;
+        gap:10px;
+      }
+
+      .action-copy{
+        grid-column:1 / -1;
+      }
+
+      .activity-row{
+        align-items:flex-start;
       }
 
       .header-greeting{
@@ -634,33 +699,6 @@
           </div>
         </a>
 
-        <a class="card dashboard-link-card summary-kpi-green" href="./resources/tools/invoice-generator.html">
-          <span class="kpi-icon kpi-green" aria-hidden="true">P</span>
-          <div class="summary-content">
-            <div class="muted">Paid invoices</div>
-            <h2 id="paidTotal">&pound;0.00</h2>
-            <div class="trend-badge trend-neutral" id="paidTrend">No change</div>
-          </div>
-        </a>
-
-        <a class="card dashboard-link-card summary-kpi-orange" href="./resources/tools/invoice-generator.html">
-          <span class="kpi-icon kpi-orange" aria-hidden="true">!</span>
-          <div class="summary-content">
-            <div class="muted">Overdue invoices</div>
-            <h2 id="overdueCount">0</h2>
-            <div class="trend-badge trend-neutral" id="overdueTrend">No change</div>
-          </div>
-        </a>
-
-        <a class="card dashboard-link-card summary-kpi-purple" href="./resources/tools/invoice-generator.html">
-          <span class="kpi-icon kpi-purple" aria-hidden="true">S</span>
-          <div class="summary-content">
-            <div class="muted">Saved invoices</div>
-            <h2 id="invoiceCount">0</h2>
-            <div class="trend-badge trend-neutral" id="invoiceCountTrend">No change</div>
-          </div>
-        </a>
-
         <a class="card dashboard-link-card summary-kpi-blue" href="./resources/tools/bills.html">
           <span class="kpi-icon kpi-blue" aria-hidden="true">U</span>
           <div class="summary-content">
@@ -679,26 +717,20 @@
           </div>
         </a>
 
-        <a class="card dashboard-link-card summary-kpi-orange" href="./resources/tools/bills.html">
+        <a class="card dashboard-link-card summary-kpi-orange" href="./resources/tools/invoice-generator.html">
           <span class="kpi-icon kpi-orange" aria-hidden="true">!</span>
           <div class="summary-content">
-            <div class="muted">Overdue bills</div>
-            <h2 id="overdueBills">0</h2>
-            <div class="trend-badge trend-neutral" id="overdueBillsTrend">No change</div>
-          </div>
-        </a>
-
-        <a class="card dashboard-link-card summary-kpi-slate" href="./resources/tools/bills.html">
-          <span class="kpi-icon kpi-slate" aria-hidden="true">C</span>
-          <div class="summary-content">
-            <div class="muted">Cashflow position</div>
-            <h2 id="cashflowPosition">&pound;0.00</h2>
-            <div class="trend-badge trend-neutral" id="cashflowPositionTrend">No change</div>
+            <div class="muted">Overdue items</div>
+            <h2 id="overdueItems">0</h2>
+            <div class="trend-badge trend-neutral" id="overdueItemsTrend">No change</div>
           </div>
         </a>
 
       </div>
 
+    </section>
+
+    <section class="charts-row">
       <section class="card chart-card">
         <h2>Income vs Bills</h2>
         <p class="muted">Monthly invoices raised compared with bills entered.</p>
@@ -707,9 +739,6 @@
         </div>
       </section>
 
-    </section>
-
-    <section class="dashboard-panels">
       <section class="card chart-card">
         <h2>Outstanding Invoice Ageing</h2>
         <p class="muted">Unpaid invoice value by days since due date.</p>
@@ -719,16 +748,16 @@
       </section>
     </section>
 
+    <h2 class="section-title">Next Actions</h2>
+
+    <div class="panel" id="nextActions">
+      <p class="muted">You're all caught up.</p>
+    </div>
+
     <h2 class="section-title">Recent Activity</h2>
 
     <div class="panel" id="recentActivity">
       <p class="muted">No recent activity yet.</p>
-    </div>
-
-    <h2 class="section-title">Upcoming Reminders</h2>
-
-    <div class="panel" id="upcomingReminders">
-      <p class="muted">No upcoming reminders yet.</p>
     </div>
   </main>
 
@@ -780,6 +809,27 @@
 
     function money(value) {
       return "£" + Number(value || 0).toFixed(2);
+    }
+
+    function escapeDashboardHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function formatDashboardDate(value) {
+      const date = parseDashboardDate(value);
+
+      return date
+        ? date.toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric"
+          })
+        : "";
     }
 
     async function loadAccountSummary(){
@@ -991,6 +1041,16 @@
       return bill.billDate || bill.dueDate || bill.createdAt;
     }
 
+    function clientActivityDate(client) {
+      const savedDate =
+        client.updatedAt || client.createdAt || client.dateAdded;
+
+      if(savedDate) return savedDate;
+
+      const numericId = Number(client.id);
+      return Number.isFinite(numericId) ? new Date(numericId) : null;
+    }
+
     function isBillOverdue(bill) {
       if (bill.status === "Paid" || !bill.dueDate) return false;
 
@@ -1002,6 +1062,35 @@
 
       due.setHours(0, 0, 0, 0);
       return due < today;
+    }
+
+    function isInvoiceOverdue(invoice) {
+      if (invoice.status === "Paid" || !invoice.dueDate) return false;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const due = parseDashboardDate(invoice.dueDate);
+      if (!due) return false;
+
+      due.setHours(0, 0, 0, 0);
+      return due < today;
+    }
+
+    function isBillDueSoon(bill) {
+      if (bill.status === "Paid" || !bill.dueDate) return false;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const due = parseDashboardDate(bill.dueDate);
+      if (!due) return false;
+
+      due.setHours(0, 0, 0, 0);
+      const sevenDaysFromNow = new Date(today);
+      sevenDaysFromNow.setDate(today.getDate() + 7);
+
+      return due >= today && due <= sevenDaysFromNow;
     }
 
     function trendPercent(current, previous) {
@@ -1040,7 +1129,17 @@
       let bills =
         JSON.parse(localStorage.getItem("simpleBooksBills") || "[]");
 
+      let clients =
+        JSON.parse(localStorage.getItem("simpleBooksClients") || "[]");
+
+      let customers =
+        JSON.parse(localStorage.getItem("simpleBooksCustomers") || "[]");
+
+      let expenses =
+        JSON.parse(localStorage.getItem("simpleBooksExpenses") || "[]");
+
       const user = await getDashboardUser();
+      let account = readAccountCache(user);
 
       if(user){
         try{
@@ -1068,19 +1167,59 @@
         }catch(error){
           console.error("Could not load dashboard bills from Firestore", error);
         }
-      }
 
-      const reminders = invoices
-        .filter(inv => inv.reminderDate)
-        .sort((a, b) => new Date(a.reminderDate) - new Date(b.reminderDate))
-        .slice(0, 5);
+        try{
+          const clientsSnap = await getDocs(
+            collection(db, "users", user.uid, "clients")
+          );
+
+          clients = clientsSnap.docs.map(snap => ({
+            id: snap.id,
+            ...snap.data()
+          }));
+        }catch(error){
+          console.error("Could not load dashboard clients from Firestore", error);
+        }
+
+        try{
+          const customersSnap = await getDocs(
+            collection(db, "users", user.uid, "customers")
+          );
+
+          customers = customersSnap.docs.map(snap => ({
+            id: snap.id,
+            ...snap.data()
+          }));
+        }catch(error){
+          console.error("Could not load dashboard customers from Firestore", error);
+        }
+
+        try{
+          const expensesSnap = await getDocs(
+            collection(db, "users", user.uid, "expenses")
+          );
+
+          expenses = expensesSnap.docs.map(snap => ({
+            id: snap.id,
+            ...snap.data()
+          }));
+        }catch(error){
+          console.error("Could not load dashboard expenses from Firestore", error);
+        }
+
+        try{
+          const accountSnap = await getDoc(doc(db, "users", user.uid));
+
+          if(accountSnap.exists()){
+            account = accountSnap.data();
+          }
+        }catch(error){
+          console.error("Could not load dashboard setup status from Firestore", error);
+        }
+      }
 
       const outstanding = invoices
         .filter(inv => inv.status !== "Paid")
-        .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
-
-      const paid = invoices
-        .filter(inv => inv.status === "Paid")
         .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
 
       const overdue = invoices.filter(inv => inv.status !== "Paid" && inv.dueDate).length;
@@ -1103,8 +1242,6 @@
         return due < today;
       }).length;
 
-      const cashflowPosition = outstanding - unpaidBills;
-
       const netPosition = outstanding - unpaidBills;
 
       const currentMonth = startOfMonth(new Date());
@@ -1122,14 +1259,6 @@
 
       const previousOutstanding = previousMonthInvoices
         .filter(inv => inv.status !== "Paid")
-        .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
-
-      const currentPaid = currentMonthInvoices
-        .filter(inv => inv.status === "Paid")
-        .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
-
-      const previousPaid = previousMonthInvoices
-        .filter(inv => inv.status === "Paid")
         .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
 
       const currentOverdue = invoices
@@ -1165,13 +1294,11 @@
         .filter(bill => isBillOverdue(bill) && isSameMonth(bill.dueDate, previousMonthStart))
         .length;
 
-      const currentCashflowPosition = currentOutstanding - currentUnpaidBills;
-      const previousCashflowPosition = previousOutstanding - previousUnpaidBills;
+      const overdueItems = overdue + overdueBills;
+      const currentOverdueItems = currentOverdue + currentOverdueBills;
+      const previousOverdueItems = previousOverdue + previousOverdueBills;
 
       document.getElementById("outstandingTotal").textContent = money(outstanding);
-      document.getElementById("paidTotal").textContent = money(paid);
-      document.getElementById("overdueCount").textContent = overdue;
-      document.getElementById("invoiceCount").textContent = invoices.length;
 
       document.getElementById("unpaidBills").textContent =
         money(unpaidBills);
@@ -1179,52 +1306,144 @@
       document.getElementById("netPosition").textContent =
         money(netPosition);
 
-      document.getElementById("overdueBills").textContent =
-        overdueBills;
-
-      document.getElementById("cashflowPosition").textContent =
-        money(cashflowPosition);
+      document.getElementById("overdueItems").textContent =
+        overdueItems;
 
       setTrendBadge("outstandingTrend", currentOutstanding, previousOutstanding);
-      setTrendBadge("paidTrend", currentPaid, previousPaid);
-      setTrendBadge("overdueTrend", currentOverdue, previousOverdue);
-      setTrendBadge("invoiceCountTrend", currentMonthInvoices.length, previousMonthInvoices.length);
       setTrendBadge("unpaidBillsTrend", currentUnpaidBills, previousUnpaidBills);
       setTrendBadge("netPositionTrend", currentNetPosition, previousNetPosition);
-      setTrendBadge("overdueBillsTrend", currentOverdueBills, previousOverdueBills);
-      setTrendBadge("cashflowPositionTrend", currentCashflowPosition, previousCashflowPosition);
+      setTrendBadge("overdueItemsTrend", currentOverdueItems, previousOverdueItems);
 
-      const recent = invoices.slice(0, 5);
+      const overdueInvoices = invoices.filter(isInvoiceOverdue);
+      const overdueBillRecords = bills.filter(isBillOverdue);
+      const billsDueSoon = bills.filter(isBillDueSoon);
+      const incompleteSetupTasks = [
+        !Boolean(account.fullName && account.businessName && account.email),
+        !Boolean(account.paymentTermsDefault),
+        clients.length === 0 && customers.length === 0,
+        invoices.length === 0
+      ].filter(Boolean).length;
+      const backupIncomplete =
+        localStorage.getItem("simpleBooksBackupDownloaded") !== "true";
+      const actions = [];
+
+      if(overdueInvoices.length){
+        const overdueInvoiceTotal = overdueInvoices
+          .reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+
+        actions.push({
+          title: "Overdue invoices to chase",
+          description: `${overdueInvoices.length} ${overdueInvoices.length === 1 ? "invoice needs" : "invoices need"} follow-up.`,
+          value: money(overdueInvoiceTotal),
+          href: "/resources/tools/invoice-generator.html",
+          button: "View invoices"
+        });
+      }
+
+      if(overdueBillRecords.length || billsDueSoon.length){
+        const relevantBills = [...overdueBillRecords, ...billsDueSoon];
+        const relevantBillTotal = relevantBills
+          .reduce((sum, bill) => sum + Number(bill.total || 0), 0);
+        const parts = [];
+
+        if(overdueBillRecords.length) parts.push(`${overdueBillRecords.length} overdue`);
+        if(billsDueSoon.length) parts.push(`${billsDueSoon.length} due in 7 days`);
+
+        actions.push({
+          title: "Bills need attention",
+          description: parts.join(" and ") + ".",
+          value: money(relevantBillTotal),
+          href: "/resources/tools/bills.html",
+          button: "View bills"
+        });
+      }
+
+      if(incompleteSetupTasks){
+        actions.push({
+          title: "Complete your setup",
+          description: `${incompleteSetupTasks} ${incompleteSetupTasks === 1 ? "task is" : "tasks are"} still incomplete.`,
+          value: `${incompleteSetupTasks} remaining`,
+          href: "/account.html",
+          button: "Continue setup"
+        });
+      }
+
+      if(backupIncomplete){
+        actions.push({
+          title: "Download a backup",
+          description: "Protect your records with your first data backup.",
+          value: "",
+          href: "/exports.html",
+          button: "Open exports"
+        });
+      }
+
+      document.getElementById("nextActions").innerHTML = actions.length
+        ? actions.map(action => `
+            <div class="action-row">
+              <div class="action-copy">
+                <strong>${escapeDashboardHtml(action.title)}</strong>
+                <p class="muted">${escapeDashboardHtml(action.description)}</p>
+              </div>
+              <div class="action-value">${escapeDashboardHtml(action.value)}</div>
+              <a class="btn" href="${action.href}">${escapeDashboardHtml(action.button)}</a>
+            </div>
+          `).join("")
+        : `<p class="muted">You're all caught up.</p>`;
+
+      const recent = [
+        ...invoices.map(invoice => ({
+          type: "Invoice",
+          name: invoice.invoiceNo || invoice.client || "Invoice",
+          amount: Number(invoice.total || 0),
+          status: invoice.status || "Unpaid",
+          date: invoiceActivityDate(invoice)
+        })),
+        ...bills.map(bill => ({
+          type: "Bill",
+          name: bill.billNumber || bill.supplier || "Bill",
+          amount: Number(bill.total || 0),
+          status: bill.status || "Unpaid",
+          date: billActivityDate(bill)
+        })),
+        ...(clients.length ? clients : customers).map(client => ({
+          type: "Client",
+          name: client.name || "Unnamed client",
+          amount: null,
+          status: client.status || "Added",
+          date: clientActivityDate(client)
+        })),
+        ...expenses.map(expense => ({
+          type: "Expense",
+          name: expense.merchant || expense.description || expense.category || "Expense",
+          amount: Number(expense.gross || expense.amount || 0),
+          status: expense.status || expense.category || "",
+          date: expense.updatedAt || expense.date || expense.createdAt
+        }))
+      ]
+        .map(item => ({
+          ...item,
+          parsedDate: parseDashboardDate(item.date)
+        }))
+        .sort((a, b) => (b.parsedDate?.getTime() || 0) - (a.parsedDate?.getTime() || 0))
+        .slice(0, 5);
 
       document.getElementById("recentActivity").innerHTML = recent.length
-        ? recent.map(inv => `
+        ? recent.map(item => `
             <div class="activity-row">
-              <div>
-                <strong>${inv.invoiceNo || "Invoice"}</strong><br>
-                <span class="muted">${inv.client || "Unknown client"}</span>
+              <div class="activity-main">
+                <span class="activity-type">${escapeDashboardHtml(item.type)}</span>
+                <strong>${escapeDashboardHtml(item.name)}</strong>
               </div>
-              <div>
-                <strong>${money(inv.total)}</strong><br>
-                <span class="muted">${inv.status || "Unpaid"}</span>
+              <div class="activity-meta">
+                ${item.amount === null ? "" : `<strong>${money(item.amount)}</strong><br>`}
+                <span class="muted">${escapeDashboardHtml(
+                  [item.status, formatDashboardDate(item.date)].filter(Boolean).join(" - ")
+                )}</span>
               </div>
             </div>
           `).join("")
         : `<p class="muted">No recent activity yet.</p>`;
-
-      document.getElementById("upcomingReminders").innerHTML = reminders.length
-        ? reminders.map(inv => `
-            <div class="activity-row">
-                <div>
-                <strong>${inv.invoiceNo || "Invoice reminder"}</strong><br>
-                <span class="muted">${inv.client || "Unknown client"}</span>
-                </div>
-                <div>
-                <strong>${inv.reminderDate}</strong><br>
-                <span class="muted">${inv.recurringFrequency || "Reminder"}</span>
-                </div>
-            </div>
-            `).join("")
-        : `<p class="muted">No upcoming reminders yet.</p>`;
 
       renderIncomeBillsChart(invoices, bills);
       renderInvoiceAgeingChart(invoices);
