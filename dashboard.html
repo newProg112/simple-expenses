@@ -231,7 +231,7 @@
 
     .onboarding-card{
       margin:0 0 18px;
-      padding:20px;
+      padding:16px 18px;
     }
 
     .onboarding-header{
@@ -239,7 +239,7 @@
       align-items:flex-start;
       justify-content:space-between;
       gap:18px;
-      margin-bottom:14px;
+      margin-bottom:10px;
     }
 
     .onboarding-header h2{
@@ -275,7 +275,44 @@
       border-radius:14px;
       padding:9px 10px;
       background:#f8fbff;
-      min-height:54px;
+      min-height:48px;
+    }
+
+    .onboarding-item[hidden]{
+      display:none;
+    }
+
+    .onboarding-success{
+      display:none;
+    }
+
+    .onboarding-card.is-complete{
+      padding:14px 18px;
+      border-color:#bbf7d0;
+      background:#f0fdf4;
+    }
+
+    .onboarding-card.is-complete .onboarding-header,
+    .onboarding-card.is-complete .onboarding-list{
+      display:none;
+    }
+
+    .onboarding-card.is-complete .onboarding-success{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+    }
+
+    .onboarding-success strong{
+      display:block;
+      color:#166534;
+      font-size:15px;
+    }
+
+    .onboarding-success p{
+      margin:2px 0 0;
+      font-size:13px;
     }
 
     .onboarding-item label{
@@ -684,6 +721,14 @@
           <a href="/exports.html">Open exports</a>
         </div>
       </div>
+
+      <div class="onboarding-success">
+        <div>
+          <strong>Setup complete</strong>
+          <p class="muted">You're ready to use Simple Books.</p>
+        </div>
+        <div class="onboarding-progress">5/5 complete</div>
+      </div>
     </section>
 
     <section class="dashboard-overview">
@@ -894,6 +939,12 @@
 
       if(checkbox){
         checkbox.checked = isComplete;
+
+        const item = checkbox.closest(".onboarding-item");
+
+        if(item){
+          item.hidden = isComplete;
+        }
       }
     }
 
@@ -922,6 +973,19 @@
         }catch(error){
           console.error("Could not load onboarding profile from Firestore", error);
           account = readAccountCache(user);
+        }
+
+        try{
+          const clientsSnap = await getDocs(
+            query(collection(db, "users", user.uid, "clients"), limit(1))
+          );
+
+          clients = clientsSnap.docs.map(snap => ({
+            id: snap.id,
+            ...snap.data()
+          }));
+        }catch(error){
+          console.error("Could not load onboarding clients from Firestore", error);
         }
 
         try{
@@ -980,6 +1044,12 @@
 
       if(progress){
         progress.textContent = `${completedCount}/5 complete`;
+      }
+
+      const onboardingCard = document.querySelector(".onboarding-card");
+
+      if(onboardingCard){
+        onboardingCard.classList.toggle("is-complete", completedCount === 5);
       }
     }
 
@@ -1139,7 +1209,6 @@
         JSON.parse(localStorage.getItem("simpleBooksExpenses") || "[]");
 
       const user = await getDashboardUser();
-      let account = readAccountCache(user);
 
       if(user){
         try{
@@ -1207,15 +1276,6 @@
           console.error("Could not load dashboard expenses from Firestore", error);
         }
 
-        try{
-          const accountSnap = await getDoc(doc(db, "users", user.uid));
-
-          if(accountSnap.exists()){
-            account = accountSnap.data();
-          }
-        }catch(error){
-          console.error("Could not load dashboard setup status from Firestore", error);
-        }
       }
 
       const outstanding = invoices
@@ -1317,14 +1377,6 @@
       const overdueInvoices = invoices.filter(isInvoiceOverdue);
       const overdueBillRecords = bills.filter(isBillOverdue);
       const billsDueSoon = bills.filter(isBillDueSoon);
-      const incompleteSetupTasks = [
-        !Boolean(account.fullName && account.businessName && account.email),
-        !Boolean(account.paymentTermsDefault),
-        clients.length === 0 && customers.length === 0,
-        invoices.length === 0
-      ].filter(Boolean).length;
-      const backupIncomplete =
-        localStorage.getItem("simpleBooksBackupDownloaded") !== "true";
       const actions = [];
 
       if(overdueInvoices.length){
@@ -1355,26 +1407,6 @@
           value: money(relevantBillTotal),
           href: "/resources/tools/bills.html",
           button: "View bills"
-        });
-      }
-
-      if(incompleteSetupTasks){
-        actions.push({
-          title: "Complete your setup",
-          description: `${incompleteSetupTasks} ${incompleteSetupTasks === 1 ? "task is" : "tasks are"} still incomplete.`,
-          value: `${incompleteSetupTasks} remaining`,
-          href: "/account.html",
-          button: "Continue setup"
-        });
-      }
-
-      if(backupIncomplete){
-        actions.push({
-          title: "Download a backup",
-          description: "Protect your records with your first data backup.",
-          value: "",
-          href: "/exports.html",
-          button: "Open exports"
         });
       }
 
