@@ -1964,121 +1964,19 @@
         </div>
 
         <div class="card kpi-card">
-          <div class="muted">Paid</div>
-          <h2 id="dashboardPaid">£0.00</h2>
-        </div>
-
-        <div class="card kpi-card">
           <div class="muted">Overdue</div>
           <h2 id="dashboardOverdue">£0.00</h2>
         </div>
 
         <div class="card kpi-card">
-          <div class="muted">Invoices</div>
-          <h2 id="dashboardCount">0</h2>
-        </div>
-
-        <div class="card kpi-card">
-          <div class="muted">This Month</div>
+          <div class="muted">Invoiced This Month</div>
           <h2 id="dashboardThisMonth">£0.00</h2>
           <div id="dashboardMonthTrend" class="kpi-trend neutral">No previous month</div>
         </div>
 
         <div class="card kpi-card">
-          <div class="muted">Paid %</div>
-          <h2 id="dashboardPaidPercent">0%</h2>
-        </div>
-
-        <div class="card kpi-card">
           <div class="muted">Due Soon</div>
           <h2 id="dashboardDueSoon">0</h2>
-        </div>
-
-        <div class="card kpi-card">
-          <div class="muted">Overdue Count</div>
-          <h2 id="dashboardOverdueCount">0</h2>
-        </div>
-
-      </div>
-
-      <div class="mobile-section">
-
-        <button class="mobile-section-toggle">
-          Analytics
-        </button>
-
-        <div class="mobile-section-content">
-
-          <div class="analytics-grid">
-
-            <div class="card chart-card">
-              <div class="chart-header">
-                <div>
-                  <h2>Revenue Trend</h2>
-                  <p class="muted">Invoice totals by month</p>
-                  <div id="chartTotal" class="chart-total">£0.00</div>
-                </div>
-              </div>
-
-              <div class="chart-shell">
-                <canvas id="revenueChart" height="85"></canvas>
-              </div>
-            </div>
-
-            <div class="card chart-card">
-              <div class="chart-header">
-                <div>
-                  <h2>Invoice Status</h2>
-                  <p class="muted">Paid vs unpaid invoices</p>
-                </div>
-              </div>
-
-              <div class="chart-shell chart-shell-compact">
-                <canvas id="statusChart" height="180"></canvas>
-              </div>
-            </div>
-
-            <div class="card chart-card">
-              <div class="chart-header">
-                <div>
-                  <h2>Monthly Revenue</h2>
-                  <p class="muted">Bar chart view</p>
-                </div>
-              </div>
-
-              <div class="chart-shell">
-                <canvas id="monthlyRevenueBarChart" height="90"></canvas>
-              </div>
-            </div>
-
-            <div class="card chart-card">
-              <div class="chart-header">
-                <div>
-                  <h2>Outstanding Ageing</h2>
-                  <p class="muted">Overdue invoice buckets</p>
-                </div>
-              </div>
-
-              <div class="chart-shell">
-                <canvas id="ageingChart" height="180"></canvas>
-              </div>
-            </div>
-
-            <div class="card chart-card analytics-wide-card">
-              <div class="chart-header">
-                <div>
-                  <h2>Top Customers</h2>
-                  <p class="muted">Highest invoice totals</p>
-                </div>
-              </div>
-
-              <div id="topCustomersList" class="top-customers-list">
-                No customer data yet.
-              </div>
-            </div>
-
-          </div>
-
         </div>
 
       </div>
@@ -2342,50 +2240,6 @@
 
         <div class="invoice-admin-section">
 
-          <div style="margin-top:28px;">
-
-            <div class="statement-card">
-              <h2>Statement Summary</h2>
-
-              <div class="statement-toolbar">
-
-                <div>
-                  <label>From</label>
-                  <input id="statementFromDate" type="date">
-                </div>
-
-                <div>
-                  <label>To</label>
-                  <input id="statementToDate" type="date">
-                </div>
-
-                <div style="display:flex; align-items:end; gap:8px; padding-bottom:10px;">
-                  <input id="statementUnpaidOnly" type="checkbox">
-                  <label for="statementUnpaidOnly" style="margin:0;">Unpaid only</label>
-                </div>
-
-              </div>
-
-              <div id="statementSummary" class="statement-shell">
-                <div class="statement-empty">
-                  No statement generated yet.
-                </div>
-              </div>
-
-              <div class="statement-actions">
-                <button onclick="generateStatement()">
-                  Generate Statement
-                </button>
-
-                <button onclick="printStatement()">
-                  Save / Print Statement PDF
-                </button>
-              </div>
-
-            </div>
-
-          </div>
-
           <section class="recent-invoices-card" aria-labelledby="recentInvoicesTitle">
             <div class="list-header">
               <div>
@@ -2429,6 +2283,132 @@
               No invoices saved yet.
             </div>
           </section>
+
+          <div class="mobile-section">
+
+            <button class="mobile-section-toggle">
+              Analytics
+            </button>
+
+            <div class="mobile-section-content">
+
+              <div class="analytics-grid">
+
+                <div class="card chart-card">
+                  <div class="chart-header">
+                    <div>
+                      <h2>Revenue Trend</h2>
+                      <p class="muted">Invoice totals by month</p>
+                      <div id="chartTotal" class="chart-total">£0.00</div>
+                    </div>
+                  </div>
+
+                  <div class="chart-shell">
+                    <canvas id="revenueChart" height="85"></canvas>
+                  </div>
+                </div>
+
+                <div class="card chart-card">
+                  <div class="chart-header">
+                    <div>
+                      <h2>Invoice Status</h2>
+                      <p class="muted">Paid vs unpaid invoices</p>
+                    </div>
+                  </div>
+
+                  <div class="chart-shell chart-shell-compact">
+                    <canvas id="statusChart" height="180"></canvas>
+                  </div>
+                </div>
+
+                <div class="card chart-card">
+                  <div class="chart-header">
+                    <div>
+                      <h2>Monthly Revenue</h2>
+                      <p class="muted">Bar chart view</p>
+                    </div>
+                  </div>
+
+                  <div class="chart-shell">
+                    <canvas id="monthlyRevenueBarChart" height="90"></canvas>
+                  </div>
+                </div>
+
+                <div class="card chart-card">
+                  <div class="chart-header">
+                    <div>
+                      <h2>Outstanding Ageing</h2>
+                      <p class="muted">Overdue invoice buckets</p>
+                    </div>
+                  </div>
+
+                  <div class="chart-shell">
+                    <canvas id="ageingChart" height="180"></canvas>
+                  </div>
+                </div>
+
+                <div class="card chart-card analytics-wide-card">
+                  <div class="chart-header">
+                    <div>
+                      <h2>Top Customers</h2>
+                      <p class="muted">Highest invoice totals</p>
+                    </div>
+                  </div>
+
+                  <div id="topCustomersList" class="top-customers-list">
+                    No customer data yet.
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div style="margin-top:28px;">
+
+            <div class="statement-card">
+              <h2>Statement Summary</h2>
+
+              <div class="statement-toolbar">
+
+                <div>
+                  <label>From</label>
+                  <input id="statementFromDate" type="date">
+                </div>
+
+                <div>
+                  <label>To</label>
+                  <input id="statementToDate" type="date">
+                </div>
+
+                <div style="display:flex; align-items:end; gap:8px; padding-bottom:10px;">
+                  <input id="statementUnpaidOnly" type="checkbox">
+                  <label for="statementUnpaidOnly" style="margin:0;">Unpaid only</label>
+                </div>
+
+              </div>
+
+              <div id="statementSummary" class="statement-shell">
+                <div class="statement-empty">
+                  No statement generated yet.
+                </div>
+              </div>
+
+              <div class="statement-actions">
+                <button onclick="generateStatement()">
+                  Generate Statement
+                </button>
+
+                <button onclick="printStatement()">
+                  Save / Print Statement PDF
+                </button>
+              </div>
+
+            </div>
+
+          </div>
 
         </div>
 
