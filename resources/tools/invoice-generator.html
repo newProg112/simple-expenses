@@ -2920,6 +2920,83 @@ async function getInvoiceUser(){
     await (window.invoiceAuthReady || Promise.resolve(null));
 }
 
+function normaliseInvoiceDate(value){
+  const invalidResult = {
+    date: null,
+    display: "-",
+    monthKey: ""
+  };
+
+  if(value === null || value === undefined || value === ""){
+    return invalidResult;
+  }
+
+  if(typeof value === "object" && !(value instanceof Date)){
+    if(typeof value.toDate === "function"){
+      try{
+        return normaliseInvoiceDate(value.toDate());
+      }catch(error){
+        return invalidResult;
+      }
+    }
+
+    if(typeof value.seconds === "number"){
+      return normaliseInvoiceDate(new Date(value.seconds * 1000));
+    }
+  }
+
+  let date = null;
+
+  if(value instanceof Date){
+    date = new Date(value.getTime());
+  } else {
+    const text = String(value).trim();
+    let match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+    if(match){
+      date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+
+      if(
+        date.getFullYear() !== Number(match[3]) ||
+        date.getMonth() !== Number(match[2]) - 1 ||
+        date.getDate() !== Number(match[1])
+      ){
+        date = null;
+      }
+    } else {
+      match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+      if(match){
+        date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+
+        if(
+          date.getFullYear() !== Number(match[1]) ||
+          date.getMonth() !== Number(match[2]) - 1 ||
+          date.getDate() !== Number(match[3])
+        ){
+          date = null;
+        }
+      } else {
+        const parsed = new Date(text);
+        date = Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+    }
+  }
+
+  if(!date || Number.isNaN(date.getTime())){
+    return invalidResult;
+  }
+
+  return {
+    date,
+    display: date.toLocaleDateString("en-GB"),
+    monthKey:
+      String(date.getMonth() + 1).padStart(2, "0") +
+      "/" +
+      date.getFullYear()
+  };
+}
+
 async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items){
   const invoice = {
     invoiceNo: invoiceNo,
@@ -3113,12 +3190,11 @@ function renderDashboardTotals(invoices){
 
   const thisMonth = invoices
     .filter(invoice => {
-      if(!invoice.date){
+      const invoiceDate = normaliseInvoiceDate(invoice.date).date;
+
+      if(!invoiceDate){
         return false;
       }
-
-      const parts = invoice.date.split("/");
-      const invoiceDate = new Date(parts[2], parts[1] - 1, parts[0]);
 
       return (
         invoiceDate.getMonth() === currentMonth &&
@@ -3135,14 +3211,11 @@ function renderDashboardTotals(invoices){
 
     const previousMonth = invoices
       .filter(invoice => {
+        const invoiceDate = normaliseInvoiceDate(invoice.date).date;
 
-        if(!invoice.date){
+        if(!invoiceDate){
           return false;
         }
-
-        const parts = invoice.date.split("/");
-        const invoiceDate =
-          new Date(parts[2], parts[1] - 1, parts[0]);
 
         return (
           invoiceDate.getMonth() === previousMonthDate.getMonth() &&
@@ -3263,12 +3336,12 @@ async function renderRecentInvoices(){
   }
 
   invoices.sort((a, b) => {
-    const aParts = a.date.split("/");
-    const bParts = b.date.split("/");
+    const aDate = normaliseInvoiceDate(a.date).date;
+    const bDate = normaliseInvoiceDate(b.date).date;
 
-    const aDate = new Date(aParts[2], aParts[1] - 1, aParts[0]);
-    const bDate = new Date(bParts[2], bParts[1] - 1, bParts[0]);
-
+    if(!aDate && !bDate) return 0;
+    if(!aDate) return 1;
+    if(!bDate) return -1;
     return bDate - aDate;
   });
 
@@ -3284,7 +3357,15 @@ async function renderRecentInvoices(){
     document.getElementById("invoiceSort")?.value || "newest";
 
   if(sortValue === "oldest"){
-    invoices.reverse();
+    invoices.sort((a, b) => {
+      const aDate = normaliseInvoiceDate(a.date).date;
+      const bDate = normaliseInvoiceDate(b.date).date;
+
+      if(!aDate && !bDate) return 0;
+      if(!aDate) return 1;
+      if(!bDate) return -1;
+      return aDate - bDate;
+    });
   }
 
   if(sortValue === "highest"){
@@ -3337,7 +3418,7 @@ async function renderRecentInvoices(){
 
             <div>
               <div class="invoice-row-title">${invoice.invoiceNo}</div>
-              <div class="invoice-row-sub">${invoice.date || ""}</div>
+              <div class="invoice-row-sub">${normaliseInvoiceDate(invoice.date).display}</div>
             </div>
 
             <div>
@@ -3605,29 +3686,26 @@ async function generateStatement(){
   const toDate = document.getElementById("statementToDate")?.value || "";
   const unpaidOnly = document.getElementById("statementUnpaidOnly")?.checked || false;
 
-  function parseInvoiceDate(dateText){
-    const parts = dateText.split("/");
-    return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-  }
-
-  function parseInputDate(dateText){
-    const parts = dateText.split("-");
-    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-  }
-
-  function formatInputDate(dateText){
-    if(!dateText) return "";
-    return parseInputDate(dateText).toLocaleDateString("en-GB");
-  }
-
   if(fromDate){
-    const from = parseInputDate(fromDate);
-    invoices = invoices.filter(invoice => invoice.date && parseInvoiceDate(invoice.date) >= from);
+    const from = normaliseInvoiceDate(fromDate).date;
+
+    if(from){
+      invoices = invoices.filter(invoice => {
+        const invoiceDate = normaliseInvoiceDate(invoice.date).date;
+        return invoiceDate && invoiceDate >= from;
+      });
+    }
   }
 
   if(toDate){
-    const to = parseInputDate(toDate);
-    invoices = invoices.filter(invoice => invoice.date && parseInvoiceDate(invoice.date) <= to);
+    const to = normaliseInvoiceDate(toDate).date;
+
+    if(to){
+      invoices = invoices.filter(invoice => {
+        const invoiceDate = normaliseInvoiceDate(invoice.date).date;
+        return invoiceDate && invoiceDate <= to;
+      });
+    }
   }
 
   if(unpaidOnly){
@@ -3689,8 +3767,8 @@ async function generateStatement(){
             fromDate || toDate
               ? `
                 <div style="margin-top:10px;">
-                  ${fromDate ? `From: ${formatInputDate(fromDate)}<br>` : ""}
-                  ${toDate ? `To: ${formatInputDate(toDate)}` : ""}
+                  ${fromDate ? `From: ${normaliseInvoiceDate(fromDate).display}<br>` : ""}
+                  ${toDate ? `To: ${normaliseInvoiceDate(toDate).display}` : ""}
                 </div>
               `
               : ""
@@ -3753,7 +3831,7 @@ async function generateStatement(){
             return `
               <tr>
                 <td><strong>${invoice.invoiceNo}</strong></td>
-                <td>${invoice.date || "-"}</td>
+                <td>${normaliseInvoiceDate(invoice.date).display}</td>
                 <td>
                   <span class="status-badge ${statusClass}">
                     ${statusText}
@@ -3920,7 +3998,7 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
     }
   }
 
-  const today = previewDate || new Date().toLocaleDateString("en-GB");
+  const today = normaliseInvoiceDate(previewDate || new Date()).display;
 
   const clientAddress =
     document.getElementById("clientAddress")?.value || "";
@@ -3974,7 +4052,7 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
         <div style="margin-top:8px;">${today}</div>
         <div style="margin-top:8px;">Due: ${
           document.getElementById("dueDate")?.value
-            ? new Date(document.getElementById("dueDate").value).toLocaleDateString("en-GB")
+            ? normaliseInvoiceDate(document.getElementById("dueDate").value).display
             : "-"
         }</div>
       </div>
@@ -4483,10 +4561,11 @@ function renderRevenueChart(invoices){
   const monthlyTotals = {};
 
   invoices.forEach(invoice => {
+    const monthKey = normaliseInvoiceDate(invoice.date).monthKey;
 
-    const parts = invoice.date.split("/");
-
-    const monthKey = `${parts[1]}/${parts[2]}`;
+    if(!monthKey){
+      return;
+    }
 
     monthlyTotals[monthKey] =
       (monthlyTotals[monthKey] || 0) + Number(invoice.total || 0);
@@ -4575,13 +4654,14 @@ function renderMonthlyRevenueBarChart(invoices){
   const monthlyTotals = {};
 
   invoices.forEach(invoice => {
+    const key = normaliseInvoiceDate(invoice.date).monthKey;
 
-    const parts = invoice.date.split("/");
-
-    const key = `${parts[1]}/${parts[2]}`;
+    if(!key){
+      return;
+    }
 
     monthlyTotals[key] =
-      (monthlyTotals[key] || 0) + invoice.total;
+      (monthlyTotals[key] || 0) + Number(invoice.total || 0);
 
   });
 
