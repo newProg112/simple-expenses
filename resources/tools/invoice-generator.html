@@ -1594,7 +1594,13 @@
       align-items:flex-start;
       justify-content:space-between;
       gap:18px;
-      margin-bottom:14px;
+      margin-bottom:18px;
+    }
+
+    .recent-invoices-card .list-header .muted{
+      margin:6px 0 0;
+      font-size:13px;
+      line-height:1.45;
     }
 
     .list-title-row{
@@ -1629,7 +1635,7 @@
       display:grid;
       grid-template-columns:minmax(220px, 1fr) minmax(160px, auto) minmax(160px, auto);
       gap:12px;
-      margin-bottom:12px;
+      margin-bottom:8px;
     }
 
     .invoice-toolbar input,
@@ -1643,8 +1649,11 @@
     }
 
     .invoice-results-count{
-      margin:0 0 12px;
-      font-size:13px;
+      margin:0 0 10px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:600;
+      line-height:1.4;
     }
 
     #recentInvoices{
@@ -1661,31 +1670,35 @@
     }
 
     .invoice-list{
-      gap:8px;
+      gap:6px;
     }
 
     .invoice-list-header,
     .invoice-row{
       display:grid;
       grid-template-columns:minmax(100px, .8fr) minmax(105px, .8fr) minmax(150px, 1.3fr) minmax(130px, 1fr) minmax(85px, .7fr) minmax(90px, .75fr) minmax(280px, auto);
-      gap:12px;
+      gap:16px;
       align-items:center;
     }
 
     .invoice-list-header{
-      padding:0 12px 8px;
-      color:var(--muted);
+      padding:0 14px 7px;
+      color:#64748b;
       font-size:11px;
-      font-weight:900;
-      letter-spacing:.06em;
+      font-weight:700;
+      letter-spacing:.035em;
       text-transform:uppercase;
+    }
+
+    .invoice-list-header span:nth-child(5){
+      text-align:right;
     }
 
     .invoice-row{
       min-width:0;
       border:0;
-      border-radius:14px;
-      padding:14px 12px;
+      border-radius:12px;
+      padding:14px;
       transition:background .16s ease, box-shadow .16s ease, transform .16s ease;
     }
 
@@ -1701,9 +1714,18 @@
 
     .invoice-row-title{
       font-size:15px;
-      font-weight:900;
+      font-weight:800;
       line-height:1.25;
       overflow-wrap:anywhere;
+    }
+
+    .invoice-row-field:first-child .invoice-row-title{
+      color:var(--accent);
+      cursor:pointer;
+      text-decoration:underline;
+      text-decoration-color:rgba(0,119,182,.35);
+      text-decoration-thickness:1px;
+      text-underline-offset:3px;
     }
 
     .invoice-row-sub{
@@ -1716,6 +1738,10 @@
 
     .invoice-row-field{
       min-width:0;
+    }
+
+    .invoice-row-field[data-label="Total"]{
+      text-align:right;
     }
 
     .invoice-row-field::before{
@@ -1734,33 +1760,86 @@
       font-size:14px;
       font-weight:900;
       font-variant-numeric:tabular-nums;
+      white-space:nowrap;
     }
 
     .status-badge{
+      min-width:68px;
       border:1px solid transparent;
       border-radius:999px;
       font-size:12px;
       line-height:1;
     }
 
+    .status-paid{
+      background:#d1fae5;
+      color:#14532d;
+      border-color:#86efac;
+    }
+
+    .status-unpaid{
+      background:#dbeafe;
+      color:#0c4a6e;
+      border-color:#93c5fd;
+    }
+
+    .status-overdue{
+      background:#fee2e2;
+      color:#7f1d1d;
+      border-color:#fca5a5;
+    }
+
     .invoice-row-actions{
-      gap:6px;
+      gap:7px;
     }
 
     .invoice-row-actions button{
       margin:0;
+      min-height:36px;
+      padding:0 12px;
+      border-radius:9px;
+      font-size:12px;
     }
 
     .invoice-row-actions button:nth-child(2){
       background:#f8fafc;
       color:#475569;
       border:1px solid #dbe3ec;
+      font-weight:700;
     }
 
     .invoice-row-actions .invoice-delete-button{
       background:#b91c1c;
       border:1px solid #991b1b;
       color:#ffffff;
+    }
+
+    body.dark-mode .invoice-list-header{
+      color:var(--muted);
+    }
+
+    body.dark-mode .invoice-row-actions button:nth-child(2){
+      background:#111827;
+      color:var(--text);
+      border-color:var(--border);
+    }
+
+    body.dark-mode .status-paid{
+      background:#143d2a;
+      color:#bbf7d0;
+      border-color:#27734b;
+    }
+
+    body.dark-mode .status-unpaid{
+      background:#102f4c;
+      color:#bae6fd;
+      border-color:#1d5f8c;
+    }
+
+    body.dark-mode .status-overdue{
+      background:#4a1d24;
+      color:#fecaca;
+      border-color:#8f3541;
     }
 
     body.dark-mode .statement-card,
