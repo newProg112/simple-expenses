@@ -1664,9 +1664,24 @@
       gap:8px;
     }
 
+    .invoice-list-header,
     .invoice-row{
-      grid-template-columns:minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(96px, .7fr) minmax(86px, .6fr) minmax(190px, auto);
+      display:grid;
+      grid-template-columns:minmax(100px, .8fr) minmax(105px, .8fr) minmax(150px, 1.3fr) minmax(130px, 1fr) minmax(85px, .7fr) minmax(90px, .75fr) minmax(280px, auto);
       gap:12px;
+      align-items:center;
+    }
+
+    .invoice-list-header{
+      padding:0 12px 8px;
+      color:var(--muted);
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+    }
+
+    .invoice-row{
       min-width:0;
       border:0;
       border-radius:14px;
@@ -1699,6 +1714,22 @@
       overflow-wrap:anywhere;
     }
 
+    .invoice-row-field{
+      min-width:0;
+    }
+
+    .invoice-row-field::before{
+      content:attr(data-label);
+      display:none;
+      margin-bottom:4px;
+      color:var(--muted);
+      font-size:10px;
+      font-weight:900;
+      letter-spacing:.06em;
+      line-height:1;
+      text-transform:uppercase;
+    }
+
     .invoice-row strong{
       font-size:14px;
       font-weight:900;
@@ -1726,6 +1757,12 @@
       border:1px solid #dbe3ec;
     }
 
+    .invoice-row-actions .invoice-delete-button{
+      background:#b91c1c;
+      border:1px solid #991b1b;
+      color:#ffffff;
+    }
+
     body.dark-mode .statement-card,
     body.dark-mode .recent-invoices-card{
       background:var(--card);
@@ -1749,6 +1786,26 @@
       .invoice-preview-panel{
         position:static;
       }
+
+      .invoice-list-header{
+        display:none;
+      }
+
+      .invoice-row{
+        grid-template-columns:repeat(3, minmax(0, 1fr));
+        border:1px solid #e8eef7;
+        padding:16px;
+      }
+
+      .invoice-row-field::before{
+        display:block;
+      }
+
+      .invoice-row-actions{
+        grid-column:1 / -1;
+        justify-content:flex-start;
+        padding-top:4px;
+      }
     }
 
     @media (max-width:900px){
@@ -1763,8 +1820,7 @@
       }
 
       .invoice-row{
-        grid-template-columns:1fr;
-        border:1px solid #e8eef7;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
       }
 
       .invoice-row-actions{
@@ -1779,6 +1835,10 @@
 
       .invoice-kpi-grid,
       .invoice-form-grid{
+        grid-template-columns:1fr;
+      }
+
+      .invoice-row{
         grid-template-columns:1fr;
       }
 
@@ -3503,6 +3563,15 @@ async function renderRecentInvoices(){
 
   box.innerHTML = `
     <div class="invoice-list">
+      <div class="invoice-list-header" aria-hidden="true">
+        <span>Invoice number</span>
+        <span>Invoice date</span>
+        <span>Customer</span>
+        <span>Due</span>
+        <span>Total</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
       ${invoices.slice(0, 5).map((invoice) => {
         const overdue = isInvoiceOverdue(invoice);
         const statusText = overdue ? "Overdue" : (invoice.status || "Unpaid");
@@ -3518,38 +3587,44 @@ async function renderRecentInvoices(){
         return `
           <div class="invoice-row">
 
-            <div>
+            <div class="invoice-row-field" data-label="Invoice number">
               <div class="invoice-row-title">${invoice.invoiceNo}</div>
-              <div class="invoice-row-sub">${normaliseInvoiceDate(invoice.date).display}</div>
             </div>
 
-            <div>
+            <div class="invoice-row-field" data-label="Invoice date">
+              <div class="invoice-row-title">${normaliseInvoiceDate(invoice.date).display}</div>
+            </div>
+
+            <div class="invoice-row-field" data-label="Customer">
               <div class="invoice-row-title">${invoice.client}</div>
-              <div class="invoice-row-sub">Due: ${invoice.dueDate || "-"}</div>
             </div>
 
-            <div>
+            <div class="invoice-row-field" data-label="Due">
+              <div class="invoice-row-title">${invoice.dueDate ? normaliseInvoiceDate(invoice.dueDate).display : "No due date"}</div>
               <div class="invoice-row-sub">${ageingText}</div>
+            </div>
+
+            <div class="invoice-row-field" data-label="Total">
               <strong>£${Number(invoice.total || 0).toFixed(2)}</strong>
             </div>
 
-            <div>
+            <div class="invoice-row-field" data-label="Payment status">
               <span class="status-badge ${statusClass}">
                 ${statusText}
               </span>
             </div>
 
-            <div class="invoice-row-actions">
+            <div class="invoice-row-actions invoice-row-field" data-label="Actions">
               <button onclick="toggleInvoiceStatus('${invoice.id}')">
                 ${statusText === "Paid" ? "Mark Unpaid" : "Mark Paid"}
               </button>
 
               <button onclick="reopenInvoice('${invoice.id}')">
-                Reopen
+                Edit invoice
               </button>
 
-              <button onclick="deleteInvoice('${invoice.id}')"
-                      style="background:#b91c1c;">
+              <button class="invoice-delete-button"
+                      onclick="deleteInvoice('${invoice.id}')">
                 Delete
               </button>
             </div>
