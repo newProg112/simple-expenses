@@ -1089,6 +1089,61 @@
       line-height:1.2;
     }
 
+    .business-details-card{
+      padding:0;
+      overflow:hidden;
+      background:#f8fafc;
+      box-shadow:0 8px 20px rgba(15,23,42,.05);
+    }
+
+    .business-details-card summary{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      padding:14px 18px;
+      cursor:pointer;
+      list-style:none;
+    }
+
+    .business-details-card summary::-webkit-details-marker{
+      display:none;
+    }
+
+    .business-details-card summary::after{
+      content:"+";
+      flex:0 0 auto;
+      color:var(--accent);
+      font-size:22px;
+      font-weight:700;
+      line-height:1;
+    }
+
+    .business-details-card[open] summary::after{
+      content:"−";
+    }
+
+    .business-details-card summary h3{
+      margin:0;
+      font-size:17px;
+    }
+
+    .business-details-card summary p{
+      margin:3px 0 0;
+      font-size:12px;
+      line-height:1.4;
+    }
+
+    .business-details-card summary:focus-visible{
+      outline:3px solid rgba(0,119,182,.16);
+      outline-offset:-3px;
+    }
+
+    .business-details-fields{
+      padding:2px 18px 16px;
+      border-top:1px solid var(--border);
+    }
+
     .invoice-form-grid{
       display:grid;
       grid-template-columns:repeat(2, minmax(0, 1fr));
@@ -1149,6 +1204,48 @@
       min-width:0;
       border-radius:10px;
       padding:12px 14px;
+    }
+
+    .invoice-primary-actions{
+      padding-top:16px;
+      border-top:1px solid var(--border);
+    }
+
+    .invoice-primary-actions .cancel-edit-button{
+      background:#f8fafc;
+      color:#475569;
+      border:1px solid #dbe3ec;
+    }
+
+    .invoice-utility-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:12px;
+      padding:12px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#f8fafc;
+    }
+
+    .invoice-utility-actions::before{
+      content:"Invoice tools";
+      width:100%;
+      color:var(--muted);
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+
+    .invoice-utility-actions button{
+      min-height:36px;
+      padding:0 12px;
+      border:1px solid #dbe3ec;
+      border-radius:9px;
+      background:var(--card);
+      color:#475569;
+      font-size:12px;
     }
 
     .invoice-preview-panel{
@@ -1216,6 +1313,18 @@
       border-color:var(--border);
     }
 
+    body.dark-mode .business-details-card,
+    body.dark-mode .invoice-utility-actions{
+      background:#0b1220;
+    }
+
+    body.dark-mode .invoice-primary-actions .cancel-edit-button,
+    body.dark-mode .invoice-utility-actions button{
+      background:var(--card);
+      color:var(--text);
+      border-color:var(--border);
+    }
+
     @media (max-width:1100px){
       .invoice-builder-grid{
         grid-template-columns:1fr;
@@ -1234,6 +1343,15 @@
       .invoice-actions{
         display:grid;
         grid-template-columns:1fr;
+      }
+
+      .invoice-utility-actions{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+      }
+
+      .invoice-utility-actions::before{
+        grid-column:1 / -1;
       }
     }
 
@@ -1383,13 +1501,6 @@
       padding:0 12px;
       font-size:13px;
       line-height:1;
-    }
-
-    .invoice-actions button:nth-child(3),
-    .invoice-actions button:nth-child(n+6){
-      background:#f8fafc;
-      color:#475569;
-      border:1px solid #dbe3ec;
     }
 
     .invoice-admin-section{
@@ -1679,6 +1790,10 @@
       .invoice-actions,
       .statement-actions{
         display:grid;
+        grid-template-columns:1fr;
+      }
+
+      .invoice-utility-actions{
         grid-template-columns:1fr;
       }
     }
@@ -1992,10 +2107,15 @@
         <div class="invoice-builder-grid">
           <div class="invoice-form-stack">
 
-            <div class="card invoice-form-card">
-              <h3>Your Business</h3>
+            <details class="card invoice-form-card business-details-card">
+              <summary>
+                <div>
+                  <h3>Your Business</h3>
+                  <p class="muted">Loaded from Account. Expand to review or adjust for this invoice.</p>
+                </div>
+              </summary>
 
-              <div class="invoice-form-grid">
+              <div class="invoice-form-grid business-details-fields">
                 <div class="invoice-field">
                   <label for="businessName">Business name</label>
                   <input type="text" id="businessName" placeholder="Business name" />
@@ -2016,7 +2136,7 @@
                   <input type="text" id="businessVat" placeholder="VAT number" />
                 </div>
               </div>
-            </div>
+            </details>
 
             <div class="card invoice-form-card">
               <h3>Client details</h3>
@@ -2139,7 +2259,7 @@
                 </div>
               </div>
 
-          <div class="invoice-actions">
+          <div class="invoice-actions invoice-primary-actions">
 
             <button onclick="generateInvoice()">
                 Generate Invoice
@@ -2151,7 +2271,7 @@
               Update Invoice
             </button>
 
-            <button type="button" onclick="cancelInvoiceEdit()">
+            <button type="button" class="cancel-edit-button" onclick="cancelInvoiceEdit()">
               Cancel Edit
             </button>
 
@@ -2163,6 +2283,9 @@
               Create Email Draft
             </button>
 
+          </div>
+
+          <div class="invoice-utility-actions" aria-label="Invoice tools">
             <button onclick="exportInvoiceRegisterCsv()">
               Export Register CSV
             </button>
@@ -2186,8 +2309,7 @@
             <button type="button" onclick="toggleDarkMode()" id="darkModeBtn">
               Dark Mode
             </button>
-
-              </div>
+          </div>
 
               <p id="editModeStatus" class="muted" style="margin:10px 0 0;">
                 Creating new invoice
