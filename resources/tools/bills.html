@@ -14,6 +14,12 @@
       color: #102033;
     }
 
+    *,
+    *::before,
+    *::after{
+      box-sizing:border-box;
+    }
+
     .wrap{
       max-width:1200px;
       margin:0 auto;
@@ -404,6 +410,7 @@
 
     .wrap{
       max-width:1360px;
+      width:100%;
       padding:24px 32px 56px;
     }
 
@@ -647,6 +654,8 @@
       gap:18px;
       align-items:center;
       margin-top:14px;
+      width:100%;
+      min-width:0;
     }
 
     .status-donut{
@@ -670,6 +679,7 @@
     .status-legend{
       display:grid;
       gap:8px;
+      min-width:0;
     }
 
     .status-legend-row{
@@ -680,6 +690,13 @@
       padding-bottom:10px;
       border-bottom:1px solid #eef2f7;
       font-size:14px;
+      min-width:0;
+    }
+
+    .status-legend-row span,
+    .status-legend-row strong{
+      min-width:0;
+      overflow-wrap:anywhere;
     }
 
     .status-legend-row:last-child{
@@ -691,6 +708,8 @@
       display:grid;
       gap:12px;
       margin-top:14px;
+      width:100%;
+      min-width:0;
     }
 
     .supplier-chart > p.muted,
@@ -751,6 +770,8 @@
     .trend-chart-shell{
       position:relative;
       width:100%;
+      max-width:100%;
+      min-width:0;
       height:220px;
       margin-top:14px;
     }
@@ -758,6 +779,7 @@
     .trend-chart-shell canvas{
       display:block;
       width:100%;
+      max-width:100%;
       height:100%;
     }
 
@@ -822,16 +844,18 @@
 
     .bills-workspace{
       display:grid;
-      grid-template-columns:minmax(0, 2fr) minmax(340px, 1fr);
+      grid-template-columns:minmax(0, 2fr) minmax(0, 420px);
       gap:18px;
       align-items:start;
       width:100%;
+      min-width:0;
     }
 
     .bills-main-column{
       width:100%;
-      max-width:920px;
+      max-width:none;
       justify-self:start;
+      min-width:0;
     }
 
     .bills-side-column{
@@ -849,10 +873,23 @@
     .overview-card{
       position:static;
       top:auto;
+      width:100%;
+      max-width:100%;
+      min-width:0;
     }
 
     .chart-card{
       position:static;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+    }
+
+    .chart-card canvas{
+      display:block;
+      width:100% !important;
+      max-width:100%;
+      min-width:0;
     }
 
     #billsList{
@@ -886,11 +923,13 @@
     }
 
     .list-card{
-      overflow:hidden;
+      overflow:visible;
+      min-width:0;
     }
 
     .list-header{
       align-items:flex-start;
+      margin-bottom:18px;
     }
 
     .list-title-row{
@@ -925,20 +964,45 @@
       color:#005f91;
     }
 
-    .bill-table-header{
-      background:#f8fbff;
-      border:1px solid #e8eef7;
-      border-radius:12px;
+    .bill-toolbar{
+      display:grid;
+      grid-template-columns:minmax(220px, 1fr) minmax(150px, auto) minmax(150px, auto);
+      gap:12px;
+      margin:0 0 8px;
+    }
+
+    .bill-toolbar input,
+    .bill-toolbar select{
+      width:100%;
+      min-height:42px;
+      margin:0;
       padding:10px 12px;
-      margin-bottom:8px;
+      border-radius:10px;
+      font-size:15px;
+    }
+
+    .bill-table-header{
+      padding:0 14px 7px;
+      margin-top:14px;
+      margin-bottom:0;
+      color:#64748b;
+      background:transparent;
+      border:0;
+      border-radius:0;
+      font-size:11px;
+      font-weight:700;
       text-transform:uppercase;
-      letter-spacing:.02em;
+      letter-spacing:.035em;
+    }
+
+    .bill-table-header div:nth-child(3){
+      text-align:right;
     }
 
     .bill-row:not(.bill-table-header){
       border-bottom:0;
-      border-radius:14px;
-      padding:14px 12px;
+      border-radius:12px;
+      padding:14px;
       transition:background .16s ease, box-shadow .16s ease, transform .16s ease;
     }
 
@@ -957,12 +1021,16 @@
       font-size:15px;
       font-weight:900;
       line-height:1.25;
+      overflow-wrap:anywhere;
     }
 
     .bill-number{
       color:#64748b;
       font-size:13px;
       font-weight:700;
+      line-height:1.35;
+      margin-top:4px;
+      overflow-wrap:anywhere;
     }
 
     .bill-attachment-label{
@@ -987,6 +1055,7 @@
       font-size:14px;
       font-weight:800;
       font-variant-numeric:tabular-nums;
+      white-space:nowrap;
     }
 
     .bill-total{
@@ -994,12 +1063,38 @@
       font-size:14px;
       font-weight:900;
       font-variant-numeric:tabular-nums;
+      white-space:nowrap;
+    }
+
+    .bill-row-field{
+      min-width:0;
+    }
+
+    .bill-row-field[data-label="Total"]{
+      text-align:right;
+    }
+
+    .bill-row-field::before{
+      content:attr(data-label);
+      display:none;
+      margin-bottom:4px;
+      color:#5b6b7c;
+      font-size:10px;
+      font-weight:900;
+      letter-spacing:.06em;
+      line-height:1;
+      text-transform:uppercase;
     }
 
     .pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:68px;
       padding:7px 10px;
       border-radius:999px;
       font-size:12px;
+      font-weight:800;
       line-height:1;
       border:1px solid transparent;
     }
@@ -1017,9 +1112,9 @@
     }
 
     .pill-overdue{
-      background:#ffedd5;
-      color:#c2410c;
-      border-color:#fed7aa;
+      background:#fee2e2;
+      color:#7f1d1d;
+      border-color:#fca5a5;
     }
 
     .row-actions{
@@ -1031,6 +1126,8 @@
       margin:0;
       font-size:12px;
       line-height:1;
+      min-height:36px;
+      padding:0 12px;
     }
 
     .btn-secondary{
@@ -1045,9 +1142,9 @@
     }
 
     .btn-danger-subtle{
-      background:transparent;
-      color:#b91c1c;
-      padding-inline:8px;
+      background:#b91c1c;
+      border:1px solid #991b1b;
+      color:#ffffff;
     }
 
     .recent-footer{
@@ -1063,10 +1160,148 @@
       font-weight:700;
     }
 
+    .overview-card{
+      border-color:#e6edf5;
+    }
+
+    .overview-card h2{
+      margin:0;
+    }
+
+    .overview-card > p.muted{
+      margin-top:6px;
+      font-size:13px;
+    }
+
+    .overview-list{
+      gap:0;
+      margin-top:16px;
+      overflow:hidden;
+      border:1px solid #e8eef7;
+      border-radius:14px;
+      background:#fbfdff;
+    }
+
+    .overview-item{
+      display:grid;
+      grid-template-columns:minmax(0, 1fr) auto;
+      padding:13px 14px;
+      border-bottom:1px solid #eef2f7;
+    }
+
+    .overview-item .muted{
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .overview-item strong{
+      color:#102033;
+      font-size:14px;
+      font-weight:900;
+      font-variant-numeric:tabular-nums;
+      text-align:right;
+    }
+
+    .overview-item:last-child{
+      border-bottom:0;
+      padding-bottom:13px;
+    }
+
+    body.dark-mode .card,
+    body.dark-mode .list-card,
+    body.dark-mode .overview-card,
+    body.dark-mode .chart-card{
+      background:#111827;
+      color:#e5e7eb;
+      border-color:#334155;
+    }
+
+    body.dark-mode input,
+    body.dark-mode textarea,
+    body.dark-mode select{
+      background:#0b1220;
+      color:#e5e7eb;
+      border-color:#334155;
+    }
+
+    body.dark-mode .muted,
+    body.dark-mode .bill-number,
+    body.dark-mode .bill-attachment-label,
+    body.dark-mode .bill-date-label,
+    body.dark-mode .recent-footer,
+    body.dark-mode .bill-table-header{
+      color:#9ca3af;
+    }
+
+    body.dark-mode #billsList > p.muted,
+    body.dark-mode .supplier-chart > p.muted{
+      background:#0b1220;
+      border-color:#334155;
+    }
+
+    body.dark-mode .bill-row:not(.bill-table-header):nth-child(odd),
+    body.dark-mode .overview-list{
+      background:#0b1220;
+    }
+
+    body.dark-mode .bill-row:not(.bill-table-header):hover{
+      background:#132033;
+      box-shadow:0 10px 22px rgba(0,0,0,.22);
+    }
+
+    body.dark-mode .bill-supplier,
+    body.dark-mode .bill-date,
+    body.dark-mode .bill-total,
+    body.dark-mode .overview-item strong{
+      color:#e5e7eb;
+    }
+
+    body.dark-mode .overview-list,
+    body.dark-mode .overview-item,
+    body.dark-mode .recent-footer{
+      border-color:#334155;
+    }
+
+    body.dark-mode .btn-secondary{
+      background:#111827;
+      color:#e5e7eb;
+      border-color:#334155;
+    }
+
+    body.dark-mode .pill-paid{
+      background:#143d2a;
+      color:#bbf7d0;
+      border-color:#27734b;
+    }
+
+    body.dark-mode .pill-unpaid{
+      background:#102f4c;
+      color:#bae6fd;
+      border-color:#1d5f8c;
+    }
+
+    body.dark-mode .pill-overdue{
+      background:#4a1d24;
+      color:#fecaca;
+      border-color:#8f3541;
+    }
+
     @media (max-width:760px){
       .list-header{
         flex-direction:column;
         gap:10px;
+      }
+
+      .bill-toolbar{
+        grid-template-columns:1fr;
+      }
+
+      .bill-row-field::before{
+        display:block;
+      }
+
+      .bill-row-field[data-label="Total"]{
+        text-align:left;
       }
 
       .bill-row:not(.bill-table-header){
@@ -1260,6 +1495,22 @@
             <p class="muted">Saved supplier bills and their current payment status.</p>
           </div>
           <a class="view-all-link" href="#billsList">View all bills</a>
+        </div>
+
+        <div class="bill-toolbar" aria-label="Recent bills controls">
+          <input id="billSearch" type="search" placeholder="Search bills">
+          <select id="billStatusFilter">
+            <option value="All">All statuses</option>
+            <option value="Unpaid">Unpaid</option>
+            <option value="Paid">Paid</option>
+            <option value="Overdue">Overdue</option>
+          </select>
+          <select id="billSort">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="highest">Highest total</option>
+            <option value="lowest">Lowest total</option>
+          </select>
         </div>
 
         <div id="billsList">
@@ -1849,8 +2100,9 @@
       const bill = currentBills.find(b => String(b.id) === String(id));
 
       if (bill) {
-        bill.status = "Paid";
-        bill.paidAt = new Date().toISOString();
+        const nextStatus = bill.status === "Paid" ? "Unpaid" : "Paid";
+        bill.status = nextStatus;
+        bill.paidAt = nextStatus === "Paid" ? new Date().toISOString() : "";
         saveBills(currentBills);
         renderBills(currentBills);
 
@@ -1859,7 +2111,7 @@
         if (ref) {
           try {
             await updateDoc(ref, {
-              status: "Paid",
+              status: nextStatus,
               paidAt: bill.paidAt
             });
           } catch (error) {
@@ -1889,6 +2141,67 @@
           console.error("Firestore bill delete failed", error);
         }
       }
+    }
+
+    function billSortDateValue(bill) {
+      const rawValue = bill.createdAt || bill.billDate || bill.dueDate || bill.id;
+      const numericId = Number(rawValue);
+
+      if (Number.isFinite(numericId) && numericId > 0) {
+        return numericId;
+      }
+
+      const date = new Date(rawValue);
+
+      return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+    }
+
+    function getRecentBillControls() {
+      return {
+        search: document.getElementById("billSearch"),
+        status: document.getElementById("billStatusFilter"),
+        sort: document.getElementById("billSort")
+      };
+    }
+
+    function getVisibleRecentBills(bills) {
+      const controls = getRecentBillControls();
+      const search = (controls.search?.value || "").trim().toLowerCase();
+      const statusFilter = controls.status?.value || "All";
+      const sortValue = controls.sort?.value || "newest";
+
+      const visibleBills = bills.filter(bill => {
+        const supplier = String(bill.supplier || "").toLowerCase();
+        const billNumber = String(bill.billNumber || "").toLowerCase();
+        const matchesSearch =
+          !search || supplier.includes(search) || billNumber.includes(search);
+
+        const status = billStatusLabel(bill);
+        const matchesStatus =
+          statusFilter === "All" ||
+          (statusFilter === "Overdue" && status === "Overdue") ||
+          (statusFilter !== "Overdue" && status === statusFilter);
+
+        return matchesSearch && matchesStatus;
+      });
+
+      visibleBills.sort((a, b) => {
+        if (sortValue === "oldest") {
+          return billSortDateValue(a) - billSortDateValue(b);
+        }
+
+        if (sortValue === "highest") {
+          return Number(b.total || 0) - Number(a.total || 0);
+        }
+
+        if (sortValue === "lowest") {
+          return Number(a.total || 0) - Number(b.total || 0);
+        }
+
+        return billSortDateValue(b) - billSortDateValue(a);
+      });
+
+      return visibleBills;
     }
 
     function renderBills(bills = currentBills) {
@@ -1935,13 +2248,19 @@
 
       const list = document.getElementById("billsList");
       const recentFooter = document.getElementById("recentBillsFooter");
+      const visibleBills = getVisibleRecentBills(bills);
 
       if (recentFooter) {
-        recentFooter.textContent = `Showing ${bills.length} of ${bills.length} bills`;
+        recentFooter.textContent = `Showing ${visibleBills.length} of ${bills.length} bills`;
       }
 
       if (bills.length === 0) {
         list.innerHTML = `<p class="muted">No bills yet.</p>`;
+        return;
+      }
+
+      if (visibleBills.length === 0) {
+        list.innerHTML = `<p class="muted">No bills match your current search or filters.</p>`;
         return;
       }
 
@@ -1953,49 +2272,73 @@
           <div>Status</div>
           <div></div>
         </div>
-      ` + bills.map(bill => {
+      ` + visibleBills.map(bill => {
+        const billId = escapeHtml(String(bill.id));
         const attachmentLabel = bill.attachmentName
           ? `<a class="bill-attachment-link" href="${escapeHtml(bill.attachmentUrl)}" target="_blank" rel="noopener">${escapeHtml(bill.attachmentName)}</a>`
           : "No attachment";
         const viewPdfButton = bill.attachmentUrl
           ? `<a class="btn btn-secondary" href="${escapeHtml(bill.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
           : "";
+        const paymentButtonText = bill.status === "Paid" ? "Mark unpaid" : "Mark paid";
+        const paymentButtonClass = bill.status === "Paid" ? "btn btn-secondary" : "btn btn-positive";
 
         return `
-        <div class="bill-row">
-          <div>
+        <div class="bill-row" data-bill-id="${billId}">
+          <div class="bill-row-field" data-label="Supplier">
             <div class="bill-supplier">${escapeHtml(bill.supplier)}</div>
             <div class="bill-number">${escapeHtml(bill.billNumber || "No bill number")}</div>
             <div class="bill-attachment-label">${attachmentLabel}</div>
           </div>
 
-          <div>
+          <div class="bill-row-field" data-label="Due date">
             <span class="bill-date-label">Due</span>
             <span class="bill-date ${isOverdue(bill) ? "danger" : ""}">${formatBillDate(bill.dueDate)}</span>
           </div>
 
-          <div>
+          <div class="bill-row-field" data-label="Total">
             <span class="bill-date-label">Total</span>
             <span class="bill-total">${money(bill.total)}</span>
           </div>
 
-          <div>
+          <div class="bill-row-field" data-label="Status">
             <span class="pill ${billStatusClass(bill)}">${billStatusLabel(bill)}</span>
           </div>
 
           <div class="row-actions">
             ${viewPdfButton}
-            ${bill.status !== "Paid"
-              ? `<button class="btn btn-positive" onclick="markBillPaid(${bill.id})">Mark paid</button>`
-              : ""}
-            <button class="btn btn-danger-subtle" onclick="deleteBill(${bill.id})">Delete</button>
+            <button class="${paymentButtonClass}" type="button" data-bill-action="toggle-paid" data-bill-id="${billId}">${paymentButtonText}</button>
+            <button class="btn btn-danger-subtle" type="button" data-bill-action="delete" data-bill-id="${billId}">Delete</button>
           </div>
         </div>
       `;
       }).join("");
     }
 
+    function handleBillsListClick(event) {
+      const button = event.target.closest("[data-bill-action]");
+
+      if (!button) return;
+
+      const billId = button.dataset.billId;
+
+      if (!billId) return;
+
+      if (button.dataset.billAction === "toggle-paid") {
+        markBillPaid(billId);
+        return;
+      }
+
+      if (button.dataset.billAction === "delete") {
+        deleteBill(billId);
+      }
+    }
+
     document.getElementById("billAttachment").addEventListener("change", handleAttachmentSelection);
+    document.getElementById("billsList").addEventListener("click", handleBillsListClick);
+    document.getElementById("billSearch").addEventListener("input", () => renderBills(currentBills));
+    document.getElementById("billStatusFilter").addEventListener("change", () => renderBills(currentBills));
+    document.getElementById("billSort").addEventListener("change", () => renderBills(currentBills));
     window.saveBill = saveBill;
     window.markBillPaid = markBillPaid;
     window.deleteBill = deleteBill;
