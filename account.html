@@ -141,6 +141,7 @@
       display:grid;
       grid-template-columns:1fr 1fr;
       gap:18px;
+      align-items:start;
     }
 
     label{
@@ -165,6 +166,13 @@
       font-size:15px;
       line-height:1.35;
       margin:0 0 12px;
+    }
+
+    input:not([type="file"]):not(:disabled),
+    select:not(:disabled){
+      color:var(--text);
+      -webkit-text-fill-color:var(--text);
+      opacity:1;
     }
 
     input:not([type="file"]):focus,
@@ -231,10 +239,38 @@
       flex-wrap:wrap;
       gap:8px;
       align-items:center;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      padding:14px;
+      border:1px dashed #cbd5e1;
+      border-radius:14px;
+      background:#f9fbfd;
     }
 
     .logo-actions input{
+      flex:1 1 240px;
+      max-width:100%;
+      min-width:0;
       margin-bottom:0;
+      color:#64748b;
+      font:inherit;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .logo-actions input::file-selector-button{
+      margin-right:10px;
+      border:1px solid var(--line);
+      border-radius:9px;
+      background:#ffffff;
+      color:#475569;
+      min-height:36px;
+      padding:0 12px;
+      font:inherit;
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
     }
 
     .app-header{
@@ -295,9 +331,13 @@
 
     .account-summary{
       display:grid;
-      grid-template-columns:repeat(4, 1fr);
+      grid-template-columns:repeat(4, minmax(0, 1fr));
       gap:14px;
       margin-top:18px;
+    }
+
+    .account-summary.member-since-hidden{
+      grid-template-columns:repeat(3, minmax(0, 1fr));
     }
 
     .account-summary div{
@@ -315,14 +355,57 @@
     }
 
     .account-summary strong{
+      display:block;
+      min-width:0;
       color:var(--text);
       font-size:1.05rem;
+      overflow-wrap:anywhere;
     }
 
-    input:disabled{
+    input:disabled,
+    select:disabled{
       background:#f1f5f9;
-      color:#94a3b8;
+      color:#64748b;
+      border-color:#e2e8f0;
       cursor:not-allowed;
+      opacity:1;
+      -webkit-text-fill-color:#64748b;
+    }
+
+    .quick-action-link{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      max-width:100%;
+      min-height:36px;
+      padding:0 12px;
+      border:1px solid var(--line);
+      border-radius:9px;
+      background:#f8fafc;
+      color:#475569;
+      font-size:13px;
+      font-weight:800;
+      line-height:1.2;
+      text-decoration:none;
+      transition:background .16s ease, border-color .16s ease, color .16s ease;
+    }
+
+    .quick-action-link:hover{
+      border-color:#cbd5e1;
+      background:#eef6ff;
+      color:var(--primary);
+    }
+
+    .quick-action-link:focus-visible{
+      outline:3px solid rgba(0,119,182,.16);
+      outline-offset:3px;
+    }
+
+    .quick-actions-card #accountLogoutBtn{
+      margin-top:20px !important;
+      border:1px solid #fecaca;
+      background:#ffffff;
+      color:#b91c1c;
     }
 
     .account-title-row{
@@ -488,6 +571,17 @@
       color:#b45309;
     }
 
+    .checkout-status:empty{
+      display:none;
+    }
+
+    .hero > *,
+    .grid > *,
+    .account-insights > *,
+    .account-summary > *{
+      min-width:0;
+    }
+
     .subscription-meta{
       display:grid;
       gap:6px;
@@ -503,7 +597,8 @@
     }
 
     @media (max-width:800px){
-      .account-summary{
+      .account-summary,
+      .account-summary.member-since-hidden{
         grid-template-columns:1fr;
       }
     }
@@ -635,17 +730,17 @@
           </div>
         </div>
 
-        <div class="mini-card">
+        <div class="mini-card quick-actions-card">
           <div class="mini-title">Quick actions</div>
 
           <div style="margin-top:10px;">
-            <a href="/resources/tools/invoice-generator.html">
+            <a class="quick-action-link" href="/resources/tools/invoice-generator.html">
               Open Invoice Tools →
             </a>
           </div>
 
           <div style="margin-top:10px;">
-            <a href="/resources/tools/expenses.html">
+            <a class="quick-action-link" href="/resources/tools/expenses.html">
               Open Simple Expenses →
             </a>
           </div>
@@ -752,9 +847,7 @@
           <button class="btn btn-primary" id="manageSubscriptionBtn" type="button" style="display:none;">
             Manage Subscription
           </button>
-          <div class="checkout-status" id="checkoutStatus" role="status" aria-live="polite">
-            Upgrade to Pro for £15/month.
-          </div>
+          <div class="checkout-status" id="checkoutStatus" role="status" aria-live="polite"></div>
         </div>
       </div>
     </section>
@@ -780,7 +873,7 @@
         </select>
 
         <label>Current plan</label>
-        <select id="currentPlan">
+        <select id="currentPlan" disabled aria-disabled="true">
           <option>Starter</option>
           <option>Pro</option>
         </select>
@@ -792,7 +885,7 @@
         <h2>Business details</h2>
 
         <label>Business name</label>
-        <input id="businessName" type="text" placeholder="Simple Books Ltd" />
+        <input id="businessName" type="text" placeholder="Enter your business name" />
 
         <label>Business email</label>
         <input id="businessEmail" type="email" placeholder="hello@example.co.uk" />
@@ -1040,6 +1133,16 @@
       return el ? el.value : "";
     }
 
+    function refreshBusinessSummaryFromInput(){
+      const businessNameInput = document.getElementById("businessName");
+      const summaryBusiness = document.getElementById("summaryBusiness");
+
+      if(!businessNameInput || !summaryBusiness) return;
+
+      const populatedBusinessName = businessNameInput.value.trim();
+      summaryBusiness.textContent = populatedBusinessName || "Not set";
+    }
+
     function hasValue(value){
       return Boolean(String(value || "").trim());
     }
@@ -1073,6 +1176,30 @@
         month: "long",
         year: "numeric"
       });
+    }
+
+    function renderMemberSince(account = {}){
+      const summaryCreated = document.getElementById("summaryCreated");
+      const summaryCard = summaryCreated?.parentElement;
+      const accountDate = billingDateValue(
+        account.createdAt || currentUser?.metadata?.creationTime
+      );
+      const hasValidDate = accountDate instanceof Date &&
+        !Number.isNaN(accountDate.getTime());
+
+      if(!summaryCreated || !summaryCard) return;
+
+      summaryCard.hidden = !hasValidDate;
+      summaryCard.parentElement?.classList.toggle(
+        "member-since-hidden",
+        !hasValidDate
+      );
+      summaryCreated.textContent = hasValidDate
+        ? accountDate.toLocaleDateString("en-GB", {
+            month: "long",
+            year: "numeric"
+          })
+        : "";
     }
 
     function formatCardBrand(brand){
@@ -1289,7 +1416,7 @@
       let kicker = "Current plan";
       let price = "Starter";
       let message = "Upgrade to Pro for £15/month.";
-      let statusMessage = "Upgrade to Pro for £15/month.";
+      let statusMessage = "";
 
       if(isActive){
         price = "£15/month";
@@ -1593,6 +1720,7 @@
       setField("currentPlan", accountWithBilling(saved).currentPlan);
       document.getElementById("currentPlan").disabled = true;
       setField("businessName", saved.businessName);
+      refreshBusinessSummaryFromInput();
       setField("businessEmail", saved.businessEmail);
       setField("phoneNumber", saved.phoneNumber);
       setField("businessType", saved.businessType || "Sole trader");
@@ -1622,22 +1750,10 @@
       document.getElementById("planStatus").textContent =
         renderedAccount.currentPlan || "Starter";
 
-      document.getElementById("summaryBusiness").textContent =
-        saved.businessName || "Not set";
-
       document.getElementById("summaryEmail").textContent =
         saved.email || currentUser?.email || "Not signed in";
 
-      const accountDate =
-        saved.createdAt || saved.updatedAt;
-
-      document.getElementById("summaryCreated").textContent =
-        accountDate?.toDate
-          ? accountDate.toDate().toLocaleDateString("en-GB", {
-              month: "short",
-              year: "numeric"
-            })
-          : "Not set";
+      renderMemberSince(saved);
 
       const initials = (saved.fullName || saved.businessName || "Simple Books")
         .split(" ")
@@ -1682,7 +1798,7 @@
       const renderedAccount = accountWithBilling(data);
       setText("summaryPlan", renderedAccount.currentPlan || "Starter");
       setText("planStatus", renderedAccount.currentPlan || "Starter");
-      setText("summaryBusiness", data.businessName || "Not set");
+      refreshBusinessSummaryFromInput();
       setText("summaryEmail", data.email || currentUser?.email || "Not signed in");
       renderAccountInsightCards(renderedAccount);
 
