@@ -220,10 +220,12 @@
 
     .expenses-workspace{
       display:grid;
-      grid-template-columns:minmax(0, 2fr) minmax(340px, 1fr);
+      grid-template-columns:minmax(0, 2fr) minmax(0, 1fr);
       gap:18px;
       align-items:start;
       width:100%;
+      max-width:100%;
+      min-width:0;
     }
 
     .expenses-main-column,
@@ -231,7 +233,21 @@
       display:grid;
       gap:18px;
       align-content:start;
+      width:100%;
+      max-width:100%;
       min-width:0;
+    }
+
+    .expenses-main-column > *,
+    .expenses-side-column > *,
+    .expenses-workspace .card{
+      width:100%;
+      max-width:100%;
+      min-width:0;
+    }
+
+    .expenses-workspace .card{
+      overflow:hidden;
     }
 
     .section-heading,
@@ -263,6 +279,75 @@
       display:grid;
       grid-template-columns:repeat(4, minmax(0, 1fr));
       gap:12px;
+    }
+
+    .claim-form-groups{
+      display:grid;
+      gap:14px;
+    }
+
+    .form-field-group{
+      min-width:0;
+      padding:15px;
+      border:1px solid #e8eef7;
+      border-radius:14px;
+      background:#fbfdff;
+    }
+
+    .form-field-group h3{
+      margin:0 0 12px;
+      color:var(--text);
+      font-size:14px;
+      font-weight:900;
+      line-height:1.25;
+    }
+
+    .form-field-group h3::after{
+      content:"";
+      display:block;
+      width:32px;
+      height:2px;
+      margin-top:7px;
+      border-radius:999px;
+      background:var(--accent);
+      opacity:.65;
+    }
+
+    .form-group-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:12px;
+    }
+
+    .form-group-grid-amounts{
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+    }
+
+    .claim-details-grid{
+      display:grid;
+      grid-template-columns:minmax(160px, .7fr) minmax(0, 1.3fr);
+      gap:12px;
+    }
+
+    .claim-details-grid[hidden]{
+      display:none !important;
+    }
+
+    .claim-details-shared{
+      display:grid;
+      grid-template-columns:minmax(0, 1fr) minmax(240px, .85fr);
+      gap:12px;
+      margin-top:12px;
+      padding-top:12px;
+      border-top:1px solid #e8eef7;
+    }
+
+    .claim-details-shared .field-wide{
+      margin-top:0;
+    }
+
+    .claim-details-section{
+      margin-top:14px;
     }
 
     .field{
@@ -423,9 +508,9 @@
     }
 
     .btn-danger-subtle{
-      background:transparent;
-      color:#b91c1c;
-      padding-inline:8px;
+      background:#b91c1c;
+      color:#ffffff;
+      border:1px solid #991b1b;
     }
 
     .attachment-placeholder{
@@ -447,6 +532,9 @@
       color:#64748b;
       font-size:13px;
       font-weight:700;
+      max-width:100%;
+      min-width:0;
+      overflow-wrap:anywhere;
     }
 
     .attachment-input{
@@ -496,6 +584,20 @@
       gap:16px;
       padding:12px 0;
       border-bottom:1px solid #eef2f7;
+      min-width:0;
+    }
+
+    .overview-item > *,
+    .claim-type-label > *,
+    .status-legend-row > *{
+      min-width:0;
+      max-width:100%;
+    }
+
+    .overview-item span,
+    .claim-type-label span,
+    .status-legend-row span{
+      overflow-wrap:anywhere;
     }
 
     .overview-item:last-child{
@@ -525,6 +627,9 @@
       display:grid;
       gap:12px;
       margin-top:18px;
+      width:100%;
+      max-width:100%;
+      min-width:0;
     }
 
     .claim-type-chart h3{
@@ -535,6 +640,7 @@
     .claim-type-row{
       display:grid;
       gap:7px;
+      min-width:0;
     }
 
     .claim-type-label{
@@ -553,6 +659,8 @@
       overflow:hidden;
       background:#eef2f7;
       box-shadow:inset 0 0 0 1px rgba(15,23,42,.04);
+      width:100%;
+      max-width:100%;
     }
 
     .claim-type-fill{
@@ -574,6 +682,9 @@
       display:grid;
       gap:12px;
       margin-top:14px;
+      width:100%;
+      max-width:100%;
+      min-width:0;
     }
 
     .category-chart > p.muted,
@@ -593,6 +704,7 @@
     .category-chart-row{
       display:grid;
       gap:7px;
+      min-width:0;
     }
 
     .category-chart-label{
@@ -618,6 +730,8 @@
       overflow:hidden;
       background:#eef2f7;
       box-shadow:inset 0 0 0 1px rgba(15,23,42,.04);
+      width:100%;
+      max-width:100%;
     }
 
     .category-chart-fill{
@@ -630,13 +744,18 @@
     .trend-chart-shell{
       position:relative;
       width:100%;
+      max-width:100%;
+      min-width:0;
       height:220px;
       margin-top:14px;
+      overflow:hidden;
     }
 
     .trend-chart-shell canvas{
       display:block;
       width:100%;
+      max-width:100%;
+      min-width:0;
       height:100%;
     }
 
@@ -646,6 +765,9 @@
       gap:18px;
       align-items:center;
       margin-top:14px;
+      width:100%;
+      max-width:100%;
+      min-width:0;
     }
 
     .status-donut{
@@ -669,6 +791,7 @@
     .status-legend{
       display:grid;
       gap:8px;
+      min-width:0;
     }
 
     .status-legend-row{
@@ -687,6 +810,16 @@
     }
 
     .list-card{
+      overflow:hidden;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+    }
+
+    #expensesList{
+      width:100%;
+      max-width:100%;
+      min-width:0;
       overflow:hidden;
     }
 
@@ -720,10 +853,17 @@
 
     .expense-row{
       display:grid;
-      grid-template-columns:minmax(0, 1.35fr) minmax(94px, .7fr) minmax(92px, .7fr) minmax(90px, .7fr) minmax(150px, auto);
-      gap:12px;
+      grid-template-columns:minmax(0, 1.5fr) minmax(0, .6fr) minmax(0, .7fr) minmax(0, .75fr) minmax(0, 1.1fr);
+      gap:14px;
       align-items:center;
+      width:100%;
+      max-width:100%;
       min-width:0;
+    }
+
+    .expense-row > *{
+      min-width:0;
+      max-width:100%;
     }
 
     .expense-table-header{
@@ -742,7 +882,7 @@
     .expense-row:not(.expense-table-header){
       border-bottom:0;
       border-radius:14px;
-      padding:14px 12px;
+      padding:15px 12px;
       transition:background .16s ease, box-shadow .16s ease, transform .16s ease;
     }
 
@@ -766,11 +906,28 @@
 
     .expense-secondary{
       color:#64748b;
-      font-size:13px;
-      font-weight:700;
+      font-size:12px;
+      font-weight:650;
       line-height:1.35;
       margin-top:3px;
       overflow-wrap:anywhere;
+    }
+
+    .expense-description{
+      margin-top:6px;
+      color:#475569;
+    }
+
+    .expense-amount-cell{
+      text-align:right;
+    }
+
+    .expense-status-cell{
+      min-width:0;
+    }
+
+    .expense-attachment-state{
+      margin-top:7px;
     }
 
     .expense-label{
@@ -851,9 +1008,14 @@
       justify-content:flex-end;
       gap:6px;
       flex-wrap:wrap;
+      width:100%;
+      max-width:100%;
+      min-width:0;
     }
 
     .row-actions .btn{
+      flex:0 1 auto;
+      max-width:100%;
       min-height:34px;
       padding:0 11px;
       border-radius:9px;
@@ -904,7 +1066,11 @@
         margin-left:0;
       }
 
-      .grid{
+      .grid,
+      .form-group-grid,
+      .form-group-grid-amounts,
+      .claim-details-grid,
+      .claim-details-shared{
         grid-template-columns:repeat(2, minmax(0, 1fr));
       }
 
@@ -913,7 +1079,7 @@
       }
     }
 
-    @media (max-width:760px){
+    @media (max-width:900px){
       .list-header{
         flex-direction:column;
         gap:10px;
@@ -933,8 +1099,14 @@
         border:1px solid #e8eef7;
       }
 
+      .expense-amount-cell{
+        text-align:left;
+      }
+
       .row-actions{
         justify-content:flex-start;
+        padding-top:11px;
+        border-top:1px solid #eef2f7;
       }
     }
 
@@ -948,8 +1120,16 @@
       }
 
       .summary-grid,
-      .grid{
+      .grid,
+      .form-group-grid,
+      .form-group-grid-amounts,
+      .claim-details-grid,
+      .claim-details-shared{
         grid-template-columns:1fr;
+      }
+
+      .form-field-group{
+        padding:14px;
       }
     }
   </style>
@@ -1059,135 +1239,165 @@
             <button id="mileageModeButton" type="button" onclick="setClaimType('mileage')">Mileage</button>
           </div>
 
-          <div class="grid" id="expenseFields">
-            <div class="field">
-              <label>Date</label>
-              <input id="expenseDate" type="date">
-            </div>
+          <div class="claim-form-groups" id="expenseFields">
+            <section class="form-field-group" aria-labelledby="purchaseDetailsTitle">
+              <h3 id="purchaseDetailsTitle">Purchase details</h3>
+              <div class="form-group-grid">
+                <div class="field">
+                  <label>Date</label>
+                  <input id="expenseDate" type="date">
+                </div>
 
-            <div class="field">
-              <label>Merchant / Supplier</label>
-              <input id="merchant" placeholder="Stationery Supplier Ltd">
-            </div>
+                <div class="field">
+                  <label>Merchant / Supplier</label>
+                  <input id="merchant" placeholder="Stationery Supplier Ltd">
+                </div>
 
-            <div class="field">
-              <label>Category</label>
-              <select id="category">
-                <option>General</option>
-                <option>Travel</option>
-                <option>Meals</option>
-                <option>Office</option>
-                <option>Software</option>
-                <option>Utilities</option>
-                <option>Professional fees</option>
-                <option>Other</option>
-              </select>
-            </div>
+                <div class="field">
+                  <label>Category</label>
+                  <select id="category">
+                    <option>General</option>
+                    <option>Travel</option>
+                    <option>Meals</option>
+                    <option>Office</option>
+                    <option>Software</option>
+                    <option>Utilities</option>
+                    <option>Professional fees</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+              </div>
+            </section>
 
-            <div class="field">
-              <label>Status</label>
-              <select id="status">
-                <option>Draft</option>
-                <option>Submitted</option>
-                <option>Approved</option>
-                <option>Paid</option>
-              </select>
-            </div>
+            <section class="form-field-group" aria-labelledby="expenseAmountsTitle">
+              <h3 id="expenseAmountsTitle">Amounts</h3>
+              <div class="form-group-grid form-group-grid-amounts">
+                <div class="field">
+                  <label>Net amount (£)</label>
+                  <input id="netAmount" type="number" step="0.01" min="0" placeholder="100.00">
+                </div>
 
-            <div class="field">
-              <label>Net amount (£)</label>
-              <input id="netAmount" type="number" step="0.01" min="0" placeholder="100.00">
-            </div>
+                <div class="field">
+                  <label>VAT rate</label>
+                  <select id="vatRate">
+                    <option value="0.20">20%</option>
+                    <option value="0.05">5%</option>
+                    <option value="0">0%</option>
+                  </select>
+                </div>
 
-            <div class="field">
-              <label>VAT rate</label>
-              <select id="vatRate">
-                <option value="0.20">20%</option>
-                <option value="0.05">5%</option>
-                <option value="0">0%</option>
-              </select>
-            </div>
+                <div class="field">
+                  <label>VAT amount (£)</label>
+                  <input id="vatAmount" type="number" step="0.01" min="0" placeholder="20.00">
+                </div>
 
-            <div class="field">
-              <label>VAT amount (£)</label>
-              <input id="vatAmount" type="number" step="0.01" min="0" placeholder="20.00">
-            </div>
-
-            <div class="field">
-              <label>Gross amount (£)</label>
-              <input id="grossAmount" type="number" step="0.01" min="0" placeholder="120.00" readonly>
-            </div>
+                <div class="field">
+                  <label>Gross amount (£)</label>
+                  <input id="grossAmount" type="number" step="0.01" min="0" placeholder="120.00" readonly>
+                </div>
+              </div>
+            </section>
           </div>
 
-          <div class="grid" id="mileageFields" hidden>
-            <div class="field">
-              <label>Date</label>
-              <input id="mileageDate" type="date">
-            </div>
+          <div class="claim-form-groups" id="mileageFields" hidden>
+            <section class="form-field-group" aria-labelledby="journeyDetailsTitle">
+              <h3 id="journeyDetailsTitle">Journey details</h3>
+              <div class="form-group-grid">
+                <div class="field">
+                  <label>Date</label>
+                  <input id="mileageDate" type="date">
+                </div>
 
-            <div class="field">
-              <label>From</label>
-              <input id="mileageFrom" placeholder="Office">
-            </div>
+                <div class="field">
+                  <label>From</label>
+                  <input id="mileageFrom" placeholder="Office">
+                </div>
 
-            <div class="field">
-              <label>To</label>
-              <input id="mileageTo" placeholder="Client site">
-            </div>
+                <div class="field">
+                  <label>To</label>
+                  <input id="mileageTo" placeholder="Client site">
+                </div>
+              </div>
+            </section>
 
-            <div class="field">
-              <label>Status</label>
-              <select id="mileageStatus">
-                <option>Draft</option>
-                <option>Submitted</option>
-                <option>Approved</option>
-                <option>Paid</option>
-              </select>
-            </div>
+            <section class="form-field-group" aria-labelledby="mileageCalculationTitle">
+              <h3 id="mileageCalculationTitle">Mileage calculation</h3>
+              <div class="form-group-grid">
+                <div class="field">
+                  <label>Miles</label>
+                  <input id="mileageMiles" type="number" step="0.1" min="0" placeholder="25">
+                </div>
 
-            <div class="field">
-              <label>Miles</label>
-              <input id="mileageMiles" type="number" step="0.1" min="0" placeholder="25">
-            </div>
+                <div class="field">
+                  <label>Rate per mile (£)</label>
+                  <input id="mileageRate" type="number" step="0.01" min="0" value="0.55">
+                </div>
 
-            <div class="field">
-              <label>Rate per mile (£)</label>
-              <input id="mileageRate" type="number" step="0.01" min="0" value="0.55">
-            </div>
-
-            <div class="field">
-              <label>Amount (£)</label>
-              <input id="mileageAmount" type="number" step="0.01" min="0" readonly>
-            </div>
+                <div class="field">
+                  <label>Amount (£)</label>
+                  <input id="mileageAmount" type="number" step="0.01" min="0" readonly>
+                </div>
+              </div>
+            </section>
           </div>
 
-          <div class="field-wide" id="expenseDescriptionField">
-            <label>Description</label>
-            <input id="description" placeholder="What was this expense for?">
-          </div>
+          <section class="form-field-group claim-details-section" aria-labelledby="claimDetailsTitle">
+            <h3 id="claimDetailsTitle">Claim details</h3>
 
-          <div class="field-wide" id="mileagePurposeField" hidden>
-            <label>Business purpose</label>
-            <input id="mileagePurpose" placeholder="Client meeting">
-          </div>
+            <div class="claim-details-grid" id="expenseClaimFields">
+              <div class="field">
+                <label>Status</label>
+                <select id="status">
+                  <option>Draft</option>
+                  <option>Submitted</option>
+                  <option>Approved</option>
+                  <option>Paid</option>
+                </select>
+              </div>
 
-          <div class="field-wide">
-            <label>Notes</label>
-            <textarea id="notes" placeholder="Optional notes"></textarea>
-          </div>
-
-          <div class="field-wide" id="attachmentField">
-            <label>Attachment</label>
-            <div class="attachment-placeholder">
-              <label class="btn attachment-placeholder-button" id="attachmentButtonLabel" for="expenseAttachment">
-                Attach PDF receipt
-              </label>
-              <input class="attachment-input" id="expenseAttachment" type="file" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png">
-              <span class="attachment-helper" id="attachmentFileName">No file selected</span>
-              <progress class="attachment-progress" id="attachmentProgress" max="100" value="0" hidden></progress>
-              <span class="attachment-status" id="attachmentStatus"></span>
+              <div class="field" id="expenseDescriptionField">
+                <label>Description</label>
+                <input id="description" placeholder="What was this expense for?">
+              </div>
             </div>
-          </div>
+
+            <div class="claim-details-grid" id="mileageClaimFields" hidden>
+              <div class="field">
+                <label>Status</label>
+                <select id="mileageStatus">
+                  <option>Draft</option>
+                  <option>Submitted</option>
+                  <option>Approved</option>
+                  <option>Paid</option>
+                </select>
+              </div>
+
+              <div class="field" id="mileagePurposeField" hidden>
+                <label>Description / business purpose</label>
+                <input id="mileagePurpose" placeholder="Client meeting">
+              </div>
+            </div>
+
+            <div class="claim-details-shared">
+              <div class="field-wide">
+                <label>Notes</label>
+                <textarea id="notes" placeholder="Optional notes"></textarea>
+              </div>
+
+              <div class="field-wide" id="attachmentField">
+                <label>Attachment</label>
+                <div class="attachment-placeholder">
+                  <label class="btn attachment-placeholder-button" id="attachmentButtonLabel" for="expenseAttachment">
+                    Attach PDF receipt
+                  </label>
+                  <input class="attachment-input" id="expenseAttachment" type="file" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png">
+                  <span class="attachment-helper" id="attachmentFileName">No file selected</span>
+                  <progress class="attachment-progress" id="attachmentProgress" max="100" value="0" hidden></progress>
+                  <span class="attachment-status" id="attachmentStatus"></span>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <div class="form-actions">
             <button class="btn btn-secondary" type="button" id="cancelEditButton" onclick="cancelEdit()" hidden>Cancel edit</button>
@@ -1587,6 +1797,8 @@
       document.getElementById("mileageModeButton").classList.toggle("active", isMileage);
       document.getElementById("expenseFields").hidden = isMileage;
       document.getElementById("mileageFields").hidden = !isMileage;
+      document.getElementById("expenseClaimFields").hidden = isMileage;
+      document.getElementById("mileageClaimFields").hidden = !isMileage;
       document.getElementById("expenseDescriptionField").hidden = isMileage;
       document.getElementById("mileagePurposeField").hidden = !isMileage;
       document.getElementById("attachmentField").hidden = false;
@@ -2380,14 +2592,15 @@
 
       list.innerHTML = `
         <div class="expense-row expense-table-header">
-          <div>Merchant</div>
+          <div>Claim</div>
           <div>Date</div>
-          <div>Gross</div>
-          <div>Status</div>
-          <div></div>
+          <div class="expense-amount-cell">Amount</div>
+          <div>Status &amp; attachment</div>
+          <div>Actions</div>
         </div>
       ` + visibleExpenses.map(expense => {
         const isMileage = expense.type === "mileage";
+        const expenseId = escapeHtml(String(expense.id));
         const primaryText = isMileage
           ? `${escapeHtml(expense.from || "From")} &rarr; ${escapeHtml(expense.to || "To")}`
           : escapeHtml(expense.merchant);
@@ -2397,7 +2610,7 @@
         const detailText = isMileage
           ? `${Number(expense.miles || 0).toFixed(1)} miles at ${money(expense.ratePerMile)} per mile`
           : escapeHtml(expense.description || "No description");
-        const attachmentLabel = `<div class="expense-secondary">${
+        const attachmentLabel = `<div class="expense-secondary expense-attachment-state">${
               expense.attachmentUrl
                 ? `<a class="expense-attachment-link" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">${isMileage ? "View attachment" : "View PDF"}</a>`
                 : "No attachment"
@@ -2405,13 +2618,12 @@
         const rowAmount = isMileage ? Number(expense.amount || expense.gross || 0) : Number(expense.gross || 0);
 
         return `
-        <div class="expense-row">
+        <div class="expense-row" data-expense-id="${expenseId}">
           <div>
             <span class="claim-badge ${isMileage ? "claim-badge-mileage" : ""}">${isMileage ? "Mileage" : "Expense"}</span>
             <div class="expense-merchant">${primaryText}</div>
             <div class="expense-secondary">${secondaryText}</div>
-            <div class="expense-secondary">${detailText}</div>
-            ${attachmentLabel}
+            ${isMileage ? "" : `<div class="expense-secondary expense-description">${detailText}</div>`}
           </div>
 
           <div>
@@ -2419,25 +2631,27 @@
             <span class="expense-value">${formatDate(expense.date)}</span>
           </div>
 
-          <div>
-            <span class="expense-label">Gross</span>
+          <div class="expense-amount-cell">
+            <span class="expense-label">${isMileage ? "Total claim" : "Gross"}</span>
             <span class="expense-value">${money(rowAmount)}</span>
-            <div class="expense-secondary">${isMileage ? "Mileage claim" : `VAT ${money(expense.vat)}`}</div>
+            <div class="expense-secondary">${isMileage ? detailText : `VAT ${money(expense.vat)}`}</div>
           </div>
 
-          <div>
+          <div class="expense-status-cell">
+            <span class="expense-label">Status</span>
             <span class="pill ${statusPillClass(expense.status)}">${escapeHtml(expense.status)}</span>
+            ${attachmentLabel}
           </div>
 
           <div class="row-actions">
             ${expense.attachmentUrl
               ? `<a class="btn btn-secondary" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">${isMileage ? "View attachment" : "View PDF"}</a>`
               : ""}
-            <button class="btn" onclick="editExpense('${escapeJsString(expense.id)}')">Edit</button>
+            <button class="btn btn-secondary" type="button" data-expense-action="edit" data-expense-id="${expenseId}">Edit</button>
             ${expense.status !== "Paid"
-              ? `<button class="btn btn-positive" onclick="markExpensePaid('${escapeJsString(expense.id)}')">Mark paid</button>`
+              ? `<button class="btn btn-positive" type="button" data-expense-action="mark-paid" data-expense-id="${expenseId}">Mark paid</button>`
               : ""}
-            <button class="btn btn-danger-subtle" onclick="deleteExpense('${escapeJsString(expense.id)}')">Delete</button>
+            <button class="btn btn-danger-subtle" type="button" data-expense-action="delete" data-expense-id="${expenseId}">Delete</button>
           </div>
         </div>
       `;
@@ -2491,6 +2705,28 @@
     document.getElementById("mileageRate").addEventListener("input", calculateMileageAmount);
     document.getElementById("expenseAttachment").addEventListener("change", handleAttachmentSelection);
     document.getElementById("recentExpensesSearch").addEventListener("input", renderExpenses);
+
+    document.getElementById("expensesList").addEventListener("click", event => {
+      const actionButton = event.target.closest("button[data-expense-action][data-expense-id]");
+
+      if (!actionButton || !event.currentTarget.contains(actionButton)) {
+        return;
+      }
+
+      const expenseId = actionButton.dataset.expenseId;
+
+      switch (actionButton.dataset.expenseAction) {
+        case "edit":
+          editExpense(expenseId);
+          break;
+        case "mark-paid":
+          markExpensePaid(expenseId);
+          break;
+        case "delete":
+          deleteExpense(expenseId);
+          break;
+      }
+    });
 
     onAuthStateChanged(auth, subscribeToExpenses);
 
