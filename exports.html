@@ -215,6 +215,21 @@
       margin-top: auto;
     }
 
+    .export-action-card > .btn:first-of-type {
+      margin-top: 14px;
+    }
+
+    .exports-grid > .export-action-card:nth-child(2) > .btn:first-of-type {
+      margin-top: 16px;
+    }
+
+    .export-action-card > .btn {
+      width: 100%;
+      align-self: stretch;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
     .btn:focus,
     .btn:active{
       outline:none;
@@ -245,34 +260,118 @@
     .import-actions {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      margin-top: auto;
+      align-items: stretch;
+      gap: 10px;
+      width: 100%;
+      margin-top: 14px;
     }
 
     .import-actions .btn:first-of-type {
-      margin-top: 10px;
+      margin-top: 0;
+    }
+
+    .import-actions .btn {
+      width: 100%;
+      margin-top: 0;
+      box-sizing: border-box;
+      text-align: center;
     }
 
     .advanced-import-options {
-      margin-top: 12px;
+      margin-top: 14px;
       width: 100%;
-      border-top: 1px solid #e2e8f0;
-      padding-top: 10px;
+      border: 1px solid #e8eef5;
+      border-radius: 14px;
+      background: #fbfdff;
+      overflow: hidden;
+      box-sizing: border-box;
     }
 
     .advanced-import-options summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
       cursor: pointer;
-      color: #475569;
+      color: #64748b;
       font-size: 14px;
-      font-weight: 800;
-      list-style-position: inside;
+      font-weight: 750;
+      line-height: 1.3;
+      padding: 12px 14px;
+      list-style: none;
+    }
+
+    .advanced-import-options summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .advanced-import-options summary::after {
+      content: "+";
+      display: grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    .advanced-import-options[open] summary {
+      border-bottom: 1px solid #e8eef5;
+      background: #fcfdff;
+    }
+
+    .advanced-import-options[open] summary::after {
+      content: "–";
     }
 
     .advanced-import-buttons {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      padding-top: 4px;
+      align-items: stretch;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .advanced-import-buttons .btn {
+      width: 100%;
+      margin-top: 0;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    .advanced-import-buttons .btn:first-of-type {
+      margin-top: 0;
+    }
+
+    .accountant-pack-card {
+      min-height: 100%;
+    }
+
+    .accountant-empty-state {
+      display: flex;
+      flex: 1;
+      min-height: 170px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 18px 10px;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .accountant-empty-state .muted {
+      max-width: 220px;
+    }
+
+    .accountant-pack-card .accountant-empty-state .badge {
+      margin-top: 0;
+      border: 1px solid #dbe3ec;
+      background: #f8fafc;
     }
 
     .import-message {
@@ -617,7 +716,7 @@
 
     <section class="exports-grid">
 
-      <div class="card">
+      <div class="card export-action-card">
         <h2>Backup &amp; Restore</h2>
 
         <p class="muted">
@@ -641,7 +740,7 @@
         </button>
       </div>
 
-      <div class="card">
+      <div class="card export-action-card">
         <h2>Excel export</h2>
 
         <p class="muted">
@@ -711,10 +810,12 @@
         <div class="import-message" id="excelImportMessage" aria-live="polite"></div>
       </div>
 
-      <div class="card">
+      <div class="card accountant-pack-card">
         <h2>Accountant pack</h2>
-        <p class="muted">Create a clean month-end or VAT-quarter handoff pack.</p>
-        <span class="badge">Coming soon</span>
+        <div class="accountant-empty-state">
+          <p class="muted">Create a clean month-end or VAT-quarter handoff pack.</p>
+          <span class="badge">Coming soon</span>
+        </div>
       </div>
 
     </section>
