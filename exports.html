@@ -472,6 +472,16 @@
       font-weight: 900;
     }
 
+    .accountant-checklist .accountant-pending {
+      color: #7b8794;
+    }
+
+    .accountant-pending .accountant-check {
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 10px;
+    }
+
     .accountant-pack-card .accountant-generate-btn:first-of-type {
       width: 100%;
       min-height: 44px;
@@ -991,16 +1001,18 @@
         <details class="accountant-pack-includes">
           <summary>Included in your pack</summary>
           <ul class="accountant-checklist">
-            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Invoice register (Excel)</span></li>
-            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Bill register (Excel)</span></li>
-            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Expense register (Excel)</span></li>
-            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Mileage register (Excel)</span></li>
-            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Client list</span></li>
-            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Invoice PDFs</span></li>
-            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Receipt attachments</span></li>
-            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Bill attachments</span></li>
-            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>VAT summary</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Excel workbook</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Invoice CSV</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Bill CSV</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Expense CSV</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Mileage CSV</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Client CSV</span></li>
             <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Company information</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Pack manifest</span></li>
+            <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>Invoice PDFs &mdash; coming next</span></li>
+            <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>Receipt attachments &mdash; coming next</span></li>
+            <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>Bill attachments &mdash; coming next</span></li>
+            <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>VAT summary PDF &mdash; coming next</span></li>
           </ul>
         </details>
 
@@ -2749,13 +2761,24 @@
         }
     }
 
-    function appendFormattedSheet(XLSX, workbook, sheetName, rows, headers = Object.keys(rows[0] || {})){
-        const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
-        formatExcelSheet(XLSX, worksheet, rows, headers);
+    function appendFormattedSheet(
+      XLSX,
+      workbook,
+      sheetName,
+      rows,
+      headers = Object.keys(rows[0] || {}),
+      options = {}
+    ){
+        const worksheet = XLSX.utils.json_to_sheet(rows, {
+          header: headers,
+          cellDates: true,
+          dateNF: "dd/mm/yyyy"
+        });
+        formatExcelSheet(XLSX, worksheet, rows, headers, options);
         XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     }
 
-    function formatExcelSheet(XLSX, worksheet, rows, headers = Object.keys(rows[0] || {})){
+    function formatExcelSheet(XLSX, worksheet, rows, headers, options = {}){
         const range = worksheet["!ref"];
 
         if(!range){
@@ -2763,13 +2786,17 @@
         }
 
         const decodedRange = XLSX.utils.decode_range(range);
+        const maxColumnWidth = options.maxColumnWidth || 34;
+        const currencyHeaders = options.currencyHeaders || headers.filter(isCurrencyColumn);
+        const dateHeaders = options.dateHeaders || [];
+        const dateTimeHeaders = options.dateTimeHeaders || [];
         worksheet["!cols"] = headers.map((header) => ({
           wch: Math.min(
-            42,
+            maxColumnWidth,
             Math.max(
               12,
               header.length + 2,
-              ...rows.map(row => String(row[header] ?? "").length + 2)
+              ...rows.map(row => excelColumnWidthValue(row[header], dateTimeHeaders.includes(header)).length + 2)
             )
           )
         }));
@@ -2781,6 +2808,10 @@
           activePane: "bottomLeft",
           state: "frozen"
         };
+
+        if(options.autoFilter){
+          worksheet["!autofilter"] = { ref: range };
+        }
 
         for(let column = decodedRange.s.c; column <= decodedRange.e.c; column += 1){
           const headerCell = worksheet[XLSX.utils.encode_cell({ r: 0, c: column })];
@@ -2801,19 +2832,31 @@
             const header = headers[column];
             const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
 
-            if(!cell || cell.t !== "n"){
+            if(!cell){
               continue;
             }
 
-            if(isCurrencyColumn(header)){
-              cell.z = "\"£\"#,##0.00;[Red]-\"£\"#,##0.00";
-            }else if(header === "VAT Rate"){
+            if(dateTimeHeaders.includes(header)){
+              cell.z = "dd/mm/yyyy hh:mm";
+            }else if(dateHeaders.includes(header)){
+              cell.z = "dd/mm/yyyy";
+            }else if(cell.t === "n" && currencyHeaders.includes(header)){
+              cell.z = "\u00A3#,##0.00;[Red]-\u00A3#,##0.00";
+            }else if(cell.t === "n" && header === "VAT Rate"){
               cell.z = "0.00%";
-            }else if(header === "Miles"){
+            }else if(cell.t === "n" && header === "Miles"){
               cell.z = "0.0";
             }
           }
         }
+    }
+
+    function excelColumnWidthValue(value, includeTime = false){
+        if(value instanceof Date){
+          return formatUkDate(value, includeTime);
+        }
+
+        return String(value ?? "");
     }
 
     function isCurrencyColumn(header){
@@ -2824,6 +2867,7 @@
           "Gross",
           "Amount",
           "Value",
+          "Rate",
           "Rate Per Mile"
         ].includes(header);
     }
@@ -2914,28 +2958,6 @@
           "Notes": mileage.notes || "",
           "Attachment": mileage.attachmentName || "",
           "Created At": excelValue(mileage.createdAt)
-        };
-    }
-
-    function clientExcelRow(client){
-        return {
-          "Client ID": client.id || "",
-          "Client Name": client.name || client.clientName || "",
-          "Contact Name": client.contactName || "",
-          "Email": client.email || "",
-          "Phone": client.phone || "",
-          "Status": client.status || "",
-          "Address Line 1": client.addressLine1 || "",
-          "Address Line 2": client.addressLine2 || "",
-          "Town/City": client.townCity || client.city || "",
-          "Postcode": client.postcode || "",
-          "Country": client.country || "",
-          "Follow Up": excelValue(client.followUp),
-          "Last Contacted": excelValue(client.lastContacted),
-          "Payment Terms": client.paymentTerms || "",
-          "Notes": client.notes || "",
-          "Attachment": client.attachmentName || "",
-          "Created At": excelValue(client.createdAt)
         };
     }
 
@@ -3071,8 +3093,13 @@
         const text = String(value).trim();
         const isoDate = parseIsoDateInput(text.slice(0, 10));
 
-        if(/^\d{4}-\d{2}-\d{2}(?:$|T)/.test(text) && isoDate){
+        if(/^\d{4}-\d{2}-\d{2}$/.test(text) && isoDate){
           return isoDate;
+        }
+
+        if(/^\d{4}-\d{2}-\d{2}T/.test(text)){
+          const isoDateTime = new Date(text);
+          return Number.isNaN(isoDateTime.getTime()) ? isoDate : isoDateTime;
         }
 
         const ukDateMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -3085,6 +3112,42 @@
 
         const parsed = new Date(text);
         return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function accountantDateValue(value){
+        return parseAppDate(value) || "";
+    }
+
+    function optionalNumberValue(value){
+        return value === null || value === undefined || value === ""
+          ? ""
+          : numberValue(value);
+    }
+
+    function formatUkDate(value, includeTime = false){
+        const date = parseAppDate(value);
+
+        if(!date){
+          return "";
+        }
+
+        if(includeTime){
+          return new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Europe/London",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hourCycle: "h23"
+          }).format(date).replace(",", "");
+        }
+
+        return [
+          String(date.getUTCDate()).padStart(2, "0"),
+          String(date.getUTCMonth() + 1).padStart(2, "0"),
+          String(date.getUTCFullYear()).padStart(4, "0")
+        ].join("/");
     }
 
     function appDateToIsoDay(value){
@@ -3247,7 +3310,7 @@
             line2: account.addressLine2 || "",
             townCity: account.townCity || "",
             postcode: account.postcode || "",
-            country: account.country || "United Kingdom"
+            country: account.country || ""
           },
           registration: {
             companyNumber: account.companyNumber || "",
@@ -3266,27 +3329,196 @@
         };
     }
 
-    function accountantPackHeaders(){
+    function accountantInvoiceRow(invoice){
         return {
-          invoices: Object.keys(invoiceExcelRow({})),
-          bills: Object.keys(billExcelRow({})),
-          expenses: Object.keys(expenseExcelRow({})),
-          mileage: Object.keys(mileageExcelRow({})),
-          clients: Object.keys(clientExcelRow({}))
+          "Invoice Number": invoice.invoiceNo || "",
+          "Date": accountantDateValue(invoice.date),
+          "Client": invoice.client || "",
+          "Client Email": invoice.clientEmail || "",
+          "Due Date": accountantDateValue(invoice.dueDate),
+          "Payment Terms": invoice.paymentTerms || "",
+          "Net": numberValue(invoice.amount),
+          "VAT": numberValue(invoice.vat),
+          "Total": numberValue(invoice.total),
+          "Status": invoice.status || "Unpaid",
+          "Recurring": invoice.recurringInvoice || "",
+          "Next Invoice Date": accountantDateValue(invoice.nextInvoiceDate),
+          "Reminder Date": accountantDateValue(invoice.reminderDate),
+          "Created At": accountantDateValue(invoice.createdAt)
+        };
+    }
+
+    function accountantBillRow(bill){
+        return {
+          "Supplier": bill.supplier || "",
+          "Bill Number": bill.billNumber || "",
+          "Date": accountantDateValue(bill.billDate),
+          "Due Date": accountantDateValue(bill.dueDate),
+          "Category": bill.category || "",
+          "Net": numberValue(bill.net),
+          "VAT": numberValue(bill.vat),
+          "Total": numberValue(bill.total),
+          "Status": bill.status || "Unpaid",
+          "VAT Rate": optionalNumberValue(bill.vatRate),
+          "Notes": bill.notes || "",
+          "Attachment": bill.attachmentName || "",
+          "Created At": accountantDateValue(bill.createdAt)
+        };
+    }
+
+    function accountantExpenseRow(expense){
+        return {
+          "Date": accountantDateValue(expense.date),
+          "Description": expense.description || "",
+          "Category": expense.category || "",
+          "Supplier / Merchant": expense.merchant || expense.supplier || "",
+          "Net": numberValue(expense.net ?? expense.netAmount),
+          "VAT": numberValue(expense.vat ?? expense.vatAmount),
+          "Total": expenseTotal(expense),
+          "Status": expense.status || "",
+          "VAT Rate": optionalNumberValue(expense.vatRate),
+          "Notes": expense.notes || "",
+          "Attachment": expense.attachmentName || "",
+          "Created At": accountantDateValue(expense.createdAt)
+        };
+    }
+
+    function accountantMileageRow(mileage){
+        return {
+          "Date": accountantDateValue(mileage.date),
+          "From": mileage.from || "",
+          "To": mileage.to || "",
+          "Purpose": mileage.businessPurpose || mileage.purpose || "",
+          "Miles": numberValue(mileage.miles),
+          "Rate": numberValue(mileage.ratePerMile ?? mileage.mileageRate),
+          "Amount": mileageTotal(mileage),
+          "Status": mileage.status || "",
+          "Notes": mileage.notes || "",
+          "Attachment": mileage.attachmentName || "",
+          "Created At": accountantDateValue(mileage.createdAt)
+        };
+    }
+
+    function accountantClientRow(client){
+        const address = [
+          client.addressLine1,
+          client.addressLine2,
+          client.townCity || client.city,
+          client.postcode,
+          client.country
+        ].filter(value => String(value || "").trim()).join(", ");
+
+        return {
+          "Client Name": client.name || client.clientName || "",
+          "Contact Name": client.contactName || "",
+          "Email": client.email || "",
+          "Phone": client.phone || "",
+          "Address": address,
+          "Notes": client.notes || "",
+          "Status": client.status || "",
+          "Follow Up": accountantDateValue(client.followUp),
+          "Last Contacted": accountantDateValue(client.lastContacted),
+          "Payment Terms": client.paymentTerms || "",
+          "Attachment": client.attachmentName || "",
+          "Created At": accountantDateValue(client.createdAt)
+        };
+    }
+
+    function hasMeaningfulExportValue(value){
+        if(value === null || value === undefined || value === ""){
+          return false;
+        }
+
+        if(value instanceof Date){
+          return !Number.isNaN(value.getTime());
+        }
+
+        if(typeof value === "string"){
+          return value.trim() !== "";
+        }
+
+        if(Array.isArray(value)){
+          return value.length > 0;
+        }
+
+        if(typeof value === "object"){
+          return Object.keys(value).length > 0;
+        }
+
+        return true;
+    }
+
+    function buildAccountantPackTable(records, rowMapper, options){
+        const mappedRows = (Array.isArray(records) ? records : []).map(rowMapper);
+        const optionalHeaders = options.optionalHeaders.filter(header =>
+          mappedRows.some(row => hasMeaningfulExportValue(row[header]))
+        );
+        const headers = [...options.essentialHeaders, ...optionalHeaders];
+        const rows = mappedRows.map(row => Object.fromEntries(
+          headers.map(header => [header, row[header] ?? ""])
+        ));
+
+        return {
+          rows,
+          headers,
+          currencyHeaders: options.currencyHeaders.filter(header => headers.includes(header)),
+          dateHeaders: options.dateHeaders.filter(header => headers.includes(header)),
+          dateTimeHeaders: options.dateTimeHeaders.filter(header => headers.includes(header))
         };
     }
 
     function buildAccountantPackRows(data){
         return {
-          invoices: data.invoices.map(invoiceExcelRow),
-          bills: data.bills.map(billExcelRow),
-          expenses: data.expenses.map(expenseExcelRow),
-          mileage: data.mileage.map(mileageExcelRow),
-          clients: data.clients.map(clientExcelRow)
+          invoices: buildAccountantPackTable(data.invoices, accountantInvoiceRow, {
+            essentialHeaders: [
+              "Invoice Number", "Date", "Client", "Client Email", "Due Date",
+              "Payment Terms", "Net", "VAT", "Total", "Status"
+            ],
+            optionalHeaders: ["Recurring", "Next Invoice Date", "Reminder Date", "Created At"],
+            currencyHeaders: ["Net", "VAT", "Total"],
+            dateHeaders: ["Date", "Due Date", "Next Invoice Date", "Reminder Date"],
+            dateTimeHeaders: ["Created At"]
+          }),
+          bills: buildAccountantPackTable(data.bills, accountantBillRow, {
+            essentialHeaders: [
+              "Supplier", "Bill Number", "Date", "Due Date", "Category",
+              "Net", "VAT", "Total", "Status"
+            ],
+            optionalHeaders: ["VAT Rate", "Notes", "Created At"],
+            currencyHeaders: ["Net", "VAT", "Total"],
+            dateHeaders: ["Date", "Due Date"],
+            dateTimeHeaders: ["Created At"]
+          }),
+          expenses: buildAccountantPackTable(data.expenses, accountantExpenseRow, {
+            essentialHeaders: [
+              "Date", "Description", "Category", "Supplier / Merchant",
+              "Net", "VAT", "Total", "Status"
+            ],
+            optionalHeaders: ["VAT Rate", "Notes", "Created At"],
+            currencyHeaders: ["Net", "VAT", "Total"],
+            dateHeaders: ["Date"],
+            dateTimeHeaders: ["Created At"]
+          }),
+          mileage: buildAccountantPackTable(data.mileage, accountantMileageRow, {
+            essentialHeaders: ["Date", "From", "To", "Purpose", "Miles", "Rate", "Amount"],
+            optionalHeaders: ["Status", "Notes", "Created At"],
+            currencyHeaders: ["Rate", "Amount"],
+            dateHeaders: ["Date"],
+            dateTimeHeaders: ["Created At"]
+          }),
+          clients: buildAccountantPackTable(data.clients, accountantClientRow, {
+            essentialHeaders: ["Client Name", "Contact Name", "Email", "Phone", "Address", "Notes"],
+            optionalHeaders: [
+              "Status", "Follow Up", "Last Contacted", "Payment Terms", "Created At"
+            ],
+            currencyHeaders: [],
+            dateHeaders: ["Follow Up", "Last Contacted"],
+            dateTimeHeaders: ["Created At"]
+          })
         };
     }
 
-    function accountantPackSummaryRows(data, period, companyInformation, generatedAt){
+    function accountantPackFinancialTotals(data){
         const totalInvoiceValue = data.invoices.reduce(
           (sum, invoice) => sum + numberValue(invoice.total),
           0
@@ -3304,40 +3536,111 @@
           0
         );
 
-        return [
-          { "Summary item": "Business name", "Details": companyInformation.business.name },
-          { "Summary item": "Pack generated", "Details": generatedAt },
-          { "Summary item": "Accounting period", "Details": period.label },
-          { "Summary item": "Period start date", "Details": period.startDateText || "" },
-          { "Summary item": "Period end date", "Details": period.endDateText || "" },
-          { "Summary item": "Invoice count", "Details": data.invoices.length },
-          { "Summary item": "Bill count", "Details": data.bills.length },
-          { "Summary item": "Expense count", "Details": data.expenses.length },
-          { "Summary item": "Mileage count", "Details": data.mileage.length },
-          { "Summary item": "Client count", "Details": data.clients.length },
-          { "Summary item": "Total invoice value", "Details": roundCurrency(totalInvoiceValue) },
-          { "Summary item": "Total bill value", "Details": roundCurrency(totalBillValue) },
-          { "Summary item": "Total expense value", "Details": roundCurrency(totalExpenseValue) },
-          { "Summary item": "Total mileage amount", "Details": roundCurrency(totalMileageAmount) }
-        ];
+        return {
+          invoices: roundCurrency(totalInvoiceValue),
+          bills: roundCurrency(totalBillValue),
+          expenses: roundCurrency(totalExpenseValue),
+          mileage: roundCurrency(totalMileageAmount)
+        };
     }
 
-    function buildAccountantPackWorkbook(XLSX, data, rows, period, companyInformation, generatedAt){
+    function buildAccountantPackSummarySheet(XLSX, data, period, companyInformation, generatedAt){
+        const totals = accountantPackFinancialTotals(data);
+        const summaryRows = [
+          ["Simple Books", ""],
+          ["Accountant Pack", ""],
+          ["", ""],
+          ["Business name", companyInformation.business.name || ""],
+          ["Generated", accountantDateValue(generatedAt)],
+          ["Accounting period", period.label],
+          ["Period start", accountantDateValue(period.startDateText)],
+          ["Period end", accountantDateValue(period.endDateText)],
+          ["", ""],
+          ["Record summary", ""],
+          ["Invoices", data.invoices.length],
+          ["Bills", data.bills.length],
+          ["Expenses", data.expenses.length],
+          ["Mileage", data.mileage.length],
+          ["Clients", data.clients.length],
+          ["", ""],
+          ["Financial summary", ""],
+          ["Total invoice value", totals.invoices],
+          ["Total bill value", totals.bills],
+          ["Total expense value", totals.expenses],
+          ["Total mileage amount", totals.mileage]
+        ];
+        const worksheet = XLSX.utils.aoa_to_sheet(summaryRows, {
+          cellDates: true,
+          dateNF: "dd/mm/yyyy"
+        });
+
+        worksheet["!cols"] = [{ wch: 26 }, { wch: 34 }];
+        worksheet["!merges"] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }
+        ];
+
+        ["A1", "A2", "A10", "A17"].forEach((address, index) => {
+          const cell = worksheet[address];
+
+          if(cell){
+            cell.s = {
+              ...(cell.s || {}),
+              font: {
+                ...((cell.s && cell.s.font) || {}),
+                bold: true,
+                sz: index === 0 ? 18 : index === 1 ? 14 : 12
+              }
+            };
+          }
+        });
+
+        if(worksheet.B5){
+          worksheet.B5.z = "dd/mm/yyyy hh:mm";
+        }
+
+        ["B7", "B8"].forEach((address) => {
+          if(worksheet[address]){
+            worksheet[address].z = "dd/mm/yyyy";
+          }
+        });
+
+        ["B18", "B19", "B20", "B21"].forEach((address) => {
+          if(worksheet[address]){
+            worksheet[address].z = "\u00A3#,##0.00;[Red]-\u00A3#,##0.00";
+          }
+        });
+
+        return worksheet;
+    }
+
+    function buildAccountantPackWorkbook(XLSX, data, tables, period, companyInformation, generatedAt){
         const workbook = XLSX.utils.book_new();
-        const headers = accountantPackHeaders();
-        const summaryRows = accountantPackSummaryRows(
+        const summarySheet = buildAccountantPackSummarySheet(
+          XLSX,
           data,
           period,
           companyInformation,
           generatedAt
         );
 
-        appendFormattedSheet(XLSX, workbook, "Summary", summaryRows);
-        appendFormattedSheet(XLSX, workbook, "Invoices", rows.invoices, headers.invoices);
-        appendFormattedSheet(XLSX, workbook, "Bills", rows.bills, headers.bills);
-        appendFormattedSheet(XLSX, workbook, "Expenses", rows.expenses, headers.expenses);
-        appendFormattedSheet(XLSX, workbook, "Mileage", rows.mileage, headers.mileage);
-        appendFormattedSheet(XLSX, workbook, "Clients", rows.clients, headers.clients);
+        XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+        Object.entries({
+          Invoices: tables.invoices,
+          Bills: tables.bills,
+          Expenses: tables.expenses,
+          Mileage: tables.mileage,
+          Clients: tables.clients
+        }).forEach(([sheetName, table]) => {
+          appendFormattedSheet(XLSX, workbook, sheetName, table.rows, table.headers, {
+            autoFilter: true,
+            currencyHeaders: table.currencyHeaders,
+            dateHeaders: table.dateHeaders,
+            dateTimeHeaders: table.dateTimeHeaders,
+            maxColumnWidth: 32
+          });
+        });
 
         return XLSX.write(workbook, {
           bookType: "xlsx",
@@ -3345,17 +3648,17 @@
         });
     }
 
-    function tabularValue(value){
+    function tabularValue(value, includeTime = false){
         if(value === null || value === undefined){
           return "";
         }
 
         if(value instanceof Date || typeof value?.toDate === "function"){
-          return excelValue(value);
+          return formatUkDate(value, includeTime);
         }
 
         if(Array.isArray(value)){
-          return value.map(tabularValue).join("; ");
+          return value.map(item => tabularValue(item, includeTime)).join("; ");
         }
 
         if(typeof value === "object"){
@@ -3376,14 +3679,29 @@
     }
 
     function escapeCsvValue(value){
-        const text = tabularValue(value);
+        const text = String(value ?? "");
         return `"${text.replace(/"/g, '""')}"`;
     }
 
-    function buildCsvFile(rows, headers){
+    function csvCellValue(value, header, options){
+        if(options.decimalHeaders.includes(header) && hasMeaningfulExportValue(value)){
+          const numericValue = Number(value);
+          return Number.isFinite(numericValue) ? numericValue.toFixed(2) : "";
+        }
+
+        return tabularValue(value, options.dateTimeHeaders.includes(header));
+    }
+
+    function buildCsvFile(rows, headers, options = {}){
+        const csvOptions = {
+          decimalHeaders: options.decimalHeaders || [],
+          dateTimeHeaders: options.dateTimeHeaders || []
+        };
         const csvRows = [
           headers.map(escapeCsvValue).join(","),
-          ...rows.map(row => headers.map(header => escapeCsvValue(row[header])).join(","))
+          ...rows.map(row => headers.map(header =>
+            escapeCsvValue(csvCellValue(row[header], header, csvOptions))
+          ).join(","))
         ];
 
         return `\uFEFF${csvRows.join("\r\n")}`;
@@ -3460,12 +3778,11 @@
           loadAccountantPackSourceData(period)
         ]);
         const companyInformation = buildCompanyInformation(data.account, data.userEmail);
-        const rows = buildAccountantPackRows(data);
-        const headers = accountantPackHeaders();
+        const tables = buildAccountantPackRows(data);
         const workbookData = buildAccountantPackWorkbook(
           XLSX,
           data,
-          rows,
+          tables,
           period,
           companyInformation,
           generatedAt
@@ -3475,11 +3792,43 @@
         const root = "SimpleBooks_AccountantPack";
 
         zip.file(`${root}/Accountant_Pack.xlsx`, workbookData);
-        zip.file(`${root}/CSV/Invoices.csv`, buildCsvFile(rows.invoices, headers.invoices));
-        zip.file(`${root}/CSV/Bills.csv`, buildCsvFile(rows.bills, headers.bills));
-        zip.file(`${root}/CSV/Expenses.csv`, buildCsvFile(rows.expenses, headers.expenses));
-        zip.file(`${root}/CSV/Mileage.csv`, buildCsvFile(rows.mileage, headers.mileage));
-        zip.file(`${root}/CSV/Clients.csv`, buildCsvFile(rows.clients, headers.clients));
+        zip.file(`${root}/CSV/Invoices.csv`, buildCsvFile(
+          tables.invoices.rows,
+          tables.invoices.headers,
+          {
+            decimalHeaders: tables.invoices.currencyHeaders,
+            dateTimeHeaders: tables.invoices.dateTimeHeaders
+          }
+        ));
+        zip.file(`${root}/CSV/Bills.csv`, buildCsvFile(
+          tables.bills.rows,
+          tables.bills.headers,
+          {
+            decimalHeaders: tables.bills.currencyHeaders,
+            dateTimeHeaders: tables.bills.dateTimeHeaders
+          }
+        ));
+        zip.file(`${root}/CSV/Expenses.csv`, buildCsvFile(
+          tables.expenses.rows,
+          tables.expenses.headers,
+          {
+            decimalHeaders: tables.expenses.currencyHeaders,
+            dateTimeHeaders: tables.expenses.dateTimeHeaders
+          }
+        ));
+        zip.file(`${root}/CSV/Mileage.csv`, buildCsvFile(
+          tables.mileage.rows,
+          tables.mileage.headers,
+          {
+            decimalHeaders: tables.mileage.currencyHeaders,
+            dateTimeHeaders: tables.mileage.dateTimeHeaders
+          }
+        ));
+        zip.file(`${root}/CSV/Clients.csv`, buildCsvFile(
+          tables.clients.rows,
+          tables.clients.headers,
+          { dateTimeHeaders: tables.clients.dateTimeHeaders }
+        ));
         zip.file(
           `${root}/Company/Company_Information.json`,
           JSON.stringify(companyInformation, null, 2)
