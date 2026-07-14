@@ -351,27 +351,166 @@
       min-height: 100%;
     }
 
-    .accountant-empty-state {
+    .accountant-pack-description {
+      min-height: 58px;
+    }
+
+    .accountant-field {
       display: flex;
-      flex: 1;
-      min-height: 170px;
+      min-width: 0;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 18px 10px;
-      text-align: center;
+      gap: 6px;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .accountant-period-field {
+      margin-top: 14px;
+    }
+
+    .accountant-conditional-control {
+      display: grid;
+      gap: 9px;
+      margin-top: 10px;
+    }
+
+    .accountant-conditional-control[hidden] {
+      display: none;
+    }
+
+    .accountant-field select,
+    .accountant-field input {
+      width: 100%;
+      min-width: 0;
+      min-height: 40px;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: white;
+      color: #102033;
+      font: inherit;
       box-sizing: border-box;
     }
 
-    .accountant-empty-state .muted {
-      max-width: 220px;
+    .accountant-field select:focus,
+    .accountant-field input:focus {
+      outline: 3px solid rgba(0, 119, 182, 0.14);
+      border-color: #0077B6;
     }
 
-    .accountant-pack-card .accountant-empty-state .badge {
-      margin-top: 0;
-      border: 1px solid #dbe3ec;
-      background: #f8fafc;
+    .accountant-pack-includes {
+      width: 100%;
+      margin-top: 14px;
+      border: 1px solid #e8eef5;
+      border-radius: 12px;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .accountant-pack-includes summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 12px;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 750;
+      line-height: 1.3;
+      list-style: none;
+      cursor: pointer;
+    }
+
+    .accountant-pack-includes summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .accountant-pack-includes summary::after {
+      content: "+";
+      color: #64748b;
+      font-size: 19px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .accountant-pack-includes[open] summary {
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .accountant-pack-includes[open] summary::after {
+      content: "\2212";
+    }
+
+    .accountant-checklist {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 0;
+      padding: 10px 12px 12px;
+      list-style: none;
+    }
+
+    .accountant-checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      color: #334155;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .accountant-check {
+      display: grid;
+      width: 17px;
+      height: 17px;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      color: #15803d;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .accountant-pack-card .accountant-generate-btn:first-of-type {
+      width: 100%;
+      min-height: 44px;
+      align-self: stretch;
+      margin-top: 14px;
+      padding: 11px 14px;
+      box-sizing: border-box;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .import-message.accountant-pack-message {
+      margin-top: 10px;
+      padding: 10px;
+      border-left-width: 4px;
+      border-radius: 12px;
+      font-size: 13px;
+      box-shadow: none;
+    }
+
+    .accountant-pack-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .accountant-pack-status span {
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .accountant-pack-status strong {
+      color: #334155;
+      font-size: 14px;
     }
 
     .import-message {
@@ -710,7 +849,7 @@
 
       <div class="card export-kpi export-kpi-slate">
         <span class="muted">Accountant pack</span>
-        <strong>Coming soon</strong>
+        <strong id="lastAccountantPackStatus">Not yet generated</strong>
       </div>
     </section>
 
@@ -811,10 +950,74 @@
       </div>
 
       <div class="card accountant-pack-card">
-        <h2>Accountant pack</h2>
-        <div class="accountant-empty-state">
-          <p class="muted">Create a clean month-end or VAT-quarter handoff pack.</p>
-          <span class="badge">Coming soon</span>
+        <h2>Accountant Pack</h2>
+
+        <p class="muted accountant-pack-description">
+          Create an accountant-ready ZIP containing Excel reports, PDFs and supporting documents.
+        </p>
+
+        <label class="accountant-field accountant-period-field" for="accountantPackPeriod">
+          <span>Accounting period</span>
+          <select id="accountantPackPeriod">
+            <option value="entire" selected>Entire business</option>
+            <option value="financial-year">Financial year</option>
+            <option value="custom">Custom dates</option>
+          </select>
+        </label>
+
+        <div class="accountant-conditional-control" id="accountantFinancialYearControls" hidden>
+          <label class="accountant-field" for="accountantFinancialYear">
+            <span>Financial year</span>
+            <select id="accountantFinancialYear">
+              <option value="2026/27">2026/27</option>
+              <option value="2025/26">2025/26</option>
+              <option value="2024/25">2024/25</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="accountant-conditional-control" id="accountantCustomDateControls" hidden>
+          <label class="accountant-field" for="accountantDateFrom">
+            <span>From</span>
+            <input type="date" id="accountantDateFrom">
+          </label>
+
+          <label class="accountant-field" for="accountantDateTo">
+            <span>To</span>
+            <input type="date" id="accountantDateTo">
+          </label>
+        </div>
+
+        <details class="accountant-pack-includes">
+          <summary>Included in your pack</summary>
+          <ul class="accountant-checklist">
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Invoice register (Excel)</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Bill register (Excel)</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Expense register (Excel)</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Mileage register (Excel)</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Client list</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Invoice PDFs</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Receipt attachments</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Bill attachments</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>VAT summary</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Company information</span></li>
+          </ul>
+        </details>
+
+        <button class="btn accountant-generate-btn" id="generateAccountantPackButton" type="button">
+          Generate Accountant Pack
+        </button>
+
+        <div
+          class="import-message accountant-pack-message"
+          id="accountantPackMessage"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <div class="accountant-pack-status">
+          <span>Last generated</span>
+          <strong id="accountantPackLastGenerated">Not yet generated</strong>
         </div>
       </div>
 
@@ -2514,13 +2717,45 @@
         return library;
     }
 
-    function appendFormattedSheet(XLSX, workbook, sheetName, rows){
-        const worksheet = XLSX.utils.json_to_sheet(rows);
-        formatExcelSheet(XLSX, worksheet, rows);
+    async function loadZipLibrary(){
+        if(window.JSZip){
+          return window.JSZip;
+        }
+
+        if(window.simpleBooksJSZipPromise){
+          return window.simpleBooksJSZipPromise;
+        }
+
+        window.simpleBooksJSZipPromise = new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+          script.async = true;
+          script.onload = () => {
+            if(window.JSZip){
+              resolve(window.JSZip);
+            }else{
+              reject(new Error("JSZip loaded without exposing its browser API."));
+            }
+          };
+          script.onerror = () => reject(new Error("JSZip failed to load."));
+          document.head.appendChild(script);
+        });
+
+        try{
+          return await window.simpleBooksJSZipPromise;
+        }catch(error){
+          window.simpleBooksJSZipPromise = null;
+          throw error;
+        }
+    }
+
+    function appendFormattedSheet(XLSX, workbook, sheetName, rows, headers = Object.keys(rows[0] || {})){
+        const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+        formatExcelSheet(XLSX, worksheet, rows, headers);
         XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     }
 
-    function formatExcelSheet(XLSX, worksheet, rows){
+    function formatExcelSheet(XLSX, worksheet, rows, headers = Object.keys(rows[0] || {})){
         const range = worksheet["!ref"];
 
         if(!range){
@@ -2528,8 +2763,6 @@
         }
 
         const decodedRange = XLSX.utils.decode_range(range);
-        const headers = Object.keys(rows[0] || {});
-
         worksheet["!cols"] = headers.map((header) => ({
           wch: Math.min(
             42,
@@ -2596,12 +2829,16 @@
     }
 
     async function buildFirestoreExcelData(user, services){
-        const allExpenses = await readFirestoreCollection(user, services, "expenses");
+        const [invoices, bills, allExpenses] = await Promise.all([
+          readFirestoreCollection(user, services, "invoices"),
+          readFirestoreCollection(user, services, "bills"),
+          readFirestoreCollection(user, services, "expenses")
+        ]);
 
         return {
           exportedAt: new Date().toISOString(),
-          invoices: await readFirestoreCollection(user, services, "invoices"),
-          bills: await readFirestoreCollection(user, services, "bills"),
+          invoices,
+          bills,
           expenses: allExpenses.filter(item => item.type !== "mileage"),
           mileage: allExpenses.filter(item => item.type === "mileage")
         };
@@ -2680,6 +2917,28 @@
         };
     }
 
+    function clientExcelRow(client){
+        return {
+          "Client ID": client.id || "",
+          "Client Name": client.name || client.clientName || "",
+          "Contact Name": client.contactName || "",
+          "Email": client.email || "",
+          "Phone": client.phone || "",
+          "Status": client.status || "",
+          "Address Line 1": client.addressLine1 || "",
+          "Address Line 2": client.addressLine2 || "",
+          "Town/City": client.townCity || client.city || "",
+          "Postcode": client.postcode || "",
+          "Country": client.country || "",
+          "Follow Up": excelValue(client.followUp),
+          "Last Contacted": excelValue(client.lastContacted),
+          "Payment Terms": client.paymentTerms || "",
+          "Notes": client.notes || "",
+          "Attachment": client.attachmentName || "",
+          "Created At": excelValue(client.createdAt)
+        };
+    }
+
     function summaryExcelRows(data){
         const invoiceTotal = data.invoices.reduce((sum, invoice) => sum + numberValue(invoice.total), 0);
         const paidInvoiceTotal = data.invoices
@@ -2745,6 +3004,502 @@
         const minutes = String(now.getMinutes()).padStart(2, "0");
 
         return `${year}-${month}-${day}-${hours}${minutes}`;
+    }
+
+    function createAccountantPackError(message){
+        const error = new Error(message);
+        error.isAccountantPackUserError = true;
+        return error;
+    }
+
+    function parseIsoDateInput(value){
+        const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+        if(!match){
+          return null;
+        }
+
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const date = new Date(Date.UTC(year, month - 1, day));
+
+        if(
+          date.getUTCFullYear() !== year ||
+          date.getUTCMonth() !== month - 1 ||
+          date.getUTCDate() !== day
+        ){
+          return null;
+        }
+
+        return date;
+    }
+
+    function parseAppDate(value){
+        if(!value){
+          return null;
+        }
+
+        if(value instanceof Date){
+          return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
+        }
+
+        if(typeof value.toDate === "function"){
+          return parseAppDate(value.toDate());
+        }
+
+        if(typeof value.toMillis === "function"){
+          return parseAppDate(value.toMillis());
+        }
+
+        if(typeof value === "object"){
+          const seconds = value.seconds ?? value._seconds;
+
+          if(Number.isFinite(Number(seconds))){
+            const milliseconds = Number(seconds) * 1000;
+            const nanoseconds = Number(value.nanoseconds ?? value._nanoseconds ?? 0);
+            return parseAppDate(milliseconds + (Number.isFinite(nanoseconds) ? nanoseconds / 1000000 : 0));
+          }
+        }
+
+        if(typeof value === "number"){
+          const milliseconds = Math.abs(value) < 100000000000 ? value * 1000 : value;
+          const date = new Date(milliseconds);
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        const text = String(value).trim();
+        const isoDate = parseIsoDateInput(text.slice(0, 10));
+
+        if(/^\d{4}-\d{2}-\d{2}(?:$|T)/.test(text) && isoDate){
+          return isoDate;
+        }
+
+        const ukDateMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+        if(ukDateMatch){
+          return parseIsoDateInput(
+            `${ukDateMatch[3]}-${String(ukDateMatch[2]).padStart(2, "0")}-${String(ukDateMatch[1]).padStart(2, "0")}`
+          );
+        }
+
+        const parsed = new Date(text);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function appDateToIsoDay(value){
+        const date = parseAppDate(value);
+
+        if(!date){
+          return "";
+        }
+
+        return [
+          String(date.getUTCFullYear()).padStart(4, "0"),
+          String(date.getUTCMonth() + 1).padStart(2, "0"),
+          String(date.getUTCDate()).padStart(2, "0")
+        ].join("-");
+    }
+
+    function localDateToIsoDay(date = new Date()){
+        return [
+          String(date.getFullYear()).padStart(4, "0"),
+          String(date.getMonth() + 1).padStart(2, "0"),
+          String(date.getDate()).padStart(2, "0")
+        ].join("-");
+    }
+
+    function resolveAccountantPackPeriod(){
+        const mode = document.getElementById("accountantPackPeriod")?.value || "entire";
+
+        if(mode === "financial-year"){
+          const financialYear = document.getElementById("accountantFinancialYear")?.value || "";
+          const match = financialYear.match(/^(\d{4})\/(\d{2})$/);
+
+          if(!match){
+            throw createAccountantPackError("Please select a valid financial year.");
+          }
+
+          const startYear = Number(match[1]);
+          const endYear = startYear + 1;
+
+          if(String(endYear).slice(-2) !== match[2]){
+            throw createAccountantPackError("Please select a valid financial year.");
+          }
+
+          const startDateText = `${startYear}-04-06`;
+          const endDateText = `${endYear}-04-05`;
+
+          return {
+            mode: "financial-year",
+            label: `Financial year ${financialYear}`,
+            filenameLabel: financialYear.replace("/", "-"),
+            startDate: parseIsoDateInput(startDateText),
+            endDate: parseIsoDateInput(endDateText),
+            startDateText,
+            endDateText
+          };
+        }
+
+        if(mode === "custom"){
+          const startDateText = document.getElementById("accountantDateFrom")?.value || "";
+          const endDateText = document.getElementById("accountantDateTo")?.value || "";
+
+          if(!startDateText || !endDateText){
+            throw createAccountantPackError("Choose both a From date and a To date.");
+          }
+
+          const startDate = parseIsoDateInput(startDateText);
+          const endDate = parseIsoDateInput(endDateText);
+
+          if(!startDate || !endDate){
+            throw createAccountantPackError("Choose a valid From date and To date.");
+          }
+
+          if(startDate.getTime() > endDate.getTime()){
+            throw createAccountantPackError("The From date must be on or before the To date.");
+          }
+
+          return {
+            mode: "custom-dates",
+            label: `Custom dates ${startDateText} to ${endDateText}`,
+            filenameLabel: `${startDateText}_to_${endDateText}`,
+            startDate,
+            endDate,
+            startDateText,
+            endDateText
+          };
+        }
+
+        return {
+          mode: "entire-business",
+          label: "Entire business",
+          filenameLabel: `All_Data_${localDateToIsoDay()}`,
+          startDate: null,
+          endDate: null,
+          startDateText: null,
+          endDateText: null
+        };
+    }
+
+    function filterRecordsByPeriod(records, dateField, period){
+        const sourceRecords = Array.isArray(records) ? records : [];
+
+        if(!period.startDate || !period.endDate){
+          return sourceRecords.slice();
+        }
+
+        const startTime = period.startDate.getTime();
+        const endTime = period.endDate.getTime();
+
+        return sourceRecords.filter((record) => {
+          const recordDateText = appDateToIsoDay(record?.[dateField]);
+          const recordDate = parseIsoDateInput(recordDateText);
+
+          if(!recordDate){
+            return false;
+          }
+
+          const recordTime = recordDate.getTime();
+          return recordTime >= startTime && recordTime <= endTime;
+        });
+    }
+
+    async function loadAccountantPackSourceData(period){
+        const { services, user } = await getBackupUserAndServices();
+
+        if(!user || !services){
+          throw createAccountantPackError("Please log in before generating an Accountant Pack.");
+        }
+
+        const [exportData, clients, accountSnapshot] = await Promise.all([
+          buildFirestoreExcelData(user, services),
+          readFirestoreCollection(user, services, "clients"),
+          services.getDoc(services.doc(services.db, "users", user.uid))
+        ]);
+
+        return {
+          exportedAt: new Date().toISOString(),
+          invoices: filterRecordsByPeriod(exportData.invoices, "date", period),
+          bills: filterRecordsByPeriod(exportData.bills, "billDate", period),
+          expenses: filterRecordsByPeriod(exportData.expenses, "date", period),
+          mileage: filterRecordsByPeriod(exportData.mileage, "date", period),
+          clients: Array.isArray(clients) ? clients.slice() : [],
+          account: accountSnapshot.exists() ? accountSnapshot.data() : {},
+          userEmail: user.email || ""
+        };
+    }
+
+    function buildCompanyInformation(account = {}, userEmail = ""){
+        return {
+          business: {
+            name: account.businessName || "",
+            tradingName: account.tradingName || "",
+            type: account.businessType || "",
+            website: account.businessWebsite || ""
+          },
+          contact: {
+            email: account.businessEmail || account.email || userEmail || "",
+            phone: account.phoneNumber || account.businessPhone || ""
+          },
+          address: {
+            line1: account.addressLine1 || "",
+            line2: account.addressLine2 || "",
+            townCity: account.townCity || "",
+            postcode: account.postcode || "",
+            country: account.country || "United Kingdom"
+          },
+          registration: {
+            companyNumber: account.companyNumber || "",
+            vatRegistered: account.vatRegistered || "",
+            vatNumber: account.vatNumber || "",
+            utr: account.utr || account.uniqueTaxpayerReference || ""
+          },
+          bankDetails: {
+            accountName: account.accountName || "",
+            sortCode: account.sortCode || "",
+            accountNumber: account.accountNumber || ""
+          },
+          settings: {
+            defaultPaymentTerms: account.paymentTermsDefault || ""
+          }
+        };
+    }
+
+    function accountantPackHeaders(){
+        return {
+          invoices: Object.keys(invoiceExcelRow({})),
+          bills: Object.keys(billExcelRow({})),
+          expenses: Object.keys(expenseExcelRow({})),
+          mileage: Object.keys(mileageExcelRow({})),
+          clients: Object.keys(clientExcelRow({}))
+        };
+    }
+
+    function buildAccountantPackRows(data){
+        return {
+          invoices: data.invoices.map(invoiceExcelRow),
+          bills: data.bills.map(billExcelRow),
+          expenses: data.expenses.map(expenseExcelRow),
+          mileage: data.mileage.map(mileageExcelRow),
+          clients: data.clients.map(clientExcelRow)
+        };
+    }
+
+    function accountantPackSummaryRows(data, period, companyInformation, generatedAt){
+        const totalInvoiceValue = data.invoices.reduce(
+          (sum, invoice) => sum + numberValue(invoice.total),
+          0
+        );
+        const totalBillValue = data.bills.reduce(
+          (sum, bill) => sum + numberValue(bill.total),
+          0
+        );
+        const totalExpenseValue = data.expenses.reduce(
+          (sum, expense) => sum + expenseTotal(expense),
+          0
+        );
+        const totalMileageAmount = data.mileage.reduce(
+          (sum, mileage) => sum + mileageTotal(mileage),
+          0
+        );
+
+        return [
+          { "Summary item": "Business name", "Details": companyInformation.business.name },
+          { "Summary item": "Pack generated", "Details": generatedAt },
+          { "Summary item": "Accounting period", "Details": period.label },
+          { "Summary item": "Period start date", "Details": period.startDateText || "" },
+          { "Summary item": "Period end date", "Details": period.endDateText || "" },
+          { "Summary item": "Invoice count", "Details": data.invoices.length },
+          { "Summary item": "Bill count", "Details": data.bills.length },
+          { "Summary item": "Expense count", "Details": data.expenses.length },
+          { "Summary item": "Mileage count", "Details": data.mileage.length },
+          { "Summary item": "Client count", "Details": data.clients.length },
+          { "Summary item": "Total invoice value", "Details": roundCurrency(totalInvoiceValue) },
+          { "Summary item": "Total bill value", "Details": roundCurrency(totalBillValue) },
+          { "Summary item": "Total expense value", "Details": roundCurrency(totalExpenseValue) },
+          { "Summary item": "Total mileage amount", "Details": roundCurrency(totalMileageAmount) }
+        ];
+    }
+
+    function buildAccountantPackWorkbook(XLSX, data, rows, period, companyInformation, generatedAt){
+        const workbook = XLSX.utils.book_new();
+        const headers = accountantPackHeaders();
+        const summaryRows = accountantPackSummaryRows(
+          data,
+          period,
+          companyInformation,
+          generatedAt
+        );
+
+        appendFormattedSheet(XLSX, workbook, "Summary", summaryRows);
+        appendFormattedSheet(XLSX, workbook, "Invoices", rows.invoices, headers.invoices);
+        appendFormattedSheet(XLSX, workbook, "Bills", rows.bills, headers.bills);
+        appendFormattedSheet(XLSX, workbook, "Expenses", rows.expenses, headers.expenses);
+        appendFormattedSheet(XLSX, workbook, "Mileage", rows.mileage, headers.mileage);
+        appendFormattedSheet(XLSX, workbook, "Clients", rows.clients, headers.clients);
+
+        return XLSX.write(workbook, {
+          bookType: "xlsx",
+          type: "array"
+        });
+    }
+
+    function tabularValue(value){
+        if(value === null || value === undefined){
+          return "";
+        }
+
+        if(value instanceof Date || typeof value?.toDate === "function"){
+          return excelValue(value);
+        }
+
+        if(Array.isArray(value)){
+          return value.map(tabularValue).join("; ");
+        }
+
+        if(typeof value === "object"){
+          return JSON.stringify(value, (key, nestedValue) => {
+            if(typeof nestedValue === "function"){
+              return undefined;
+            }
+
+            if(nestedValue && typeof nestedValue.toDate === "function"){
+              return nestedValue.toDate().toISOString();
+            }
+
+            return nestedValue;
+          });
+        }
+
+        return String(value);
+    }
+
+    function escapeCsvValue(value){
+        const text = tabularValue(value);
+        return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function buildCsvFile(rows, headers){
+        const csvRows = [
+          headers.map(escapeCsvValue).join(","),
+          ...rows.map(row => headers.map(header => escapeCsvValue(row[header])).join(","))
+        ];
+
+        return `\uFEFF${csvRows.join("\r\n")}`;
+    }
+
+    function accountantPackFileList(){
+        const root = "SimpleBooks_AccountantPack";
+
+        return [
+          `${root}/Accountant_Pack.xlsx`,
+          `${root}/CSV/Invoices.csv`,
+          `${root}/CSV/Bills.csv`,
+          `${root}/CSV/Expenses.csv`,
+          `${root}/CSV/Mileage.csv`,
+          `${root}/CSV/Clients.csv`,
+          `${root}/Company/Company_Information.json`,
+          `${root}/Manifest.json`
+        ];
+    }
+
+    function buildPackManifest(data, period, generatedAt){
+        return {
+          applicationName: "Simple Books",
+          packVersion: 1,
+          generatedAt,
+          selectedPeriodMode: period.mode,
+          selectedPeriodLabel: period.label,
+          periodStartDate: period.startDateText,
+          periodEndDate: period.endDateText,
+          counts: {
+            invoices: data.invoices.length,
+            bills: data.bills.length,
+            expenses: data.expenses.length,
+            mileage: data.mileage.length,
+            clients: data.clients.length
+          },
+          filesIncluded: accountantPackFileList(),
+          intentionallyNotIncluded: [
+            "Invoice PDFs",
+            "Receipt attachments",
+            "Bill attachments",
+            "VAT summary PDF"
+          ]
+        };
+    }
+
+    function sanitiseFilenameComponent(value){
+        return String(value || "")
+          .replace(/[^A-Za-z0-9_-]+/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-|-$/g, "");
+    }
+
+    function accountantPackFilename(period){
+        return `SimpleBooks_AccountantPack_${sanitiseFilenameComponent(period.filenameLabel)}.zip`;
+    }
+
+    function downloadBrowserBlob(blob, filename){
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function generateAccountantPackZip(period){
+        const generatedAt = new Date().toISOString();
+        const [XLSX, JSZip, data] = await Promise.all([
+          loadExcelLibrary(),
+          loadZipLibrary(),
+          loadAccountantPackSourceData(period)
+        ]);
+        const companyInformation = buildCompanyInformation(data.account, data.userEmail);
+        const rows = buildAccountantPackRows(data);
+        const headers = accountantPackHeaders();
+        const workbookData = buildAccountantPackWorkbook(
+          XLSX,
+          data,
+          rows,
+          period,
+          companyInformation,
+          generatedAt
+        );
+        const manifest = buildPackManifest(data, period, generatedAt);
+        const zip = new JSZip();
+        const root = "SimpleBooks_AccountantPack";
+
+        zip.file(`${root}/Accountant_Pack.xlsx`, workbookData);
+        zip.file(`${root}/CSV/Invoices.csv`, buildCsvFile(rows.invoices, headers.invoices));
+        zip.file(`${root}/CSV/Bills.csv`, buildCsvFile(rows.bills, headers.bills));
+        zip.file(`${root}/CSV/Expenses.csv`, buildCsvFile(rows.expenses, headers.expenses));
+        zip.file(`${root}/CSV/Mileage.csv`, buildCsvFile(rows.mileage, headers.mileage));
+        zip.file(`${root}/CSV/Clients.csv`, buildCsvFile(rows.clients, headers.clients));
+        zip.file(
+          `${root}/Company/Company_Information.json`,
+          JSON.stringify(companyInformation, null, 2)
+        );
+        zip.file(`${root}/Manifest.json`, JSON.stringify(manifest, null, 2));
+
+        const blob = await zip.generateAsync({
+          type: "blob",
+          compression: "DEFLATE",
+          compressionOptions: { level: 6 },
+          mimeType: "application/zip"
+        });
+
+        downloadBrowserBlob(blob, accountantPackFilename(period));
+
+        return {
+          generatedAt,
+          filename: accountantPackFilename(period),
+          manifest
+        };
     }
 
     async function buildFullBackupData(){
@@ -2955,6 +3710,38 @@
         });
     }
 
+    function updateAccountantPackGeneratedStatus(timestamp){
+        const statusElements = [
+          document.getElementById("lastAccountantPackStatus"),
+          document.getElementById("accountantPackLastGenerated")
+        ].filter(Boolean);
+        const date = timestamp ? new Date(timestamp) : null;
+        const statusText = date && !Number.isNaN(date.getTime())
+          ? date.toLocaleString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit"
+            })
+          : "Not yet generated";
+
+        statusElements.forEach((element) => {
+          element.textContent = statusText;
+        });
+    }
+
+    function saveAccountantPackGeneratedAt(timestamp){
+        localStorage.setItem("simpleBooksLastAccountantPackGeneratedAt", timestamp);
+        updateAccountantPackGeneratedStatus(timestamp);
+    }
+
+    function loadAccountantPackGeneratedAt(){
+        updateAccountantPackGeneratedStatus(
+          localStorage.getItem("simpleBooksLastAccountantPackGeneratedAt")
+        );
+    }
+
     function importFullBackup(event){
       const file = event.target.files[0];
 
@@ -2996,6 +3783,95 @@
       reader.readAsText(file);
     }
 
+    function initialiseAccountantPackUi(){
+      const periodSelect = document.getElementById("accountantPackPeriod");
+      const financialYearControls = document.getElementById("accountantFinancialYearControls");
+      const customDateControls = document.getElementById("accountantCustomDateControls");
+      const generateButton = document.getElementById("generateAccountantPackButton");
+      const message = document.getElementById("accountantPackMessage");
+      const defaultButtonText = generateButton?.textContent.trim() || "Generate Accountant Pack";
+      let isGenerating = false;
+      let messageTimer;
+
+      function updatePeriodControls(){
+        const selectedPeriod = periodSelect?.value;
+
+        if(financialYearControls){
+          financialYearControls.hidden = selectedPeriod !== "financial-year";
+        }
+
+        if(customDateControls){
+          customDateControls.hidden = selectedPeriod !== "custom";
+        }
+      }
+
+      function showMessage(text, type){
+        if(!message){
+          return;
+        }
+
+        window.clearTimeout(messageTimer);
+        message.textContent = text;
+        message.classList.remove("success", "error", "warning", "loading");
+
+        if(type){
+          message.classList.add(type);
+        }
+
+        messageTimer = window.setTimeout(() => {
+          message.textContent = "";
+          message.classList.remove("success", "error", "warning", "loading");
+        }, 6500);
+      }
+
+      async function handleGenerate(){
+        if(isGenerating || !generateButton){
+          return;
+        }
+
+        let period;
+
+        try{
+          period = resolveAccountantPackPeriod();
+        }catch(error){
+          showMessage(error.message, "error");
+          return;
+        }
+
+        isGenerating = true;
+        generateButton.disabled = true;
+        generateButton.textContent = "Preparing pack...";
+        generateButton.setAttribute("aria-busy", "true");
+        showMessage("Preparing your Accountant Pack...", "loading");
+
+        try{
+          const result = await generateAccountantPackZip(period);
+          saveAccountantPackGeneratedAt(result.generatedAt);
+          showMessage("Accountant Pack generated and downloaded successfully.", "success");
+        }catch(error){
+          console.error("Accountant Pack generation failed", error);
+          showMessage(
+            error.isAccountantPackUserError
+              ? error.message
+              : "Could not generate the Accountant Pack. Please check your connection and try again.",
+            "error"
+          );
+        }finally{
+          isGenerating = false;
+          generateButton.disabled = false;
+          generateButton.textContent = defaultButtonText;
+          generateButton.removeAttribute("aria-busy");
+        }
+      }
+
+      periodSelect?.addEventListener("change", updatePeriodControls);
+      generateButton?.addEventListener("click", handleGenerate);
+
+      updatePeriodControls();
+    }
+
+    initialiseAccountantPackUi();
+    loadAccountantPackGeneratedAt();
     loadLastBackupDownloadedAt();
     loadBusinessRecordsTotal();
   </script>
