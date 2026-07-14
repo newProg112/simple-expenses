@@ -523,6 +523,173 @@
       font-size: 14px;
     }
 
+    .accountant-invoice-render-host {
+      position: fixed;
+      top: 0;
+      left: -12000px;
+      width: 794px;
+      background: white;
+      pointer-events: none;
+    }
+
+    .accountant-invoice-document {
+      width: 794px;
+      min-height: 1123px;
+      padding: 48px;
+      background: white;
+      color: #1f2933;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.4;
+      box-sizing: border-box;
+    }
+
+    .accountant-invoice-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 38px;
+      margin-bottom: 28px;
+      break-inside: avoid;
+    }
+
+    .accountant-invoice-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .accountant-invoice-brand img {
+      width: 56px;
+      max-height: 64px;
+      object-fit: contain;
+    }
+
+    .accountant-invoice-title {
+      margin: 0;
+      font-size: 30px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+    }
+
+    .accountant-invoice-muted {
+      color: #5f6b7a;
+    }
+
+    .accountant-invoice-meta {
+      flex: 0 0 220px;
+      color: #5f6b7a;
+      text-align: right;
+    }
+
+    .accountant-invoice-meta strong {
+      color: #1f2933;
+      font-size: 18px;
+      letter-spacing: 0.06em;
+    }
+
+    .accountant-invoice-rule {
+      margin: 24px 0;
+      border: 0;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .accountant-invoice-section {
+      margin: 22px 0;
+      break-inside: avoid;
+    }
+
+    .accountant-invoice-section h3 {
+      margin: 0 0 10px;
+      color: #5f6b7a;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .accountant-invoice-table {
+      width: 100%;
+      margin-top: 22px;
+      border-collapse: collapse;
+    }
+
+    .accountant-invoice-table th {
+      padding: 10px 0;
+      border-bottom: 1px solid #dbe3ec;
+      color: #5f6b7a;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    .accountant-invoice-table td {
+      padding: 12px 0;
+      border-bottom: 1px solid #eef2f7;
+      vertical-align: top;
+    }
+
+    .accountant-invoice-table th:not(:first-child),
+    .accountant-invoice-table td:not(:first-child) {
+      text-align: right;
+    }
+
+    .accountant-invoice-table tr {
+      break-inside: avoid;
+    }
+
+    .accountant-invoice-totals {
+      max-width: 280px;
+      margin-top: 24px;
+      margin-left: auto;
+      break-inside: avoid;
+    }
+
+    .accountant-invoice-total-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 8px 0;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .accountant-invoice-total-row.grand {
+      margin-top: 8px;
+      border-bottom: 0;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .accountant-invoice-note {
+      margin-top: 28px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #f4f7fb;
+      color: #5f6b7a;
+      white-space: pre-line;
+      break-inside: avoid;
+    }
+
+    .accountant-invoice-payment-grid {
+      display: grid;
+      max-width: 440px;
+      gap: 8px;
+    }
+
+    .accountant-invoice-payment-row {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .accountant-invoice-payment-label {
+      color: #5f6b7a;
+      font-weight: 700;
+    }
+
+    .accountant-invoice-payment-value {
+      overflow-wrap: anywhere;
+      font-weight: 700;
+    }
+
     .import-message {
       display: block;
       width: 100%;
@@ -1009,7 +1176,7 @@
             <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Client CSV</span></li>
             <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Company information</span></li>
             <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Pack manifest</span></li>
-            <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>Invoice PDFs &mdash; coming next</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Invoice PDFs</span></li>
             <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>Receipt attachments &mdash; coming next</span></li>
             <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>Bill attachments &mdash; coming next</span></li>
             <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>VAT summary PDF &mdash; coming next</span></li>
@@ -2761,6 +2928,38 @@
         }
     }
 
+    async function loadInvoicePdfLibrary(){
+        if(window.html2pdf){
+          return window.html2pdf;
+        }
+
+        if(window.simpleBooksHtml2PdfPromise){
+          return window.simpleBooksHtml2PdfPromise;
+        }
+
+        window.simpleBooksHtml2PdfPromise = new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js";
+          script.async = true;
+          script.onload = () => {
+            if(window.html2pdf){
+              resolve(window.html2pdf);
+            }else{
+              reject(new Error("html2pdf.js loaded without exposing its browser API."));
+            }
+          };
+          script.onerror = () => reject(new Error("html2pdf.js failed to load."));
+          document.head.appendChild(script);
+        });
+
+        try{
+          return await window.simpleBooksHtml2PdfPromise;
+        }catch(error){
+          window.simpleBooksHtml2PdfPromise = null;
+          throw error;
+        }
+    }
+
     function appendFormattedSheet(
       XLSX,
       workbook,
@@ -3707,7 +3906,463 @@
         return `\uFEFF${csvRows.join("\r\n")}`;
     }
 
-    function accountantPackFileList(){
+    function sanitiseInvoicePdfBaseName(invoiceNumber, fallbackIndex){
+        let baseName = String(invoiceNumber || "")
+          .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_")
+          .replace(/\s+/g, " ")
+          .trim()
+          .replace(/[. ]+$/g, "")
+          .slice(0, 120);
+
+        if(!baseName){
+          baseName = `Invoice_${fallbackIndex}`;
+        }
+
+        if(/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(baseName)){
+          baseName = `Invoice_${baseName}`;
+        }
+
+        return baseName;
+    }
+
+    function invoicePdfSortTime(invoice){
+        const date = parseAppDate(invoice?.date);
+        return date ? date.getTime() : Number.MAX_SAFE_INTEGER;
+    }
+
+    function buildInvoicePdfEntries(invoices){
+        const sortedInvoices = (Array.isArray(invoices) ? invoices : [])
+          .map((invoice, originalIndex) => ({ invoice, originalIndex }))
+          .sort((left, right) => {
+            const dateDifference = invoicePdfSortTime(left.invoice) - invoicePdfSortTime(right.invoice);
+
+            if(dateDifference){
+              return dateDifference;
+            }
+
+            const numberDifference = String(left.invoice?.invoiceNo || "").localeCompare(
+              String(right.invoice?.invoiceNo || ""),
+              "en-GB",
+              { numeric: true, sensitivity: "base" }
+            );
+
+            return numberDifference || left.originalIndex - right.originalIndex;
+          });
+        const filenameCounts = new Map();
+
+        return sortedInvoices.map(({ invoice }, sortedIndex) => {
+          const baseName = sanitiseInvoicePdfBaseName(invoice?.invoiceNo, sortedIndex + 1);
+          const filenameKey = baseName.toLocaleLowerCase("en-GB");
+          const duplicateNumber = (filenameCounts.get(filenameKey) || 0) + 1;
+          filenameCounts.set(filenameKey, duplicateNumber);
+
+          return {
+            invoice,
+            fileName: `${baseName}${duplicateNumber > 1 ? `_${duplicateNumber}` : ""}.pdf`
+          };
+        });
+    }
+
+    function invoicePdfLineItems(invoice){
+        const sourceItems = Array.isArray(invoice?.items)
+          ? invoice.items
+          : Array.isArray(invoice?.lineItems)
+            ? invoice.lineItems
+            : [];
+
+        return sourceItems
+          .filter(item => item && (
+            hasMeaningfulExportValue(item.description) ||
+            hasMeaningfulExportValue(item.name) ||
+            hasMeaningfulExportValue(item.amount) ||
+            hasMeaningfulExportValue(item.net) ||
+            hasMeaningfulExportValue(item.lineTotal) ||
+            hasMeaningfulExportValue(item.total) ||
+            hasMeaningfulExportValue(item.quantity ?? item.qty) ||
+            hasMeaningfulExportValue(item.rate ?? item.unitPrice ?? item.price)
+          ))
+          .map((item) => {
+            const quantity = optionalNumberValue(item.quantity ?? item.qty);
+            const rate = optionalNumberValue(item.rate ?? item.unitPrice ?? item.price);
+            const storedAmount = item.amount ?? item.net ?? item.lineTotal ?? item.total;
+            const amount = hasMeaningfulExportValue(storedAmount)
+              ? numberValue(storedAmount)
+              : hasMeaningfulExportValue(quantity) && hasMeaningfulExportValue(rate)
+                ? numberValue(quantity) * numberValue(rate)
+                : 0;
+
+            return {
+              description: item.description || item.name || "",
+              quantity,
+              rate,
+              amount
+            };
+          });
+    }
+
+    function invoicePdfMoney(value){
+        return `\u00A3${numberValue(value).toFixed(2)}`;
+    }
+
+    function invoicePdfHtml(value){
+        return escapeImportHtml(value ?? "");
+    }
+
+    function invoicePdfMultilineHtml(value){
+        return invoicePdfHtml(value).replace(/\r?\n/g, "<br>");
+    }
+
+    function buildInvoicePdfHtml(invoice, account, logoDataUrl){
+        const items = invoicePdfLineItems(invoice);
+        const showQuantity = items.some(item => hasMeaningfulExportValue(item.quantity));
+        const showRate = items.some(item => hasMeaningfulExportValue(item.rate));
+        const net = numberValue(invoice?.amount ?? invoice?.net);
+        const vat = numberValue(invoice?.vat);
+        const total = numberValue(invoice?.total);
+        const vatRate = net ? (vat / net) * 100 : null;
+        const businessName = account.businessName || invoice?.businessName || "SIMPLE BOOKS";
+        const businessAddress = [
+          account.addressLine1,
+          account.addressLine2,
+          account.townCity,
+          account.postcode
+        ].filter(value => String(value || "").trim());
+        const businessContacts = [
+          account.businessEmail || invoice?.businessEmail,
+          account.phoneNumber,
+          account.businessWebsite || invoice?.businessWebsite
+        ].filter(value => String(value || "").trim());
+        const vatNumber = account.vatNumber || invoice?.businessVat || "";
+        const registrationLines = [
+          vatNumber ? `VAT No: ${vatNumber}` : "",
+          account.companyNumber ? `Company No: ${account.companyNumber}` : ""
+        ].filter(Boolean);
+        const paymentRows = [
+          { label: "Account Name", value: account.accountName || "" },
+          { label: "Sort Code", value: formatSortCodeForAccountantPack(account.sortCode) },
+          { label: "Account Number", value: account.accountNumber || "" }
+        ].filter(row => row.value);
+        const notes = invoice?.notes || invoice?.note || "";
+        const paymentTerms = invoice?.paymentTerms || "";
+
+        return `
+          <article class="accountant-invoice-document">
+            <header class="accountant-invoice-header">
+              <div>
+                <div class="accountant-invoice-brand">
+                  ${logoDataUrl ? `<img src="${invoicePdfHtml(logoDataUrl)}" alt="Company logo">` : ""}
+                  <h1 class="accountant-invoice-title">${invoicePdfHtml(businessName)}</h1>
+                </div>
+                ${businessAddress.length ? `
+                  <div class="accountant-invoice-muted" style="margin-top:14px;">
+                    ${businessAddress.map(invoicePdfHtml).join("<br>")}
+                  </div>
+                ` : ""}
+                ${businessContacts.map(line => `
+                  <div class="accountant-invoice-muted">${invoicePdfHtml(line)}</div>
+                `).join("")}
+                ${registrationLines.map(line => `
+                  <div class="accountant-invoice-muted">${invoicePdfHtml(line)}</div>
+                `).join("")}
+              </div>
+
+              <div class="accountant-invoice-meta">
+                <div><strong>INVOICE</strong></div>
+                ${invoice?.invoiceNo ? `<div style="margin-top:10px;">${invoicePdfHtml(invoice.invoiceNo)}</div>` : ""}
+                ${formatUkDate(invoice?.date) ? `<div style="margin-top:8px;">${formatUkDate(invoice.date)}</div>` : ""}
+                ${formatUkDate(invoice?.dueDate) ? `<div style="margin-top:8px;">Due: ${formatUkDate(invoice.dueDate)}</div>` : ""}
+              </div>
+            </header>
+
+            <hr class="accountant-invoice-rule">
+
+            <section class="accountant-invoice-section">
+              <h3>Bill To</h3>
+              ${invoice?.client ? `<div style="font-weight:700;">${invoicePdfHtml(invoice.client)}</div>` : ""}
+              ${invoice?.clientEmail ? `<div class="accountant-invoice-muted" style="margin-top:6px;">${invoicePdfHtml(invoice.clientEmail)}</div>` : ""}
+              ${invoice?.clientAddress ? `<div class="accountant-invoice-muted" style="margin-top:10px;">${invoicePdfMultilineHtml(invoice.clientAddress)}</div>` : ""}
+            </section>
+
+            ${items.length ? `
+              <table class="accountant-invoice-table">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    ${showQuantity ? "<th>Quantity</th>" : ""}
+                    ${showRate ? "<th>Rate</th>" : ""}
+                    <th>Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${items.map(item => `
+                    <tr>
+                      <td>${invoicePdfHtml(item.description)}</td>
+                      ${showQuantity ? `<td>${hasMeaningfulExportValue(item.quantity) ? invoicePdfHtml(item.quantity) : ""}</td>` : ""}
+                      ${showRate ? `<td>${hasMeaningfulExportValue(item.rate) ? invoicePdfMoney(item.rate) : ""}</td>` : ""}
+                      <td>${invoicePdfMoney(item.amount)}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            ` : ""}
+
+            <div class="accountant-invoice-totals">
+              <div class="accountant-invoice-total-row">
+                <span>Net</span>
+                <strong>${invoicePdfMoney(net)}</strong>
+              </div>
+              <div class="accountant-invoice-total-row">
+                <span>${vatRate === null ? "VAT" : `VAT ${vatRate.toFixed(0)}%`}</span>
+                <strong>${invoicePdfMoney(vat)}</strong>
+              </div>
+              <div class="accountant-invoice-total-row grand">
+                <span>Total</span>
+                <span>${invoicePdfMoney(total)}</span>
+              </div>
+            </div>
+
+            ${paymentTerms ? `<div class="accountant-invoice-note">Payment terms: ${invoicePdfHtml(paymentTerms)}</div>` : ""}
+            ${notes ? `<div class="accountant-invoice-note">${invoicePdfMultilineHtml(notes)}</div>` : ""}
+
+            ${paymentRows.length ? `
+              <section class="accountant-invoice-section">
+                <h3>Payment Details</h3>
+                <div class="accountant-invoice-payment-grid">
+                  ${paymentRows.map(row => `
+                    <div class="accountant-invoice-payment-row">
+                      <div class="accountant-invoice-payment-label">${invoicePdfHtml(row.label)}</div>
+                      <div class="accountant-invoice-payment-value">${invoicePdfHtml(row.value)}</div>
+                    </div>
+                  `).join("")}
+                </div>
+              </section>
+            ` : ""}
+          </article>
+        `;
+    }
+
+    function formatSortCodeForAccountantPack(value){
+        const sortCode = String(value || "").trim();
+
+        if(/^\d{6}$/.test(sortCode)){
+          return `${sortCode.slice(0, 2)}-${sortCode.slice(2, 4)}-${sortCode.slice(4, 6)}`;
+        }
+
+        return sortCode;
+    }
+
+    function blobToDataUrl(blob){
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(reader.error || new Error("Image could not be read."));
+          reader.readAsDataURL(blob);
+        });
+    }
+
+    async function fetchInvoicePdfLogo(url){
+        const response = await fetch(url);
+
+        if(!response.ok){
+          throw new Error(`Logo request failed with status ${response.status}.`);
+        }
+
+        return blobToDataUrl(await response.blob());
+    }
+
+    async function resolveInvoicePdfLogo(account){
+        const companyLogoUrl = account?.companyLogoUrl || "";
+
+        if(companyLogoUrl){
+          try{
+            return {
+              dataUrl: await fetchInvoicePdfLogo(companyLogoUrl),
+              warnings: []
+            };
+          }catch(error){
+            console.warn("Accountant Pack business logo could not be embedded", error);
+          }
+        }
+
+        try{
+          return {
+            dataUrl: await fetchInvoicePdfLogo("/assets/logo.png"),
+            warnings: companyLogoUrl
+              ? [{
+                  type: "invoice-pdf-logo",
+                  message: "Business logo could not be embedded; the Simple Books logo was used."
+                }]
+              : []
+          };
+        }catch(error){
+          console.warn("Accountant Pack fallback logo could not be embedded", error);
+          return {
+            dataUrl: "",
+            warnings: [{
+              type: "invoice-pdf-logo",
+              message: "The invoice PDFs were generated without a logo."
+            }]
+          };
+        }
+    }
+
+    function createInvoicePdfRenderHost(){
+        const host = document.createElement("div");
+        host.className = "accountant-invoice-render-host";
+        host.setAttribute("aria-hidden", "true");
+        document.body.appendChild(host);
+        return host;
+    }
+
+    async function waitForInvoicePdfAssets(element){
+        if(document.fonts?.ready){
+          try{
+            await document.fonts.ready;
+          }catch(error){
+            console.warn("Accountant Pack fonts were not fully ready", error);
+          }
+        }
+
+        const images = Array.from(element.querySelectorAll("img"));
+
+        await Promise.all(images.map(async (image) => {
+          if(image.complete && image.naturalWidth){
+            return;
+          }
+
+          try{
+            if(typeof image.decode === "function"){
+              await image.decode();
+              return;
+            }
+          }catch(error){
+            console.warn("Accountant Pack invoice logo decode failed", error);
+          }
+
+          if(image.complete){
+            return;
+          }
+
+          await new Promise((resolve) => {
+            image.addEventListener("load", resolve, { once: true });
+            image.addEventListener("error", resolve, { once: true });
+          });
+        }));
+    }
+
+    async function generateInvoicePdfBlob(html2pdf, element){
+        const blob = await html2pdf()
+          .set({
+            margin: [8, 8, 8, 8],
+            image: { type: "jpeg", quality: 0.96 },
+            html2canvas: {
+              scale: 1.5,
+              useCORS: true,
+              allowTaint: false,
+              backgroundColor: "#ffffff",
+              logging: false
+            },
+            jsPDF: {
+              unit: "mm",
+              format: "a4",
+              orientation: "portrait"
+            },
+            pagebreak: {
+              mode: ["css", "legacy"],
+              avoid: [
+                ".accountant-invoice-header",
+                ".accountant-invoice-total-row",
+                ".accountant-invoice-note",
+                ".accountant-invoice-payment-row"
+              ]
+            }
+          })
+          .from(element)
+          .outputPdf("blob");
+
+        if(!(blob instanceof Blob) || !blob.size){
+          throw new Error("Invoice PDF generation returned no data.");
+        }
+
+        return blob;
+    }
+
+    async function addInvoicePdfsToZip(zip, invoices, account, onStage){
+        const entries = buildInvoicePdfEntries(invoices);
+        const folder = "SimpleBooks_AccountantPack/Invoice_PDFs/";
+        const result = {
+          count: 0,
+          folder,
+          files: [],
+          warnings: []
+        };
+
+        if(!entries.length){
+          return result;
+        }
+
+        let html2pdf;
+
+        try{
+          html2pdf = await loadInvoicePdfLibrary();
+        }catch(error){
+          console.error("Accountant Pack PDF library failed to load", error);
+          result.warnings.push({
+            type: "invoice-pdf-generation",
+            message: "Invoice PDFs could not be generated because the PDF library was unavailable."
+          });
+          return result;
+        }
+
+        const logo = await resolveInvoicePdfLogo(account);
+        result.warnings.push(...logo.warnings);
+        const host = createInvoicePdfRenderHost();
+
+        try{
+          for(let index = 0; index < entries.length; index += 1){
+            const entry = entries[index];
+            onStage?.({
+              stage: "invoice-pdfs",
+              current: index + 1,
+              total: entries.length
+            });
+
+            try{
+              host.innerHTML = buildInvoicePdfHtml(entry.invoice, account, logo.dataUrl);
+              const invoiceElement = host.firstElementChild;
+
+              if(!invoiceElement){
+                throw new Error("Invoice rendering produced no document.");
+              }
+
+              await waitForInvoicePdfAssets(invoiceElement);
+              const blob = await generateInvoicePdfBlob(html2pdf, invoiceElement);
+              const path = `${folder}${entry.fileName}`;
+              zip.file(path, blob);
+              result.files.push(path);
+            }catch(error){
+              console.error(
+                `Accountant Pack PDF failed for invoice ${entry.invoice?.invoiceNo || index + 1}`,
+                error
+              );
+              result.warnings.push({
+                type: "invoice-pdf-generation",
+                invoiceNumber: entry.invoice?.invoiceNo || `Invoice ${index + 1}`,
+                message: "PDF could not be generated."
+              });
+            }finally{
+              host.replaceChildren();
+            }
+          }
+        }finally{
+          host.remove();
+        }
+
+        result.count = result.files.length;
+        return result;
+    }
+
+    function accountantPackFileList(invoicePdfFiles = []){
         const root = "SimpleBooks_AccountantPack";
 
         return [
@@ -3718,11 +4373,19 @@
           `${root}/CSV/Mileage.csv`,
           `${root}/CSV/Clients.csv`,
           `${root}/Company/Company_Information.json`,
+          ...invoicePdfFiles,
           `${root}/Manifest.json`
         ];
     }
 
-    function buildPackManifest(data, period, generatedAt){
+    function buildPackManifest(data, period, generatedAt, invoicePdfResult = {}){
+        const invoicePdfFiles = Array.isArray(invoicePdfResult.files)
+          ? invoicePdfResult.files
+          : [];
+        const warnings = Array.isArray(invoicePdfResult.warnings)
+          ? invoicePdfResult.warnings
+          : [];
+
         return {
           applicationName: "Simple Books",
           packVersion: 1,
@@ -3736,15 +4399,23 @@
             bills: data.bills.length,
             expenses: data.expenses.length,
             mileage: data.mileage.length,
-            clients: data.clients.length
+            clients: data.clients.length,
+            invoicePdfs: invoicePdfFiles.length
           },
-          filesIncluded: accountantPackFileList(),
+          filesIncluded: accountantPackFileList(invoicePdfFiles),
+          generatedAssets: {
+            invoicePdfs: {
+              count: invoicePdfFiles.length,
+              folder: invoicePdfResult.folder || "SimpleBooks_AccountantPack/Invoice_PDFs/",
+              files: invoicePdfFiles
+            }
+          },
           intentionallyNotIncluded: [
-            "Invoice PDFs",
             "Receipt attachments",
             "Bill attachments",
             "VAT summary PDF"
-          ]
+          ],
+          warnings
         };
     }
 
@@ -3770,8 +4441,9 @@
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
-    async function generateAccountantPackZip(period){
+    async function generateAccountantPackZip(period, onStage){
         const generatedAt = new Date().toISOString();
+        onStage?.({ stage: "data" });
         const [XLSX, JSZip, data] = await Promise.all([
           loadExcelLibrary(),
           loadZipLibrary(),
@@ -3787,7 +4459,6 @@
           companyInformation,
           generatedAt
         );
-        const manifest = buildPackManifest(data, period, generatedAt);
         const zip = new JSZip();
         const root = "SimpleBooks_AccountantPack";
 
@@ -3833,8 +4504,16 @@
           `${root}/Company/Company_Information.json`,
           JSON.stringify(companyInformation, null, 2)
         );
+        const invoicePdfResult = await addInvoicePdfsToZip(
+          zip,
+          data.invoices,
+          data.account,
+          onStage
+        );
+        const manifest = buildPackManifest(data, period, generatedAt, invoicePdfResult);
         zip.file(`${root}/Manifest.json`, JSON.stringify(manifest, null, 2));
 
+        onStage?.({ stage: "zip" });
         const blob = await zip.generateAsync({
           type: "blob",
           compression: "DEFLATE",
@@ -3847,7 +4526,8 @@
         return {
           generatedAt,
           filename: accountantPackFilename(period),
-          manifest
+          manifest,
+          warnings: invoicePdfResult.warnings
         };
     }
 
@@ -4173,6 +4853,24 @@
         }, 6500);
       }
 
+      function updateGenerationStage(progress){
+        if(!generateButton){
+          return;
+        }
+
+        if(progress.stage === "invoice-pdfs"){
+          generateButton.textContent = `Generating invoice PDFs ${progress.current}/${progress.total}...`;
+          return;
+        }
+
+        if(progress.stage === "zip"){
+          generateButton.textContent = "Creating ZIP...";
+          return;
+        }
+
+        generateButton.textContent = "Preparing data...";
+      }
+
       async function handleGenerate(){
         if(isGenerating || !generateButton){
           return;
@@ -4189,14 +4887,22 @@
 
         isGenerating = true;
         generateButton.disabled = true;
-        generateButton.textContent = "Preparing pack...";
+        generateButton.textContent = "Preparing data...";
         generateButton.setAttribute("aria-busy", "true");
         showMessage("Preparing your Accountant Pack...", "loading");
 
         try{
-          const result = await generateAccountantPackZip(period);
+          const result = await generateAccountantPackZip(period, updateGenerationStage);
           saveAccountantPackGeneratedAt(result.generatedAt);
-          showMessage("Accountant Pack generated and downloaded successfully.", "success");
+
+          if(result.warnings?.length){
+            showMessage(
+              `Accountant Pack downloaded with ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}. See Manifest.json for details.`,
+              "warning"
+            );
+          }else{
+            showMessage("Accountant Pack generated and downloaded successfully.", "success");
+          }
         }catch(error){
           console.error("Accountant Pack generation failed", error);
           showMessage(
