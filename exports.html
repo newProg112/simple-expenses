@@ -1177,8 +1177,8 @@
             <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Company information</span></li>
             <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Pack manifest</span></li>
             <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Invoice PDFs</span></li>
-            <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>Receipt attachments &mdash; coming next</span></li>
-            <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>Bill attachments &mdash; coming next</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Receipt attachments</span></li>
+            <li><span class="accountant-check" aria-hidden="true">&#10003;</span><span>Bill attachments</span></li>
             <li class="accountant-pending"><span class="accountant-check" aria-hidden="true">&#8230;</span><span>VAT summary PDF &mdash; coming next</span></li>
           </ul>
         </details>
@@ -1245,7 +1245,7 @@
   </div>
 
   <script type="module">
-    import { auth, db } from "/firebase-config.js";
+    import { app, auth, db } from "/firebase-config.js";
 
     import {
       addDoc,
@@ -1260,15 +1260,26 @@
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+    import {
+      getBlob,
+      getDownloadURL,
+      getStorage,
+      ref as storageRef
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
     window.simpleBooksBackupServices = {
       auth,
       db,
+      storage: getStorage(app),
       addDoc,
       collection,
       doc,
       getDoc,
       getDocs,
-      setDoc
+      setDoc,
+      getBlob,
+      getDownloadURL,
+      storageRef
     };
 
     window.simpleBooksBackupUserReady = new Promise((resolve) => {
@@ -3467,6 +3478,27 @@
         });
     }
 
+    async function loadLegacyMileageAttachmentRecords(user, services){
+        try{
+          return {
+            records: await readFirestoreCollection(user, services, "mileage"),
+            warnings: []
+          };
+        }catch(error){
+          console.warn("Accountant Pack legacy mileage attachment discovery was unavailable.");
+          return {
+            records: [],
+            warnings: [{
+              type: "attachment-discovery",
+              sourceModule: "Mileage",
+              recordLabel: "Legacy mileage collection",
+              attachmentName: "",
+              message: "Legacy mileage attachments could not be inspected."
+            }]
+          };
+        }
+    }
+
     async function loadAccountantPackSourceData(period){
         const { services, user } = await getBackupUserAndServices();
 
@@ -3474,9 +3506,10 @@
           throw createAccountantPackError("Please log in before generating an Accountant Pack.");
         }
 
-        const [exportData, clients, accountSnapshot] = await Promise.all([
+        const [exportData, clients, legacyMileageResult, accountSnapshot] = await Promise.all([
           buildFirestoreExcelData(user, services),
           readFirestoreCollection(user, services, "clients"),
+          loadLegacyMileageAttachmentRecords(user, services),
           services.getDoc(services.doc(services.db, "users", user.uid))
         ]);
 
@@ -3486,6 +3519,8 @@
           bills: filterRecordsByPeriod(exportData.bills, "billDate", period),
           expenses: filterRecordsByPeriod(exportData.expenses, "date", period),
           mileage: filterRecordsByPeriod(exportData.mileage, "date", period),
+          legacyMileage: filterRecordsByPeriod(legacyMileageResult.records, "date", period),
+          attachmentDiscoveryWarnings: legacyMileageResult.warnings,
           clients: Array.isArray(clients) ? clients.slice() : [],
           account: accountSnapshot.exists() ? accountSnapshot.data() : {},
           userEmail: user.email || ""
@@ -4297,6 +4332,8 @@
           warnings: []
         };
 
+        onStage?.({ stage: "invoice-pdfs", current: 0, total: entries.length });
+
         if(!entries.length){
           return result;
         }
@@ -4362,7 +4399,477 @@
         return result;
     }
 
-    function accountantPackFileList(invoicePdfFiles = []){
+    function attachmentStorageFilename(value){
+        const text = String(value || "").trim();
+
+        if(!text){
+          return "";
+        }
+
+        try{
+          const decoded = decodeURIComponent(text.split("?")[0]);
+          const parts = decoded.replace(/\\/g, "/").split("/").filter(Boolean);
+          return parts[parts.length - 1] || "";
+        }catch(error){
+          const parts = text.split("?")[0].replace(/\\/g, "/").split("/").filter(Boolean);
+          return parts[parts.length - 1] || "";
+        }
+    }
+
+    function confirmedAttachmentDownloadUrl(value){
+        const text = String(value || "").trim();
+
+        if(!text){
+          return "";
+        }
+
+        try{
+          const url = new URL(text);
+          return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+        }catch(error){
+          return "";
+        }
+    }
+
+    function confirmedAttachmentStoragePath(value){
+        const text = String(value || "").trim();
+        return text && !confirmedAttachmentDownloadUrl(text) ? text : "";
+    }
+
+    function attachmentFileExtension(value){
+        const filename = attachmentStorageFilename(value);
+        const dotIndex = filename.lastIndexOf(".");
+        return dotIndex > 0 && dotIndex < filename.length - 1
+          ? filename.slice(dotIndex)
+          : "";
+    }
+
+    function sanitiseWindowsFilename(value, fallbackName){
+        let filename = String(value || "").trim()
+          .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_")
+          .replace(/[. ]+$/g, "")
+          .trim();
+
+        if(!filename){
+          filename = fallbackName;
+        }
+
+        const dotIndex = filename.lastIndexOf(".");
+        const stem = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
+        const extension = dotIndex > 0 ? filename.slice(dotIndex) : "";
+
+        if(/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(stem)){
+          filename = `_${filename}`;
+        }
+
+        if(filename.length > 180){
+          const maximumStemLength = Math.max(1, 180 - extension.length);
+          filename = `${stem.slice(0, maximumStemLength)}${extension}`;
+        }
+
+        return filename;
+    }
+
+    function attachmentExportName(attachment, index, kind){
+        const storageName = attachmentStorageFilename(
+          attachment?.storagePath || attachment?.downloadUrl
+        );
+        let preferredName = String(attachment?.originalName || storageName || "").trim();
+
+        if(preferredName && !attachmentFileExtension(preferredName)){
+          preferredName += attachmentFileExtension(storageName);
+        }
+
+        return sanitiseWindowsFilename(preferredName, `${kind}_Attachment_${index + 1}`);
+    }
+
+    function uniqueAttachmentFilename(filename, usedNames){
+        const dotIndex = filename.lastIndexOf(".");
+        const stem = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
+        const extension = dotIndex > 0 ? filename.slice(dotIndex) : "";
+        let candidate = filename;
+        let suffix = 2;
+
+        while(usedNames.has(candidate.toLocaleLowerCase("en-GB"))){
+          candidate = `${stem}_${suffix}${extension}`;
+          suffix += 1;
+        }
+
+        usedNames.add(candidate.toLocaleLowerCase("en-GB"));
+        return candidate;
+    }
+
+    function attachmentRecordLabel(record, sourceModule, index){
+        let parts = [];
+
+        if(sourceModule === "Bills"){
+          parts = [record?.billNumber, record?.supplier, appDateToIsoDay(record?.billDate)];
+        }else if(sourceModule === "Mileage"){
+          parts = [
+            record?.journey || record?.businessPurpose || record?.purpose,
+            [record?.fromLocation || record?.from, record?.toLocation || record?.to]
+              .filter(Boolean)
+              .join(" to "),
+            appDateToIsoDay(record?.date)
+          ];
+        }else{
+          parts = [
+            record?.merchant || record?.supplier || record?.description,
+            appDateToIsoDay(record?.date)
+          ];
+        }
+
+        const label = parts.map(value => String(value || "").trim()).filter(Boolean).join(" — ");
+        return label || `${sourceModule} record ${index + 1}`;
+    }
+
+    function normaliseAttachmentCandidate(candidate, context){
+        const originalName = String(candidate?.name || "").trim();
+        const downloadUrl = confirmedAttachmentDownloadUrl(candidate?.url);
+        const storagePath = confirmedAttachmentStoragePath(candidate?.path);
+        const mimeType = String(candidate?.type || "").trim();
+
+        if(!originalName && !downloadUrl && !storagePath){
+          return null;
+        }
+
+        return {
+          sourceModule: context.sourceModule,
+          recordLabel: context.recordLabel,
+          originalName,
+          mimeType,
+          downloadUrl,
+          storagePath
+        };
+    }
+
+    function normaliseRecordAttachments(record, sourceModule, index){
+        const context = {
+          sourceModule,
+          recordLabel: attachmentRecordLabel(record, sourceModule, index)
+        };
+        const candidates = [];
+
+        if(sourceModule === "Expenses" && record?.receipt && typeof record.receipt === "object"){
+          candidates.push({
+            name: record.receipt.name,
+            type: record.receipt.type,
+            url: record.receipt.url,
+            path: record.receipt.path
+          });
+        }
+
+        if(sourceModule === "Mileage" && record?.attachment && typeof record.attachment === "object"){
+          candidates.push({
+            name: record.attachment.name,
+            type: record.attachment.type,
+            url: record.attachment.url,
+            path: record.attachment.path
+          });
+        }
+
+        candidates.push({
+          name: record?.attachmentName,
+          type: record?.attachmentType,
+          url: record?.attachmentUrl,
+          path: record?.attachmentPath
+        });
+
+        const seen = new Set();
+        return candidates
+          .map(candidate => normaliseAttachmentCandidate(candidate, context))
+          .filter(attachment => {
+            if(!attachment){
+              return false;
+            }
+
+            const key = [
+              attachment.downloadUrl,
+              attachment.storagePath,
+              attachment.originalName
+            ].join("\u0000");
+
+            if(seen.has(key)){
+              return false;
+            }
+
+            seen.add(key);
+            return true;
+          });
+    }
+
+    function withAttachmentDownloadTimeout(promise, timeoutMs = 15000, onTimeout){
+        return new Promise((resolve, reject) => {
+          const timeoutId = window.setTimeout(() => {
+            onTimeout?.();
+            reject(new Error("Attachment download timed out."));
+          }, timeoutMs);
+
+          Promise.resolve(promise).then(
+            value => {
+              window.clearTimeout(timeoutId);
+              resolve(value);
+            },
+            error => {
+              window.clearTimeout(timeoutId);
+              reject(error);
+            }
+          );
+        });
+    }
+
+    async function fetchAttachmentBlob(downloadUrl, timeoutMs){
+        const controller = new AbortController();
+        const operation = (async() => {
+          const response = await fetch(downloadUrl, {
+            method: "GET",
+            mode: "cors",
+            credentials: "omit",
+            signal: controller.signal
+          });
+
+          if(!response.ok){
+            throw new Error(`Attachment request failed with status ${response.status}.`);
+          }
+
+          return await response.blob();
+        })();
+
+        return await withAttachmentDownloadTimeout(
+          operation,
+          timeoutMs,
+          () => controller.abort()
+        );
+    }
+
+    function remainingAttachmentTime(deadline){
+        return Math.max(1, deadline - Date.now());
+    }
+
+    function isFirebaseStorageDownloadUrl(value){
+        try{
+          const hostname = new URL(value).hostname.toLowerCase();
+          return hostname === "firebasestorage.googleapis.com" ||
+            hostname.endsWith(".firebasestorage.app");
+        }catch(error){
+          return false;
+        }
+    }
+
+    async function downloadAttachmentBlob(attachment, services){
+        if(!attachment.downloadUrl && !attachment.storagePath){
+          throw new Error("No Firebase Storage reference was saved for this attachment.");
+        }
+
+        const deadline = Date.now() + 15000;
+        let lastError;
+
+        if(attachment.downloadUrl){
+          try{
+            return await fetchAttachmentBlob(
+              attachment.downloadUrl,
+              remainingAttachmentTime(deadline)
+            );
+          }catch(error){
+            lastError = error;
+          }
+        }
+
+        if(attachment.storagePath && Date.now() < deadline){
+          const fileRef = services.storageRef(services.storage, attachment.storagePath);
+
+          try{
+            const resolvedUrl = await withAttachmentDownloadTimeout(
+              services.getDownloadURL(fileRef),
+              remainingAttachmentTime(deadline)
+            );
+            return await fetchAttachmentBlob(resolvedUrl, remainingAttachmentTime(deadline));
+          }catch(error){
+            lastError = error;
+
+            if(Date.now() < deadline){
+              try{
+                return await withAttachmentDownloadTimeout(
+                  services.getBlob(fileRef),
+                  remainingAttachmentTime(deadline)
+                );
+              }catch(blobError){
+                lastError = blobError;
+              }
+            }
+          }
+        }
+
+        if(
+          !attachment.storagePath &&
+          isFirebaseStorageDownloadUrl(attachment.downloadUrl) &&
+          Date.now() < deadline
+        ){
+          try{
+            const fileRef = services.storageRef(services.storage, attachment.downloadUrl);
+            return await withAttachmentDownloadTimeout(
+              services.getBlob(fileRef),
+              remainingAttachmentTime(deadline)
+            );
+          }catch(error){
+            lastError = error;
+          }
+        }
+
+        throw lastError || new Error("Attachment could not be downloaded.");
+    }
+
+    function safeAttachmentFailureReason(error){
+        const code = String(error?.code || "").toLowerCase();
+        const message = String(error?.message || "").toLowerCase();
+
+        if(message.includes("timed out") || error?.name === "AbortError"){
+          return "Download timed out after 15 seconds.";
+        }
+
+        if(code.includes("object-not-found") || message.includes("status 404")){
+          return "File was not found in Firebase Storage.";
+        }
+
+        if(code.includes("unauthorized") || message.includes("status 401") || message.includes("status 403")){
+          return "Firebase Storage access was denied.";
+        }
+
+        if(message.includes("failed to fetch") || message.includes("networkerror")){
+          return "The browser could not retrieve the file because of a network or CORS error.";
+        }
+
+        if(message.includes("no firebase storage reference")){
+          return "No usable download URL or Storage path was saved.";
+        }
+
+        return "Attachment download failed.";
+    }
+
+    async function addAttachmentsToZip(zip, recordGroups, options, services){
+        const expectedFolder = `SimpleBooks_AccountantPack/${options.folderName}/`;
+        const groups = Array.isArray(recordGroups) ? recordGroups : [];
+        const moduleStats = {};
+        const attachments = [];
+
+        groups.forEach(group => {
+          const records = Array.isArray(group.records) ? group.records : [];
+          const stats = moduleStats[group.sourceModule] || {
+            recordsInspected: 0,
+            referencesFound: 0,
+            exported: 0,
+            failed: 0
+          };
+          stats.recordsInspected += records.length;
+
+          records.forEach((record, index) => {
+            const normalised = normaliseRecordAttachments(record, group.sourceModule, index);
+            stats.referencesFound += normalised.length;
+            attachments.push(...normalised);
+          });
+
+          moduleStats[group.sourceModule] = stats;
+        });
+
+        const usedNames = new Set();
+        const result = {
+          count: 0,
+          recordsInspected: Object.values(moduleStats).reduce(
+            (total, stats) => total + stats.recordsInspected,
+            0
+          ),
+          referencesFound: attachments.length,
+          failed: 0,
+          folder: null,
+          files: [],
+          filenames: [],
+          warnings: [],
+          moduleStats
+        };
+
+        const downloads = await Promise.all(attachments.map(async(attachment) => {
+          try{
+            return {
+              attachment,
+              blob: await downloadAttachmentBlob(attachment, services),
+              error: null
+            };
+          }catch(error){
+            return { attachment, blob: null, error };
+          }
+        }));
+
+        downloads.forEach((download, index) => {
+          const { attachment, blob, error } = download;
+          const stats = result.moduleStats[attachment.sourceModule];
+
+          if(blob){
+            const filename = uniqueAttachmentFilename(
+              attachmentExportName(attachment, index, options.filenameKind),
+              usedNames
+            );
+            const path = `${expectedFolder}${filename}`;
+            zip.file(path, blob);
+            result.files.push(path);
+            result.filenames.push(filename);
+            stats.exported += 1;
+          }else{
+            stats.failed += 1;
+            result.warnings.push({
+              type: "attachment-download",
+              sourceModule: attachment.sourceModule,
+              recordLabel: attachment.recordLabel,
+              attachmentName: attachment.originalName || attachmentStorageFilename(
+                attachment.storagePath || attachment.downloadUrl
+              ),
+              message: safeAttachmentFailureReason(error)
+            });
+          }
+        });
+
+        result.count = result.files.length;
+        result.failed = result.warnings.length;
+        result.folder = result.count ? expectedFolder : null;
+        return result;
+    }
+
+    function logAccountantPackAttachmentDiagnostics(...results){
+        const combinedStats = {};
+
+        results.forEach(result => {
+          Object.entries(result?.moduleStats || {}).forEach(([sourceModule, stats]) => {
+            const totals = combinedStats[sourceModule] || {
+              recordsInspected: 0,
+              referencesFound: 0,
+              exported: 0,
+              failed: 0
+            };
+
+            totals.recordsInspected += stats.recordsInspected;
+            totals.referencesFound += stats.referencesFound;
+            totals.exported += stats.exported;
+            totals.failed += stats.failed;
+            combinedStats[sourceModule] = totals;
+          });
+        });
+
+        console.groupCollapsed("Accountant Pack attachments");
+        ["Expenses", "Mileage", "Bills"].forEach(sourceModule => {
+          const stats = combinedStats[sourceModule] || {
+            recordsInspected: 0,
+            referencesFound: 0,
+            exported: 0,
+            failed: 0
+          };
+          console.info(
+            `${sourceModule}: ${stats.recordsInspected} records, ` +
+            `${stats.referencesFound} references, ${stats.exported} exported, ${stats.failed} failed`
+          );
+        });
+        console.groupEnd();
+    }
+
+    function accountantPackFileList(invoicePdfFiles = [], receiptFiles = [], billAttachmentFiles = []){
         const root = "SimpleBooks_AccountantPack";
 
         return [
@@ -4374,17 +4881,37 @@
           `${root}/CSV/Clients.csv`,
           `${root}/Company/Company_Information.json`,
           ...invoicePdfFiles,
+          ...receiptFiles,
+          ...billAttachmentFiles,
           `${root}/Manifest.json`
         ];
     }
 
-    function buildPackManifest(data, period, generatedAt, invoicePdfResult = {}){
+    function buildPackManifest(
+      data,
+      period,
+      generatedAt,
+      invoicePdfResult = {},
+      receiptAttachmentResult = {},
+      billAttachmentResult = {}
+    ){
         const invoicePdfFiles = Array.isArray(invoicePdfResult.files)
           ? invoicePdfResult.files
           : [];
-        const warnings = Array.isArray(invoicePdfResult.warnings)
-          ? invoicePdfResult.warnings
+        const receiptFiles = Array.isArray(receiptAttachmentResult.files)
+          ? receiptAttachmentResult.files
           : [];
+        const billAttachmentFiles = Array.isArray(billAttachmentResult.files)
+          ? billAttachmentResult.files
+          : [];
+        const warnings = [
+          ...(Array.isArray(data.attachmentDiscoveryWarnings)
+            ? data.attachmentDiscoveryWarnings
+            : []),
+          ...(Array.isArray(invoicePdfResult.warnings) ? invoicePdfResult.warnings : []),
+          ...(Array.isArray(receiptAttachmentResult.warnings) ? receiptAttachmentResult.warnings : []),
+          ...(Array.isArray(billAttachmentResult.warnings) ? billAttachmentResult.warnings : [])
+        ];
 
         return {
           applicationName: "Simple Books",
@@ -4400,19 +4927,43 @@
             expenses: data.expenses.length,
             mileage: data.mileage.length,
             clients: data.clients.length,
-            invoicePdfs: invoicePdfFiles.length
+            invoicePdfs: invoicePdfFiles.length,
+            receiptAttachments: receiptFiles.length,
+            billAttachments: billAttachmentFiles.length
           },
-          filesIncluded: accountantPackFileList(invoicePdfFiles),
+          filesIncluded: accountantPackFileList(invoicePdfFiles, receiptFiles, billAttachmentFiles),
           generatedAssets: {
             invoicePdfs: {
               count: invoicePdfFiles.length,
               folder: invoicePdfResult.folder || "SimpleBooks_AccountantPack/Invoice_PDFs/",
               files: invoicePdfFiles
+            },
+            receiptAttachments: {
+              recordsInspected: Number(receiptAttachmentResult.recordsInspected || 0),
+              referencesFound: Number(receiptAttachmentResult.referencesFound || 0),
+              count: receiptFiles.length,
+              failed: Number(receiptAttachmentResult.failed || 0),
+              folder: receiptFiles.length ? receiptAttachmentResult.folder : null,
+              files: receiptFiles,
+              filenames: Array.isArray(receiptAttachmentResult.filenames)
+                ? receiptAttachmentResult.filenames
+                : [],
+              modules: receiptAttachmentResult.moduleStats || {}
+            },
+            billAttachments: {
+              recordsInspected: Number(billAttachmentResult.recordsInspected || 0),
+              referencesFound: Number(billAttachmentResult.referencesFound || 0),
+              count: billAttachmentFiles.length,
+              failed: Number(billAttachmentResult.failed || 0),
+              folder: billAttachmentFiles.length ? billAttachmentResult.folder : null,
+              files: billAttachmentFiles,
+              filenames: Array.isArray(billAttachmentResult.filenames)
+                ? billAttachmentResult.filenames
+                : [],
+              modules: billAttachmentResult.moduleStats || {}
             }
           },
           intentionallyNotIncluded: [
-            "Receipt attachments",
-            "Bill attachments",
             "VAT summary PDF"
           ],
           warnings
@@ -4510,7 +5061,48 @@
           data.account,
           onStage
         );
-        const manifest = buildPackManifest(data, period, generatedAt, invoicePdfResult);
+        onStage?.({ stage: "attachments" });
+        const attachmentServices = window.simpleBooksBackupServices;
+        const [receiptAttachmentResult, billAttachmentResult] = await Promise.all([
+          addAttachmentsToZip(
+            zip,
+            [
+              { sourceModule: "Expenses", records: data.expenses },
+              {
+                sourceModule: "Mileage",
+                records: [...data.mileage, ...data.legacyMileage]
+              }
+            ],
+            {
+              folderName: "Receipt_Attachments",
+              filenameKind: "Receipt",
+              warningKind: "receipt"
+            },
+            attachmentServices
+          ),
+          addAttachmentsToZip(
+            zip,
+            [{ sourceModule: "Bills", records: data.bills }],
+            {
+              folderName: "Bill_Attachments",
+              filenameKind: "Bill",
+              warningKind: "bill"
+            },
+            attachmentServices
+          )
+        ]);
+        logAccountantPackAttachmentDiagnostics(
+          receiptAttachmentResult,
+          billAttachmentResult
+        );
+        const manifest = buildPackManifest(
+          data,
+          period,
+          generatedAt,
+          invoicePdfResult,
+          receiptAttachmentResult,
+          billAttachmentResult
+        );
         zip.file(`${root}/Manifest.json`, JSON.stringify(manifest, null, 2));
 
         onStage?.({ stage: "zip" });
@@ -4521,13 +5113,15 @@
           mimeType: "application/zip"
         });
 
+        onStage?.({ stage: "download" });
+        await new Promise(resolve => window.requestAnimationFrame(resolve));
         downloadBrowserBlob(blob, accountantPackFilename(period));
 
         return {
           generatedAt,
           filename: accountantPackFilename(period),
           manifest,
-          warnings: invoicePdfResult.warnings
+          warnings: manifest.warnings
         };
     }
 
@@ -4859,12 +5453,22 @@
         }
 
         if(progress.stage === "invoice-pdfs"){
-          generateButton.textContent = `Generating invoice PDFs ${progress.current}/${progress.total}...`;
+          generateButton.textContent = "Generating invoice PDFs...";
+          return;
+        }
+
+        if(progress.stage === "attachments"){
+          generateButton.textContent = "Downloading attachments...";
           return;
         }
 
         if(progress.stage === "zip"){
           generateButton.textContent = "Creating ZIP...";
+          return;
+        }
+
+        if(progress.stage === "download"){
+          generateButton.textContent = "Downloading...";
           return;
         }
 
