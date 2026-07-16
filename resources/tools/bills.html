@@ -330,7 +330,7 @@
 
     .bill-row {
       display: grid;
-      grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
+      grid-template-columns: 1.25fr 1fr .8fr .7fr .7fr auto;
       gap: 12px;
       align-items: center;
       padding: 16px 0;
@@ -898,7 +898,7 @@
 
     .bill-row{
       min-width:0;
-      grid-template-columns:minmax(0, 1.4fr) minmax(86px, .8fr) minmax(78px, .75fr) minmax(78px, .7fr) minmax(118px, auto);
+      grid-template-columns:minmax(0, 1.4fr) minmax(0, 1.15fr) 92px 82px 78px minmax(168px, 1.2fr);
     }
 
     @media (max-width:1180px){
@@ -995,11 +995,16 @@
       letter-spacing:.035em;
     }
 
-    .bill-table-header div:nth-child(3){
+    .bill-table-header div:nth-child(4){
+      text-align:right;
+    }
+
+    .bill-table-header div:nth-child(6){
       text-align:right;
     }
 
     .bill-row:not(.bill-table-header){
+      align-items:start;
       border-bottom:0;
       border-radius:12px;
       padding:14px;
@@ -1033,6 +1038,23 @@
       overflow-wrap:anywhere;
     }
 
+    .bill-project-name{
+      color:#102033;
+      font-size:14px;
+      font-weight:800;
+      line-height:1.3;
+      overflow-wrap:anywhere;
+    }
+
+    .bill-project-reference{
+      color:#64748b;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.35;
+      margin-top:3px;
+      overflow-wrap:anywhere;
+    }
+
     .bill-attachment-label{
       color:#94a3b8;
       font-size:12px;
@@ -1041,7 +1063,7 @@
     }
 
     .bill-date-label{
-      display:block;
+      display:none;
       color:#7b8ba0;
       font-size:11px;
       font-weight:800;
@@ -1118,6 +1140,9 @@
     }
 
     .row-actions{
+      align-items:flex-start;
+      align-content:flex-start;
+      justify-content:flex-end;
       gap:6px;
     }
 
@@ -1128,6 +1153,7 @@
       line-height:1;
       min-height:36px;
       padding:0 12px;
+      white-space:nowrap;
     }
 
     .btn-secondary{
@@ -1226,6 +1252,7 @@
 
     body.dark-mode .muted,
     body.dark-mode .bill-number,
+    body.dark-mode .bill-project-reference,
     body.dark-mode .bill-attachment-label,
     body.dark-mode .bill-date-label,
     body.dark-mode .recent-footer,
@@ -1250,6 +1277,7 @@
     }
 
     body.dark-mode .bill-supplier,
+    body.dark-mode .bill-project-name,
     body.dark-mode .bill-date,
     body.dark-mode .bill-total,
     body.dark-mode .overview-item strong{
@@ -1297,6 +1325,10 @@
       }
 
       .bill-row-field::before{
+        display:block;
+      }
+
+      .bill-date-label{
         display:block;
       }
 
@@ -1416,7 +1448,7 @@
       <section class="card">
         <div class="section-heading">
           <div>
-            <h2>Add bill</h2>
+            <h2 id="billFormTitle">Add bill</h2>
             <p class="muted">Record supplier details, amounts and payment status.</p>
           </div>
         </div>
@@ -1463,6 +1495,14 @@
               <option>Paid</option>
             </select>
           </div>
+
+          <div class="field">
+            <label for="projectSelect">Project</label>
+            <select id="projectSelect">
+              <option value="">No project</option>
+              <option value="" disabled>Loading projects...</option>
+            </select>
+          </div>
         </div>
 
         <div class="field-wide">
@@ -1484,6 +1524,7 @@
         </div>
 
         <div class="form-actions">
+          <button class="btn btn-secondary" id="cancelEditButton" type="button" hidden>Cancel</button>
           <button class="btn" id="saveBillButton" onclick="saveBill()">Save bill</button>
         </div>
       </section>
@@ -1626,6 +1667,10 @@
     const storage = getStorage(app);
     let selectedAttachment = null;
     let currentBills = [];
+    let currentProjects = [];
+    let projectsLoaded = false;
+    let projectsLoadError = false;
+    let editingBillId = null;
     const currentUserPromise = new Promise(resolve => {
       const unsubscribe = onAuthStateChanged(auth, user => {
         unsubscribe();
@@ -1664,6 +1709,39 @@
       }
 
       return currentBills;
+    }
+
+    async function loadProjects(user) {
+      if (!user) return [];
+
+      try {
+        const snapshot = await getDocs(
+          collection(db, "users", user.uid, "projects")
+        );
+        const statusOrder = { "Active": 0, "On Hold": 1, "Completed": 2 };
+
+        currentProjects = snapshot.docs
+          .map(projectDoc => ({ id: projectDoc.id, ...projectDoc.data() }))
+          .sort((a, b) => {
+            const statusDifference =
+              (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+
+            return statusDifference || String(a.name || "").localeCompare(
+              String(b.name || ""),
+              "en-GB",
+              { sensitivity: "base" }
+            );
+          });
+        projectsLoadError = false;
+      } catch (error) {
+        console.error("Firestore projects load failed", error);
+        currentProjects = [];
+        projectsLoadError = true;
+      }
+
+      projectsLoaded = true;
+      renderProjectDropdown();
+      return currentProjects;
     }
 
     function money(value) {
@@ -1916,6 +1994,86 @@
         .replace(/'/g, "&#039;");
     }
 
+    function billProjectLabel(name, reference) {
+      const projectName = String(name || "").trim();
+      const projectReference = String(reference || "").trim();
+
+      if (!projectName) return projectReference || "Unassigned";
+      return projectReference ? `${projectName} (${projectReference})` : projectName;
+    }
+
+    function selectedBillProject() {
+      const select = document.getElementById("projectSelect");
+      const option = select?.selectedOptions?.[0];
+      const projectId = select?.value || "";
+
+      if (!projectId) {
+        return { projectId: "", projectName: "", projectReference: "" };
+      }
+
+      return {
+        projectId,
+        projectName: option?.dataset.projectName || "",
+        projectReference: option?.dataset.projectReference || ""
+      };
+    }
+
+    function renderProjectDropdown(storedProject = null) {
+      const select = document.getElementById("projectSelect");
+      if (!select) return;
+
+      const requestedProject = storedProject || selectedBillProject();
+      const requestedId = String(requestedProject.projectId || "");
+      const requestedName = String(requestedProject.projectName || "");
+      const requestedReference = String(requestedProject.projectReference || "");
+
+      select.replaceChildren();
+
+      const noProjectOption = document.createElement("option");
+      noProjectOption.value = "";
+      noProjectOption.textContent = "No project";
+      select.appendChild(noProjectOption);
+
+      currentProjects.forEach(project => {
+        const option = document.createElement("option");
+        option.value = String(project.id);
+        option.textContent = billProjectLabel(project.name, project.reference);
+        option.dataset.projectName = String(project.name || "");
+        option.dataset.projectReference = String(project.reference || "");
+        select.appendChild(option);
+      });
+
+      const requestedExists = currentProjects.some(project =>
+        String(project.id) === requestedId
+      );
+
+      if (requestedId && !requestedExists) {
+        const unavailableOption = document.createElement("option");
+        unavailableOption.value = requestedId;
+        unavailableOption.textContent = `${billProjectLabel(
+          requestedName || "Stored project",
+          requestedReference
+        )} — unavailable`;
+        unavailableOption.dataset.projectName = requestedName;
+        unavailableOption.dataset.projectReference = requestedReference;
+        select.appendChild(unavailableOption);
+      }
+
+      if (!currentProjects.length) {
+        const messageOption = document.createElement("option");
+        messageOption.value = "";
+        messageOption.disabled = true;
+        messageOption.textContent = projectsLoadError
+          ? "Projects could not be loaded"
+          : projectsLoaded
+            ? "No projects available"
+            : "Loading projects...";
+        select.appendChild(messageOption);
+      }
+
+      select.value = requestedId ? requestedId : "";
+    }
+
     function billDocRef(id) {
       const user = auth.currentUser;
       if (!user) return null;
@@ -2032,9 +2190,16 @@
       const vatRate = Number(document.getElementById("vatRate").value || 0);
       const vat = net * vatRate;
       const total = net + vat;
-      const billId = Date.now();
+      const existingBill = editingBillId === null
+        ? null
+        : currentBills.find(bill => String(bill.id) === String(editingBillId));
+      const billId = existingBill?.id ?? Date.now();
+      const project = selectedBillProject();
 
-      let attachment = {};
+      let attachment = {
+        attachmentName: existingBill?.attachmentName || "",
+        attachmentUrl: existingBill?.attachmentUrl || ""
+      };
 
       try {
         if (selectedAttachment) {
@@ -2046,6 +2211,7 @@
       }
 
       const bill = {
+        ...(existingBill || {}),
         id: billId,
         supplier,
         billNumber: document.getElementById("billNumber").value.trim(),
@@ -2057,9 +2223,12 @@
         total,
         status: document.getElementById("status").value,
         notes: document.getElementById("notes").value.trim(),
+        projectId: project.projectId,
+        projectName: project.projectName,
+        projectReference: project.projectReference,
         attachmentName: attachment.attachmentName || "",
         attachmentUrl: attachment.attachmentUrl || "",
-        createdAt: new Date().toISOString()
+        createdAt: existingBill?.createdAt || new Date().toISOString()
       };
 
       const ref = doc(db, "users", user.uid, "bills", String(billId));
@@ -2072,18 +2241,23 @@
         return;
       }
 
-      const bills = currentBills;
-      bills.unshift(bill);
-      currentBills = bills;
-      saveBills(bills);
+      if (existingBill) {
+        currentBills = currentBills.map(item =>
+          String(item.id) === String(billId) ? bill : item
+        );
+      } else {
+        currentBills.unshift(bill);
+      }
+      saveBills(currentBills);
 
       clearForm();
       renderBills(currentBills);
       saveButton.disabled = false;
-      alert("Bill saved.");
+      alert(existingBill ? "Bill updated." : "Bill saved.");
     }
 
     function clearForm() {
+      editingBillId = null;
       document.getElementById("supplier").value = "";
       document.getElementById("billNumber").value = "";
       document.getElementById("billDate").value = "";
@@ -2092,7 +2266,41 @@
       document.getElementById("vatRate").value = "0.20";
       document.getElementById("status").value = "Unpaid";
       document.getElementById("notes").value = "";
+      document.getElementById("billFormTitle").textContent = "Add bill";
+      document.getElementById("saveBillButton").textContent = "Save bill";
+      document.getElementById("cancelEditButton").hidden = true;
+      renderProjectDropdown({ projectId: "", projectName: "", projectReference: "" });
       resetAttachmentUI();
+    }
+
+    function editBill(id) {
+      const bill = currentBills.find(item => String(item.id) === String(id));
+      if (!bill) return;
+
+      editingBillId = bill.id;
+      document.getElementById("supplier").value = bill.supplier || "";
+      document.getElementById("billNumber").value = bill.billNumber || "";
+      document.getElementById("billDate").value = bill.billDate || "";
+      document.getElementById("dueDate").value = bill.dueDate || "";
+      document.getElementById("netAmount").value = Number(bill.net || 0);
+      document.getElementById("vatRate").value = String(bill.vatRate ?? "0.20");
+      document.getElementById("status").value = bill.status || "Unpaid";
+      document.getElementById("notes").value = bill.notes || "";
+      renderProjectDropdown({
+        projectId: bill.projectId || "",
+        projectName: bill.projectName || "",
+        projectReference: bill.projectReference || ""
+      });
+
+      selectedAttachment = null;
+      document.getElementById("billAttachment").value = "";
+      document.getElementById("attachmentFileName").textContent =
+        bill.attachmentName || "No file selected";
+      setAttachmentStatus(bill.attachmentName ? "Existing PDF will be kept." : "");
+      document.getElementById("billFormTitle").textContent = "Edit bill";
+      document.getElementById("saveBillButton").textContent = "Update bill";
+      document.getElementById("cancelEditButton").hidden = false;
+      document.getElementById("billFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     async function markBillPaid(id) {
@@ -2135,6 +2343,10 @@
       saveBills(currentBills);
       renderBills(currentBills);
 
+      if (String(editingBillId) === String(id)) {
+        clearForm();
+      }
+
       const ref = billDocRef(id);
 
       if (ref) {
@@ -2176,8 +2388,11 @@
       const visibleBills = bills.filter(bill => {
         const supplier = String(bill.supplier || "").toLowerCase();
         const billNumber = String(bill.billNumber || "").toLowerCase();
+        const projectName = String(bill.projectName || "").toLowerCase();
+        const projectReference = String(bill.projectReference || "").toLowerCase();
         const matchesSearch =
-          !search || supplier.includes(search) || billNumber.includes(search);
+          !search || supplier.includes(search) || billNumber.includes(search) ||
+          projectName.includes(search) || projectReference.includes(search);
 
         const status = billStatusLabel(bill);
         const matchesStatus =
@@ -2270,10 +2485,11 @@
       list.innerHTML = `
         <div class="bill-row bill-table-header">
           <div>Supplier</div>
+          <div>Project</div>
           <div>Due date</div>
           <div>Total</div>
           <div>Status</div>
-          <div></div>
+          <div>Actions</div>
         </div>
       ` + visibleBills.map(bill => {
         const billId = escapeHtml(String(bill.id));
@@ -2285,6 +2501,7 @@
           : "";
         const paymentButtonText = bill.status === "Paid" ? "Mark unpaid" : "Mark paid";
         const paymentButtonClass = bill.status === "Paid" ? "btn btn-secondary" : "btn btn-positive";
+        const projectName = bill.projectName || (bill.projectReference ? "Project" : "Unassigned");
 
         return `
         <div class="bill-row" data-bill-id="${billId}">
@@ -2292,6 +2509,11 @@
             <div class="bill-supplier">${escapeHtml(bill.supplier)}</div>
             <div class="bill-number">${escapeHtml(bill.billNumber || "No bill number")}</div>
             <div class="bill-attachment-label">${attachmentLabel}</div>
+          </div>
+
+          <div class="bill-row-field" data-label="Project">
+            <div class="bill-project-name">${escapeHtml(projectName)}</div>
+            ${bill.projectReference ? `<div class="bill-project-reference">${escapeHtml(bill.projectReference)}</div>` : ""}
           </div>
 
           <div class="bill-row-field" data-label="Due date">
@@ -2310,6 +2532,7 @@
 
           <div class="row-actions">
             ${viewPdfButton}
+            <button class="btn btn-secondary" type="button" data-bill-action="edit" data-bill-id="${billId}">Edit</button>
             <button class="${paymentButtonClass}" type="button" data-bill-action="toggle-paid" data-bill-id="${billId}">${paymentButtonText}</button>
             <button class="btn btn-danger-subtle" type="button" data-bill-action="delete" data-bill-id="${billId}">Delete</button>
           </div>
@@ -2332,12 +2555,18 @@
         return;
       }
 
+      if (button.dataset.billAction === "edit") {
+        editBill(billId);
+        return;
+      }
+
       if (button.dataset.billAction === "delete") {
         deleteBill(billId);
       }
     }
 
     document.getElementById("billAttachment").addEventListener("change", handleAttachmentSelection);
+    document.getElementById("cancelEditButton").addEventListener("click", clearForm);
     document.getElementById("billsList").addEventListener("click", handleBillsListClick);
     document.getElementById("billSearch").addEventListener("input", () => renderBills(currentBills));
     document.getElementById("billStatusFilter").addEventListener("change", () => renderBills(currentBills));
@@ -2346,7 +2575,9 @@
     window.markBillPaid = markBillPaid;
     window.deleteBill = deleteBill;
 
-    await loadBills();
+    renderProjectDropdown();
+    const user = await getCurrentUser();
+    await Promise.all([loadBills(), loadProjects(user)]);
     renderBills(currentBills);
   </script>
 </body>
