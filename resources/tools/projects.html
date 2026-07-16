@@ -1,0 +1,1401 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Projects | Simple Books</title>
+  <script type="module" src="/auth-guard.js"></script>
+
+  <style>
+    :root{
+      --accent:#0077B6;
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --text:#1f2933;
+      --muted:#64748b;
+      --border:#dbe3ec;
+      --danger:#b42318;
+    }
+
+    *,
+    *::before,
+    *::after{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    button,
+    input,
+    select,
+    textarea{
+      font:inherit;
+    }
+
+    h1{
+      margin:0 0 5px;
+      color:#102033;
+      font-size:30px;
+      line-height:1.1;
+    }
+
+    h2{
+      margin:0;
+      color:#102033;
+      font-size:20px;
+    }
+
+    .muted{
+      color:var(--muted);
+      line-height:1.4;
+    }
+
+    .visually-hidden{
+      position:absolute;
+      width:1px;
+      height:1px;
+      padding:0;
+      margin:-1px;
+      overflow:hidden;
+      clip:rect(0,0,0,0);
+      white-space:nowrap;
+      border:0;
+    }
+
+    .page-title-row,
+    .list-header,
+    .modal-header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:18px;
+    }
+
+    .page-title-row{
+      align-items:center;
+      margin:8px 0 18px;
+    }
+
+    .page-title-row p,
+    .list-header p,
+    .modal-header p{
+      margin:5px 0 0;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(5,minmax(0,1fr));
+      gap:12px;
+      margin-bottom:16px;
+    }
+
+    .kpi-card{
+      position:relative;
+      min-height:98px;
+      overflow:hidden;
+      border-color:#e6edf5;
+    }
+
+    .kpi-card::before{
+      content:"";
+      position:absolute;
+      inset:0 0 auto;
+      height:4px;
+      background:var(--kpi-accent,var(--accent));
+    }
+
+    .kpi-card:nth-child(2){--kpi-accent:#16a34a;}
+    .kpi-card:nth-child(3){--kpi-accent:#7c3aed;}
+    .kpi-card:nth-child(4){--kpi-accent:#f97316;}
+    .kpi-card:nth-child(5){--kpi-accent:#0f9f9a;}
+
+    .kpi-label{
+      color:#64748b;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .kpi-value{
+      margin-top:7px;
+      color:#102033;
+      font-size:25px;
+      font-weight:900;
+      line-height:1.15;
+      overflow-wrap:anywhere;
+    }
+
+    .filters{
+      display:grid;
+      grid-template-columns:minmax(240px,1fr) minmax(180px,260px) auto;
+      gap:12px;
+      align-items:end;
+      margin-bottom:16px;
+    }
+
+    label{
+      display:block;
+      margin:0 0 7px;
+      color:#102033;
+      font-size:12px;
+      font-weight:750;
+      line-height:1.3;
+    }
+
+    input,
+    select,
+    textarea{
+      width:100%;
+      min-height:42px;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+      color:#102033;
+      font-size:15px;
+      line-height:1.35;
+    }
+
+    input::placeholder,
+    textarea::placeholder{
+      color:#94a3b8;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus,
+    button:focus-visible{
+      outline:3px solid rgba(0,119,182,.18);
+      outline-offset:2px;
+      border-color:var(--accent);
+    }
+
+    textarea{
+      min-height:92px;
+      resize:vertical;
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:42px;
+      padding:10px 16px;
+      border:1px solid transparent;
+      border-radius:10px;
+      background:var(--accent);
+      color:#fff;
+      font-weight:800;
+      line-height:1.2;
+      text-decoration:none;
+      cursor:pointer;
+    }
+
+    .btn:hover{
+      background:#00689f;
+    }
+
+    .btn:disabled{
+      cursor:not-allowed;
+      opacity:.65;
+    }
+
+    .btn-secondary{
+      border-color:#cbd5e1;
+      background:#fff;
+      color:#334155;
+    }
+
+    .btn-secondary:hover{
+      background:#f8fafc;
+    }
+
+    .btn-danger{
+      background:var(--danger);
+    }
+
+    .btn-danger:hover{
+      background:#912018;
+    }
+
+    .btn-link{
+      min-height:42px;
+      padding:8px 4px;
+      border:0;
+      background:transparent;
+      color:var(--accent);
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .btn-link:hover{
+      color:#005f91;
+      text-decoration:underline;
+    }
+
+    .list-card{
+      padding:0;
+      overflow:hidden;
+    }
+
+    .list-header{
+      padding:20px;
+      border-bottom:1px solid #e2e8f0;
+    }
+
+    .result-count{
+      flex:0 0 auto;
+      color:#64748b;
+      font-size:13px;
+      font-weight:750;
+    }
+
+    .table-scroll{
+      overflow-x:auto;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:14px;
+    }
+
+    th,
+    td{
+      padding:14px 12px;
+      border-bottom:1px solid #e8edf3;
+      text-align:left;
+      vertical-align:middle;
+    }
+
+    th{
+      background:#f8fafc;
+      color:#475569;
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.02em;
+      white-space:nowrap;
+    }
+
+    tbody tr:last-child td{
+      border-bottom:0;
+    }
+
+    tbody tr:hover{
+      background:#fbfdff;
+    }
+
+    .project-name{
+      color:#102033;
+      font-weight:850;
+    }
+
+    .project-reference,
+    .secondary-text{
+      margin-top:3px;
+      color:#64748b;
+      font-size:12px;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      min-height:27px;
+      padding:5px 9px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:850;
+      white-space:nowrap;
+    }
+
+    .status-active{
+      background:#dcfce7;
+      color:#166534;
+    }
+
+    .status-completed{
+      background:#ede9fe;
+      color:#5b21b6;
+    }
+
+    .status-on-hold{
+      background:#ffedd5;
+      color:#9a3412;
+    }
+
+    .table-actions{
+      display:flex;
+      gap:7px;
+      justify-content:flex-end;
+    }
+
+    .action-button{
+      min-height:34px;
+      padding:7px 10px;
+      border:1px solid #cbd5e1;
+      border-radius:8px;
+      background:#fff;
+      color:#334155;
+      font-size:12px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .action-button:hover{
+      border-color:#94a3b8;
+      background:#f8fafc;
+    }
+
+    .action-delete{
+      color:var(--danger);
+    }
+
+    .empty-state{
+      padding:56px 24px;
+      text-align:center;
+    }
+
+    .empty-icon{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      width:58px;
+      height:58px;
+      margin:0 auto 14px;
+      border-radius:18px;
+      background:#e0f2fe;
+      color:#0369a1;
+      font-size:26px;
+      font-weight:900;
+    }
+
+    .empty-state h3{
+      margin:0 0 7px;
+      color:#102033;
+      font-size:19px;
+    }
+
+    .empty-state p{
+      max-width:460px;
+      margin:0 auto 18px;
+      color:#64748b;
+      line-height:1.5;
+    }
+
+    .feedback{
+      margin:0 0 16px;
+      padding:11px 14px;
+      border:1px solid #86efac;
+      border-radius:10px;
+      background:#f0fdf4;
+      color:#166534;
+      font-size:14px;
+      font-weight:700;
+    }
+
+    .feedback.error{
+      border-color:#fda29b;
+      background:#fff1f0;
+      color:#9f1c14;
+    }
+
+    .modal-overlay{
+      position:fixed;
+      z-index:1000;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:rgba(15,23,42,.58);
+    }
+
+    .modal-overlay[hidden]{
+      display:none;
+    }
+
+    .modal{
+      width:min(700px,100%);
+      max-height:calc(100vh - 40px);
+      overflow:auto;
+      border:1px solid #dbe3ec;
+      border-radius:18px;
+      background:#fff;
+      box-shadow:0 28px 70px rgba(15,23,42,.28);
+    }
+
+    .modal-small{
+      width:min(470px,100%);
+    }
+
+    .modal-header{
+      padding:22px 22px 16px;
+      border-bottom:1px solid #e8edf3;
+    }
+
+    .modal-close{
+      flex:0 0 auto;
+      width:38px;
+      height:38px;
+      border:1px solid #dbe3ec;
+      border-radius:10px;
+      background:#fff;
+      color:#475569;
+      font-size:22px;
+      line-height:1;
+      cursor:pointer;
+    }
+
+    .modal-close:hover{
+      background:#f8fafc;
+    }
+
+    .modal-body{
+      padding:20px 22px;
+    }
+
+    .form-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:15px;
+    }
+
+    .field-wide{
+      grid-column:1/-1;
+    }
+
+    .required{
+      color:var(--danger);
+    }
+
+    .field-hint{
+      display:block;
+      margin-top:6px;
+      color:#64748b;
+      font-size:12px;
+      line-height:1.4;
+    }
+
+    .field-error{
+      display:block;
+      min-height:17px;
+      margin-top:5px;
+      color:var(--danger);
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .invalid{
+      border-color:#f04438;
+    }
+
+    .form-feedback{
+      margin:0 0 16px;
+      padding:10px 12px;
+      border-radius:9px;
+      background:#fff1f0;
+      color:#9f1c14;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .modal-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:16px 22px 22px;
+      border-top:1px solid #e8edf3;
+    }
+
+    .delete-copy{
+      margin:0;
+      color:#475569;
+      line-height:1.55;
+    }
+
+    .delete-copy strong{
+      color:#102033;
+    }
+
+    @media (max-width:1050px){
+      .kpi-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+      }
+    }
+
+    @media (max-width:760px){
+      .page-title-row{
+        align-items:flex-start;
+        flex-direction:column;
+      }
+
+      .page-title-row .btn{
+        width:100%;
+      }
+
+      .kpi-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+
+      .filters{
+        grid-template-columns:1fr;
+      }
+
+      .filters .btn-link{
+        justify-self:start;
+      }
+
+      .table-scroll{
+        overflow:visible;
+      }
+
+      table,
+      tbody,
+      tr,
+      td{
+        display:block;
+        width:100%;
+      }
+
+      thead{
+        display:none;
+      }
+
+      tbody{
+        padding:8px 16px 16px;
+      }
+
+      tbody tr{
+        margin:10px 0;
+        padding:8px 12px;
+        border:1px solid #e2e8f0;
+        border-radius:12px;
+      }
+
+      tbody tr:hover{
+        background:#fff;
+      }
+
+      td{
+        display:grid;
+        grid-template-columns:105px minmax(0,1fr);
+        gap:12px;
+        padding:9px 0;
+        border-bottom:1px solid #edf1f5;
+      }
+
+      td::before{
+        content:attr(data-label);
+        color:#64748b;
+        font-size:12px;
+        font-weight:800;
+      }
+
+      td:last-child{
+        border-bottom:0;
+      }
+
+      .table-actions{
+        justify-content:flex-start;
+      }
+    }
+
+    @media (max-width:540px){
+      .kpi-grid,
+      .form-grid{
+        grid-template-columns:1fr;
+      }
+
+      .field-wide{
+        grid-column:auto;
+      }
+
+      .list-header{
+        flex-direction:column;
+      }
+
+      .modal-overlay{
+        align-items:flex-end;
+        padding:0;
+      }
+
+      .modal{
+        max-height:94vh;
+        border-radius:18px 18px 0 0;
+      }
+
+      .modal-actions{
+        flex-direction:column-reverse;
+      }
+
+      .modal-actions .btn{
+        width:100%;
+      }
+    }
+  </style>
+
+  <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
+</head>
+
+<body>
+  <main class="wrap">
+    <header class="app-header">
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
+      </a>
+
+      <nav class="app-nav" aria-label="Main navigation">
+        <a href="/dashboard.html">Dashboard</a>
+        <span></span>
+        <a href="/resources/tools/invoice-generator.html">Invoices</a>
+        <span></span>
+        <a href="/resources/tools/bills.html">Bills</a>
+        <span></span>
+        <a href="/resources/tools/client-tracker.html">Clients</a>
+        <span></span>
+        <a class="active" href="/resources/tools/projects.html" aria-current="page">Projects</a>
+        <span></span>
+        <a href="/resources/tools/expenses.html">Expenses</a>
+        <span></span>
+        <a href="/exports.html">Exports</a>
+        <span></span>
+        <a href="/account.html">Account</a>
+      </nav>
+    </header>
+
+    <section class="page-title-row" aria-labelledby="pageTitle">
+      <div>
+        <h1 id="pageTitle">Projects</h1>
+        <p class="muted">Organise client work, dates and budgets in one place.</p>
+      </div>
+      <button class="btn" id="newProjectButton" type="button">New project</button>
+    </section>
+
+    <div class="feedback" id="pageFeedback" role="status" aria-live="polite" hidden></div>
+
+    <section class="kpi-grid" aria-label="Project summary">
+      <article class="card kpi-card">
+        <div class="kpi-label">Total projects</div>
+        <div class="kpi-value" id="totalProjects">0</div>
+      </article>
+      <article class="card kpi-card">
+        <div class="kpi-label">Active projects</div>
+        <div class="kpi-value" id="activeProjects">0</div>
+      </article>
+      <article class="card kpi-card">
+        <div class="kpi-label">Completed projects</div>
+        <div class="kpi-value" id="completedProjects">0</div>
+      </article>
+      <article class="card kpi-card">
+        <div class="kpi-label">On Hold projects</div>
+        <div class="kpi-value" id="onHoldProjects">0</div>
+      </article>
+      <article class="card kpi-card">
+        <div class="kpi-label">Total project budgets</div>
+        <div class="kpi-value" id="totalBudgets">&pound;0.00</div>
+      </article>
+    </section>
+
+    <section class="card filters" aria-label="Project filters">
+      <div>
+        <label for="projectSearch">Search projects</label>
+        <input id="projectSearch" type="search" placeholder="Name, reference, client or description" autocomplete="off">
+      </div>
+      <div>
+        <label for="projectStatusFilter">Status</label>
+        <select id="projectStatusFilter">
+          <option value="All">All statuses</option>
+          <option value="Active">Active</option>
+          <option value="Completed">Completed</option>
+          <option value="On Hold">On Hold</option>
+        </select>
+      </div>
+      <button class="btn-link" id="clearFiltersButton" type="button">Clear filters</button>
+    </section>
+
+    <section class="card list-card" aria-labelledby="projectsListTitle">
+      <div class="list-header">
+        <div>
+          <h2 id="projectsListTitle">Project list</h2>
+          <p class="muted">Your most recently updated projects appear first.</p>
+        </div>
+        <div class="result-count" id="projectResultCount" aria-live="polite">Loading projects...</div>
+      </div>
+
+      <div class="table-scroll" id="projectTableWrap" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Project</th>
+              <th scope="col">Customer / client</th>
+              <th scope="col">Status</th>
+              <th scope="col">Start date</th>
+              <th scope="col">End date</th>
+              <th scope="col">Budget</th>
+              <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="projectTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" id="loadingState">
+        <div class="empty-icon" aria-hidden="true">P</div>
+        <h3>Loading projects</h3>
+        <p>Please wait while your project records are loaded.</p>
+      </div>
+
+      <div class="empty-state" id="emptyState" hidden>
+        <div class="empty-icon" aria-hidden="true">P</div>
+        <h3>No projects yet</h3>
+        <p>Create your first project to start tracking client work, key dates and budgets.</p>
+        <button class="btn" id="emptyNewProjectButton" type="button">Create your first project</button>
+      </div>
+
+      <div class="empty-state" id="noResultsState" hidden>
+        <div class="empty-icon" aria-hidden="true">?</div>
+        <h3>No matching projects</h3>
+        <p>Try a different search or clear your filters to see all projects.</p>
+        <button class="btn btn-secondary" id="noResultsClearButton" type="button">Clear filters</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="projectModalOverlay" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="projectModalTitle">New project</h2>
+          <p class="muted" id="projectModalSubtitle">Add the details for this project.</p>
+        </div>
+        <button class="modal-close" id="projectModalClose" type="button" aria-label="Close project form">&times;</button>
+      </div>
+
+      <form id="projectForm" novalidate>
+        <div class="modal-body">
+          <div class="form-feedback" id="formFeedback" role="alert" hidden></div>
+          <div class="form-grid">
+            <div class="field-wide">
+              <label for="projectName">Project name <span class="required" aria-hidden="true">*</span></label>
+              <input id="projectName" name="name" type="text" maxlength="160" required aria-describedby="projectNameError">
+              <span class="field-error" id="projectNameError"></span>
+            </div>
+
+            <div>
+              <label for="projectReference">Project reference</label>
+              <input id="projectReference" name="reference" type="text" maxlength="60" placeholder="PRJ-0001">
+              <span class="field-hint">The next reference is suggested automatically.</span>
+            </div>
+
+            <div>
+              <label for="projectCustomer">Customer / client</label>
+              <select id="projectCustomer" name="customer">
+                <option value="">No customer / client</option>
+              </select>
+            </div>
+
+            <div class="field-wide">
+              <label for="projectDescription">Description</label>
+              <textarea id="projectDescription" name="description" maxlength="2000"></textarea>
+            </div>
+
+            <div>
+              <label for="projectStatus">Status</label>
+              <select id="projectStatus" name="status">
+                <option value="Active">Active</option>
+                <option value="Completed">Completed</option>
+                <option value="On Hold">On Hold</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="projectBudget">Budget (&pound;)</label>
+              <input id="projectBudget" name="budget" type="number" min="0" step="0.01" inputmode="decimal" aria-describedby="projectBudgetError">
+              <span class="field-error" id="projectBudgetError"></span>
+            </div>
+
+            <div>
+              <label for="projectStartDate">Start date</label>
+              <input id="projectStartDate" name="startDate" type="date">
+            </div>
+
+            <div>
+              <label for="projectEndDate">End date</label>
+              <input id="projectEndDate" name="endDate" type="date" aria-describedby="projectEndDateError">
+              <span class="field-error" id="projectEndDateError"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="cancelProjectButton" type="button">Cancel</button>
+          <button class="btn" id="saveProjectButton" type="submit">Save project</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-overlay" id="deleteModalOverlay" hidden>
+    <section class="modal modal-small" role="alertdialog" aria-modal="true" aria-labelledby="deleteModalTitle" aria-describedby="deleteModalDescription">
+      <div class="modal-header">
+        <div>
+          <h2 id="deleteModalTitle">Delete project?</h2>
+        </div>
+        <button class="modal-close" id="deleteModalClose" type="button" aria-label="Close delete confirmation">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="delete-copy" id="deleteModalDescription">Are you sure you want to delete <strong id="deleteProjectName"></strong>? Project deletion cannot be undone.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelDeleteButton" type="button">Cancel</button>
+        <button class="btn btn-danger" id="confirmDeleteButton" type="button">Delete project</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "../../firebase-config.js";
+    import {
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      addDoc,
+      collection,
+      deleteDoc,
+      doc,
+      getDocs,
+      serverTimestamp,
+      updateDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const allowedStatuses = ["Active", "Completed", "On Hold"];
+    const elements = {
+      search: document.getElementById("projectSearch"),
+      statusFilter: document.getElementById("projectStatusFilter"),
+      clearFilters: document.getElementById("clearFiltersButton"),
+      tableWrap: document.getElementById("projectTableWrap"),
+      tableBody: document.getElementById("projectTableBody"),
+      loadingState: document.getElementById("loadingState"),
+      emptyState: document.getElementById("emptyState"),
+      noResultsState: document.getElementById("noResultsState"),
+      resultCount: document.getElementById("projectResultCount"),
+      pageFeedback: document.getElementById("pageFeedback"),
+      projectOverlay: document.getElementById("projectModalOverlay"),
+      deleteOverlay: document.getElementById("deleteModalOverlay"),
+      form: document.getElementById("projectForm"),
+      formFeedback: document.getElementById("formFeedback"),
+      modalTitle: document.getElementById("projectModalTitle"),
+      modalSubtitle: document.getElementById("projectModalSubtitle"),
+      name: document.getElementById("projectName"),
+      reference: document.getElementById("projectReference"),
+      customer: document.getElementById("projectCustomer"),
+      description: document.getElementById("projectDescription"),
+      status: document.getElementById("projectStatus"),
+      budget: document.getElementById("projectBudget"),
+      startDate: document.getElementById("projectStartDate"),
+      endDate: document.getElementById("projectEndDate"),
+      saveButton: document.getElementById("saveProjectButton"),
+      confirmDeleteButton: document.getElementById("confirmDeleteButton")
+    };
+
+    let projects = [];
+    let customers = [];
+    let editingProjectId = null;
+    let pendingDeleteId = null;
+    let isSaving = false;
+    let feedbackTimer = null;
+    let lastFocusedElement = null;
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function money(value) {
+      return new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP"
+      }).format(Number(value || 0));
+    }
+
+    function formatDate(value) {
+      if (!value) return "—";
+
+      const date = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(date.getTime())) return value;
+
+      return date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      });
+    }
+
+    function timestampValue(value) {
+      if (value && typeof value.toMillis === "function") return value.toMillis();
+      if (value && typeof value.seconds === "number") return value.seconds * 1000;
+
+      const parsed = new Date(value || 0).getTime();
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+
+    function projectSortValue(project) {
+      return timestampValue(project.updatedAt) || timestampValue(project.createdAt);
+    }
+
+    function normaliseProject(snapshot) {
+      const data = snapshot.data();
+      return {
+        id: snapshot.id,
+        name: String(data.name || ""),
+        reference: String(data.reference || ""),
+        customerId: String(data.customerId || ""),
+        customerName: String(data.customerName || ""),
+        description: String(data.description || ""),
+        status: allowedStatuses.includes(data.status) ? data.status : "Active",
+        startDate: String(data.startDate || ""),
+        endDate: String(data.endDate || ""),
+        budget: Number(data.budget || 0),
+        createdAt: data.createdAt || null,
+        updatedAt: data.updatedAt || null
+      };
+    }
+
+    function showPageFeedback(message, isError = false) {
+      window.clearTimeout(feedbackTimer);
+      elements.pageFeedback.textContent = message;
+      elements.pageFeedback.classList.toggle("error", isError);
+      elements.pageFeedback.hidden = false;
+      feedbackTimer = window.setTimeout(() => {
+        elements.pageFeedback.hidden = true;
+      }, 5000);
+    }
+
+    function setFormFeedback(message) {
+      elements.formFeedback.textContent = message || "";
+      elements.formFeedback.hidden = !message;
+    }
+
+    function clearValidation() {
+      [elements.name, elements.budget, elements.endDate].forEach(input => {
+        input.classList.remove("invalid");
+        input.removeAttribute("aria-invalid");
+      });
+      document.getElementById("projectNameError").textContent = "";
+      document.getElementById("projectBudgetError").textContent = "";
+      document.getElementById("projectEndDateError").textContent = "";
+      setFormFeedback("");
+    }
+
+    function markInvalid(input, errorId, message) {
+      input.classList.add("invalid");
+      input.setAttribute("aria-invalid", "true");
+      document.getElementById(errorId).textContent = message;
+    }
+
+    function validateForm() {
+      clearValidation();
+      let firstInvalid = null;
+      const name = elements.name.value.trim();
+      const budgetText = elements.budget.value.trim();
+      const budget = budgetText === "" ? 0 : Number(budgetText);
+      const startDate = elements.startDate.value;
+      const endDate = elements.endDate.value;
+
+      if (!name) {
+        markInvalid(elements.name, "projectNameError", "Enter a project name.");
+        firstInvalid = elements.name;
+      }
+
+      if (budgetText !== "" && (!Number.isFinite(budget) || budget < 0)) {
+        markInvalid(elements.budget, "projectBudgetError", "Budget must be zero or more.");
+        firstInvalid ||= elements.budget;
+      }
+
+      if (startDate && endDate && endDate < startDate) {
+        markInvalid(elements.endDate, "projectEndDateError", "End date cannot be before the start date.");
+        firstInvalid ||= elements.endDate;
+      }
+
+      if (firstInvalid) {
+        setFormFeedback("Please correct the highlighted fields.");
+        firstInvalid.focus();
+        return false;
+      }
+
+      return true;
+    }
+
+    function nextProjectReference() {
+      const usedNumbers = new Set(
+        projects
+          .map(project => /^PRJ-(\d+)$/i.exec(project.reference.trim()))
+          .filter(Boolean)
+          .map(match => Number(match[1]))
+      );
+
+      let nextNumber = 1;
+      while (usedNumbers.has(nextNumber)) nextNumber += 1;
+      return `PRJ-${String(nextNumber).padStart(4, "0")}`;
+    }
+
+    function selectedCustomer() {
+      const selected = customers.find(customer => customer.key === elements.customer.value);
+      if (selected) return selected;
+      if (!elements.customer.value) return { id: "", name: "" };
+
+      const selectedOption = elements.customer.selectedOptions[0];
+      return {
+        id: elements.customer.value.replace(/^[^:]+:/, ""),
+        name: selectedOption?.textContent || ""
+      };
+    }
+
+    function customerKey(source, id) {
+      return `${source}:${id}`;
+    }
+
+    function renderCustomerOptions(selectedId = "", selectedName = "") {
+      const options = ['<option value="">No customer / client</option>'];
+
+      customers.forEach(customer => {
+        const selected = customer.id === selectedId || (!selectedId && customer.name === selectedName);
+        options.push(`<option value="${escapeHtml(customer.key)}"${selected ? " selected" : ""}>${escapeHtml(customer.name)}</option>`);
+      });
+
+      if (selectedName && !customers.some(customer => customer.id === selectedId || customer.name === selectedName)) {
+        options.push(`<option value="legacy:${escapeHtml(selectedId)}" selected>${escapeHtml(selectedName)}</option>`);
+      }
+
+      elements.customer.innerHTML = options.join("");
+    }
+
+    async function loadCustomers(user) {
+      const results = await Promise.allSettled([
+        getDocs(collection(db, "users", user.uid, "clients")),
+        getDocs(collection(db, "users", user.uid, "customers"))
+      ]);
+      const seenNames = new Set();
+      customers = [];
+
+      results.forEach((result, index) => {
+        if (result.status !== "fulfilled") {
+          console.error("Firestore customer/client load failed", result.reason);
+          return;
+        }
+
+        const source = index === 0 ? "clients" : "customers";
+        result.value.docs.forEach(snapshot => {
+          const data = snapshot.data();
+          const name = String(data.name || data.customerName || data.businessName || "").trim();
+          const normalisedName = name.toLocaleLowerCase("en-GB");
+
+          if (!name || seenNames.has(normalisedName)) return;
+          seenNames.add(normalisedName);
+          customers.push({
+            id: snapshot.id,
+            key: customerKey(source, snapshot.id),
+            name
+          });
+        });
+      });
+
+      customers.sort((a, b) => a.name.localeCompare(b.name, "en-GB", { sensitivity: "base" }));
+      renderCustomerOptions();
+    }
+
+    async function loadProjects(user) {
+      elements.loadingState.hidden = false;
+      elements.emptyState.hidden = true;
+      elements.noResultsState.hidden = true;
+      elements.tableWrap.hidden = true;
+
+      try {
+        const snapshot = await getDocs(collection(db, "users", user.uid, "projects"));
+        projects = snapshot.docs
+          .map(normaliseProject)
+          .sort((a, b) => projectSortValue(b) - projectSortValue(a));
+        renderProjects();
+      } catch (error) {
+        console.error("Firestore projects load failed", error);
+        projects = [];
+        elements.loadingState.hidden = true;
+        elements.resultCount.textContent = "Projects unavailable";
+        showPageFeedback("Projects could not be loaded. Please refresh and try again.", true);
+        renderKpis();
+      }
+    }
+
+    function renderKpis() {
+      document.getElementById("totalProjects").textContent = projects.length;
+      document.getElementById("activeProjects").textContent = projects.filter(project => project.status === "Active").length;
+      document.getElementById("completedProjects").textContent = projects.filter(project => project.status === "Completed").length;
+      document.getElementById("onHoldProjects").textContent = projects.filter(project => project.status === "On Hold").length;
+      const totalBudget = projects.reduce((total, project) => total + (Number(project.budget) || 0), 0);
+      document.getElementById("totalBudgets").textContent = money(totalBudget);
+    }
+
+    function visibleProjects() {
+      const search = elements.search.value.trim().toLocaleLowerCase("en-GB");
+      const status = elements.statusFilter.value;
+
+      return projects.filter(project => {
+        const haystack = [project.name, project.reference, project.customerName, project.description]
+          .join(" ")
+          .toLocaleLowerCase("en-GB");
+        return (!search || haystack.includes(search)) && (status === "All" || project.status === status);
+      });
+    }
+
+    function statusClass(status) {
+      return status === "Completed" ? "status-completed" : status === "On Hold" ? "status-on-hold" : "status-active";
+    }
+
+    function renderProjects() {
+      const visible = visibleProjects();
+      const filtersActive = Boolean(elements.search.value.trim()) || elements.statusFilter.value !== "All";
+
+      renderKpis();
+      elements.loadingState.hidden = true;
+      elements.tableWrap.hidden = visible.length === 0;
+      elements.emptyState.hidden = projects.length !== 0;
+      elements.noResultsState.hidden = projects.length === 0 || visible.length !== 0;
+      elements.resultCount.textContent = filtersActive
+        ? `${visible.length} of ${projects.length} ${projects.length === 1 ? "project" : "projects"}`
+        : `${projects.length} ${projects.length === 1 ? "project" : "projects"}`;
+
+      elements.tableBody.innerHTML = visible.map(project => `
+        <tr>
+          <td data-label="Project">
+            <div class="project-name">${escapeHtml(project.name)}</div>
+            <div class="project-reference">${escapeHtml(project.reference || "No reference")}</div>
+          </td>
+          <td data-label="Customer / client">${escapeHtml(project.customerName || "—")}</td>
+          <td data-label="Status"><span class="status-pill ${statusClass(project.status)}">${escapeHtml(project.status)}</span></td>
+          <td data-label="Start date">${escapeHtml(formatDate(project.startDate))}</td>
+          <td data-label="End date">${escapeHtml(formatDate(project.endDate))}</td>
+          <td data-label="Budget">${project.budget ? escapeHtml(money(project.budget)) : "—"}</td>
+          <td data-label="Actions">
+            <div class="table-actions">
+              <button class="action-button" type="button" data-action="edit" data-project-id="${escapeHtml(project.id)}" aria-label="Edit ${escapeHtml(project.name)}">Edit</button>
+              <button class="action-button action-delete" type="button" data-action="delete" data-project-id="${escapeHtml(project.id)}" aria-label="Delete ${escapeHtml(project.name)}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function openOverlay(overlay, focusTarget) {
+      lastFocusedElement = document.activeElement;
+      overlay.hidden = false;
+      document.body.style.overflow = "hidden";
+      window.setTimeout(() => focusTarget?.focus(), 0);
+    }
+
+    function closeOverlay(overlay) {
+      overlay.hidden = true;
+      if (elements.projectOverlay.hidden && elements.deleteOverlay.hidden) {
+        document.body.style.overflow = "";
+      }
+      lastFocusedElement?.focus();
+    }
+
+    function openProjectForm(project = null) {
+      editingProjectId = project?.id || null;
+      elements.form.reset();
+      clearValidation();
+      elements.modalTitle.textContent = project ? "Edit project" : "New project";
+      elements.modalSubtitle.textContent = project ? "Update this project's details." : "Add the details for this project.";
+      elements.saveButton.textContent = project ? "Save changes" : "Save project";
+      elements.name.value = project?.name || "";
+      elements.reference.value = project?.reference || nextProjectReference();
+      elements.description.value = project?.description || "";
+      elements.status.value = project?.status || "Active";
+      elements.budget.value = project?.budget ? String(project.budget) : "";
+      elements.startDate.value = project?.startDate || "";
+      elements.endDate.value = project?.endDate || "";
+      renderCustomerOptions(project?.customerId || "", project?.customerName || "");
+      openOverlay(elements.projectOverlay, elements.name);
+    }
+
+    function closeProjectForm() {
+      if (isSaving) return;
+      editingProjectId = null;
+      closeOverlay(elements.projectOverlay);
+    }
+
+    async function saveProject(event) {
+      event.preventDefault();
+      if (isSaving || !validateForm()) return;
+
+      const user = auth.currentUser;
+      if (!user) {
+        setFormFeedback("Your session has ended. Sign in again before saving.");
+        return;
+      }
+
+      isSaving = true;
+      elements.saveButton.disabled = true;
+      elements.saveButton.textContent = editingProjectId ? "Saving changes..." : "Saving project...";
+
+      const customer = selectedCustomer();
+      const data = {
+        name: elements.name.value.trim(),
+        reference: elements.reference.value.trim() || nextProjectReference(),
+        customerId: customer.id,
+        customerName: customer.name,
+        description: elements.description.value.trim(),
+        status: allowedStatuses.includes(elements.status.value) ? elements.status.value : "Active",
+        startDate: elements.startDate.value,
+        endDate: elements.endDate.value,
+        budget: elements.budget.value.trim() === "" ? 0 : Number(elements.budget.value),
+        updatedAt: serverTimestamp()
+      };
+
+      try {
+        if (editingProjectId) {
+          await updateDoc(doc(db, "users", user.uid, "projects", editingProjectId), data);
+          const existing = projects.find(project => project.id === editingProjectId);
+          projects = projects.map(project => project.id === editingProjectId
+            ? { ...project, ...data, createdAt: existing?.createdAt || null, updatedAt: new Date().toISOString() }
+            : project
+          );
+          showPageFeedback("Project updated.");
+        } else {
+          const documentReference = await addDoc(collection(db, "users", user.uid, "projects"), {
+            ...data,
+            createdAt: serverTimestamp()
+          });
+          projects.unshift({
+            id: documentReference.id,
+            ...data,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          showPageFeedback("Project created.");
+        }
+
+        projects.sort((a, b) => projectSortValue(b) - projectSortValue(a));
+        renderProjects();
+        editingProjectId = null;
+        closeOverlay(elements.projectOverlay);
+      } catch (error) {
+        console.error("Firestore project save failed", error);
+        setFormFeedback("The project could not be saved. Please try again.");
+      } finally {
+        isSaving = false;
+        elements.saveButton.disabled = false;
+        elements.saveButton.textContent = editingProjectId ? "Save changes" : "Save project";
+      }
+    }
+
+    function openDeleteConfirmation(projectId) {
+      const project = projects.find(item => item.id === projectId);
+      if (!project) return;
+
+      pendingDeleteId = projectId;
+      document.getElementById("deleteProjectName").textContent = project.name;
+      openOverlay(elements.deleteOverlay, elements.confirmDeleteButton);
+    }
+
+    function closeDeleteConfirmation() {
+      if (elements.confirmDeleteButton.disabled) return;
+      pendingDeleteId = null;
+      closeOverlay(elements.deleteOverlay);
+    }
+
+    async function deleteProject() {
+      if (!pendingDeleteId || elements.confirmDeleteButton.disabled) return;
+      const user = auth.currentUser;
+      if (!user) {
+        closeDeleteConfirmation();
+        showPageFeedback("Your session has ended. Sign in again before deleting.", true);
+        return;
+      }
+
+      const projectId = pendingDeleteId;
+      elements.confirmDeleteButton.disabled = true;
+      elements.confirmDeleteButton.textContent = "Deleting...";
+
+      try {
+        await deleteDoc(doc(db, "users", user.uid, "projects", projectId));
+        projects = projects.filter(project => project.id !== projectId);
+        pendingDeleteId = null;
+        closeOverlay(elements.deleteOverlay);
+        renderProjects();
+        showPageFeedback("Project deleted.");
+      } catch (error) {
+        console.error("Firestore project delete failed", error);
+        showPageFeedback("The project could not be deleted. Please try again.", true);
+      } finally {
+        elements.confirmDeleteButton.disabled = false;
+        elements.confirmDeleteButton.textContent = "Delete project";
+      }
+    }
+
+    function clearFilters() {
+      elements.search.value = "";
+      elements.statusFilter.value = "All";
+      renderProjects();
+      elements.search.focus();
+    }
+
+    document.getElementById("newProjectButton").addEventListener("click", () => openProjectForm());
+    document.getElementById("emptyNewProjectButton").addEventListener("click", () => openProjectForm());
+    document.getElementById("projectModalClose").addEventListener("click", closeProjectForm);
+    document.getElementById("cancelProjectButton").addEventListener("click", closeProjectForm);
+    document.getElementById("deleteModalClose").addEventListener("click", closeDeleteConfirmation);
+    document.getElementById("cancelDeleteButton").addEventListener("click", closeDeleteConfirmation);
+    elements.form.addEventListener("submit", saveProject);
+    elements.confirmDeleteButton.addEventListener("click", deleteProject);
+    elements.search.addEventListener("input", renderProjects);
+    elements.statusFilter.addEventListener("change", renderProjects);
+    elements.clearFilters.addEventListener("click", clearFilters);
+    document.getElementById("noResultsClearButton").addEventListener("click", clearFilters);
+
+    elements.tableBody.addEventListener("click", event => {
+      const button = event.target.closest("button[data-project-id]");
+      if (!button) return;
+
+      const project = projects.find(item => item.id === button.dataset.projectId);
+      if (button.dataset.action === "edit" && project) openProjectForm(project);
+      if (button.dataset.action === "delete") openDeleteConfirmation(button.dataset.projectId);
+    });
+
+    [elements.projectOverlay, elements.deleteOverlay].forEach(overlay => {
+      overlay.addEventListener("mousedown", event => {
+        if (event.target !== overlay) return;
+        if (overlay === elements.projectOverlay) closeProjectForm();
+        if (overlay === elements.deleteOverlay) closeDeleteConfirmation();
+      });
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key !== "Escape") return;
+      if (!elements.deleteOverlay.hidden) closeDeleteConfirmation();
+      else if (!elements.projectOverlay.hidden) closeProjectForm();
+    });
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) return;
+      await Promise.all([loadProjects(user), loadCustomers(user)]);
+    });
+  </script>
+</body>
+</html>
