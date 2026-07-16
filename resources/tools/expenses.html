@@ -319,6 +319,10 @@
       gap:12px;
     }
 
+    .form-group-grid-project{
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+    }
+
     .form-group-grid-amounts{
       grid-template-columns:repeat(4, minmax(0, 1fr));
     }
@@ -853,7 +857,7 @@
 
     .expense-row{
       display:grid;
-      grid-template-columns:minmax(0, 1.5fr) minmax(0, .6fr) minmax(0, .7fr) minmax(0, .75fr) minmax(0, 1.1fr);
+      grid-template-columns:minmax(0, 1.35fr) minmax(0, 1fr) minmax(80px, .6fr) minmax(78px, .65fr) minmax(0, .85fr) minmax(0, 1.1fr);
       gap:14px;
       align-items:center;
       width:100%;
@@ -916,6 +920,22 @@
     .expense-description{
       margin-top:6px;
       color:#475569;
+    }
+
+    .expense-project-name{
+      color:var(--text);
+      font-size:14px;
+      font-weight:850;
+      line-height:1.3;
+      overflow-wrap:anywhere;
+    }
+
+    .expense-project-reference{
+      margin-top:3px;
+    }
+
+    .expense-project-cell .expense-label{
+      display:none;
     }
 
     .expense-amount-cell{
@@ -1068,6 +1088,7 @@
 
       .grid,
       .form-group-grid,
+      .form-group-grid-project,
       .form-group-grid-amounts,
       .claim-details-grid,
       .claim-details-shared{
@@ -1103,6 +1124,10 @@
         text-align:left;
       }
 
+      .expense-project-cell .expense-label{
+        display:block;
+      }
+
       .row-actions{
         justify-content:flex-start;
         padding-top:11px;
@@ -1122,6 +1147,7 @@
       .summary-grid,
       .grid,
       .form-group-grid,
+      .form-group-grid-project,
       .form-group-grid-amounts,
       .claim-details-grid,
       .claim-details-shared{
@@ -1244,7 +1270,7 @@
           <div class="claim-form-groups" id="expenseFields">
             <section class="form-field-group" aria-labelledby="purchaseDetailsTitle">
               <h3 id="purchaseDetailsTitle">Purchase details</h3>
-              <div class="form-group-grid">
+              <div class="form-group-grid form-group-grid-project">
                 <div class="field">
                   <label>Date</label>
                   <input id="expenseDate" type="date">
@@ -1266,6 +1292,14 @@
                     <option>Utilities</option>
                     <option>Professional fees</option>
                     <option>Other</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="expenseProjectSelect">Project</label>
+                  <select id="expenseProjectSelect">
+                    <option value="">No project</option>
+                    <option value="" disabled>Loading projects...</option>
                   </select>
                 </div>
               </div>
@@ -1304,7 +1338,7 @@
           <div class="claim-form-groups" id="mileageFields" hidden>
             <section class="form-field-group" aria-labelledby="journeyDetailsTitle">
               <h3 id="journeyDetailsTitle">Journey details</h3>
-              <div class="form-group-grid">
+              <div class="form-group-grid form-group-grid-project">
                 <div class="field">
                   <label>Date</label>
                   <input id="mileageDate" type="date">
@@ -1318,6 +1352,14 @@
                 <div class="field">
                   <label>To</label>
                   <input id="mileageTo" placeholder="Client site">
+                </div>
+
+                <div class="field">
+                  <label for="mileageProjectSelect">Project</label>
+                  <select id="mileageProjectSelect">
+                    <option value="">No project</option>
+                    <option value="" disabled>Loading projects...</option>
+                  </select>
                 </div>
               </div>
             </section>
@@ -1421,7 +1463,7 @@
 
           <div class="list-search">
             <label for="recentExpensesSearch">Search expenses</label>
-            <input id="recentExpensesSearch" type="search" placeholder="Search merchant, route, status or attachment">
+            <input id="recentExpensesSearch" type="search" placeholder="Search merchant, route, project, status or attachment">
           </div>
 
           <div class="list-filter" aria-label="Filter recent expenses">
@@ -1613,6 +1655,7 @@
       collection,
       deleteDoc,
       doc,
+      getDocs,
       onSnapshot,
       orderBy,
       query,
@@ -1638,6 +1681,10 @@
     let selectedAttachment = null;
     let vatManuallyEdited = false;
     let unsubscribeExpenses = null;
+    let projects = [];
+    let projectsLoaded = false;
+    let projectsLoadError = false;
+    let projectsUserId = "";
 
     const currentUserPromise = new Promise(resolve => {
       const unsubscribe = onAuthStateChanged(auth, user => {
@@ -1684,6 +1731,136 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+    }
+
+    function projectLabel(name, reference) {
+      const projectName = String(name || "").trim();
+      const projectReference = String(reference || "").trim();
+
+      if (!projectName) return projectReference || "Unassigned";
+      return projectReference ? `${projectName} (${projectReference})` : projectName;
+    }
+
+    function selectedProject(selectId) {
+      const select = document.getElementById(selectId);
+      const option = select?.selectedOptions?.[0];
+      const projectId = select?.value || "";
+
+      if (!projectId) {
+        return { projectId: "", projectName: "", projectReference: "" };
+      }
+
+      return {
+        projectId,
+        projectName: option?.dataset.projectName || "",
+        projectReference: option?.dataset.projectReference || ""
+      };
+    }
+
+    function renderProjectDropdown(selectId, storedProject = null) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+
+      const requestedProject = storedProject || selectedProject(selectId);
+      const requestedId = String(requestedProject.projectId || "");
+      const requestedName = String(requestedProject.projectName || "");
+      const requestedReference = String(requestedProject.projectReference || "");
+
+      select.replaceChildren();
+
+      const noProjectOption = document.createElement("option");
+      noProjectOption.value = "";
+      noProjectOption.textContent = "No project";
+      select.appendChild(noProjectOption);
+
+      projects.forEach(project => {
+        const option = document.createElement("option");
+        option.value = String(project.id);
+        option.textContent = projectLabel(project.name, project.reference);
+        option.dataset.projectName = String(project.name || "");
+        option.dataset.projectReference = String(project.reference || "");
+        select.appendChild(option);
+      });
+
+      const requestedExists = projects.some(project => String(project.id) === requestedId);
+
+      if (requestedId && !requestedExists) {
+        const unavailableOption = document.createElement("option");
+        unavailableOption.value = requestedId;
+        unavailableOption.textContent = `${projectLabel(
+          requestedName || "Stored project",
+          requestedReference
+        )} — unavailable`;
+        unavailableOption.dataset.projectName = requestedName;
+        unavailableOption.dataset.projectReference = requestedReference;
+        select.appendChild(unavailableOption);
+      }
+
+      if (!projects.length) {
+        const messageOption = document.createElement("option");
+        messageOption.value = "";
+        messageOption.disabled = true;
+        messageOption.textContent = projectsLoadError
+          ? "Projects could not be loaded"
+          : projectsLoaded
+            ? "No projects available"
+            : "Loading projects...";
+        select.appendChild(messageOption);
+      }
+
+      select.value = requestedId || "";
+    }
+
+    function renderProjectDropdowns() {
+      renderProjectDropdown("expenseProjectSelect");
+      renderProjectDropdown("mileageProjectSelect");
+    }
+
+    async function loadProjects(user) {
+      if (!user) {
+        projects = [];
+        projectsLoaded = false;
+        projectsLoadError = false;
+        projectsUserId = "";
+        renderProjectDropdowns();
+        return [];
+      }
+
+      if (projectsUserId === user.uid && projectsLoaded) return projects;
+
+      projects = [];
+      projectsLoaded = false;
+      projectsLoadError = false;
+      projectsUserId = user.uid;
+      renderProjectDropdowns();
+
+      try {
+        const snapshot = await getDocs(
+          collection(db, "users", user.uid, "projects")
+        );
+        const statusOrder = { "Active": 0, "On Hold": 1, "Completed": 2 };
+
+        projects = snapshot.docs
+          .map(projectDocument => ({ id: projectDocument.id, ...projectDocument.data() }))
+          .sort((a, b) => {
+            const statusDifference =
+              (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+
+            return statusDifference || String(a.name || "").localeCompare(
+              String(b.name || ""),
+              "en-GB",
+              { sensitivity: "base" }
+            );
+          });
+      } catch (error) {
+        console.error("Firestore projects load failed", error);
+        projects = [];
+        projectsLoadError = true;
+      }
+
+      projectsLoaded = true;
+      renderProjectDropdowns();
+      return projects;
     }
 
     function escapeJsString(value) {
@@ -1747,6 +1924,9 @@
         gross,
         status: statuses.includes(rawExpense.status) ? rawExpense.status : "Draft",
         notes: rawExpense.notes || "",
+        projectId: rawExpense.projectId || "",
+        projectName: rawExpense.projectName || "",
+        projectReference: rawExpense.projectReference || "",
         attachmentName: rawExpense.attachmentName || "",
         attachmentUrl: rawExpense.attachmentUrl || "",
         attachmentPath: rawExpense.attachmentPath || "",
@@ -1912,7 +2092,9 @@
         expense.to,
         expense.businessPurpose,
         expense.status,
-        expense.attachmentName
+        expense.attachmentName,
+        expense.projectName,
+        expense.projectReference
       ].some(value => String(value || "").toLowerCase().includes(searchTerm));
     }
 
@@ -2079,6 +2261,16 @@
       document.getElementById("mileageAmount").value = "";
       document.getElementById("mileageStatus").value = "Draft";
       document.getElementById("notes").value = "";
+      renderProjectDropdown("expenseProjectSelect", {
+        projectId: "",
+        projectName: "",
+        projectReference: ""
+      });
+      renderProjectDropdown("mileageProjectSelect", {
+        projectId: "",
+        projectName: "",
+        projectReference: ""
+      });
       resetAttachmentUI();
       setClaimType("expense");
     }
@@ -2143,6 +2335,9 @@
       const expenseId = String(editingExpenseId || Date.now());
       const now = new Date().toISOString();
       const existingType = existingExpense?.type === "mileage" ? "mileage" : "expense";
+      const project = selectedProject(
+        isMileage ? "mileageProjectSelect" : "expenseProjectSelect"
+      );
 
       let attachment = existingExpense
         ? {
@@ -2219,6 +2414,9 @@
           ? document.getElementById("mileageStatus").value
           : document.getElementById("status").value,
         notes: document.getElementById("notes").value.trim(),
+        projectId: project.projectId,
+        projectName: project.projectName,
+        projectReference: project.projectReference,
         ...attachment,
         createdAt: existingExpense?.createdAt || now,
         updatedAt: editingExpenseId ? now : ""
@@ -2283,6 +2481,13 @@
       document.getElementById("mileageAmount").value = Number(expense.amount || expense.gross || 0).toFixed(2);
       document.getElementById("mileageStatus").value = expense.status || "Draft";
       document.getElementById("notes").value = expense.notes || "";
+      const storedProject = {
+        projectId: expense.projectId || "",
+        projectName: expense.projectName || "",
+        projectReference: expense.projectReference || ""
+      };
+      renderProjectDropdown("expenseProjectSelect", storedProject);
+      renderProjectDropdown("mileageProjectSelect", storedProject);
       if (expense.type === "mileage") {
         resetAttachmentUI();
         document.getElementById("mileageFrom").focus();
@@ -2595,6 +2800,7 @@
       list.innerHTML = `
         <div class="expense-row expense-table-header">
           <div>Claim</div>
+          <div>Project</div>
           <div>Date</div>
           <div class="expense-amount-cell">Amount</div>
           <div>Status &amp; attachment</div>
@@ -2618,6 +2824,7 @@
                 : "No attachment"
             }</div>`;
         const rowAmount = isMileage ? Number(expense.amount || expense.gross || 0) : Number(expense.gross || 0);
+        const projectName = expense.projectName || (expense.projectReference ? "Project" : "Unassigned");
 
         return `
         <div class="expense-row" data-expense-id="${expenseId}">
@@ -2626,6 +2833,14 @@
             <div class="expense-merchant">${primaryText}</div>
             <div class="expense-secondary">${secondaryText}</div>
             ${isMileage ? "" : `<div class="expense-secondary expense-description">${detailText}</div>`}
+          </div>
+
+          <div class="expense-project-cell">
+            <span class="expense-label">Project</span>
+            <div class="expense-project-name">${escapeHtml(projectName)}</div>
+            ${expense.projectReference
+              ? `<div class="expense-secondary expense-project-reference">${escapeHtml(expense.projectReference)}</div>`
+              : ""}
           </div>
 
           <div>
@@ -2667,9 +2882,12 @@
       }
 
       if (!user) {
+        loadProjects(null);
         renderExpenses();
         return;
       }
+
+      loadProjects(user);
 
       const expensesQuery = query(
         collection(db, "users", user.uid, "expenses"),
