@@ -137,6 +137,196 @@
       overflow-wrap:anywhere;
     }
 
+    .portfolio-section{
+      margin-bottom:16px;
+    }
+
+    .portfolio-section h3{
+      margin:0;
+      color:#102033;
+      font-size:16px;
+      line-height:1.3;
+    }
+
+    .portfolio-heading{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin:0 0 12px;
+    }
+
+    .portfolio-heading p{
+      margin:5px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.4;
+    }
+
+    .portfolio-feedback{
+      margin:0 0 12px;
+      padding:10px 12px;
+      border:1px solid #fdba74;
+      border-radius:10px;
+      background:#fff7ed;
+      color:#9a3412;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.4;
+    }
+
+    .portfolio-overview-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin-bottom:16px;
+    }
+
+    .portfolio-card{
+      position:relative;
+      min-width:0;
+      overflow:hidden;
+    }
+
+    .portfolio-card::before{
+      content:"";
+      position:absolute;
+      inset:0 0 auto;
+      height:4px;
+      background:var(--portfolio-accent,var(--accent));
+    }
+
+    .portfolio-card.costs{--portfolio-accent:#f97316;}
+    .portfolio-card.profit{--portfolio-accent:#16a34a;}
+    .portfolio-card.budget{--portfolio-accent:#0f9f9a;}
+    .portfolio-value{
+      margin-top:7px;
+      color:#102033;
+      font-size:25px;
+      font-weight:900;
+      line-height:1.15;
+      overflow-wrap:anywhere;
+    }
+
+    .portfolio-value.negative{color:var(--danger);}
+    .portfolio-meta{margin-top:6px;color:#64748b;font-size:12px;font-weight:700;line-height:1.4;}
+    .portfolio-breakdown{margin-top:13px;}
+    .portfolio-breakdown-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding:7px 0;
+      border-bottom:1px solid #eef2f7;
+      color:#64748b;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .portfolio-breakdown-row:last-child{border-bottom:0;padding-bottom:0;}
+    .portfolio-breakdown-row strong{color:#102033;text-align:right;overflow-wrap:anywhere;}
+
+    .portfolio-summary-grid{
+      display:grid;
+      grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr) minmax(0,1.2fr);
+      gap:16px;
+      margin-bottom:16px;
+    }
+
+    .summary-card-heading{margin-bottom:13px;}
+    .summary-card-heading p{margin:4px 0 0;color:#64748b;font-size:12px;line-height:1.4;}
+    .status-summary-list{display:grid;gap:10px;}
+    .status-summary-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px 12px;
+      border:1px solid #e8eef7;
+      border-radius:11px;
+      background:#fbfdff;
+    }
+
+    .status-summary-row span{display:flex;align-items:center;gap:8px;color:#475569;font-size:13px;font-weight:800;}
+    .status-summary-row strong{color:#102033;font-size:18px;}
+    .status-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8;flex:0 0 auto;}
+    .status-dot.active{background:#16a34a;}
+    .status-dot.completed{background:#7c3aed;}
+    .status-dot.on-hold{background:#f97316;}
+
+    .ranking-scroll{width:100%;overflow-x:auto;}
+    .ranking-list{min-width:360px;}
+    .ranking-row{
+      display:grid;
+      grid-template-columns:minmax(135px,1.2fr) minmax(110px,1fr) minmax(90px,.7fr);
+      gap:10px;
+      align-items:center;
+      padding:10px 8px;
+      border-bottom:1px solid #eef2f7;
+      color:#475569;
+      font-size:12px;
+    }
+
+    .ranking-row:last-child{border-bottom:0;}
+    .ranking-row.header{
+      padding-top:7px;
+      background:#f8fafc;
+      color:#64748b;
+      font-size:10px;
+      font-weight:850;
+      letter-spacing:.03em;
+      text-transform:uppercase;
+    }
+
+    .ranking-row.profit-ranking{grid-template-columns:minmax(145px,1.3fr) minmax(100px,.8fr) minmax(80px,.6fr);}
+    .ranking-name{color:#102033;font-weight:850;overflow-wrap:anywhere;}
+    .ranking-subtitle{margin-top:2px;color:#64748b;font-size:11px;overflow-wrap:anywhere;}
+    .ranking-money{text-align:right;color:#102033;font-weight:850;white-space:nowrap;}
+    .ranking-empty{padding:24px 8px;color:#64748b;font-size:13px;text-align:center;line-height:1.4;}
+
+    .attention-card{margin-bottom:16px;}
+    .attention-list{display:grid;gap:9px;margin-top:14px;}
+    .attention-item{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);
+      gap:14px;
+      align-items:center;
+      padding:11px 12px;
+      border:1px solid #fee2e2;
+      border-radius:11px;
+      background:#fffafa;
+    }
+
+    .attention-project{color:#102033;font-size:13px;font-weight:850;text-decoration:none;overflow-wrap:anywhere;}
+    .attention-project:hover{color:var(--accent);text-decoration:underline;}
+    .attention-reasons{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;}
+    .attention-badge{
+      display:inline-flex;
+      align-items:center;
+      min-height:25px;
+      padding:4px 8px;
+      border-radius:999px;
+      background:#fff1f0;
+      color:#9f1c14;
+      font-size:11px;
+      font-weight:800;
+      line-height:1.2;
+    }
+
+    .attention-empty{margin:14px 0 0;color:#64748b;font-size:13px;line-height:1.4;}
+
+    .portfolio-charts-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:16px;
+      margin-bottom:16px;
+    }
+
+    .chart-card{min-width:0;overflow:hidden;}
+    .chart-card p{margin:4px 0 0;color:#64748b;font-size:12px;line-height:1.4;}
+    .chart-shell{position:relative;width:100%;height:240px;margin-top:14px;overflow:hidden;}
+    .chart-shell canvas{display:block;width:100% !important;max-width:100%;height:100% !important;}
+
     .filters{
       display:grid;
       grid-template-columns:minmax(240px,1fr) minmax(180px,260px) auto;
@@ -549,6 +739,15 @@
       .kpi-grid{
         grid-template-columns:repeat(3,minmax(0,1fr));
       }
+
+      .portfolio-overview-grid,
+      .portfolio-charts-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+
+      .portfolio-summary-grid{
+        grid-template-columns:1fr;
+      }
     }
 
     @media (max-width:760px){
@@ -563,6 +762,19 @@
 
       .kpi-grid{
         grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+
+      .portfolio-overview-grid,
+      .portfolio-charts-grid{
+        grid-template-columns:1fr;
+      }
+
+      .attention-item{
+        grid-template-columns:1fr;
+      }
+
+      .attention-reasons{
+        justify-content:flex-start;
       }
 
       .filters{
@@ -724,6 +936,107 @@
       </article>
     </section>
 
+    <section class="portfolio-section" aria-labelledby="portfolioOverviewTitle">
+      <div class="portfolio-heading">
+        <div>
+          <h2 id="portfolioOverviewTitle">Portfolio overview</h2>
+          <p>Financial performance across transactions allocated to current projects.</p>
+        </div>
+      </div>
+
+      <div class="portfolio-feedback" id="portfolioFeedback" role="status" hidden></div>
+
+      <div class="portfolio-overview-grid">
+        <article class="card portfolio-card">
+          <div class="kpi-label">Total invoiced</div>
+          <div class="portfolio-value" id="portfolioInvoiced">&pound;0.00</div>
+          <div class="portfolio-meta" id="portfolioInvoiceCount">Loading portfolio data...</div>
+        </article>
+
+        <article class="card portfolio-card costs">
+          <div class="kpi-label">Total costs</div>
+          <div class="portfolio-value" id="portfolioCosts">&pound;0.00</div>
+          <div class="portfolio-breakdown">
+            <div class="portfolio-breakdown-row"><span>Bills</span><strong id="portfolioBills">&pound;0.00</strong></div>
+            <div class="portfolio-breakdown-row"><span>Expenses</span><strong id="portfolioExpenses">&pound;0.00</strong></div>
+            <div class="portfolio-breakdown-row"><span>Mileage</span><strong id="portfolioMileage">&pound;0.00</strong></div>
+          </div>
+        </article>
+
+        <article class="card portfolio-card profit">
+          <div class="kpi-label">Overall gross profit</div>
+          <div class="portfolio-value" id="portfolioProfit">&pound;0.00</div>
+          <div class="portfolio-meta" id="portfolioMargin">0.0% overall margin</div>
+        </article>
+
+        <article class="card portfolio-card budget">
+          <div class="kpi-label">Budget usage</div>
+          <div class="portfolio-value" id="portfolioBudgetUsed">No budget set</div>
+          <div class="portfolio-breakdown">
+            <div class="portfolio-breakdown-row"><span>Total budgets</span><strong id="portfolioBudgets">&pound;0.00</strong></div>
+            <div class="portfolio-breakdown-row"><span>Total costs</span><strong id="portfolioBudgetCosts">&pound;0.00</strong></div>
+            <div class="portfolio-breakdown-row"><span>Remaining</span><strong id="portfolioBudgetRemaining">No budget set</strong></div>
+          </div>
+        </article>
+      </div>
+
+      <div class="portfolio-summary-grid">
+        <article class="card">
+          <div class="summary-card-heading">
+            <h3>Projects by status</h3>
+            <p>Current project status counts.</p>
+          </div>
+          <div class="status-summary-list">
+            <div class="status-summary-row"><span><i class="status-dot active"></i>Active</span><strong id="portfolioActiveCount">0</strong></div>
+            <div class="status-summary-row"><span><i class="status-dot completed"></i>Completed</span><strong id="portfolioCompletedCount">0</strong></div>
+            <div class="status-summary-row"><span><i class="status-dot on-hold"></i>On Hold</span><strong id="portfolioOnHoldCount">0</strong></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="summary-card-heading">
+            <h3>Highest value projects</h3>
+            <p>Top five projects ranked by total invoiced.</p>
+          </div>
+          <div class="ranking-scroll" id="highestValueProjects"></div>
+        </article>
+
+        <article class="card">
+          <div class="summary-card-heading">
+            <h3>Most profitable projects</h3>
+            <p>Top five projects ranked by gross profit.</p>
+          </div>
+          <div class="ranking-scroll" id="mostProfitableProjects"></div>
+        </article>
+      </div>
+
+      <article class="card attention-card" aria-labelledby="needsAttentionTitle">
+        <div class="summary-card-heading">
+          <h3 id="needsAttentionTitle">Needs attention</h3>
+          <p>Projects with budget, revenue or active end-date concerns.</p>
+        </div>
+        <div id="portfolioAttention"></div>
+      </article>
+
+      <div class="portfolio-charts-grid" aria-label="Portfolio charts">
+        <article class="card chart-card">
+          <h3>Projects by status</h3>
+          <p>Active, Completed and On Hold projects.</p>
+          <div class="chart-shell"><canvas id="projectsStatusChart" role="img" aria-label="Projects by status chart"></canvas></div>
+        </article>
+        <article class="card chart-card">
+          <h3>Budget utilisation</h3>
+          <p>Total project budgets compared with recorded project costs.</p>
+          <div class="chart-shell"><canvas id="projectsBudgetChart" role="img" aria-label="Project budgets compared with project costs chart"></canvas></div>
+        </article>
+        <article class="card chart-card">
+          <h3>Top five project revenue</h3>
+          <p>Highest invoiced project values.</p>
+          <div class="chart-shell"><canvas id="projectsRevenueChart" role="img" aria-label="Top five project revenue chart"></canvas></div>
+        </article>
+      </div>
+    </section>
+
     <section class="card filters" aria-label="Project filters">
       <div>
         <label for="projectSearch">Search projects</label>
@@ -881,6 +1194,8 @@
     </section>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <script type="module">
     import { auth, db } from "../../firebase-config.js";
     import {
@@ -933,6 +1248,10 @@
     let isSaving = false;
     let feedbackTimer = null;
     let lastFocusedElement = null;
+    let portfolioInvoices = [];
+    let portfolioBills = [];
+    let portfolioExpenses = [];
+    let portfolioDataLoaded = false;
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -991,6 +1310,285 @@
         createdAt: data.createdAt || null,
         updatedAt: data.updatedAt || null
       };
+    }
+
+    function setPortfolioMoney(id, value, allowNegative = false) {
+      const element = document.getElementById(id);
+      element.textContent = money(value);
+      if (allowNegative) element.classList.toggle("negative", Number(value) < 0);
+    }
+
+    function localProjectDate(value) {
+      const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) return null;
+
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const date = new Date(year, month - 1, day);
+      return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+        ? date
+        : null;
+    }
+
+    function calculatePortfolio() {
+      const summaries = projects.map(project => ({
+        project,
+        invoiced: 0,
+        invoiceCount: 0,
+        bills: 0,
+        expenses: 0,
+        mileage: 0,
+        costs: 0,
+        profit: 0,
+        margin: 0,
+        budgetUsedPercent: 0
+      }));
+      const byProjectId = new Map(summaries.map(summary => [summary.project.id, summary]));
+
+      portfolioInvoices.forEach(invoice => {
+        const summary = byProjectId.get(String(invoice.projectId || ""));
+        if (!summary) return;
+        summary.invoiced += Number(invoice.total || 0);
+        summary.invoiceCount += 1;
+      });
+
+      portfolioBills.forEach(bill => {
+        const summary = byProjectId.get(String(bill.projectId || ""));
+        if (!summary) return;
+        summary.bills += Number(bill.total || 0);
+      });
+
+      portfolioExpenses.forEach(expense => {
+        const summary = byProjectId.get(String(expense.projectId || ""));
+        if (!summary) return;
+
+        if (expense.type === "mileage") {
+          summary.mileage += Number(expense.amount || expense.gross || 0);
+        } else {
+          summary.expenses += Number(expense.gross || 0);
+        }
+      });
+
+      summaries.forEach(summary => {
+        summary.costs = summary.bills + summary.expenses + summary.mileage;
+        summary.profit = summary.invoiced - summary.costs;
+        summary.margin = summary.invoiced ? (summary.profit / summary.invoiced) * 100 : 0;
+        const budget = Number(summary.project.budget || 0);
+        summary.budgetUsedPercent = budget > 0 ? (summary.costs / budget) * 100 : 0;
+      });
+
+      const totals = summaries.reduce((result, summary) => {
+        result.invoiced += summary.invoiced;
+        result.invoiceCount += summary.invoiceCount;
+        result.bills += summary.bills;
+        result.expenses += summary.expenses;
+        result.mileage += summary.mileage;
+        result.costs += summary.costs;
+        result.budgets += Number(summary.project.budget || 0);
+        return result;
+      }, { invoiced: 0, invoiceCount: 0, bills: 0, expenses: 0, mileage: 0, costs: 0, budgets: 0 });
+
+      totals.profit = totals.invoiced - totals.costs;
+      totals.margin = totals.invoiced ? (totals.profit / totals.invoiced) * 100 : 0;
+      totals.budgetRemaining = totals.budgets - totals.costs;
+      totals.budgetUsedPercent = totals.budgets ? (totals.costs / totals.budgets) * 100 : 0;
+
+      return { summaries, totals };
+    }
+
+    function renderRanking(containerId, summaries, type) {
+      const container = document.getElementById(containerId);
+      if (!summaries.length) {
+        container.innerHTML = `<div class="ranking-empty">No projects available.</div>`;
+        return;
+      }
+
+      if (type === "revenue") {
+        container.innerHTML = `<div class="ranking-list">
+          <div class="ranking-row header"><div>Project</div><div>Customer</div><div class="ranking-money">Revenue</div></div>
+          ${summaries.map(summary => `<div class="ranking-row">
+            <div><a class="ranking-name" href="/resources/tools/project-details.html?id=${encodeURIComponent(summary.project.id)}">${escapeHtml(summary.project.name || "Unnamed project")}</a><div class="ranking-subtitle">${escapeHtml(summary.project.reference || "No reference")}</div></div>
+            <div>${escapeHtml(summary.project.customerName || "—")}</div>
+            <div class="ranking-money">${escapeHtml(money(summary.invoiced))}</div>
+          </div>`).join("")}
+        </div>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="ranking-list">
+        <div class="ranking-row header profit-ranking"><div>Project</div><div class="ranking-money">Gross profit</div><div class="ranking-money">Margin</div></div>
+        ${summaries.map(summary => `<div class="ranking-row profit-ranking">
+          <div><a class="ranking-name" href="/resources/tools/project-details.html?id=${encodeURIComponent(summary.project.id)}">${escapeHtml(summary.project.name || "Unnamed project")}</a><div class="ranking-subtitle">${escapeHtml(summary.project.reference || "No reference")}</div></div>
+          <div class="ranking-money">${escapeHtml(money(summary.profit))}</div>
+          <div class="ranking-money">${summary.margin.toFixed(1)}%</div>
+        </div>`).join("")}
+      </div>`;
+    }
+
+    function attentionReasons(summary) {
+      const reasons = [];
+      const budget = Number(summary.project.budget || 0);
+
+      if (budget <= 0) {
+        reasons.push("No budget set");
+      } else if (summary.budgetUsedPercent >= 100) {
+        reasons.push(summary.budgetUsedPercent > 100
+          ? `Over budget (${summary.budgetUsedPercent.toFixed(1)}%)`
+          : "Budget fully used"
+        );
+      }
+
+      const endDate = localProjectDate(summary.project.endDate);
+      if (summary.project.status === "Active" && endDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (endDate < today) reasons.push("Active project past end date");
+      }
+
+      if (summary.costs > 0 && summary.invoiceCount === 0) {
+        reasons.push("Costs recorded but no invoices");
+      }
+
+      return reasons;
+    }
+
+    function renderAttention(summaries) {
+      const container = document.getElementById("portfolioAttention");
+      const attention = summaries
+        .map(summary => ({ summary, reasons: attentionReasons(summary) }))
+        .filter(item => item.reasons.length);
+
+      if (!attention.length) {
+        container.innerHTML = `<p class="attention-empty">No projects currently require attention.</p>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="attention-list">${attention.map(item => `
+        <div class="attention-item">
+          <a class="attention-project" href="/resources/tools/project-details.html?id=${encodeURIComponent(item.summary.project.id)}">${escapeHtml(item.summary.project.name || "Unnamed project")}</a>
+          <div class="attention-reasons">${item.reasons.map(reason => `<span class="attention-badge">${escapeHtml(reason)}</span>`).join("")}</div>
+        </div>
+      `).join("")}</div>`;
+    }
+
+    function replacePortfolioChart(canvasId, configuration) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || typeof Chart === "undefined") return;
+      const existing = Chart.getChart(canvas);
+      if (existing) existing.destroy();
+      new Chart(canvas, configuration);
+    }
+
+    function renderPortfolioCharts(summaries, totals, topRevenue) {
+      const statusCounts = allowedStatuses.map(status => projects.filter(project => project.status === status).length);
+      replacePortfolioChart("projectsStatusChart", {
+        type: "doughnut",
+        data: {
+          labels: allowedStatuses,
+          datasets: [{ data: statusCounts, backgroundColor: ["#16a34a", "#7c3aed", "#f97316"], borderWidth: 0 }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "64%",
+          plugins: { legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } } }
+        }
+      });
+
+      replacePortfolioChart("projectsBudgetChart", {
+        type: "bar",
+        data: {
+          labels: ["Portfolio"],
+          datasets: [
+            { label: "Budget", data: [totals.budgets], backgroundColor: "rgba(15,159,154,.72)", borderRadius: 7 },
+            { label: "Costs", data: [totals.costs], backgroundColor: "rgba(249,115,22,.72)", borderRadius: 7 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { tooltip: { callbacks: { label: context => `${context.dataset.label}: ${money(context.raw)}` } } },
+          scales: { y: { beginAtZero: true, ticks: { callback: value => money(value) } } }
+        }
+      });
+
+      replacePortfolioChart("projectsRevenueChart", {
+        type: "bar",
+        data: {
+          labels: topRevenue.map(summary => summary.project.name || "Unnamed project"),
+          datasets: [{ label: "Revenue", data: topRevenue.map(summary => summary.invoiced), backgroundColor: "rgba(0,119,182,.76)", borderRadius: 7 }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => money(context.raw) } } },
+          scales: { x: { beginAtZero: true, ticks: { callback: value => money(value) } } }
+        }
+      });
+    }
+
+    function renderPortfolio() {
+      document.getElementById("portfolioActiveCount").textContent = projects.filter(project => project.status === "Active").length;
+      document.getElementById("portfolioCompletedCount").textContent = projects.filter(project => project.status === "Completed").length;
+      document.getElementById("portfolioOnHoldCount").textContent = projects.filter(project => project.status === "On Hold").length;
+
+      if (!portfolioDataLoaded) return;
+
+      const { summaries, totals } = calculatePortfolio();
+      const topRevenue = [...summaries].sort((a, b) => b.invoiced - a.invoiced).slice(0, 5);
+      const topProfit = [...summaries].sort((a, b) => b.profit - a.profit).slice(0, 5);
+
+      setPortfolioMoney("portfolioInvoiced", totals.invoiced);
+      setPortfolioMoney("portfolioCosts", totals.costs);
+      setPortfolioMoney("portfolioBills", totals.bills);
+      setPortfolioMoney("portfolioExpenses", totals.expenses);
+      setPortfolioMoney("portfolioMileage", totals.mileage);
+      setPortfolioMoney("portfolioProfit", totals.profit, true);
+      document.getElementById("portfolioInvoiceCount").textContent = `${totals.invoiceCount} ${totals.invoiceCount === 1 ? "invoice" : "invoices"}`;
+      document.getElementById("portfolioMargin").textContent = `${totals.margin.toFixed(1)}% overall margin`;
+      setPortfolioMoney("portfolioBudgets", totals.budgets);
+      setPortfolioMoney("portfolioBudgetCosts", totals.costs);
+
+      if (totals.budgets > 0) {
+        document.getElementById("portfolioBudgetUsed").textContent = `${totals.budgetUsedPercent.toFixed(1)}% used`;
+        setPortfolioMoney("portfolioBudgetRemaining", totals.budgetRemaining, true);
+      } else {
+        document.getElementById("portfolioBudgetUsed").textContent = "No budget set";
+        document.getElementById("portfolioBudgetRemaining").textContent = "No budget set";
+        document.getElementById("portfolioBudgetRemaining").classList.remove("negative");
+      }
+
+      renderRanking("highestValueProjects", topRevenue, "revenue");
+      renderRanking("mostProfitableProjects", topProfit, "profit");
+      renderAttention(summaries);
+      renderPortfolioCharts(summaries, totals, topRevenue);
+    }
+
+    async function loadPortfolioTransactions(user) {
+      const collectionNames = ["invoices", "bills", "expenses"];
+      const results = await Promise.allSettled(
+        collectionNames.map(collectionName => getDocs(collection(db, "users", user.uid, collectionName)))
+      );
+      const loaded = results.map(result => result.status === "fulfilled"
+        ? result.value.docs.map(snapshot => ({ id: snapshot.id, ...snapshot.data() }))
+        : []
+      );
+
+      portfolioInvoices = loaded[0];
+      portfolioBills = loaded[1];
+      portfolioExpenses = loaded[2];
+      portfolioDataLoaded = true;
+
+      const failed = results
+        .map((result, index) => result.status === "rejected" ? collectionNames[index] : "")
+        .filter(Boolean);
+      const feedback = document.getElementById("portfolioFeedback");
+      feedback.hidden = failed.length === 0;
+      feedback.textContent = failed.length
+        ? `Some portfolio records could not be loaded (${failed.join(", ")}). Figures shown may be incomplete.`
+        : "";
     }
 
     function showPageFeedback(message, isError = false) {
@@ -1312,6 +1910,7 @@
 
         projects.sort((a, b) => projectSortValue(b) - projectSortValue(a));
         renderProjects();
+        renderPortfolio();
         editingProjectId = null;
         closeOverlay(elements.projectOverlay);
       } catch (error) {
@@ -1358,6 +1957,7 @@
         pendingDeleteId = null;
         closeOverlay(elements.deleteOverlay);
         renderProjects();
+        renderPortfolio();
         showPageFeedback("Project deleted.");
       } catch (error) {
         console.error("Firestore project delete failed", error);
@@ -1413,7 +2013,8 @@
 
     onAuthStateChanged(auth, async user => {
       if (!user) return;
-      await Promise.all([loadProjects(user), loadCustomers(user)]);
+      await Promise.all([loadProjects(user), loadCustomers(user), loadPortfolioTransactions(user)]);
+      renderPortfolio();
     });
   </script>
 </body>
