@@ -157,6 +157,98 @@
     .description-item{grid-column:1/-1;}
     .description-item .info-value{font-weight:500;white-space:pre-wrap;}
 
+    .health-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:16px;
+      margin-bottom:16px;
+    }
+
+    .health-card{min-width:0;}
+    .health-heading{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+      margin-bottom:16px;
+    }
+
+    .health-heading p{margin:4px 0 0;color:#64748b;font-size:13px;line-height:1.4;}
+    .health-badge{
+      display:inline-flex;
+      align-items:center;
+      flex:0 0 auto;
+      min-height:27px;
+      padding:5px 9px;
+      border-radius:999px;
+      background:#eef2f7;
+      color:#475569;
+      font-size:12px;
+      font-weight:850;
+      line-height:1.2;
+      text-align:center;
+    }
+
+    .health-within{background:#dcfce7;color:#166534;}
+    .health-approaching{background:#fff7d6;color:#854d0e;}
+    .health-over{background:#fee2e2;color:#991b1b;}
+    .health-completed{background:#ede9fe;color:#5b21b6;}
+    .health-on-hold{background:#ffedd5;color:#9a3412;}
+
+    .health-values{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin-bottom:15px;
+    }
+
+    .health-value{min-width:0;}
+    .health-value strong{
+      display:block;
+      margin-top:5px;
+      color:#102033;
+      font-size:14px;
+      font-weight:850;
+      line-height:1.35;
+      overflow-wrap:anywhere;
+    }
+
+    .health-value strong.negative{color:var(--danger);}
+    .progress-summary{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:7px;
+      color:#475569;
+      font-size:13px;
+      font-weight:750;
+    }
+
+    .progress-summary strong{color:#102033;font-size:14px;white-space:nowrap;}
+    .progress-track{
+      width:100%;
+      height:12px;
+      overflow:hidden;
+      border-radius:999px;
+      background:#e8eef5;
+    }
+
+    .progress-fill{
+      width:0;
+      height:100%;
+      border-radius:inherit;
+      background:var(--accent);
+      transition:width .25s ease;
+    }
+
+    .progress-fill.progress-completed{background:#7c3aed;}
+    .progress-fill.progress-on-hold{background:#f59e0b;}
+    .progress-fill.budget-within{background:#16a34a;}
+    .progress-fill.budget-approaching{background:#eab308;}
+    .progress-fill.budget-over{background:#dc6b45;}
+    .health-message{margin:10px 0 0;color:#64748b;font-size:13px;font-weight:700;line-height:1.4;}
+
     .status-pill{
       display:inline-flex;
       align-items:center;
@@ -278,7 +370,8 @@
 
     @media (max-width:820px){
       .wrap{padding:24px 20px 48px;}
-      .transactions-grid,.breakdown-grid{grid-template-columns:1fr;}
+      .transactions-grid,.breakdown-grid,.health-grid{grid-template-columns:1fr;}
+      .health-values{grid-template-columns:repeat(2,minmax(0,1fr));}
     }
 
     @media (max-width:640px){
@@ -287,6 +380,8 @@
       .page-header .btn{width:100%;}
       h1{font-size:27px;}
       .primary-kpis,.secondary-kpis,.project-info-grid{grid-template-columns:1fr;}
+      .health-values{grid-template-columns:1fr;}
+      .health-heading{flex-direction:column;}
       .description-item{grid-column:auto;}
       .card{padding:17px;}
       .transaction-card{padding:17px 12px;}
@@ -358,6 +453,58 @@
           <div class="info-item"><div class="info-label">Project budget</div><div class="info-value" id="projectBudget">No budget set</div></div>
           <div class="info-item description-item"><div class="info-label">Description</div><div class="info-value" id="projectDescription">No description</div></div>
         </div>
+      </section>
+
+      <section class="health-grid" aria-label="Project progress and budget health">
+        <article class="card health-card" aria-labelledby="projectProgressTitle">
+          <div class="health-heading">
+            <div>
+              <h2 id="projectProgressTitle">Project progress</h2>
+              <p>Date progress is informational and does not change project status.</p>
+            </div>
+            <span class="health-badge" id="progressStatusBadge">Active</span>
+          </div>
+
+          <div class="health-values">
+            <div class="health-value"><div class="info-label">Start date</div><strong id="progressStartDate">—</strong></div>
+            <div class="health-value"><div class="info-label">End date</div><strong id="progressEndDate">—</strong></div>
+            <div class="health-value"><div class="info-label">Days elapsed</div><strong id="progressDaysElapsed">—</strong></div>
+            <div class="health-value"><div class="info-label">Days remaining</div><strong id="progressDaysRemaining">—</strong></div>
+          </div>
+
+          <div id="projectProgressBarGroup">
+            <div class="progress-summary"><span>Duration progress</span><strong id="projectProgressPercent">—</strong></div>
+            <div class="progress-track" id="projectProgressTrack" role="progressbar" aria-label="Project duration progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="progress-fill" id="projectProgressFill"></div>
+            </div>
+          </div>
+          <p class="health-message" id="projectProgressMessage">No project dates set</p>
+        </article>
+
+        <article class="card health-card" aria-labelledby="budgetHealthTitle">
+          <div class="health-heading">
+            <div>
+              <h2 id="budgetHealthTitle">Budget health</h2>
+              <p>Based on the same recorded project costs used below.</p>
+            </div>
+            <span class="health-badge" id="budgetHealthBadge">No budget set</span>
+          </div>
+
+          <div class="health-values">
+            <div class="health-value"><div class="info-label">Project budget</div><strong id="healthBudget">No budget set</strong></div>
+            <div class="health-value"><div class="info-label">Total costs</div><strong id="healthCosts">£0.00</strong></div>
+            <div class="health-value"><div class="info-label">Budget remaining</div><strong id="healthRemaining">No budget set</strong></div>
+            <div class="health-value"><div class="info-label">Budget used</div><strong id="healthUsed">—</strong></div>
+          </div>
+
+          <div id="budgetProgressBarGroup" hidden>
+            <div class="progress-summary"><span>Budget usage</span><strong id="budgetProgressPercent">0.0% used</strong></div>
+            <div class="progress-track" id="budgetProgressTrack" role="progressbar" aria-label="Project budget used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="progress-fill" id="budgetProgressFill"></div>
+            </div>
+          </div>
+          <p class="health-message" id="budgetHealthMessage">No budget set</p>
+        </article>
       </section>
 
       <section aria-label="Project profitability summary">
@@ -497,6 +644,189 @@
       return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
     }
 
+    function parseLocalProjectDate(value) {
+      const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) return null;
+
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const date = new Date(year, month - 1, day);
+
+      return date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day
+        ? date
+        : null;
+    }
+
+    function calendarDayOrdinal(date) {
+      return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+    }
+
+    function calendarDaysBetween(fromDate, toDate) {
+      return calendarDayOrdinal(toDate) - calendarDayOrdinal(fromDate);
+    }
+
+    function dayText(value) {
+      return `${value} ${value === 1 ? "day" : "days"}`;
+    }
+
+    function renderProjectProgress(project) {
+      const status = project.status || "Active";
+      const startDate = parseLocalProjectDate(project.startDate);
+      const endDate = parseLocalProjectDate(project.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const badge = document.getElementById("progressStatusBadge");
+      badge.textContent = status;
+      badge.className = "health-badge";
+      if (status === "Completed") badge.classList.add("health-completed");
+      else if (status === "On Hold") badge.classList.add("health-on-hold");
+      else badge.classList.add("health-within");
+
+      document.getElementById("progressStartDate").textContent = startDate
+        ? formatDate(project.startDate)
+        : "No start date set";
+      document.getElementById("progressEndDate").textContent = endDate
+        ? formatDate(project.endDate)
+        : "No end date set";
+
+      const progressGroup = document.getElementById("projectProgressBarGroup");
+      const elapsedElement = document.getElementById("progressDaysElapsed");
+      const remainingElement = document.getElementById("progressDaysRemaining");
+      const messageElement = document.getElementById("projectProgressMessage");
+
+      if (!startDate && !endDate) {
+        progressGroup.hidden = true;
+        elapsedElement.textContent = "—";
+        remainingElement.textContent = "—";
+        messageElement.textContent = "No project dates set";
+        return;
+      }
+
+      if (startDate && !endDate) {
+        progressGroup.hidden = true;
+        const daysUntilStart = calendarDaysBetween(today, startDate);
+        const elapsedDays = daysUntilStart > 0 ? 0 : calendarDaysBetween(startDate, today) + 1;
+        elapsedElement.textContent = dayText(Math.max(elapsedDays, 0));
+        remainingElement.textContent = "No end date set";
+        messageElement.textContent = daysUntilStart > 0
+          ? `Starts in ${dayText(daysUntilStart)}`
+          : "No end date set";
+        return;
+      }
+
+      if (!startDate && endDate) {
+        progressGroup.hidden = true;
+        const daysUntilEnd = calendarDaysBetween(today, endDate);
+        elapsedElement.textContent = "No start date set";
+        remainingElement.textContent = dayText(Math.max(daysUntilEnd, 0));
+        messageElement.textContent = daysUntilEnd < 0
+          ? `Project end date passed ${dayText(Math.abs(daysUntilEnd))} ago`
+          : "No start date set";
+        return;
+      }
+
+      const durationDifference = calendarDaysBetween(startDate, endDate);
+      if (durationDifference < 0) {
+        progressGroup.hidden = true;
+        elapsedElement.textContent = "—";
+        remainingElement.textContent = "—";
+        messageElement.textContent = "End date is before start date";
+        return;
+      }
+
+      const totalDays = durationDifference + 1;
+      const daysFromStart = calendarDaysBetween(startDate, today);
+      const daysUntilEnd = calendarDaysBetween(today, endDate);
+      const elapsedDays = Math.min(Math.max(daysFromStart + 1, 0), totalDays);
+      const remainingDays = Math.max(daysUntilEnd, 0);
+      const progressPercent = Math.min(Math.max((elapsedDays / totalDays) * 100, 0), 100);
+
+      elapsedElement.textContent = dayText(elapsedDays);
+      remainingElement.textContent = dayText(remainingDays);
+      document.getElementById("projectProgressPercent").textContent = `${progressPercent.toFixed(1)}%`;
+
+      const track = document.getElementById("projectProgressTrack");
+      track.setAttribute("aria-valuenow", progressPercent.toFixed(1));
+      track.setAttribute("aria-valuetext", `${progressPercent.toFixed(1)}% of project duration elapsed`);
+      progressGroup.hidden = false;
+
+      const fill = document.getElementById("projectProgressFill");
+      fill.style.width = `${progressPercent}%`;
+      fill.className = "progress-fill";
+      if (status === "Completed") fill.classList.add("progress-completed");
+      if (status === "On Hold") fill.classList.add("progress-on-hold");
+
+      let dateMessage;
+      if (daysFromStart < 0) dateMessage = `Starts in ${dayText(Math.abs(daysFromStart))}`;
+      else if (daysUntilEnd < 0) dateMessage = `Project end date passed ${dayText(Math.abs(daysUntilEnd))} ago`;
+      else if (durationDifference === 0) dateMessage = "Project runs today";
+      else if (daysUntilEnd === 0) dateMessage = "Project ends today";
+      else dateMessage = `${dayText(elapsedDays)} elapsed · ${dayText(remainingDays)} remaining`;
+
+      if (status === "Completed") messageElement.textContent = `Project completed · ${dateMessage}`;
+      else if (status === "On Hold") messageElement.textContent = `Project is on hold · ${dateMessage}`;
+      else messageElement.textContent = dateMessage;
+    }
+
+    function renderBudgetHealth({ budget, totalCosts, budgetRemaining, budgetUsedPercent, hasBudget }) {
+      setMoney("healthCosts", totalCosts);
+      const badge = document.getElementById("budgetHealthBadge");
+      const message = document.getElementById("budgetHealthMessage");
+      const progressGroup = document.getElementById("budgetProgressBarGroup");
+
+      if (!hasBudget) {
+        document.getElementById("healthBudget").textContent = "No budget set";
+        document.getElementById("healthRemaining").textContent = "No budget set";
+        document.getElementById("healthRemaining").classList.remove("negative");
+        document.getElementById("healthUsed").textContent = "—";
+        badge.textContent = "No budget set";
+        badge.className = "health-badge";
+        message.textContent = "No budget set";
+        progressGroup.hidden = true;
+        return;
+      }
+
+      setMoney("healthBudget", budget);
+      setMoney("healthRemaining", budgetRemaining);
+      document.getElementById("healthRemaining").classList.toggle("negative", budgetRemaining < 0);
+      document.getElementById("healthUsed").textContent = `${budgetUsedPercent.toFixed(1)}%`;
+      document.getElementById("budgetProgressPercent").textContent = `${budgetUsedPercent.toFixed(1)}% used`;
+
+      let label;
+      let healthClass;
+      let fillClass;
+      if (budgetUsedPercent < 75) {
+        label = "Within budget";
+        healthClass = "health-within";
+        fillClass = "budget-within";
+      } else if (budgetUsedPercent < 100) {
+        label = "Approaching budget";
+        healthClass = "health-approaching";
+        fillClass = "budget-approaching";
+      } else {
+        label = "Over budget";
+        healthClass = "health-over";
+        fillClass = "budget-over";
+      }
+
+      badge.textContent = label;
+      badge.className = `health-badge ${healthClass}`;
+      message.textContent = label;
+
+      const visualPercent = Math.min(Math.max(budgetUsedPercent, 0), 100);
+      const track = document.getElementById("budgetProgressTrack");
+      track.setAttribute("aria-valuenow", visualPercent.toFixed(1));
+      track.setAttribute("aria-valuetext", `${budgetUsedPercent.toFixed(1)}% of project budget used`);
+      const fill = document.getElementById("budgetProgressFill");
+      fill.style.width = `${visualPercent}%`;
+      fill.className = `progress-fill ${fillClass}`;
+      progressGroup.hidden = false;
+    }
+
     function recordSortValue(record, dateField) {
       return dateValue(record[dateField]) || dateValue(record.createdAt) || dateValue(record.updatedAt);
     }
@@ -559,6 +889,7 @@
       document.getElementById("projectEndDate").textContent = formatDate(project.endDate);
       document.getElementById("projectBudget").textContent = Number(project.budget || 0) > 0 ? money(project.budget) : "No budget set";
       document.getElementById("projectDescription").textContent = project.description || "No description";
+      renderProjectProgress(project);
     }
 
     function renderSummary(project, invoices, bills, expenseClaims, mileageClaims) {
@@ -579,6 +910,8 @@
       const hasBudget = budget > 0;
       const budgetRemaining = budget - totalCosts;
       const budgetUsedPercent = hasBudget ? (totalCosts / budget) * 100 : 0;
+
+      renderBudgetHealth({ budget, totalCosts, budgetRemaining, budgetUsedPercent, hasBudget });
 
       setMoney("totalInvoiced", totalInvoiced);
       setMoney("totalCosts", totalCosts);
