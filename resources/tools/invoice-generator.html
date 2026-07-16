@@ -1676,13 +1676,13 @@
     .invoice-list-header,
     .invoice-row{
       display:grid;
-      grid-template-columns:minmax(100px, .8fr) minmax(105px, .8fr) minmax(150px, 1.3fr) minmax(130px, 1fr) minmax(85px, .7fr) minmax(90px, .75fr) minmax(280px, auto);
-      gap:16px;
+      grid-template-columns:minmax(80px, .7fr) minmax(85px, .75fr) minmax(110px, 1fr) minmax(120px, 1.1fr) minmax(105px, .9fr) minmax(72px, .6fr) minmax(76px, .65fr) minmax(305px, auto);
+      gap:10px;
       align-items:center;
     }
 
     .invoice-list-header{
-      padding:0 14px 7px;
+      padding:0 12px 7px;
       color:#64748b;
       font-size:11px;
       font-weight:700;
@@ -1690,7 +1690,7 @@
       text-transform:uppercase;
     }
 
-    .invoice-list-header span:nth-child(5){
+    .invoice-list-header span:nth-child(6){
       text-align:right;
     }
 
@@ -1698,7 +1698,7 @@
       min-width:0;
       border:0;
       border-radius:12px;
-      padding:14px;
+      padding:12px;
       transition:background .16s ease, box-shadow .16s ease, transform .16s ease;
     }
 
@@ -1790,13 +1790,13 @@
     }
 
     .invoice-row-actions{
-      gap:7px;
+      gap:4px;
     }
 
     .invoice-row-actions button{
       margin:0;
-      min-height:36px;
-      padding:0 12px;
+      min-height:34px;
+      padding:0 8px;
       border-radius:9px;
       font-size:12px;
     }
@@ -2361,6 +2361,14 @@
                   <input id="invoiceNumber" placeholder="INV-001" value="">
                 </div>
 
+                <div class="invoice-field-wide">
+                  <label for="projectSelect">Project</label>
+                  <select id="projectSelect">
+                    <option value="">No project</option>
+                    <option value="" disabled>Loading projects...</option>
+                  </select>
+                </div>
+
                 <div class="invoice-field">
                   <label for="description1">Item 1 Description</label>
                   <input id="description1" placeholder="Bookkeeping services">
@@ -2519,7 +2527,7 @@
             <div class="invoice-toolbar">
               <input
                 id="invoiceSearch"
-                placeholder="Search customer or invoice..."
+                placeholder="Search customer, invoice or project..."
                 oninput="renderRecentInvoices()"
               >
 
@@ -2706,6 +2714,9 @@
   window.currentUser = null;
   window.simpleBooksFirestoreCustomers = [];
   window.simpleBooksCustomersLoaded = false;
+  window.simpleBooksFirestoreProjects = [];
+  window.simpleBooksProjectsLoaded = false;
+  window.simpleBooksProjectsLoadError = false;
   let invoiceAuthReadyResolved = false;
   let resolveInvoiceAuthReady;
 
@@ -2852,6 +2863,9 @@
     window.currentUser = user;
     window.simpleBooksFirestoreCustomers = [];
     window.simpleBooksCustomersLoaded = false;
+    window.simpleBooksFirestoreProjects = [];
+    window.simpleBooksProjectsLoaded = false;
+    window.simpleBooksProjectsLoadError = false;
 
     if(!invoiceAuthReadyResolved){
       invoiceAuthReadyResolved = true;
@@ -2888,6 +2902,10 @@
           console.error("Customer load failed", error);
           alert("Could not load saved customers. Local customer cache will be used until you retry.");
         });
+      }
+
+      if(window.loadProjectsFromFirestore){
+        window.loadProjectsFromFirestore();
       }
 
     } else {
@@ -3087,6 +3105,71 @@
     return customers;
   };
 
+  window.loadProjectsFromFirestore = async function(){
+    if(!window.currentUser){
+      console.log("No logged-in user, skipping project load.");
+      return [];
+    }
+
+    if(window.simpleBooksProjectsLoaded){
+      return window.simpleBooksFirestoreProjects;
+    }
+
+    try{
+      const snapshot = await getDocs(
+        collection(db, "users", window.currentUser.uid, "projects")
+      );
+
+      const statusOrder = {
+        "Active": 0,
+        "On Hold": 1,
+        "Completed": 2
+      };
+
+      const projects = snapshot.docs
+        .map(projectDoc => ({
+          id: projectDoc.id,
+          ...projectDoc.data()
+        }))
+        .sort((a, b) => {
+          const statusDifference =
+            (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+
+          if(statusDifference){
+            return statusDifference;
+          }
+
+          return String(a.name || "").localeCompare(
+            String(b.name || ""),
+            "en-GB",
+            { sensitivity: "base" }
+          );
+        });
+
+      window.simpleBooksFirestoreProjects = projects;
+      window.simpleBooksProjectsLoaded = true;
+      window.simpleBooksProjectsLoadError = false;
+
+      if(window.renderProjectDropdown){
+        window.renderProjectDropdown();
+      }
+
+      console.log("Projects loaded from Firestore", projects.length);
+      return projects;
+    }catch(error){
+      console.error("Could not load projects from Firestore", error);
+      window.simpleBooksFirestoreProjects = [];
+      window.simpleBooksProjectsLoaded = true;
+      window.simpleBooksProjectsLoadError = true;
+
+      if(window.renderProjectDropdown){
+        window.renderProjectDropdown();
+      }
+
+      return [];
+    }
+  };
+
   console.log("Firestore connected");
 
   </script>
@@ -3098,6 +3181,108 @@
 let editingInvoiceId = null;
 
 let editingInvoiceIndex = null;
+
+function invoiceProjectLabel(name, reference){
+  const projectName = String(name || "").trim();
+  const projectReference = String(reference || "").trim();
+
+  if(!projectName){
+    return projectReference || "Unassigned";
+  }
+
+  return projectReference
+    ? `${projectName} (${projectReference})`
+    : projectName;
+}
+
+function escapeInvoiceHtml(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function selectedInvoiceProject(){
+  const select = document.getElementById("projectSelect");
+  const option = select?.selectedOptions?.[0];
+  const projectId = select?.value || "";
+
+  if(!projectId){
+    return {
+      projectId: "",
+      projectName: "",
+      projectReference: ""
+    };
+  }
+
+  return {
+    projectId,
+    projectName: option?.dataset.projectName || "",
+    projectReference: option?.dataset.projectReference || ""
+  };
+}
+
+window.renderProjectDropdown = function(storedProject = null){
+  const select = document.getElementById("projectSelect");
+  if(!select) return;
+
+  const currentSelection = selectedInvoiceProject();
+  const requestedProject = storedProject || currentSelection;
+  const requestedId = String(requestedProject.projectId || "");
+  const requestedName = String(requestedProject.projectName || "");
+  const requestedReference = String(requestedProject.projectReference || "");
+  const projects = Array.isArray(window.simpleBooksFirestoreProjects)
+    ? window.simpleBooksFirestoreProjects
+    : [];
+
+  select.replaceChildren();
+
+  const noProjectOption = document.createElement("option");
+  noProjectOption.value = "";
+  noProjectOption.textContent = "No project";
+  select.appendChild(noProjectOption);
+
+  projects.forEach(project => {
+    const option = document.createElement("option");
+    option.value = String(project.id);
+    option.textContent = invoiceProjectLabel(project.name, project.reference);
+    option.dataset.projectName = String(project.name || "");
+    option.dataset.projectReference = String(project.reference || "");
+    select.appendChild(option);
+  });
+
+  const requestedExists = projects.some(project =>
+    String(project.id) === requestedId
+  );
+
+  if(requestedId && !requestedExists && (requestedName || requestedReference)){
+    const unavailableOption = document.createElement("option");
+    unavailableOption.value = requestedId;
+    unavailableOption.textContent =
+      `${invoiceProjectLabel(requestedName, requestedReference)} — unavailable`;
+    unavailableOption.dataset.projectName = requestedName;
+    unavailableOption.dataset.projectReference = requestedReference;
+    select.appendChild(unavailableOption);
+  }
+
+  if(!projects.length){
+    const unavailableMessage = document.createElement("option");
+    unavailableMessage.value = "";
+    unavailableMessage.disabled = true;
+    unavailableMessage.textContent = window.simpleBooksProjectsLoadError
+      ? "Projects could not be loaded"
+      : window.simpleBooksProjectsLoaded
+        ? "No projects available"
+        : "Loading projects...";
+    select.appendChild(unavailableMessage);
+  }
+
+  select.value = requestedId && (requestedExists || requestedName || requestedReference)
+    ? requestedId
+    : "";
+};
 
 async function invoiceNumberExists(invoiceNo){
   let invoices = [];
@@ -3242,6 +3427,8 @@ function normaliseInvoiceDate(value){
 }
 
 async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items){
+  const project = selectedInvoiceProject();
+
   const invoice = {
     invoiceNo: invoiceNo,
     client: client,
@@ -3260,6 +3447,9 @@ async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items
     recurringFrequency: document.getElementById("recurringFrequency")?.value || "",
     nextInvoiceDate: document.getElementById("nextInvoiceDate")?.value || "",
     reminderDate: document.getElementById("reminderDate")?.value || "",
+    projectId: project.projectId,
+    projectName: project.projectName,
+    projectReference: project.projectReference,
   };
 
   const user = await getInvoiceUser();
@@ -3347,7 +3537,9 @@ function filterInvoices(invoices){
       (
         (invoice.invoiceNo || "") + " " +
         (invoice.client || "") + " " +
-        (invoice.clientEmail || "")
+        (invoice.clientEmail || "") + " " +
+        (invoice.projectName || "") + " " +
+        (invoice.projectReference || "")
       ).toLowerCase();
 
     const matchesSearch =
@@ -3649,6 +3841,7 @@ async function renderRecentInvoices(){
         <span>Invoice number</span>
         <span>Invoice date</span>
         <span>Customer</span>
+        <span>Project</span>
         <span>Due</span>
         <span>Total</span>
         <span>Status</span>
@@ -3681,6 +3874,17 @@ async function renderRecentInvoices(){
               <div class="invoice-row-title">${invoice.client}</div>
             </div>
 
+            <div class="invoice-row-field" data-label="Project">
+              <div class="invoice-row-title">${
+                invoice.projectName || invoice.projectReference
+                  ? escapeInvoiceHtml(invoice.projectName || "Project")
+                  : "Unassigned"
+              }</div>
+              ${invoice.projectReference ? `
+                <div class="invoice-row-sub">${escapeInvoiceHtml(invoice.projectReference)}</div>
+              ` : ""}
+            </div>
+
             <div class="invoice-row-field" data-label="Due">
               <div class="invoice-row-title">${invoice.dueDate ? normaliseInvoiceDate(invoice.dueDate).display : "No due date"}</div>
               <div class="invoice-row-sub">${ageingText}</div>
@@ -3703,6 +3907,10 @@ async function renderRecentInvoices(){
 
               <button onclick="reopenInvoice('${invoice.id}')">
                 Edit invoice
+              </button>
+
+              <button onclick="duplicateInvoice('${invoice.id}')">
+                Duplicate
               </button>
 
               <button class="invoice-delete-button"
@@ -3744,29 +3952,7 @@ async function toggleInvoiceStatus(invoiceId){
   renderRecentInvoices();
 }
 
-async function reopenInvoice(invoiceId){
-  let invoices = [];
-
-  if(window.getInvoicesFromFirestore){
-    invoices = await window.getInvoicesFromFirestore();
-  } else {
-    invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
-  }
-
-  const invoice = invoices.find(item => item.id === invoiceId);
-
-  if(!invoice){
-    alert("Could not find this invoice.");
-    return;
-  }
-
-  editingInvoiceId = invoice.id;
-
-  document.getElementById("updateInvoiceBtn").disabled = false;
-
-  document.getElementById("editModeStatus").textContent =
-    "Editing invoice " + (invoice.invoiceNo || "");
-
+async function populateInvoiceForm(invoice){
   document.getElementById("clientName").value = invoice.client || "";
   document.getElementById("clientEmail").value = invoice.clientEmail || "";
   document.getElementById("clientAddress").value = invoice.clientAddress || "";
@@ -3784,6 +3970,12 @@ async function reopenInvoice(invoiceId){
 
   document.getElementById("reminderDate").value =
     invoice.reminderDate || "";
+
+  window.renderProjectDropdown({
+    projectId: invoice.projectId || "",
+    projectName: invoice.projectName || "",
+    projectReference: invoice.projectReference || ""
+  });
 
   document.getElementById("invoiceNumber").value = invoice.invoiceNo || "";
 
@@ -3820,8 +4012,62 @@ async function reopenInvoice(invoiceId){
   document.getElementById("amount3").value = items[2]?.amount || "";
 
   await generateInvoice(false, invoice.date);
+}
+
+async function reopenInvoice(invoiceId){
+  let invoices = [];
+
+  if(window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  } else {
+    invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  }
+
+  const invoice = invoices.find(item => item.id === invoiceId);
+
+  if(!invoice){
+    alert("Could not find this invoice.");
+    return;
+  }
+
+  editingInvoiceId = invoice.id;
+
+  document.getElementById("updateInvoiceBtn").disabled = false;
+
+  document.getElementById("editModeStatus").textContent =
+    "Editing invoice " + (invoice.invoiceNo || "");
+
+  await populateInvoiceForm(invoice);
 
   alert("Invoice loaded for editing. Make changes, then click Update Invoice.");
+}
+
+async function duplicateInvoice(invoiceId){
+  let invoices = [];
+
+  if(window.getInvoicesFromFirestore){
+    invoices = await window.getInvoicesFromFirestore();
+  } else {
+    invoices = JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  }
+
+  const invoice = invoices.find(item => item.id === invoiceId);
+
+  if(!invoice){
+    alert("Could not find this invoice.");
+    return;
+  }
+
+  editingInvoiceId = null;
+  document.getElementById("updateInvoiceBtn").disabled = true;
+  document.getElementById("editModeStatus").textContent =
+    "Creating a duplicate of " + (invoice.invoiceNo || "invoice");
+
+  await populateInvoiceForm(invoice);
+  await setInitialInvoiceNumber();
+  await generateInvoice(false);
+
+  alert("Invoice copied into a new draft. Review it, then click Generate Invoice to save.");
 }
 
 async function updateExistingInvoice(){
@@ -3855,6 +4101,7 @@ async function updateExistingInvoice(){
   const vatRate = parseFloat(document.getElementById("vatRate").value);
   const vat = amount * vatRate;
   const total = amount + vat;
+  const project = selectedInvoiceProject();
 
   const updatedInvoice = {
     invoiceNo: invoiceNo,
@@ -3878,6 +4125,9 @@ async function updateExistingInvoice(){
     recurringFrequency: document.getElementById("recurringFrequency")?.value || "",
     nextInvoiceDate: document.getElementById("nextInvoiceDate")?.value || "",
     reminderDate: document.getElementById("reminderDate")?.value || "",
+    projectId: project.projectId,
+    projectName: project.projectName,
+    projectReference: project.projectReference,
   };
 
   if(window.updateInvoiceInFirestore){
@@ -3904,6 +4154,12 @@ function cancelInvoiceEdit(){
 
   document.getElementById("editModeStatus").textContent =
     "Creating new invoice";
+
+  window.renderProjectDropdown({
+    projectId: "",
+    projectName: "",
+    projectReference: ""
+  });
 
   setInitialInvoiceNumber();
 
@@ -4265,6 +4521,11 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
   const paymentTerms =
     document.getElementById("paymentTerms")?.value || "14 days";
 
+  const project = selectedInvoiceProject();
+  const projectLabel = project.projectId
+    ? invoiceProjectLabel(project.projectName, project.projectReference)
+    : "";
+
   const accountProfile = getAccountProfile();
   const logoSrc = accountLogoSrc(accountProfile);
   const accountAddress = accountAddressLines(accountProfile);
@@ -4332,6 +4593,12 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
       <div class="muted" style="margin-top:10px; white-space:pre-line;">
         ${clientAddress || ""}
       </div>
+
+      ${projectLabel ? `
+        <div class="muted" style="margin-top:10px;">
+          <strong>Project:</strong> ${escapeInvoiceHtml(projectLabel)}
+        </div>
+      ` : ""}
     </div>
 
     <table class="invoice-table">
@@ -5244,6 +5511,7 @@ function updateBusinessPreview() {
 setInitialInvoiceNumber();
 renderRecentInvoices();
 renderCustomerDropdown();
+window.renderProjectDropdown();
 loadBusinessProfileIntoInvoice();
 
 setTimeout(function(){
@@ -5254,6 +5522,10 @@ setTimeout(function(){
     });
   } else {
     console.log("Firestore customer loader not ready yet");
+  }
+
+  if(window.loadProjectsFromFirestore){
+    window.loadProjectsFromFirestore();
   }
 
   setInitialInvoiceNumber();
