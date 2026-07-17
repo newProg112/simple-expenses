@@ -311,6 +311,19 @@
       text-align:center;
     }
 
+    .upcoming-table tbody tr:not(.empty-row) td{
+      padding:12px;
+      color:var(--text);
+      text-align:left;
+    }
+
+    .upcoming-table tbody tr:not(.empty-row) td:last-child{
+      color:var(--heading);
+      font-weight:850;
+      text-align:right;
+      white-space:nowrap;
+    }
+
     .summary-list{
       margin:0;
     }
@@ -466,8 +479,8 @@
             <option value="30">Next 30 days</option>
             <option value="60">Next 60 days</option>
             <option value="90" selected>Next 90 days</option>
-            <option value="180">Next 6 months</option>
-            <option value="365">Next 12 months</option>
+            <option value="6months">Next 6 months</option>
+            <option value="12months">Next 12 months</option>
           </select>
         </div>
 
@@ -490,7 +503,7 @@
       <div class="forecast-placeholder">
         <div class="empty-state">
           <div class="empty-state-icon" aria-hidden="true">↗</div>
-          <p>Your cashflow forecast will appear here once invoice and bill calculations are connected.</p>
+          <p>Your live forecast totals and upcoming movements are shown below. A visual forecast timeline will be added in a future stage.</p>
         </div>
         <canvas id="cashflowForecastChart" hidden aria-hidden="true"></canvas>
       </div>
@@ -507,8 +520,8 @@
             <thead>
               <tr><th scope="col">Due date</th><th scope="col">Customer</th><th scope="col">Invoice</th><th scope="col">Amount</th></tr>
             </thead>
-            <tbody id="upcomingCashInBody">
-              <tr><td colspan="4">No upcoming receipts to show yet.</td></tr>
+            <tbody id="upcomingCashInBody" aria-live="polite">
+              <tr class="empty-row"><td colspan="4">Loading expected receipts...</td></tr>
             </tbody>
           </table>
         </div>
@@ -524,8 +537,8 @@
             <thead>
               <tr><th scope="col">Due date</th><th scope="col">Supplier</th><th scope="col">Bill</th><th scope="col">Amount</th></tr>
             </thead>
-            <tbody id="upcomingCashOutBody">
-              <tr><td colspan="4">No upcoming payments to show yet.</td></tr>
+            <tbody id="upcomingCashOutBody" aria-live="polite">
+              <tr class="empty-row"><td colspan="4">Loading expected payments...</td></tr>
             </tbody>
           </table>
         </div>
@@ -554,16 +567,252 @@
     </section>
   </main>
 
-  <script>
+  <script type="module">
+    import { auth, db } from "../../firebase-config.js";
+    import {
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      collection,
+      onSnapshot
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
     const forecastForm = document.getElementById("forecastControlsForm");
     const forecastPeriod = document.getElementById("forecastPeriod");
     const openingCashBalance = document.getElementById("openingCashBalance");
     const forecastFeedback = document.getElementById("forecastFeedback");
+    const upcomingCashInBody = document.getElementById("upcomingCashInBody");
+    const upcomingCashOutBody = document.getElementById("upcomingCashOutBody");
+
+    let invoices = [];
+    let bills = [];
+    let invoicesLoaded = false;
+    let billsLoaded = false;
+    let invoiceLoadError = false;
+    let billLoadError = false;
+    let unsubscribeInvoices = null;
+    let unsubscribeBills = null;
+
+    function formatCurrency(value){
+      const numericValue = Number(value);
+      const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+
+      return new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(safeValue);
+    }
+
+    function escapeHtml(value){
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function parseDueDate(value){
+      if (!value) return null;
+
+      if (value instanceof Date) {
+        const date = new Date(value.getTime());
+        date.setHours(0, 0, 0, 0);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+
+      if (typeof value === "object") {
+        if (typeof value.toDate === "function") {
+          try {
+            return parseDueDate(value.toDate());
+          } catch (error) {
+            return null;
+          }
+        }
+
+        if (typeof value.seconds === "number") {
+          return parseDueDate(new Date(value.seconds * 1000));
+        }
+      }
+
+      const text = String(value).trim();
+      let match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+      if (match) {
+        const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        return date.getFullYear() === Number(match[1]) &&
+          date.getMonth() === Number(match[2]) - 1 &&
+          date.getDate() === Number(match[3])
+          ? date
+          : null;
+      }
+
+      match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+      if (match) {
+        const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+        return date.getFullYear() === Number(match[3]) &&
+          date.getMonth() === Number(match[2]) - 1 &&
+          date.getDate() === Number(match[1])
+          ? date
+          : null;
+      }
+
+      const date = new Date(text);
+      if (Number.isNaN(date.getTime())) return null;
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    function formatDueDate(date){
+      return date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      });
+    }
+
+    function forecastEndDate(){
+      const endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+
+      if (forecastPeriod.value === "6months") {
+        endDate.setMonth(endDate.getMonth() + 6);
+      } else if (forecastPeriod.value === "12months") {
+        endDate.setMonth(endDate.getMonth() + 12);
+      } else {
+        const days = Number(forecastPeriod.value) || 90;
+        endDate.setDate(endDate.getDate() + days);
+      }
+
+      return endDate;
+    }
+
+    function transactionAmount(transaction){
+      const value = Number(transaction.total || 0);
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    function isUnpaid(transaction){
+      return String(transaction.status || "Unpaid").trim().toLowerCase() !== "paid";
+    }
+
+    function transactionsInsideForecastPeriod(transactions){
+      const endDate = forecastEndDate();
+
+      return transactions
+        .filter(transaction => {
+          const dueDate = parseDueDate(transaction.dueDate);
+          return isUnpaid(transaction) && dueDate && dueDate <= endDate;
+        })
+        .map(transaction => ({
+          ...transaction,
+          forecastDueDate: parseDueDate(transaction.dueDate),
+          forecastAmount: transactionAmount(transaction)
+        }))
+        .sort((a, b) => a.forecastDueDate - b.forecastDueDate);
+    }
+
+    function openingBalanceValue(){
+      if (!openingCashBalance.value.trim() || !openingCashBalance.checkValidity()) return 0;
+      const value = Number(openingCashBalance.value);
+      return Number.isFinite(value) && value >= 0 ? value : 0;
+    }
+
+    function setText(id, value){
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
+    }
+
+    function renderUpcomingCashIn(visibleInvoices){
+      if (invoiceLoadError) {
+        upcomingCashInBody.innerHTML = '<tr class="empty-row"><td colspan="4">Expected receipts could not be loaded.</td></tr>';
+        return;
+      }
+
+      if (!invoicesLoaded) {
+        upcomingCashInBody.innerHTML = '<tr class="empty-row"><td colspan="4">Loading expected receipts...</td></tr>';
+        return;
+      }
+
+      if (!visibleInvoices.length) {
+        upcomingCashInBody.innerHTML = '<tr class="empty-row"><td colspan="4">No expected receipts during this period.</td></tr>';
+        return;
+      }
+
+      upcomingCashInBody.innerHTML = visibleInvoices.map(invoice => `
+        <tr>
+          <td>${escapeHtml(formatDueDate(invoice.forecastDueDate))}</td>
+          <td>${escapeHtml(invoice.client || "Unknown customer")}</td>
+          <td>${escapeHtml(invoice.invoiceNo || "No invoice number")}</td>
+          <td>${escapeHtml(formatCurrency(invoice.forecastAmount))}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderUpcomingCashOut(visibleBills){
+      if (billLoadError) {
+        upcomingCashOutBody.innerHTML = '<tr class="empty-row"><td colspan="4">Expected payments could not be loaded.</td></tr>';
+        return;
+      }
+
+      if (!billsLoaded) {
+        upcomingCashOutBody.innerHTML = '<tr class="empty-row"><td colspan="4">Loading expected payments...</td></tr>';
+        return;
+      }
+
+      if (!visibleBills.length) {
+        upcomingCashOutBody.innerHTML = '<tr class="empty-row"><td colspan="4">No expected payments during this period.</td></tr>';
+        return;
+      }
+
+      upcomingCashOutBody.innerHTML = visibleBills.map(bill => `
+        <tr>
+          <td>${escapeHtml(formatDueDate(bill.forecastDueDate))}</td>
+          <td>${escapeHtml(bill.supplier || "Unknown supplier")}</td>
+          <td>${escapeHtml(bill.billNumber || "No bill number")}</td>
+          <td>${escapeHtml(formatCurrency(bill.forecastAmount))}</td>
+        </tr>
+      `).join("");
+    }
+
+    function recalculateForecast(){
+      const visibleInvoices = transactionsInsideForecastPeriod(invoices);
+      const visibleBills = transactionsInsideForecastPeriod(bills);
+      const openingBalance = openingBalanceValue();
+      const expectedMoneyIn = visibleInvoices.reduce((sum, invoice) => sum + invoice.forecastAmount, 0);
+      const expectedMoneyOut = visibleBills.reduce((sum, bill) => sum + bill.forecastAmount, 0);
+      const netCashMovement = expectedMoneyIn - expectedMoneyOut;
+      const forecastClosingBalance = openingBalance + netCashMovement;
+      const hasValidOpeningBalance = openingCashBalance.value.trim() &&
+        openingCashBalance.checkValidity();
+
+      setText("currentCashPositionValue", formatCurrency(openingBalance));
+      setText("currentCashPositionMeta", hasValidOpeningBalance ? "From opening balance" : "Opening balance not set");
+      setText("expectedMoneyInValue", formatCurrency(expectedMoneyIn));
+      setText("expectedMoneyInMeta", `${visibleInvoices.length} unpaid invoice${visibleInvoices.length === 1 ? "" : "s"} in period`);
+      setText("expectedMoneyOutValue", formatCurrency(expectedMoneyOut));
+      setText("expectedMoneyOutMeta", `${visibleBills.length} unpaid bill${visibleBills.length === 1 ? "" : "s"} in period`);
+      setText("forecastBalanceValue", formatCurrency(forecastClosingBalance));
+
+      setText("summaryOpeningCashBalance", formatCurrency(openingBalance));
+      setText("summaryExpectedReceipts", formatCurrency(expectedMoneyIn));
+      setText("summaryExpectedPayments", formatCurrency(expectedMoneyOut));
+      setText("summaryNetCashMovement", formatCurrency(netCashMovement));
+      setText("summaryForecastClosingBalance", formatCurrency(forecastClosingBalance));
+
+      renderUpcomingCashIn(visibleInvoices);
+      renderUpcomingCashOut(visibleBills);
+    }
 
     function validateOpeningBalance(){
       const rawValue = openingCashBalance.value.trim();
       const numericValue = Number(rawValue);
       const invalidValue = openingCashBalance.validity.badInput ||
+        openingCashBalance.validity.rangeUnderflow ||
+        openingCashBalance.validity.stepMismatch ||
         (rawValue !== "" && (!Number.isFinite(numericValue) || numericValue < 0));
 
       openingCashBalance.setCustomValidity(
@@ -574,13 +823,17 @@
     }
 
     openingCashBalance.addEventListener("input", () => {
-      validateOpeningBalance();
-      forecastFeedback.textContent = "";
+      const isValid = validateOpeningBalance();
+      forecastFeedback.textContent = isValid
+        ? ""
+        : "Enter a valid opening cash balance of £0.00 or more.";
+      recalculateForecast();
     });
 
     forecastPeriod.addEventListener("change", () => {
       const selectedText = forecastPeriod.selectedOptions[0]?.textContent || "the selected period";
-      forecastFeedback.textContent = `${selectedText} selected. Forecast calculations will be added in the next stage.`;
+      forecastFeedback.textContent = `${selectedText} selected. Forecast updated.`;
+      recalculateForecast();
     });
 
     forecastForm.addEventListener("submit", event => {
@@ -592,8 +845,74 @@
         return;
       }
 
-      forecastFeedback.textContent = "Forecast calculations will be added in the next stage.";
+      recalculateForecast();
+      forecastFeedback.textContent = "Forecast updated with the latest invoice and bill data.";
     });
+
+    function stopCashflowListeners(){
+      if (unsubscribeInvoices) unsubscribeInvoices();
+      if (unsubscribeBills) unsubscribeBills();
+      unsubscribeInvoices = null;
+      unsubscribeBills = null;
+    }
+
+    function subscribeToCashflowData(user){
+      stopCashflowListeners();
+      invoices = [];
+      bills = [];
+      invoicesLoaded = false;
+      billsLoaded = false;
+      invoiceLoadError = false;
+      billLoadError = false;
+      recalculateForecast();
+
+      if (!user) return;
+
+      unsubscribeInvoices = onSnapshot(
+        collection(db, "users", user.uid, "invoices"),
+        snapshot => {
+          invoices = snapshot.docs.map(invoiceDocument => ({
+            id: invoiceDocument.id,
+            ...invoiceDocument.data()
+          }));
+          invoicesLoaded = true;
+          invoiceLoadError = false;
+          recalculateForecast();
+        },
+        error => {
+          console.error("Cashflow invoice load failed", error);
+          invoices = [];
+          invoicesLoaded = true;
+          invoiceLoadError = true;
+          forecastFeedback.textContent = "Some cashflow data could not be loaded. Please try again.";
+          recalculateForecast();
+        }
+      );
+
+      unsubscribeBills = onSnapshot(
+        collection(db, "users", user.uid, "bills"),
+        snapshot => {
+          bills = snapshot.docs.map(billDocument => ({
+            id: billDocument.id,
+            ...billDocument.data()
+          }));
+          billsLoaded = true;
+          billLoadError = false;
+          recalculateForecast();
+        },
+        error => {
+          console.error("Cashflow bill load failed", error);
+          bills = [];
+          billsLoaded = true;
+          billLoadError = true;
+          forecastFeedback.textContent = "Some cashflow data could not be loaded. Please try again.";
+          recalculateForecast();
+        }
+      );
+    }
+
+    onAuthStateChanged(auth, subscribeToCashflowData);
+    recalculateForecast();
   </script>
 </body>
 </html>
