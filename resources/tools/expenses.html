@@ -425,6 +425,11 @@
       background:#f8fafc;
     }
 
+    .list-project-filter{
+      max-width:360px;
+      margin:0 0 14px;
+    }
+
     label{
       display:block;
       margin:0 0 7px;
@@ -1466,6 +1471,14 @@
             <input id="recentExpensesSearch" type="search" placeholder="Search merchant, route, project, status or attachment">
           </div>
 
+          <div class="list-project-filter">
+            <label for="recentProjectFilter">Project</label>
+            <select id="recentProjectFilter">
+              <option value="all">All projects</option>
+              <option value="unassigned">Unassigned</option>
+            </select>
+          </div>
+
           <div class="list-filter" aria-label="Filter recent expenses">
             <button class="active" id="recentFilterAll" type="button" onclick="setRecentExpensesFilter('all')">All</button>
             <button id="recentFilterExpense" type="button" onclick="setRecentExpensesFilter('expense')">Expenses</button>
@@ -1814,6 +1827,46 @@
     function renderProjectDropdowns() {
       renderProjectDropdown("expenseProjectSelect");
       renderProjectDropdown("mileageProjectSelect");
+      renderRecentProjectFilter();
+    }
+
+    function renderRecentProjectFilter() {
+      const select = document.getElementById("recentProjectFilter");
+      if (!select) return;
+
+      const requestedValue = select.value || "all";
+      select.replaceChildren();
+
+      const allOption = document.createElement("option");
+      allOption.value = "all";
+      allOption.textContent = "All projects";
+      select.appendChild(allOption);
+
+      const unassignedOption = document.createElement("option");
+      unassignedOption.value = "unassigned";
+      unassignedOption.textContent = "Unassigned";
+      select.appendChild(unassignedOption);
+
+      projects.forEach(project => {
+        const option = document.createElement("option");
+        option.value = String(project.id);
+        option.textContent = projectLabel(project.name, project.reference);
+        select.appendChild(option);
+      });
+
+      const requestedExists = requestedValue === "all" ||
+        requestedValue === "unassigned" ||
+        projects.some(project => String(project.id) === requestedValue);
+
+      select.value = requestedExists ? requestedValue : "all";
+
+      if (projectsLoadError) {
+        const messageOption = document.createElement("option");
+        messageOption.value = "";
+        messageOption.disabled = true;
+        messageOption.textContent = "Projects could not be loaded";
+        select.appendChild(messageOption);
+      }
     }
 
     async function loadProjects(user) {
@@ -1860,6 +1913,7 @@
 
       projectsLoaded = true;
       renderProjectDropdowns();
+      renderExpenses();
       return projects;
     }
 
@@ -2776,12 +2830,18 @@
       const list = document.getElementById("expensesList");
       const recentFooter = document.getElementById("recentExpensesFooter");
       const recentSearchTerm = document.getElementById("recentExpensesSearch").value.trim().toLowerCase();
+      const projectFilter = document.getElementById("recentProjectFilter")?.value || "all";
       const visibleExpenses = expenses.filter(expense => {
         const matchesType = recentExpensesFilter === "all" || expense.type === recentExpensesFilter;
         const matchesStatus = recentStatusFilter === "all" || expense.status === recentStatusFilter;
         const matchesDate = expenseMatchesDateFilter(expense);
         const matchesSearch = expenseMatchesSearch(expense, recentSearchTerm);
-        return matchesType && matchesStatus && matchesDate && matchesSearch;
+        const expenseProjectId = String(expense.projectId || "");
+        const matchesProject =
+          projectFilter === "all" ||
+          (projectFilter === "unassigned" && !expenseProjectId) ||
+          expenseProjectId === projectFilter;
+        return matchesType && matchesStatus && matchesDate && matchesSearch && matchesProject;
       });
 
       recentFooter.textContent = `Showing ${visibleExpenses.length} of ${expenses.length} expenses`;
@@ -2925,6 +2985,7 @@
     document.getElementById("mileageRate").addEventListener("input", calculateMileageAmount);
     document.getElementById("expenseAttachment").addEventListener("change", handleAttachmentSelection);
     document.getElementById("recentExpensesSearch").addEventListener("input", renderExpenses);
+    document.getElementById("recentProjectFilter").addEventListener("change", renderExpenses);
 
     document.getElementById("expensesList").addEventListener("click", event => {
       const actionButton = event.target.closest("button[data-expense-action][data-expense-id]");

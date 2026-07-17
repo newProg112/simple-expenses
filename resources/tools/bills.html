@@ -965,10 +965,11 @@
     }
 
     .bill-toolbar{
-      display:grid;
-      grid-template-columns:minmax(220px, 1fr) minmax(150px, auto) minmax(150px, auto);
+      display:flex;
+      flex-wrap:wrap;
       gap:12px;
       margin:0 0 8px;
+      align-items:end;
     }
 
     .bill-toolbar input,
@@ -979,6 +980,23 @@
       padding:10px 12px;
       border-radius:10px;
       font-size:15px;
+    }
+
+    .bill-toolbar > input{
+      flex:2 1 220px;
+    }
+
+    .bill-toolbar > select{
+      flex:1 1 150px;
+    }
+
+    .bill-filter-field{
+      flex:1 1 220px;
+      min-width:0;
+    }
+
+    .bill-filter-field label{
+      margin:0 0 7px;
     }
 
     .bill-table-header{
@@ -1321,7 +1339,8 @@
       }
 
       .bill-toolbar{
-        grid-template-columns:1fr;
+        align-items:stretch;
+        flex-direction:column;
       }
 
       .bill-row-field::before{
@@ -1549,6 +1568,13 @@
             <option value="Paid">Paid</option>
             <option value="Overdue">Overdue</option>
           </select>
+          <div class="bill-filter-field">
+            <label for="billProjectFilter">Project</label>
+            <select id="billProjectFilter">
+              <option value="all">All projects</option>
+              <option value="unassigned">Unassigned</option>
+            </select>
+          </div>
           <select id="billSort">
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -1741,6 +1767,7 @@
 
       projectsLoaded = true;
       renderProjectDropdown();
+      renderBillProjectFilter();
       return currentProjects;
     }
 
@@ -2074,6 +2101,45 @@
       select.value = requestedId ? requestedId : "";
     }
 
+    function renderBillProjectFilter() {
+      const select = document.getElementById("billProjectFilter");
+      if (!select) return;
+
+      const requestedValue = select.value || "all";
+      select.replaceChildren();
+
+      const allOption = document.createElement("option");
+      allOption.value = "all";
+      allOption.textContent = "All projects";
+      select.appendChild(allOption);
+
+      const unassignedOption = document.createElement("option");
+      unassignedOption.value = "unassigned";
+      unassignedOption.textContent = "Unassigned";
+      select.appendChild(unassignedOption);
+
+      currentProjects.forEach(project => {
+        const option = document.createElement("option");
+        option.value = String(project.id);
+        option.textContent = billProjectLabel(project.name, project.reference);
+        select.appendChild(option);
+      });
+
+      const requestedExists = requestedValue === "all" ||
+        requestedValue === "unassigned" ||
+        currentProjects.some(project => String(project.id) === requestedValue);
+
+      select.value = requestedExists ? requestedValue : "all";
+
+      if (projectsLoadError) {
+        const messageOption = document.createElement("option");
+        messageOption.value = "";
+        messageOption.disabled = true;
+        messageOption.textContent = "Projects could not be loaded";
+        select.appendChild(messageOption);
+      }
+    }
+
     function billDocRef(id) {
       const user = auth.currentUser;
       if (!user) return null;
@@ -2375,6 +2441,7 @@
       return {
         search: document.getElementById("billSearch"),
         status: document.getElementById("billStatusFilter"),
+        project: document.getElementById("billProjectFilter"),
         sort: document.getElementById("billSort")
       };
     }
@@ -2383,6 +2450,7 @@
       const controls = getRecentBillControls();
       const search = (controls.search?.value || "").trim().toLowerCase();
       const statusFilter = controls.status?.value || "All";
+      const projectFilter = controls.project?.value || "all";
       const sortValue = controls.sort?.value || "newest";
 
       const visibleBills = bills.filter(bill => {
@@ -2400,7 +2468,13 @@
           (statusFilter === "Overdue" && status === "Overdue") ||
           (statusFilter !== "Overdue" && status === statusFilter);
 
-        return matchesSearch && matchesStatus;
+        const billProjectId = String(bill.projectId || "");
+        const matchesProject =
+          projectFilter === "all" ||
+          (projectFilter === "unassigned" && !billProjectId) ||
+          billProjectId === projectFilter;
+
+        return matchesSearch && matchesStatus && matchesProject;
       });
 
       visibleBills.sort((a, b) => {
@@ -2570,12 +2644,14 @@
     document.getElementById("billsList").addEventListener("click", handleBillsListClick);
     document.getElementById("billSearch").addEventListener("input", () => renderBills(currentBills));
     document.getElementById("billStatusFilter").addEventListener("change", () => renderBills(currentBills));
+    document.getElementById("billProjectFilter").addEventListener("change", () => renderBills(currentBills));
     document.getElementById("billSort").addEventListener("change", () => renderBills(currentBills));
     window.saveBill = saveBill;
     window.markBillPaid = markBillPaid;
     window.deleteBill = deleteBill;
 
     renderProjectDropdown();
+    renderBillProjectFilter();
     const user = await getCurrentUser();
     await Promise.all([loadBills(), loadProjects(user)]);
     renderBills(currentBills);
