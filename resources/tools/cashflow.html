@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cashflow | Simple Books</title>
+  <script type="module" src="/auth-guard.js"></script>
+
+  <style>
+    :root{
+      --accent:#0077B6;
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --text:#1f2933;
+      --heading:#102033;
+      --muted:#64748b;
+      --border:#dbe3ec;
+    }
+
+    *,
+    *::before,
+    *::after{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    button,
+    input,
+    select{
+      font:inherit;
+    }
+
+    h1,
+    h2{
+      margin:0;
+      color:var(--heading);
+    }
+
+    h1{
+      font-size:30px;
+      line-height:1.1;
+    }
+
+    h2{
+      font-size:20px;
+      line-height:1.25;
+    }
+
+    .muted{
+      color:var(--muted);
+      line-height:1.45;
+    }
+
+    .visually-hidden{
+      position:absolute;
+      width:1px;
+      height:1px;
+      padding:0;
+      margin:-1px;
+      overflow:hidden;
+      clip:rect(0,0,0,0);
+      white-space:nowrap;
+      border:0;
+    }
+
+    .page-title-row{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin:14px 0 18px;
+    }
+
+    .page-title-icon{
+      display:grid;
+      width:42px;
+      height:42px;
+      flex:0 0 auto;
+      place-items:center;
+      border-radius:12px;
+      background:#e8f3ff;
+      color:var(--accent);
+      font-size:18px;
+      font-weight:900;
+      box-shadow:inset 0 0 0 1px rgba(0,119,182,.08);
+    }
+
+    .page-title-row p,
+    .section-heading p{
+      margin:5px 0 0;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:14px;
+      margin-bottom:16px;
+    }
+
+    .kpi-card{
+      position:relative;
+      min-height:132px;
+      overflow:hidden;
+      border-color:#e6edf5;
+    }
+
+    .kpi-card::before{
+      content:"";
+      position:absolute;
+      inset:0 0 auto;
+      height:4px;
+      background:var(--kpi-accent,var(--accent));
+    }
+
+    .kpi-card:nth-child(2){--kpi-accent:#16a34a;}
+    .kpi-card:nth-child(3){--kpi-accent:#f97316;}
+    .kpi-card:nth-child(4){--kpi-accent:#7c3aed;}
+
+    .kpi-label{
+      color:var(--muted);
+      font-size:13px;
+      font-weight:750;
+    }
+
+    .kpi-value{
+      margin:10px 0 6px;
+      color:var(--heading);
+      font-size:27px;
+      font-weight:900;
+      line-height:1.1;
+    }
+
+    .kpi-meta{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.4;
+    }
+
+    .controls-card{
+      margin-bottom:16px;
+    }
+
+    .forecast-form{
+      display:grid;
+      grid-template-columns:minmax(180px,1fr) minmax(220px,1fr) auto;
+      gap:14px;
+      align-items:end;
+    }
+
+    .form-field label{
+      display:block;
+      margin:0 0 7px;
+      color:var(--text);
+      font-size:12px;
+      font-weight:750;
+      line-height:1.3;
+    }
+
+    input,
+    select{
+      width:100%;
+      min-height:42px;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+      color:var(--text);
+      font-size:15px;
+      line-height:1.35;
+    }
+
+    input:focus,
+    select:focus,
+    button:focus-visible{
+      outline:3px solid rgba(0,119,182,.16);
+      outline-offset:2px;
+      border-color:var(--accent);
+    }
+
+    input:invalid{
+      border-color:#dc2626;
+    }
+
+    .btn{
+      min-height:42px;
+      padding:0 17px;
+      border:1px solid var(--accent);
+      border-radius:10px;
+      background:var(--accent);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .btn:hover{
+      background:#00679e;
+      border-color:#00679e;
+    }
+
+    .forecast-feedback{
+      min-height:20px;
+      margin:11px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      font-weight:650;
+      line-height:1.4;
+    }
+
+    .section-card{
+      margin-bottom:16px;
+    }
+
+    .section-heading{
+      margin-bottom:16px;
+    }
+
+    .forecast-placeholder{
+      position:relative;
+      display:grid;
+      min-height:280px;
+      padding:32px;
+      place-items:center;
+      overflow:hidden;
+      border:1px dashed #cbd5e1;
+      border-radius:14px;
+      background:linear-gradient(180deg,#fbfdff 0%,#f7faff 100%);
+      text-align:center;
+    }
+
+    .empty-state{
+      max-width:560px;
+    }
+
+    .empty-state-icon{
+      display:grid;
+      width:48px;
+      height:48px;
+      margin:0 auto 12px;
+      place-items:center;
+      border-radius:14px;
+      background:#e8f3ff;
+      color:var(--accent);
+      font-size:20px;
+      font-weight:900;
+    }
+
+    .empty-state p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    .upcoming-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:16px;
+      margin-bottom:16px;
+    }
+
+    .upcoming-card{
+      min-width:0;
+    }
+
+    .table-scroll{
+      width:100%;
+      overflow-x:auto;
+      border:1px solid #e8eef5;
+      border-radius:12px;
+    }
+
+    .upcoming-table{
+      width:100%;
+      min-width:480px;
+      border-collapse:collapse;
+    }
+
+    .upcoming-table th{
+      padding:10px 12px;
+      background:#f8fafc;
+      color:#64748b;
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.035em;
+      text-align:left;
+      text-transform:uppercase;
+    }
+
+    .upcoming-table th:last-child{
+      text-align:right;
+    }
+
+    .upcoming-table td{
+      padding:24px 12px;
+      border-top:1px solid #e8eef5;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.4;
+      text-align:center;
+    }
+
+    .summary-list{
+      margin:0;
+    }
+
+    .summary-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:20px;
+      padding:12px 0;
+      border-bottom:1px solid #edf2f7;
+    }
+
+    .summary-row:first-child{
+      padding-top:0;
+    }
+
+    .summary-row:last-child{
+      padding-bottom:0;
+      border-bottom:0;
+    }
+
+    .summary-row dt{
+      color:#475569;
+      font-weight:700;
+    }
+
+    .summary-row dd{
+      margin:0;
+      color:var(--heading);
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    .summary-row.total{
+      margin-top:2px;
+      padding-top:14px;
+      border-top:2px solid #dbe3ec;
+    }
+
+    .alerts-empty{
+      padding:22px;
+      border:1px dashed #cbd5e1;
+      border-radius:12px;
+      background:#f8fafc;
+      color:var(--muted);
+      text-align:center;
+    }
+
+    @media (max-width:1050px){
+      .kpi-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+
+    @media (max-width:760px){
+      .forecast-form,
+      .upcoming-grid{
+        grid-template-columns:1fr;
+      }
+
+      .forecast-form .btn{
+        width:100%;
+      }
+    }
+
+    @media (max-width:640px){
+      h1{
+        font-size:28px;
+      }
+
+      .kpi-grid{
+        grid-template-columns:1fr;
+      }
+
+      .card{
+        padding:16px;
+      }
+
+      .forecast-placeholder{
+        min-height:230px;
+        padding:24px 16px;
+      }
+
+      .summary-row{
+        align-items:flex-start;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
+</head>
+
+<body>
+  <main class="wrap">
+    <header class="app-header">
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
+      </a>
+
+      <nav class="app-nav" aria-label="Main navigation">
+        <a href="/dashboard.html">Dashboard</a><span></span>
+        <a href="/resources/tools/invoice-generator.html">Invoices</a><span></span>
+        <a href="/resources/tools/bills.html">Bills</a><span></span>
+        <a href="/resources/tools/client-tracker.html">Clients</a><span></span>
+        <a href="/resources/tools/projects.html">Projects</a><span></span>
+        <a href="/resources/tools/expenses.html">Expenses</a><span></span>
+        <a class="active" href="/resources/tools/cashflow.html" aria-current="page">Cashflow</a><span></span>
+        <a href="/exports.html">Exports</a><span></span>
+        <a href="/account.html">Account</a>
+      </nav>
+    </header>
+
+    <section class="page-title-row" aria-labelledby="pageTitle">
+      <div class="page-title-icon" aria-hidden="true">C</div>
+      <div>
+        <h1 id="pageTitle">Cashflow</h1>
+        <p class="muted">Track expected money in, money out and your forecast cash position.</p>
+      </div>
+    </section>
+
+    <section class="kpi-grid" aria-label="Cashflow summary">
+      <article class="card kpi-card">
+        <div class="kpi-label">Current cash position</div>
+        <div class="kpi-value" id="currentCashPositionValue">&pound;0.00</div>
+        <div class="kpi-meta" id="currentCashPositionMeta">Opening balance not set</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Expected money in</div>
+        <div class="kpi-value" id="expectedMoneyInValue">&pound;0.00</div>
+        <div class="kpi-meta" id="expectedMoneyInMeta">From unpaid invoices</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Expected money out</div>
+        <div class="kpi-value" id="expectedMoneyOutValue">&pound;0.00</div>
+        <div class="kpi-meta" id="expectedMoneyOutMeta">From unpaid bills</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Forecast balance</div>
+        <div class="kpi-value" id="forecastBalanceValue">&pound;0.00</div>
+        <div class="kpi-meta" id="forecastBalanceMeta">Opening cash plus expected movement</div>
+      </article>
+    </section>
+
+    <section class="card controls-card" aria-labelledby="forecastControlsTitle">
+      <h2 id="forecastControlsTitle" class="visually-hidden">Forecast controls</h2>
+      <form class="forecast-form" id="forecastControlsForm" novalidate>
+        <div class="form-field">
+          <label for="forecastPeriod">Forecast period</label>
+          <select id="forecastPeriod" name="forecastPeriod">
+            <option value="30">Next 30 days</option>
+            <option value="60">Next 60 days</option>
+            <option value="90" selected>Next 90 days</option>
+            <option value="180">Next 6 months</option>
+            <option value="365">Next 12 months</option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label for="openingCashBalance">Opening cash balance (&pound;)</label>
+          <input id="openingCashBalance" name="openingCashBalance" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+        </div>
+
+        <button class="btn" type="submit">Update forecast</button>
+      </form>
+      <p class="forecast-feedback" id="forecastFeedback" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card section-card" aria-labelledby="forecastTitle">
+      <div class="section-heading">
+        <h2 id="forecastTitle">Cashflow forecast</h2>
+        <p class="muted">Expected cash movement across the selected forecast period.</p>
+      </div>
+
+      <div class="forecast-placeholder">
+        <div class="empty-state">
+          <div class="empty-state-icon" aria-hidden="true">↗</div>
+          <p>Your cashflow forecast will appear here once invoice and bill calculations are connected.</p>
+        </div>
+        <canvas id="cashflowForecastChart" hidden aria-hidden="true"></canvas>
+      </div>
+    </section>
+
+    <section class="upcoming-grid" aria-label="Upcoming cash movements">
+      <article class="card upcoming-card" aria-labelledby="cashInTitle">
+        <div class="section-heading">
+          <h2 id="cashInTitle">Upcoming cash in</h2>
+          <p class="muted">Unpaid invoices due within the selected period.</p>
+        </div>
+        <div class="table-scroll">
+          <table class="upcoming-table">
+            <thead>
+              <tr><th scope="col">Due date</th><th scope="col">Customer</th><th scope="col">Invoice</th><th scope="col">Amount</th></tr>
+            </thead>
+            <tbody id="upcomingCashInBody">
+              <tr><td colspan="4">No upcoming receipts to show yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card upcoming-card" aria-labelledby="cashOutTitle">
+        <div class="section-heading">
+          <h2 id="cashOutTitle">Upcoming cash out</h2>
+          <p class="muted">Unpaid bills due within the selected period.</p>
+        </div>
+        <div class="table-scroll">
+          <table class="upcoming-table">
+            <thead>
+              <tr><th scope="col">Due date</th><th scope="col">Supplier</th><th scope="col">Bill</th><th scope="col">Amount</th></tr>
+            </thead>
+            <tbody id="upcomingCashOutBody">
+              <tr><td colspan="4">No upcoming payments to show yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section class="card section-card" aria-labelledby="summaryTitle">
+      <div class="section-heading">
+        <h2 id="summaryTitle">Forecast summary</h2>
+      </div>
+      <dl class="summary-list">
+        <div class="summary-row"><dt>Opening cash balance</dt><dd id="summaryOpeningCashBalance">&pound;0.00</dd></div>
+        <div class="summary-row"><dt>Expected receipts</dt><dd id="summaryExpectedReceipts">&pound;0.00</dd></div>
+        <div class="summary-row"><dt>Expected payments</dt><dd id="summaryExpectedPayments">&pound;0.00</dd></div>
+        <div class="summary-row"><dt>Net cash movement</dt><dd id="summaryNetCashMovement">&pound;0.00</dd></div>
+        <div class="summary-row total"><dt>Forecast closing balance</dt><dd id="summaryForecastClosingBalance">&pound;0.00</dd></div>
+      </dl>
+    </section>
+
+    <section class="card section-card" aria-labelledby="alertsTitle">
+      <div class="section-heading">
+        <h2 id="alertsTitle">Cashflow alerts</h2>
+        <p class="muted">Potential cashflow risks will appear here.</p>
+      </div>
+      <div class="alerts-empty" id="cashflowAlertsEmpty">No cashflow alerts to show yet.</div>
+    </section>
+  </main>
+
+  <script>
+    const forecastForm = document.getElementById("forecastControlsForm");
+    const forecastPeriod = document.getElementById("forecastPeriod");
+    const openingCashBalance = document.getElementById("openingCashBalance");
+    const forecastFeedback = document.getElementById("forecastFeedback");
+
+    function validateOpeningBalance(){
+      const rawValue = openingCashBalance.value.trim();
+      const numericValue = Number(rawValue);
+      const invalidValue = openingCashBalance.validity.badInput ||
+        (rawValue !== "" && (!Number.isFinite(numericValue) || numericValue < 0));
+
+      openingCashBalance.setCustomValidity(
+        invalidValue ? "Enter an opening cash balance of £0.00 or more." : ""
+      );
+
+      return !invalidValue;
+    }
+
+    openingCashBalance.addEventListener("input", () => {
+      validateOpeningBalance();
+      forecastFeedback.textContent = "";
+    });
+
+    forecastPeriod.addEventListener("change", () => {
+      const selectedText = forecastPeriod.selectedOptions[0]?.textContent || "the selected period";
+      forecastFeedback.textContent = `${selectedText} selected. Forecast calculations will be added in the next stage.`;
+    });
+
+    forecastForm.addEventListener("submit", event => {
+      event.preventDefault();
+
+      if (!validateOpeningBalance() || !openingCashBalance.checkValidity()) {
+        forecastFeedback.textContent = "Enter a valid opening cash balance of £0.00 or more.";
+        openingCashBalance.reportValidity();
+        return;
+      }
+
+      forecastFeedback.textContent = "Forecast calculations will be added in the next stage.";
+    });
+  </script>
+</body>
+</html>
