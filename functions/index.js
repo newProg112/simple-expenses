@@ -667,3 +667,9 @@ exports.stripeWebhook = onRequest(
       }
     },
 );
+
+const {
+  askBusinessAssistantPreview,
+} = require("./ai-assistant-preview");
+
+exports.askBusinessAssistantPreview = askBusinessAssistantPreview;

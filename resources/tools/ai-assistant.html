@@ -336,6 +336,78 @@
       color:#fff;
     }
 
+    .assistant-response{
+      white-space:normal;
+    }
+
+    .assistant-answer{
+      margin:0;
+      white-space:pre-wrap;
+    }
+
+    .assistant-section{
+      margin-top:12px;
+      padding-top:10px;
+      border-top:1px solid var(--border);
+    }
+
+    .assistant-section h3{
+      margin:0 0 6px;
+      font-size:12px;
+      letter-spacing:.02em;
+      color:#475569;
+    }
+
+    .assistant-section ul{
+      margin:0;
+      padding-left:19px;
+    }
+
+    .assistant-section li + li{
+      margin-top:5px;
+    }
+
+    .assistant-insight-title{
+      font-weight:800;
+    }
+
+    .assistant-warning{
+      color:#92400e;
+    }
+
+    .assistant-sources{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      padding:0;
+      list-style:none;
+    }
+
+    .assistant-source{
+      display:inline-flex;
+      padding:4px 8px;
+      border:1px solid #b8c7d6;
+      border-radius:999px;
+      color:#244f75;
+      font-size:12px;
+      font-weight:750;
+      text-decoration:none;
+    }
+
+    .assistant-source:hover,
+    .assistant-source:focus-visible{
+      border-color:var(--accent);
+      color:var(--accent);
+      outline:none;
+    }
+
+    .assistant-meta{
+      margin:12px 0 0;
+      color:#64748b;
+      font-size:11px;
+      line-height:1.5;
+    }
+
     .typing-bubble{
       display:flex;
       align-items:center;
@@ -659,7 +731,7 @@
 
     <div class="privacy-note" role="note">
       <span class="privacy-icon" aria-hidden="true">i</span>
-      <span>Your financial records will be analysed securely. The assistant will not create, edit or delete records.</span>
+      <span>Your figures are loaded securely from your Simple Books records. The assistant will not create, edit or delete records.</span>
     </div>
 
     <div class="workspace">
@@ -671,8 +743,8 @@
               <h2 id="conversationTitle">AI Business Assistant</h2>
               <div class="preview-status">
                 <span class="status-dot" aria-hidden="true"></span>
-                <strong>Preview mode</strong>
-                <span>AI connection coming soon</span>
+                <strong>Deterministic preview</strong>
+                <span>Secure rule-based business insights</span>
               </div>
             </div>
           </div>
@@ -694,7 +766,7 @@
               <button class="capability-chip" type="button" data-question="Are any budgets close to being exceeded?"><span class="chip-icon" aria-hidden="true">›</span>Budget progress</button>
               <button class="capability-chip" type="button" data-question="What could affect my cashflow?"><span class="chip-icon" aria-hidden="true">›</span>Cashflow outlook</button>
             </div>
-            <p class="later-note">Live business analysis will be connected in a later stage.</p>
+            <p class="later-note">This preview uses secure, rule-based Simple Books calculations. Natural-language AI analysis will be connected in a later stage.</p>
           </section>
           <div class="message-list" id="messageList"></div>
         </div>
@@ -741,7 +813,7 @@
             <dt>Questions remaining</dt><dd>10</dd>
             <dt>Reset</dt><dd>Preview only</dd>
           </dl>
-          <p class="usage-note" id="usageDescription">Usage tracking will begin when the secure AI service is connected.</p>
+          <p class="usage-note" id="usageDescription">Usage tracking will begin when the natural-language AI service is introduced.</p>
         </section>
 
         <section class="card sidebar-card" aria-labelledby="aboutTitle">
@@ -757,8 +829,16 @@
     </div>
   </main>
 
-  <script>
+  <script type="module">
+    import { functions } from "../../firebase-config.js";
+    import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+
     (() => {
+      const askBusinessAssistantPreview = httpsCallable(
+        functions,
+        "askBusinessAssistantPreview",
+        { timeout: 60000 }
+      );
       const form = document.getElementById("questionForm");
       const input = document.getElementById("questionInput");
       const sendButton = document.getElementById("sendButton");
@@ -770,8 +850,16 @@
       const suggestions = document.getElementById("suggestions");
       const capabilityChips = document.getElementById("capabilityChips");
       const maxCharacters = 2000;
+      const allowedSources = new Map([
+        ["Invoices|/resources/tools/invoice-generator.html", "/resources/tools/invoice-generator.html"],
+        ["Bills|/resources/tools/bills.html", "/resources/tools/bills.html"],
+        ["Expenses|/resources/tools/expenses.html", "/resources/tools/expenses.html"],
+        ["Projects|/resources/tools/projects.html", "/resources/tools/projects.html"],
+        ["Budgets|/resources/tools/budgets.html", "/resources/tools/budgets.html"],
+        ["Cashflow|/resources/tools/cashflow.html", "/resources/tools/cashflow.html"]
+      ]);
       let isResponding = false;
-      let previewTimer = null;
+      let activeRequestToken = 0;
 
       function resizeComposer(){
         input.style.height = "auto";
@@ -824,7 +912,7 @@
 
         const bubble = document.createElement("div");
         bubble.className = "message-bubble typing-bubble";
-        bubble.setAttribute("aria-label", "Assistant preview is responding");
+        bubble.setAttribute("aria-label", "Business assistant preview is responding");
 
         for(let index = 0; index < 3; index += 1){
           const dot = document.createElement("span");
@@ -838,23 +926,123 @@
         scrollToLatest();
       }
 
-      function finishPreviewResponse(){
-        document.getElementById("typingIndicator")?.remove();
-        createMessage(
-          "assistant",
-          "The AI analysis service is not connected yet. Your question has been added to the interface successfully and will be answered once the secure backend is enabled."
-        );
-        isResponding = false;
-        messageArea.setAttribute("aria-busy", "false");
-        updateComposer();
-        input.focus();
-        previewTimer = null;
+      function appendSection(bubble, title){
+        const section = document.createElement("section");
+        section.className = "assistant-section";
+        const heading = document.createElement("h3");
+        heading.textContent = title;
+        section.appendChild(heading);
+        bubble.appendChild(section);
+        return section;
       }
 
-      function submitQuestion(){
+      function renderPreviewResponse(response){
+        const row = document.createElement("div");
+        row.className = "message-row assistant";
+
+        const avatar = document.createElement("span");
+        avatar.className = "message-avatar";
+        avatar.setAttribute("aria-hidden", "true");
+        avatar.textContent = "AI";
+
+        const bubble = document.createElement("div");
+        bubble.className = "message-bubble assistant-response";
+        const answer = document.createElement("p");
+        answer.className = "assistant-answer";
+        answer.textContent = String(response.answer || "No preview answer was returned.");
+        bubble.appendChild(answer);
+
+        const insights = Array.isArray(response.insights) ? response.insights.slice(0, 10) : [];
+        if(insights.length){
+          const section = appendSection(bubble, "Insights");
+          const list = document.createElement("ul");
+          insights.forEach(item => {
+            const listItem = document.createElement("li");
+            const title = document.createElement("span");
+            title.className = "assistant-insight-title";
+            title.textContent = `${String(item.title || "Insight")}: `;
+            listItem.append(title, document.createTextNode(String(item.detail || "")));
+            list.appendChild(listItem);
+          });
+          section.appendChild(list);
+        }
+
+        const warnings = Array.isArray(response.warnings) ? response.warnings.slice(0, 10) : [];
+        if(warnings.length){
+          const section = appendSection(bubble, "Data notes");
+          const list = document.createElement("ul");
+          list.className = "assistant-warning";
+          warnings.forEach(item => {
+            const listItem = document.createElement("li");
+            listItem.textContent = String(item.message || "Some records could not be included.");
+            list.appendChild(listItem);
+          });
+          section.appendChild(list);
+        }
+
+        const safeSources = Array.isArray(response.sources) ? response.sources.slice(0, 6).filter(source => {
+          const key = `${String(source.module || "")}|${String(source.href || "")}`;
+          return allowedSources.has(key);
+        }) : [];
+        if(safeSources.length){
+          const section = appendSection(bubble, "Review in Simple Books");
+          const list = document.createElement("ul");
+          list.className = "assistant-sources";
+          safeSources.forEach(source => {
+            const listItem = document.createElement("li");
+            const link = document.createElement("a");
+            link.className = "assistant-source";
+            link.href = allowedSources.get(`${source.module}|${source.href}`);
+            link.textContent = String(source.module);
+            listItem.appendChild(link);
+            list.appendChild(listItem);
+          });
+          section.appendChild(list);
+        }
+
+        const meta = document.createElement("p");
+        meta.className = "assistant-meta";
+        const asOf = typeof response.dataAsOf === "string" ? response.dataAsOf : "";
+        const asOfDate = asOf ? new Date(asOf) : null;
+        const validDate = asOfDate && !Number.isNaN(asOfDate.getTime());
+        const timeText = validDate ? `Data as of ${asOfDate.toLocaleString("en-GB")}. ` : "";
+        meta.textContent = `${timeText}${String(response.disclaimer || "Business information only. This is not accounting, tax or legal advice.")}`;
+        bubble.appendChild(meta);
+
+        row.append(avatar, bubble);
+        messageList.appendChild(row);
+        welcomeState.hidden = true;
+        scrollToLatest();
+      }
+
+      function createRequestId(){
+        if(typeof crypto.randomUUID === "function") return crypto.randomUUID();
+        const bytes = crypto.getRandomValues(new Uint8Array(16));
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0"));
+        return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
+      }
+
+      function friendlyError(error){
+        const code = String(error?.code || "").replace(/^functions\//, "");
+        if(code === "unauthenticated"){
+          return "Your session is no longer available. Please sign in again and retry.";
+        }
+        if(code === "invalid-argument" || code === "resource-exhausted"){
+          return "That question could not be submitted. Check its length and try one of the suggested questions.";
+        }
+        if(code === "unavailable" || code === "deadline-exceeded" || code === "internal"){
+          return "The secure business-summary service is temporarily unavailable. Please try again shortly.";
+        }
+        return "The business assistant preview could not answer that question. Please try again.";
+      }
+
+      async function submitQuestion(){
         const question = input.value.trim();
         if(!question || isResponding) return;
 
+        const requestToken = ++activeRequestToken;
         isResponding = true;
         sendButton.disabled = true;
         createMessage("user", question);
@@ -862,15 +1050,32 @@
         updateComposer();
         messageArea.setAttribute("aria-busy", "true");
         createTypingIndicator();
-        previewTimer = window.setTimeout(finishPreviewResponse, 850);
+
+        try{
+          const result = await askBusinessAssistantPreview({
+            requestId: createRequestId(),
+            question,
+            scope: {}
+          });
+          if(requestToken !== activeRequestToken) return;
+          document.getElementById("typingIndicator")?.remove();
+          renderPreviewResponse(result.data || {});
+        }catch(error){
+          if(requestToken !== activeRequestToken) return;
+          document.getElementById("typingIndicator")?.remove();
+          createMessage("assistant", friendlyError(error));
+        }finally{
+          if(requestToken === activeRequestToken){
+            isResponding = false;
+            messageArea.setAttribute("aria-busy", "false");
+            updateComposer();
+            input.focus();
+          }
+        }
       }
 
       function clearConversation(){
-        if(previewTimer !== null){
-          window.clearTimeout(previewTimer);
-          previewTimer = null;
-        }
-
+        activeRequestToken += 1;
         isResponding = false;
         messageList.replaceChildren();
         welcomeState.hidden = false;
