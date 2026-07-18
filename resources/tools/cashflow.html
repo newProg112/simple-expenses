@@ -155,9 +155,49 @@
 
     .forecast-form{
       display:grid;
-      grid-template-columns:minmax(180px,1fr) minmax(220px,1fr) auto;
+      grid-template-columns:repeat(3,minmax(170px,1fr)) auto;
       gap:14px;
       align-items:end;
+    }
+
+    .filter-toggles{
+      display:flex;
+      grid-column:1 / span 3;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:10px 22px;
+      min-width:0;
+      margin:0;
+      padding:12px 14px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#f8fafc;
+    }
+
+    .filter-toggles legend{
+      padding:0 6px;
+      color:var(--text);
+      font-size:12px;
+      font-weight:750;
+    }
+
+    .toggle-option{
+      display:inline-flex;
+      align-items:center;
+      gap:9px;
+      color:#334155;
+      font-size:13px;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .toggle-option input{
+      width:18px;
+      min-height:18px;
+      height:18px;
+      margin:0;
+      padding:0;
+      accent-color:var(--accent);
     }
 
     .form-field label{
@@ -208,6 +248,18 @@
     .btn:hover{
       background:#00679e;
       border-color:#00679e;
+    }
+
+    .btn-secondary{
+      border-color:#b9c7d6;
+      background:#fff;
+      color:#0f4f70;
+    }
+
+    .btn-secondary:hover{
+      border-color:#8aa4bb;
+      background:#eef7fc;
+      color:#083b55;
     }
 
     .forecast-feedback{
@@ -303,6 +355,61 @@
       overflow-wrap:anywhere;
     }
 
+    .forecast-metrics{
+      margin-top:16px;
+    }
+
+    .forecast-metrics h3{
+      margin:0 0 12px;
+      color:var(--heading);
+      font-size:16px;
+      line-height:1.3;
+    }
+
+    .forecast-metrics-grid{
+      display:grid;
+      grid-template-columns:repeat(5,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .metric-card{
+      min-width:0;
+      padding:13px;
+      border:1px solid #dfe7ef;
+      border-radius:12px;
+      background:#fff;
+      box-shadow:0 5px 16px rgba(15,23,42,.045);
+    }
+
+    .metric-label{
+      display:block;
+      min-height:30px;
+      color:var(--muted);
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.025em;
+      line-height:1.35;
+      text-transform:uppercase;
+    }
+
+    .metric-value{
+      display:block;
+      margin-top:6px;
+      color:var(--heading);
+      font-size:17px;
+      font-weight:900;
+      line-height:1.3;
+      overflow-wrap:anywhere;
+    }
+
+    .metric-meta{
+      display:block;
+      margin-top:3px;
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.35;
+    }
+
     .upcoming-grid{
       display:grid;
       grid-template-columns:repeat(2,minmax(0,1fr));
@@ -395,6 +502,38 @@
       border-color:#fde68a;
       background:#fffbeb;
       color:#92400e;
+    }
+
+    .due-status.paid{
+      border-color:#bbf7d0;
+      background:#f0fdf4;
+      color:#166534;
+    }
+
+    .upcoming-table tr.informational-paid td{
+      background:#fbfefc;
+    }
+
+    .table-empty-state{
+      padding:24px 18px;
+      border:1px dashed #cbd5e1;
+      border-radius:12px;
+      background:#f8fafc;
+      color:var(--muted);
+      text-align:center;
+    }
+
+    .table-empty-state strong{
+      display:block;
+      margin-bottom:5px;
+      color:var(--heading);
+      font-size:14px;
+    }
+
+    .table-empty-state p{
+      margin:0;
+      font-size:13px;
+      line-height:1.45;
     }
 
     .summary-list{
@@ -518,6 +657,18 @@
       .insights-grid{
         grid-template-columns:repeat(3,minmax(0,1fr));
       }
+
+      .forecast-form{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+
+      .filter-toggles{
+        grid-column:1 / -1;
+      }
+
+      .forecast-metrics-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+      }
     }
 
     @media (max-width:760px){
@@ -530,8 +681,16 @@
         grid-template-columns:repeat(2,minmax(0,1fr));
       }
 
+      .forecast-metrics-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+
       .forecast-form .btn{
         width:100%;
+      }
+
+      .filter-toggles{
+        grid-column:auto;
       }
     }
 
@@ -559,6 +718,14 @@
 
       .insights-grid{
         grid-template-columns:1fr;
+      }
+
+      .forecast-metrics-grid{
+        grid-template-columns:1fr;
+      }
+
+      .metric-label{
+        min-height:0;
       }
 
       .summary-row{
@@ -642,7 +809,28 @@
           <input id="openingCashBalance" name="openingCashBalance" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
         </div>
 
+        <div class="form-field">
+          <label for="projectFilter">Project</label>
+          <select id="projectFilter" name="projectFilter">
+            <option value="all">All Projects</option>
+          </select>
+        </div>
+
         <button class="btn" type="submit">Update forecast</button>
+
+        <fieldset class="filter-toggles">
+          <legend>Display options</legend>
+          <label class="toggle-option" for="includeOverdue">
+            <input id="includeOverdue" name="includeOverdue" type="checkbox" checked>
+            Include overdue items
+          </label>
+          <label class="toggle-option" for="showPaidTransactions">
+            <input id="showPaidTransactions" name="showPaidTransactions" type="checkbox">
+            Show paid transactions
+          </label>
+        </fieldset>
+
+        <button class="btn btn-secondary" id="exportCashflowCsv" type="button">Export Cashflow CSV</button>
       </form>
       <p class="forecast-feedback" id="forecastFeedback" role="status" aria-live="polite"></p>
     </section>
@@ -661,6 +849,34 @@
         </div>
         <p class="chart-summary" id="cashflowChartSummary" aria-live="polite">Preparing the cashflow forecast timeline.</p>
       </div>
+
+      <section class="forecast-metrics" aria-labelledby="forecastMetricsTitle">
+        <h3 id="forecastMetricsTitle">Forecast metrics</h3>
+        <div class="forecast-metrics-grid">
+          <div class="metric-card">
+            <span class="metric-label">Average daily cash movement</span>
+            <span class="metric-value" id="averageDailyMovement">&pound;0.00</span>
+            <span class="metric-meta">Net movement per calendar day</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Largest incoming payment</span>
+            <span class="metric-value" id="largestIncomingPayment">&pound;0.00</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Largest outgoing payment</span>
+            <span class="metric-value" id="largestOutgoingPayment">&pound;0.00</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Forecast transactions</span>
+            <span class="metric-value" id="forecastTransactionCount">0</span>
+            <span class="metric-meta">Balance-affecting records</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Forecast length</span>
+            <span class="metric-value" id="forecastLengthDays">90 days</span>
+          </div>
+        </div>
+      </section>
 
       <section class="forecast-insights" aria-labelledby="forecastInsightsTitle">
         <h3 id="forecastInsightsTitle">Forecast insights</h3>
@@ -693,9 +909,13 @@
       <article class="card upcoming-card" aria-labelledby="cashInTitle">
         <div class="section-heading">
           <h2 id="cashInTitle">Upcoming cash in</h2>
-          <p class="muted">Unpaid invoices due within the selected period.</p>
+          <p class="muted" id="cashInDescription">Unpaid invoices due within the selected period.</p>
         </div>
-        <div class="table-scroll">
+        <div class="table-empty-state" id="cashInEmptyState" hidden>
+          <strong>No incoming transactions found</strong>
+          <p>No invoices match the current cashflow filters.</p>
+        </div>
+        <div class="table-scroll" id="cashInTableScroll">
           <table class="upcoming-table">
             <thead>
               <tr><th scope="col">Due date</th><th scope="col">Customer</th><th scope="col">Invoice</th><th scope="col">Amount</th></tr>
@@ -710,9 +930,13 @@
       <article class="card upcoming-card" aria-labelledby="cashOutTitle">
         <div class="section-heading">
           <h2 id="cashOutTitle">Upcoming cash out</h2>
-          <p class="muted">Unpaid bills due within the selected period.</p>
+          <p class="muted" id="cashOutDescription">Unpaid bills due within the selected period.</p>
         </div>
-        <div class="table-scroll">
+        <div class="table-empty-state" id="cashOutEmptyState" hidden>
+          <strong>No outgoing transactions found</strong>
+          <p>No bills match the current cashflow filters.</p>
+        </div>
+        <div class="table-scroll" id="cashOutTableScroll">
           <table class="upcoming-table">
             <thead>
               <tr><th scope="col">Due date</th><th scope="col">Supplier</th><th scope="col">Bill</th><th scope="col">Amount</th></tr>
@@ -763,21 +987,34 @@
     const forecastForm = document.getElementById("forecastControlsForm");
     const forecastPeriod = document.getElementById("forecastPeriod");
     const openingCashBalance = document.getElementById("openingCashBalance");
+    const projectFilter = document.getElementById("projectFilter");
+    const includeOverdue = document.getElementById("includeOverdue");
+    const showPaidTransactions = document.getElementById("showPaidTransactions");
+    const exportCashflowCsv = document.getElementById("exportCashflowCsv");
     const forecastFeedback = document.getElementById("forecastFeedback");
     const upcomingCashInBody = document.getElementById("upcomingCashInBody");
     const upcomingCashOutBody = document.getElementById("upcomingCashOutBody");
+    const cashInTableScroll = document.getElementById("cashInTableScroll");
+    const cashOutTableScroll = document.getElementById("cashOutTableScroll");
+    const cashInEmptyState = document.getElementById("cashInEmptyState");
+    const cashOutEmptyState = document.getElementById("cashOutEmptyState");
     const cashflowAlerts = document.getElementById("cashflowAlerts");
     const cashflowChartCanvas = document.getElementById("cashflowForecastChart");
 
     let invoices = [];
     let bills = [];
+    let projects = [];
     let invoicesLoaded = false;
     let billsLoaded = false;
     let invoiceLoadError = false;
     let billLoadError = false;
+    let projectsLoaded = false;
+    let projectLoadError = false;
     let unsubscribeInvoices = null;
     let unsubscribeBills = null;
+    let unsubscribeProjects = null;
     let cashflowForecastChart = null;
+    let currentForecastModel = null;
 
     function formatCurrency(value){
       const numericValue = Number(value);
@@ -902,22 +1139,45 @@
     }
 
     function isUnpaid(transaction){
-      return String(transaction.status || "Unpaid").trim().toLowerCase() !== "paid";
+      return !isPaid(transaction);
     }
 
-    function transactionsInsideForecastPeriod(transactions, endDate){
+    function isPaid(transaction){
+      return String(transaction.status || "Unpaid").trim().toLowerCase() === "paid";
+    }
+
+    function matchesSelectedProject(transaction){
+      const selectedProjectId = projectFilter.value || "all";
+      return selectedProjectId === "all" ||
+        String(transaction.projectId || "") === selectedProjectId;
+    }
+
+    function transactionsInsideForecastPeriod(transactions, startDate, endDate, paid){
 
       return transactions
         .filter(transaction => {
           const dueDate = parseDueDate(transaction.dueDate);
-          return isUnpaid(transaction) && dueDate && dueDate <= endDate;
+          const matchesPaymentStatus = paid ? isPaid(transaction) : isUnpaid(transaction);
+          const matchesOverdueFilter = includeOverdue.checked || (dueDate && dueDate >= startDate);
+          return matchesSelectedProject(transaction) &&
+            matchesPaymentStatus &&
+            dueDate &&
+            dueDate <= endDate &&
+            matchesOverdueFilter;
         })
         .map(transaction => ({
           ...transaction,
           forecastDueDate: parseDueDate(transaction.dueDate),
-          forecastAmount: transactionAmount(transaction)
+          forecastAmount: transactionAmount(transaction),
+          forecastPaid: paid
         }))
         .sort((a, b) => a.forecastDueDate - b.forecastDueDate);
+    }
+
+    function forecastLengthInDays(startDate, endDate){
+      const startOrdinal = Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const endOrdinal = Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      return Math.max(1, Math.round((endOrdinal - startOrdinal) / 86400000));
     }
 
     function openingBalanceValue(){
@@ -931,42 +1191,79 @@
       if (element) element.textContent = value;
     }
 
-    function dueStatus(date, today){
+    function projectLabel(project){
+      const name = String(project?.name || "Unnamed project").trim();
+      const reference = String(project?.reference || "").trim();
+      return reference ? `${name} (${reference})` : name;
+    }
+
+    function renderProjectFilter(){
+      const requestedValue = projectFilter.value || "all";
+      const options = projects.map(project =>
+        `<option value="${escapeHtml(project.id)}">${escapeHtml(projectLabel(project))}</option>`
+      );
+      projectFilter.innerHTML = `<option value="all">All Projects</option>${options.join("")}`;
+      const requestedProjectExists = requestedValue === "all" ||
+        projects.some(project => String(project.id) === requestedValue);
+      projectFilter.value = requestedProjectExists ? requestedValue : "all";
+      projectFilter.disabled = !projectsLoaded && !projectLoadError;
+    }
+
+    function transactionProjectLabel(transaction){
+      const projectId = String(transaction.projectId || "");
+      if (!projectId) return "Unassigned";
+      const project = projects.find(item => String(item.id) === projectId);
+      if (project) return projectLabel(project);
+      const storedName = String(transaction.projectName || "Project").trim();
+      const storedReference = String(transaction.projectReference || "").trim();
+      return storedReference ? `${storedName} (${storedReference})` : storedName;
+    }
+
+    function dueStatus(date, today, paid){
+      if (paid) return { label: "Paid", className: "paid" };
       const difference = date - today;
       if (difference < 0) return { label: "Overdue", className: "overdue" };
       if (difference === 0) return { label: "Due today", className: "today" };
       return { label: "Upcoming", className: "upcoming" };
     }
 
-    function dueDateCell(date, today){
-      const status = dueStatus(date, today);
+    function dueDateCell(transaction, today){
+      const status = dueStatus(transaction.forecastDueDate, today, transaction.forecastPaid);
       return `
         <div class="due-date-wrap">
-          <span>${escapeHtml(formatDueDate(date))}</span>
+          <span>${escapeHtml(formatDueDate(transaction.forecastDueDate))}</span>
           <span class="due-status ${status.className}">${status.label}</span>
         </div>
       `;
     }
 
-    function renderUpcomingCashIn(visibleInvoices, today){
+    function showTableState(tableScroll, emptyState, showEmptyState){
+      tableScroll.hidden = showEmptyState;
+      emptyState.hidden = !showEmptyState;
+    }
+
+    function renderUpcomingCashIn(displayInvoices, today){
       if (invoiceLoadError) {
+        showTableState(cashInTableScroll, cashInEmptyState, false);
         upcomingCashInBody.innerHTML = '<tr class="empty-row"><td colspan="4">Expected receipts could not be loaded.</td></tr>';
         return;
       }
 
       if (!invoicesLoaded) {
+        showTableState(cashInTableScroll, cashInEmptyState, false);
         upcomingCashInBody.innerHTML = '<tr class="empty-row"><td colspan="4">Loading expected receipts...</td></tr>';
         return;
       }
 
-      if (!visibleInvoices.length) {
-        upcomingCashInBody.innerHTML = '<tr class="empty-row"><td colspan="4">No expected receipts during this period.</td></tr>';
+      if (!displayInvoices.length) {
+        showTableState(cashInTableScroll, cashInEmptyState, true);
         return;
       }
 
-      upcomingCashInBody.innerHTML = visibleInvoices.map(invoice => `
-        <tr>
-          <td>${dueDateCell(invoice.forecastDueDate, today)}</td>
+      showTableState(cashInTableScroll, cashInEmptyState, false);
+      upcomingCashInBody.innerHTML = displayInvoices.map(invoice => `
+        <tr class="${invoice.forecastPaid ? "informational-paid" : ""}">
+          <td>${dueDateCell(invoice, today)}</td>
           <td>${escapeHtml(invoice.client || "Unknown customer")}</td>
           <td>${escapeHtml(invoice.invoiceNo || "No invoice number")}</td>
           <td>${escapeHtml(formatCurrency(invoice.forecastAmount))}</td>
@@ -974,25 +1271,28 @@
       `).join("");
     }
 
-    function renderUpcomingCashOut(visibleBills, today){
+    function renderUpcomingCashOut(displayBills, today){
       if (billLoadError) {
+        showTableState(cashOutTableScroll, cashOutEmptyState, false);
         upcomingCashOutBody.innerHTML = '<tr class="empty-row"><td colspan="4">Expected payments could not be loaded.</td></tr>';
         return;
       }
 
       if (!billsLoaded) {
+        showTableState(cashOutTableScroll, cashOutEmptyState, false);
         upcomingCashOutBody.innerHTML = '<tr class="empty-row"><td colspan="4">Loading expected payments...</td></tr>';
         return;
       }
 
-      if (!visibleBills.length) {
-        upcomingCashOutBody.innerHTML = '<tr class="empty-row"><td colspan="4">No expected payments during this period.</td></tr>';
+      if (!displayBills.length) {
+        showTableState(cashOutTableScroll, cashOutEmptyState, true);
         return;
       }
 
-      upcomingCashOutBody.innerHTML = visibleBills.map(bill => `
-        <tr>
-          <td>${dueDateCell(bill.forecastDueDate, today)}</td>
+      showTableState(cashOutTableScroll, cashOutEmptyState, false);
+      upcomingCashOutBody.innerHTML = displayBills.map(bill => `
+        <tr class="${bill.forecastPaid ? "informational-paid" : ""}">
+          <td>${dueDateCell(bill, today)}</td>
           <td>${escapeHtml(bill.supplier || "Unknown supplier")}</td>
           <td>${escapeHtml(bill.billNumber || "No bill number")}</td>
           <td>${escapeHtml(formatCurrency(bill.forecastAmount))}</td>
@@ -1003,8 +1303,18 @@
     function buildForecastModel(){
       const today = localToday();
       const endDate = forecastEndDate(today);
-      const visibleInvoices = transactionsInsideForecastPeriod(invoices, endDate);
-      const visibleBills = transactionsInsideForecastPeriod(bills, endDate);
+      const visibleInvoices = transactionsInsideForecastPeriod(invoices, today, endDate, false);
+      const visibleBills = transactionsInsideForecastPeriod(bills, today, endDate, false);
+      const paidInvoices = showPaidTransactions.checked
+        ? transactionsInsideForecastPeriod(invoices, today, endDate, true)
+        : [];
+      const paidBills = showPaidTransactions.checked
+        ? transactionsInsideForecastPeriod(bills, today, endDate, true)
+        : [];
+      const displayInvoices = [...visibleInvoices, ...paidInvoices]
+        .sort((a, b) => a.forecastDueDate - b.forecastDueDate);
+      const displayBills = [...visibleBills, ...paidBills]
+        .sort((a, b) => a.forecastDueDate - b.forecastDueDate);
       const openingBalance = openingBalanceValue();
       const expectedMoneyIn = visibleInvoices.reduce((sum, invoice) => sum + invoice.forecastAmount, 0);
       const expectedMoneyOut = visibleBills.reduce((sum, bill) => sum + bill.forecastAmount, 0);
@@ -1014,6 +1324,15 @@
       const overdueBills = visibleBills.filter(bill => bill.forecastDueDate < today);
       const overdueReceipts = overdueInvoices.reduce((sum, invoice) => sum + invoice.forecastAmount, 0);
       const overduePayments = overdueBills.reduce((sum, bill) => sum + bill.forecastAmount, 0);
+      const forecastLengthDays = forecastLengthInDays(today, endDate);
+      const largestIncomingPayment = visibleInvoices.reduce(
+        (largest, invoice) => Math.max(largest, invoice.forecastAmount),
+        0
+      );
+      const largestOutgoingPayment = visibleBills.reduce(
+        (largest, bill) => Math.max(largest, bill.forecastAmount),
+        0
+      );
 
       const events = [
         ...visibleInvoices.map(invoice => ({
@@ -1022,7 +1341,10 @@
           effectiveDate: invoice.forecastDueDate < today ? today : invoice.forecastDueDate,
           type: "cash-in",
           amount: invoice.forecastAmount,
-          label: `${invoice.client || invoice.customer || "Unknown customer"} · ${invoice.invoiceNo || "No invoice number"}`
+          label: `${invoice.client || invoice.customer || "Unknown customer"} · ${invoice.invoiceNo || "No invoice number"}`,
+          description: invoice.invoiceNo ? `Invoice ${invoice.invoiceNo}` : "Invoice",
+          counterparty: invoice.client || invoice.customer || "Unknown customer",
+          transaction: invoice
         })),
         ...visibleBills.map(bill => ({
           id: bill.id,
@@ -1030,7 +1352,10 @@
           effectiveDate: bill.forecastDueDate < today ? today : bill.forecastDueDate,
           type: "cash-out",
           amount: -bill.forecastAmount,
-          label: `${bill.supplier || "Unknown supplier"} · ${bill.billNumber || "No bill number"}`
+          label: `${bill.supplier || "Unknown supplier"} · ${bill.billNumber || "No bill number"}`,
+          description: bill.billNumber ? `Bill ${bill.billNumber}` : "Bill",
+          counterparty: bill.supplier || "Unknown supplier",
+          transaction: bill
         }))
       ].sort((a, b) => a.effectiveDate - b.effectiveDate || a.label.localeCompare(b.label));
 
@@ -1091,6 +1416,10 @@
         openingBalance,
         visibleInvoices,
         visibleBills,
+        paidInvoices,
+        paidBills,
+        displayInvoices,
+        displayBills,
         expectedMoneyIn,
         expectedMoneyOut,
         netCashMovement,
@@ -1105,6 +1434,11 @@
         overdueBills,
         overdueReceipts,
         overduePayments,
+        forecastLengthDays,
+        averageDailyMovement: netCashMovement / forecastLengthDays,
+        largestIncomingPayment,
+        largestOutgoingPayment,
+        forecastTransactionCount: events.length,
         oldestOverdueInvoiceDate,
         oldestOverdueBillDate
       };
@@ -1130,6 +1464,12 @@
       setText("summaryExpectedPayments", formatCurrency(model.expectedMoneyOut));
       setText("summaryNetCashMovement", formatCurrency(model.netCashMovement));
       setText("summaryForecastClosingBalance", formatCurrency(model.forecastClosingBalance));
+      setText("cashInDescription", showPaidTransactions.checked
+        ? "Unpaid forecast receipts and paid invoices shown for reference."
+        : "Unpaid invoices due within the selected period.");
+      setText("cashOutDescription", showPaidTransactions.checked
+        ? "Unpaid forecast payments and paid bills shown for reference."
+        : "Unpaid bills due within the selected period.");
     }
 
     function renderForecastInsights(model){
@@ -1141,6 +1481,14 @@
       setText("firstNegativeBalanceDate", model.firstNegativePoint ? formatDueDate(model.firstNegativePoint.date) : "Not projected");
       setText("overdueReceiptsInsight", `${formatCurrency(model.overdueReceipts)} / ${overdueInvoiceLabel}`);
       setText("overduePaymentsInsight", `${formatCurrency(model.overduePayments)} / ${overdueBillLabel}`);
+    }
+
+    function renderForecastMetrics(model){
+      setText("averageDailyMovement", formatCurrency(model.averageDailyMovement));
+      setText("largestIncomingPayment", formatCurrency(model.largestIncomingPayment));
+      setText("largestOutgoingPayment", formatCurrency(model.largestOutgoingPayment));
+      setText("forecastTransactionCount", String(model.forecastTransactionCount));
+      setText("forecastLengthDays", `${model.forecastLengthDays} day${model.forecastLengthDays === 1 ? "" : "s"}`);
     }
 
     function chartPointsForModel(model){
@@ -1190,28 +1538,59 @@
             const label = point.date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
             return point.isOpening ? `${label} opening` : label;
           }),
-          datasets: [{
-            label: "Forecast cash balance",
-            data: chartPoints.map(point => point.balance),
-            borderColor: "#0077B6",
-            backgroundColor: "rgba(0,119,182,.12)",
-            pointBackgroundColor: chartPoints.map(point => point.balance < 0 ? "#dc2626" : "#0077B6"),
-            pointBorderColor: "#ffffff",
-            pointBorderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            borderWidth: 3,
-            tension: .22,
-            fill: true
-          }]
+          datasets: [
+            {
+              label: "Running balance",
+              data: chartPoints.map(point => point.balance),
+              borderColor: "#0077B6",
+              backgroundColor: "rgba(0,119,182,.12)",
+              pointBackgroundColor: "#0077B6",
+              pointBorderColor: "#ffffff",
+              pointBorderWidth: 2,
+              pointRadius: chartPoints.map(point => point.cashIn || point.cashOut ? 0 : 3),
+              pointHoverRadius: 5,
+              borderWidth: 3,
+              tension: .22,
+              fill: true
+            },
+            {
+              label: "Receipts",
+              data: chartPoints.map(point => point.cashIn > 0 ? point.balance : null),
+              borderColor: "#16a34a",
+              backgroundColor: "#16a34a",
+              pointBorderColor: "#ffffff",
+              pointBorderWidth: 2,
+              pointRadius: 7,
+              pointHoverRadius: 8,
+              showLine: false,
+              spanGaps: false
+            },
+            {
+              label: "Payments",
+              data: chartPoints.map(point => point.cashOut > 0 ? point.balance : null),
+              borderColor: "#dc2626",
+              backgroundColor: "#dc2626",
+              pointBorderColor: "#ffffff",
+              pointBorderWidth: 2,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+              pointStyle: "rectRot",
+              showLine: false,
+              spanGaps: false
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           interaction: { intersect: false, mode: "index" },
           plugins: {
-            legend: { display: false },
+            legend: {
+              display: true,
+              labels: { color: "#475569", usePointStyle: true, boxWidth: 9, boxHeight: 9 }
+            },
             tooltip: {
+              filter(context){ return context.datasetIndex === 0; },
               callbacks: {
                 title(items){
                   const point = chartPoints[items[0]?.dataIndex || 0];
@@ -1220,14 +1599,13 @@
                   return formatDueDate(point.date);
                 },
                 label(context){
-                  return `Closing balance: ${formatCurrency(context.parsed.y)}`;
+                  return `Running balance: ${formatCurrency(context.parsed.y)}`;
                 },
                 afterLabel(context){
                   const point = chartPoints[context.dataIndex];
                   return [
                     `Cash in: ${formatCurrency(point.cashIn)}`,
-                    `Cash out: ${formatCurrency(point.cashOut)}`,
-                    `Net movement: ${formatCurrency(point.netMovement)}`
+                    `Cash out: ${formatCurrency(point.cashOut)}`
                   ];
                 }
               }
@@ -1351,12 +1729,121 @@
 
     function recalculateForecast(){
       const model = buildForecastModel();
+      currentForecastModel = model;
       renderForecastTotals(model);
-      renderUpcomingCashIn(model.visibleInvoices, model.today);
-      renderUpcomingCashOut(model.visibleBills, model.today);
+      renderUpcomingCashIn(model.displayInvoices, model.today);
+      renderUpcomingCashOut(model.displayBills, model.today);
       renderForecastChart(model);
+      renderForecastMetrics(model);
       renderForecastInsights(model);
       renderCashflowAlerts(model);
+    }
+
+    function balanceOnForecastDate(model, date){
+      let balance = model.openingBalance;
+      model.timeline.forEach(point => {
+        if (point.date <= date) balance = point.balance;
+      });
+      return balance;
+    }
+
+    function csvStatus(transaction, today){
+      if (transaction.forecastPaid) return "Paid";
+      if (transaction.forecastDueDate < today) return "Overdue";
+      if (transaction.forecastDueDate.getTime() === today.getTime()) return "Due today";
+      return "Upcoming";
+    }
+
+    function cashflowCsvRows(model){
+      const selectedProject = projects.find(project => String(project.id) === projectFilter.value);
+      const openingProject = selectedProject ? projectLabel(selectedProject) : "All Projects";
+      const rows = [{
+        date: model.today,
+        description: "Opening balance",
+        counterparty: "",
+        cashIn: "",
+        cashOut: "",
+        runningBalance: model.openingBalance,
+        project: openingProject,
+        status: "Opening"
+      }];
+
+      const forecastRows = model.events.map(event => ({
+        date: event.effectiveDate,
+        description: event.description,
+        counterparty: event.counterparty,
+        cashIn: event.type === "cash-in" ? Math.abs(event.amount) : "",
+        cashOut: event.type === "cash-out" ? Math.abs(event.amount) : "",
+        runningBalance: balanceOnForecastDate(model, event.effectiveDate),
+        project: transactionProjectLabel(event.transaction),
+        status: csvStatus(event.transaction, model.today)
+      }));
+
+      const paidRows = [
+        ...model.paidInvoices.map(invoice => ({ transaction: invoice, type: "cash-in" })),
+        ...model.paidBills.map(bill => ({ transaction: bill, type: "cash-out" }))
+      ].map(item => {
+        const effectiveDate = item.transaction.forecastDueDate < model.today
+          ? model.today
+          : item.transaction.forecastDueDate;
+        const isInvoice = item.type === "cash-in";
+        return {
+          date: effectiveDate,
+          description: isInvoice
+            ? (item.transaction.invoiceNo ? `Invoice ${item.transaction.invoiceNo}` : "Invoice")
+            : (item.transaction.billNumber ? `Bill ${item.transaction.billNumber}` : "Bill"),
+          counterparty: isInvoice
+            ? (item.transaction.client || item.transaction.customer || "Unknown customer")
+            : (item.transaction.supplier || "Unknown supplier"),
+          cashIn: isInvoice ? item.transaction.forecastAmount : "",
+          cashOut: isInvoice ? "" : item.transaction.forecastAmount,
+          runningBalance: balanceOnForecastDate(model, effectiveDate),
+          project: transactionProjectLabel(item.transaction),
+          status: "Paid"
+        };
+      });
+
+      return [
+        rows[0],
+        ...[...forecastRows, ...paidRows].sort((a, b) => a.date - b.date || a.description.localeCompare(b.description))
+      ];
+    }
+
+    function escapeCsv(value, protectFormula = false){
+      let text = String(value ?? "");
+      if (protectFormula && /^[=+\-@]/.test(text)) text = `'${text}`;
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function exportCurrentForecast(){
+      const model = currentForecastModel || buildForecastModel();
+      const headers = ["Date", "Description", "Customer/Supplier", "Cash In", "Cash Out", "Running Balance", "Project", "Status"];
+      const rows = cashflowCsvRows(model).map(row => [
+        dateKey(row.date),
+        row.description,
+        row.counterparty,
+        row.cashIn === "" ? "" : Number(row.cashIn).toFixed(2),
+        row.cashOut === "" ? "" : Number(row.cashOut).toFixed(2),
+        Number(row.runningBalance).toFixed(2),
+        row.project,
+        row.status
+      ]);
+      const csv = [
+        headers.map(value => escapeCsv(value)).join(","),
+        ...rows.map(row => row.map((value, index) =>
+          escapeCsv(value, index === 1 || index === 2 || index === 6 || index === 7)
+        ).join(","))
+      ].join("\r\n");
+      const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `simple-books-cashflow-${dateKey(model.today)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      forecastFeedback.textContent = "Cashflow CSV exported using the current filters.";
     }
 
     function validateOpeningBalance(){
@@ -1388,6 +1875,28 @@
       recalculateForecast();
     });
 
+    projectFilter.addEventListener("change", () => {
+      const selectedText = projectFilter.selectedOptions[0]?.textContent || "All Projects";
+      forecastFeedback.textContent = `${selectedText} selected. Forecast updated.`;
+      recalculateForecast();
+    });
+
+    includeOverdue.addEventListener("change", () => {
+      forecastFeedback.textContent = includeOverdue.checked
+        ? "Overdue items included in the forecast."
+        : "Overdue items excluded from the forecast.";
+      recalculateForecast();
+    });
+
+    showPaidTransactions.addEventListener("change", () => {
+      forecastFeedback.textContent = showPaidTransactions.checked
+        ? "Paid transactions are shown for reference and do not affect balances."
+        : "Paid transactions hidden.";
+      recalculateForecast();
+    });
+
+    exportCashflowCsv.addEventListener("click", exportCurrentForecast);
+
     forecastForm.addEventListener("submit", event => {
       event.preventDefault();
 
@@ -1404,18 +1913,24 @@
     function stopCashflowListeners(){
       if (unsubscribeInvoices) unsubscribeInvoices();
       if (unsubscribeBills) unsubscribeBills();
+      if (unsubscribeProjects) unsubscribeProjects();
       unsubscribeInvoices = null;
       unsubscribeBills = null;
+      unsubscribeProjects = null;
     }
 
     function subscribeToCashflowData(user){
       stopCashflowListeners();
       invoices = [];
       bills = [];
+      projects = [];
       invoicesLoaded = false;
       billsLoaded = false;
       invoiceLoadError = false;
       billLoadError = false;
+      projectsLoaded = false;
+      projectLoadError = false;
+      renderProjectFilter();
       recalculateForecast();
 
       if (!user) return;
@@ -1458,6 +1973,29 @@
           billsLoaded = true;
           billLoadError = true;
           forecastFeedback.textContent = "Some cashflow data could not be loaded. Please try again.";
+          recalculateForecast();
+        }
+      );
+
+      unsubscribeProjects = onSnapshot(
+        collection(db, "users", user.uid, "projects"),
+        snapshot => {
+          projects = snapshot.docs.map(projectDocument => ({
+            id: projectDocument.id,
+            ...projectDocument.data()
+          })).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+          projectsLoaded = true;
+          projectLoadError = false;
+          renderProjectFilter();
+          recalculateForecast();
+        },
+        error => {
+          console.error("Cashflow project load failed", error);
+          projects = [];
+          projectsLoaded = true;
+          projectLoadError = true;
+          renderProjectFilter();
+          forecastFeedback.textContent = "Projects could not be loaded. The All Projects forecast is still available.";
           recalculateForecast();
         }
       );
