@@ -227,40 +227,80 @@
       margin-bottom:16px;
     }
 
-    .forecast-placeholder{
+    .forecast-visual{
       position:relative;
-      display:grid;
-      min-height:280px;
-      padding:32px;
-      place-items:center;
+      min-height:320px;
+      padding:16px;
       overflow:hidden;
-      border:1px dashed #cbd5e1;
+      border:1px solid #e8eef5;
       border-radius:14px;
       background:linear-gradient(180deg,#fbfdff 0%,#f7faff 100%);
-      text-align:center;
     }
 
-    .empty-state{
-      max-width:560px;
+    .forecast-chart-shell{
+      position:relative;
+      width:100%;
+      height:290px;
     }
 
-    .empty-state-icon{
-      display:grid;
-      width:48px;
-      height:48px;
-      margin:0 auto 12px;
-      place-items:center;
-      border-radius:14px;
-      background:#e8f3ff;
-      color:var(--accent);
-      font-size:20px;
-      font-weight:900;
+    .forecast-chart-shell canvas{
+      display:block;
+      width:100% !important;
+      height:100% !important;
     }
 
-    .empty-state p{
-      margin:0;
+    .chart-summary{
+      margin:10px 2px 0;
       color:var(--muted);
-      line-height:1.5;
+      font-size:13px;
+      line-height:1.45;
+    }
+
+    .forecast-insights{
+      margin-top:20px;
+      padding-top:18px;
+      border-top:1px solid #e8eef5;
+    }
+
+    .forecast-insights h3{
+      margin:0 0 12px;
+      color:var(--heading);
+      font-size:16px;
+      line-height:1.3;
+    }
+
+    .insights-grid{
+      display:grid;
+      grid-template-columns:repeat(5,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .insight-item{
+      min-width:0;
+      padding:12px;
+      border:1px solid #e5ebf2;
+      border-radius:12px;
+      background:#f8fafc;
+    }
+
+    .insight-label{
+      display:block;
+      margin-bottom:6px;
+      color:var(--muted);
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.025em;
+      line-height:1.3;
+      text-transform:uppercase;
+    }
+
+    .insight-value{
+      display:block;
+      color:var(--heading);
+      font-size:15px;
+      font-weight:900;
+      line-height:1.35;
+      overflow-wrap:anywhere;
     }
 
     .upcoming-grid{
@@ -324,6 +364,39 @@
       white-space:nowrap;
     }
 
+    .due-date-wrap{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      white-space:nowrap;
+    }
+
+    .due-status{
+      display:inline-flex;
+      align-items:center;
+      min-height:22px;
+      padding:2px 7px;
+      border:1px solid #bfdbfe;
+      border-radius:999px;
+      background:#eff6ff;
+      color:#1d4ed8;
+      font-size:10px;
+      font-weight:850;
+      line-height:1.2;
+    }
+
+    .due-status.overdue{
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
+    }
+
+    .due-status.today{
+      border-color:#fde68a;
+      background:#fffbeb;
+      color:#92400e;
+    }
+
     .summary-list{
       margin:0;
     }
@@ -364,6 +437,70 @@
       border-top:2px solid #dbe3ec;
     }
 
+    .alerts-list{
+      display:grid;
+      gap:10px;
+    }
+
+    .cashflow-alert{
+      padding:14px 15px;
+      border:1px solid #e2e8f0;
+      border-left:5px solid #64748b;
+      border-radius:11px;
+      background:#f8fafc;
+    }
+
+    .cashflow-alert.critical{
+      border-left-color:#dc2626;
+      background:#fff7f7;
+    }
+
+    .cashflow-alert.warning{
+      border-left-color:#d97706;
+      background:#fffbeb;
+    }
+
+    .cashflow-alert.info{
+      border-left-color:var(--accent);
+      background:#f0f8ff;
+    }
+
+    .alert-heading{
+      display:flex;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-bottom:5px;
+    }
+
+    .alert-heading strong{
+      color:var(--heading);
+      font-size:14px;
+    }
+
+    .alert-severity{
+      display:inline-flex;
+      padding:2px 7px;
+      border:1px solid currentColor;
+      border-radius:999px;
+      color:#475569;
+      font-size:10px;
+      font-weight:850;
+      line-height:1.2;
+      text-transform:uppercase;
+    }
+
+    .cashflow-alert.critical .alert-severity{color:#b91c1c;}
+    .cashflow-alert.warning .alert-severity{color:#92400e;}
+    .cashflow-alert.info .alert-severity{color:#0369a1;}
+
+    .cashflow-alert p{
+      margin:0;
+      color:#475569;
+      font-size:13px;
+      line-height:1.5;
+    }
+
     .alerts-empty{
       padding:22px;
       border:1px dashed #cbd5e1;
@@ -377,12 +514,20 @@
       .kpi-grid{
         grid-template-columns:repeat(2,minmax(0,1fr));
       }
+
+      .insights-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+      }
     }
 
     @media (max-width:760px){
       .forecast-form,
       .upcoming-grid{
         grid-template-columns:1fr;
+      }
+
+      .insights-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
       }
 
       .forecast-form .btn{
@@ -403,9 +548,17 @@
         padding:16px;
       }
 
-      .forecast-placeholder{
-        min-height:230px;
-        padding:24px 16px;
+      .forecast-visual{
+        min-height:270px;
+        padding:12px;
+      }
+
+      .forecast-chart-shell{
+        height:240px;
+      }
+
+      .insights-grid{
+        grid-template-columns:1fr;
       }
 
       .summary-row{
@@ -500,13 +653,40 @@
         <p class="muted">Expected cash movement across the selected forecast period.</p>
       </div>
 
-      <div class="forecast-placeholder">
-        <div class="empty-state">
-          <div class="empty-state-icon" aria-hidden="true">↗</div>
-          <p>Your live forecast totals and upcoming movements are shown below. A visual forecast timeline will be added in a future stage.</p>
+      <div class="forecast-visual">
+        <div class="forecast-chart-shell">
+          <canvas id="cashflowForecastChart" role="img" aria-label="Line chart showing the projected cash balance by forecast date">
+            Projected cash balances by date are summarised below the chart.
+          </canvas>
         </div>
-        <canvas id="cashflowForecastChart" hidden aria-hidden="true"></canvas>
+        <p class="chart-summary" id="cashflowChartSummary" aria-live="polite">Preparing the cashflow forecast timeline.</p>
       </div>
+
+      <section class="forecast-insights" aria-labelledby="forecastInsightsTitle">
+        <h3 id="forecastInsightsTitle">Forecast insights</h3>
+        <div class="insights-grid">
+          <div class="insight-item">
+            <span class="insight-label">Lowest forecast balance</span>
+            <span class="insight-value" id="lowestForecastBalance">&pound;0.00</span>
+          </div>
+          <div class="insight-item">
+            <span class="insight-label">Lowest point</span>
+            <span class="insight-value" id="lowestForecastDate">Today</span>
+          </div>
+          <div class="insight-item">
+            <span class="insight-label">First negative balance</span>
+            <span class="insight-value" id="firstNegativeBalanceDate">Not projected</span>
+          </div>
+          <div class="insight-item">
+            <span class="insight-label">Overdue receipts</span>
+            <span class="insight-value" id="overdueReceiptsInsight">&pound;0.00 / 0 invoices</span>
+          </div>
+          <div class="insight-item">
+            <span class="insight-label">Overdue payments</span>
+            <span class="insight-value" id="overduePaymentsInsight">&pound;0.00 / 0 bills</span>
+          </div>
+        </div>
+      </section>
     </section>
 
     <section class="upcoming-grid" aria-label="Upcoming cash movements">
@@ -563,10 +743,13 @@
         <h2 id="alertsTitle">Cashflow alerts</h2>
         <p class="muted">Potential cashflow risks will appear here.</p>
       </div>
-      <div class="alerts-empty" id="cashflowAlertsEmpty">No cashflow alerts to show yet.</div>
+      <div class="alerts-list" id="cashflowAlerts" aria-live="polite">
+        <div class="alerts-empty">Reviewing this forecast for cashflow risks.</div>
+      </div>
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module">
     import { auth, db } from "../../firebase-config.js";
     import {
@@ -583,6 +766,8 @@
     const forecastFeedback = document.getElementById("forecastFeedback");
     const upcomingCashInBody = document.getElementById("upcomingCashInBody");
     const upcomingCashOutBody = document.getElementById("upcomingCashOutBody");
+    const cashflowAlerts = document.getElementById("cashflowAlerts");
+    const cashflowChartCanvas = document.getElementById("cashflowForecastChart");
 
     let invoices = [];
     let bills = [];
@@ -592,6 +777,7 @@
     let billLoadError = false;
     let unsubscribeInvoices = null;
     let unsubscribeBills = null;
+    let cashflowForecastChart = null;
 
     function formatCurrency(value){
       const numericValue = Number(value);
@@ -674,16 +860,36 @@
       });
     }
 
-    function forecastEndDate(){
-      const endDate = new Date();
-      endDate.setHours(23, 59, 59, 999);
+    function localToday(){
+      const today = new Date();
+      return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    }
+
+    function dateKey(date){
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function addCalendarMonths(date, months){
+      const result = new Date(date.getFullYear(), date.getMonth(), 1);
+      result.setMonth(result.getMonth() + months);
+      const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+      result.setDate(Math.min(date.getDate(), lastDay));
+      return result;
+    }
+
+    function forecastEndDate(startDate = localToday()){
+      let endDate;
 
       if (forecastPeriod.value === "6months") {
-        endDate.setMonth(endDate.getMonth() + 6);
+        endDate = addCalendarMonths(startDate, 6);
       } else if (forecastPeriod.value === "12months") {
-        endDate.setMonth(endDate.getMonth() + 12);
+        endDate = addCalendarMonths(startDate, 12);
       } else {
         const days = Number(forecastPeriod.value) || 90;
+        endDate = new Date(startDate.getTime());
         endDate.setDate(endDate.getDate() + days);
       }
 
@@ -699,8 +905,7 @@
       return String(transaction.status || "Unpaid").trim().toLowerCase() !== "paid";
     }
 
-    function transactionsInsideForecastPeriod(transactions){
-      const endDate = forecastEndDate();
+    function transactionsInsideForecastPeriod(transactions, endDate){
 
       return transactions
         .filter(transaction => {
@@ -726,7 +931,24 @@
       if (element) element.textContent = value;
     }
 
-    function renderUpcomingCashIn(visibleInvoices){
+    function dueStatus(date, today){
+      const difference = date - today;
+      if (difference < 0) return { label: "Overdue", className: "overdue" };
+      if (difference === 0) return { label: "Due today", className: "today" };
+      return { label: "Upcoming", className: "upcoming" };
+    }
+
+    function dueDateCell(date, today){
+      const status = dueStatus(date, today);
+      return `
+        <div class="due-date-wrap">
+          <span>${escapeHtml(formatDueDate(date))}</span>
+          <span class="due-status ${status.className}">${status.label}</span>
+        </div>
+      `;
+    }
+
+    function renderUpcomingCashIn(visibleInvoices, today){
       if (invoiceLoadError) {
         upcomingCashInBody.innerHTML = '<tr class="empty-row"><td colspan="4">Expected receipts could not be loaded.</td></tr>';
         return;
@@ -744,7 +966,7 @@
 
       upcomingCashInBody.innerHTML = visibleInvoices.map(invoice => `
         <tr>
-          <td>${escapeHtml(formatDueDate(invoice.forecastDueDate))}</td>
+          <td>${dueDateCell(invoice.forecastDueDate, today)}</td>
           <td>${escapeHtml(invoice.client || "Unknown customer")}</td>
           <td>${escapeHtml(invoice.invoiceNo || "No invoice number")}</td>
           <td>${escapeHtml(formatCurrency(invoice.forecastAmount))}</td>
@@ -752,7 +974,7 @@
       `).join("");
     }
 
-    function renderUpcomingCashOut(visibleBills){
+    function renderUpcomingCashOut(visibleBills, today){
       if (billLoadError) {
         upcomingCashOutBody.innerHTML = '<tr class="empty-row"><td colspan="4">Expected payments could not be loaded.</td></tr>';
         return;
@@ -770,7 +992,7 @@
 
       upcomingCashOutBody.innerHTML = visibleBills.map(bill => `
         <tr>
-          <td>${escapeHtml(formatDueDate(bill.forecastDueDate))}</td>
+          <td>${dueDateCell(bill.forecastDueDate, today)}</td>
           <td>${escapeHtml(bill.supplier || "Unknown supplier")}</td>
           <td>${escapeHtml(bill.billNumber || "No bill number")}</td>
           <td>${escapeHtml(formatCurrency(bill.forecastAmount))}</td>
@@ -778,33 +1000,363 @@
       `).join("");
     }
 
-    function recalculateForecast(){
-      const visibleInvoices = transactionsInsideForecastPeriod(invoices);
-      const visibleBills = transactionsInsideForecastPeriod(bills);
+    function buildForecastModel(){
+      const today = localToday();
+      const endDate = forecastEndDate(today);
+      const visibleInvoices = transactionsInsideForecastPeriod(invoices, endDate);
+      const visibleBills = transactionsInsideForecastPeriod(bills, endDate);
       const openingBalance = openingBalanceValue();
       const expectedMoneyIn = visibleInvoices.reduce((sum, invoice) => sum + invoice.forecastAmount, 0);
       const expectedMoneyOut = visibleBills.reduce((sum, bill) => sum + bill.forecastAmount, 0);
       const netCashMovement = expectedMoneyIn - expectedMoneyOut;
       const forecastClosingBalance = openingBalance + netCashMovement;
+      const overdueInvoices = visibleInvoices.filter(invoice => invoice.forecastDueDate < today);
+      const overdueBills = visibleBills.filter(bill => bill.forecastDueDate < today);
+      const overdueReceipts = overdueInvoices.reduce((sum, invoice) => sum + invoice.forecastAmount, 0);
+      const overduePayments = overdueBills.reduce((sum, bill) => sum + bill.forecastAmount, 0);
+
+      const events = [
+        ...visibleInvoices.map(invoice => ({
+          id: invoice.id,
+          originalDate: invoice.forecastDueDate,
+          effectiveDate: invoice.forecastDueDate < today ? today : invoice.forecastDueDate,
+          type: "cash-in",
+          amount: invoice.forecastAmount,
+          label: `${invoice.client || invoice.customer || "Unknown customer"} · ${invoice.invoiceNo || "No invoice number"}`
+        })),
+        ...visibleBills.map(bill => ({
+          id: bill.id,
+          originalDate: bill.forecastDueDate,
+          effectiveDate: bill.forecastDueDate < today ? today : bill.forecastDueDate,
+          type: "cash-out",
+          amount: -bill.forecastAmount,
+          label: `${bill.supplier || "Unknown supplier"} · ${bill.billNumber || "No bill number"}`
+        }))
+      ].sort((a, b) => a.effectiveDate - b.effectiveDate || a.label.localeCompare(b.label));
+
+      const dailyGroups = new Map();
+      events.forEach(event => {
+        const key = dateKey(event.effectiveDate);
+        if (!dailyGroups.has(key)) {
+          dailyGroups.set(key, {
+            key,
+            date: event.effectiveDate,
+            cashIn: 0,
+            cashOut: 0,
+            netMovement: 0,
+            events: []
+          });
+        }
+
+        const group = dailyGroups.get(key);
+        group.events.push(event);
+        if (event.type === "cash-in") {
+          group.cashIn += event.amount;
+        } else {
+          group.cashOut += Math.abs(event.amount);
+        }
+        group.netMovement += event.amount;
+      });
+
+      let runningBalance = openingBalance;
+      const timeline = Array.from(dailyGroups.values())
+        .sort((a, b) => a.date - b.date)
+        .map(group => {
+          runningBalance += group.netMovement;
+          return { ...group, balance: runningBalance };
+        });
+
+      const openingPoint = {
+        key: `${dateKey(today)}-opening`,
+        date: today,
+        cashIn: 0,
+        cashOut: 0,
+        netMovement: 0,
+        balance: openingBalance,
+        isOpening: true
+      };
+      const forecastPoints = [openingPoint, ...timeline];
+      const lowestPoint = forecastPoints.reduce(
+        (lowest, point) => point.balance < lowest.balance ? point : lowest,
+        openingPoint
+      );
+      const firstNegativePoint = timeline.find(point => point.balance < 0) || null;
+      const negativePointCount = timeline.filter(point => point.balance < 0).length;
+      const oldestOverdueInvoiceDate = overdueInvoices.length ? overdueInvoices[0].forecastDueDate : null;
+      const oldestOverdueBillDate = overdueBills.length ? overdueBills[0].forecastDueDate : null;
+
+      return {
+        today,
+        endDate,
+        openingBalance,
+        visibleInvoices,
+        visibleBills,
+        expectedMoneyIn,
+        expectedMoneyOut,
+        netCashMovement,
+        forecastClosingBalance,
+        events,
+        timeline,
+        openingPoint,
+        lowestPoint,
+        firstNegativePoint,
+        negativePointCount,
+        overdueInvoices,
+        overdueBills,
+        overdueReceipts,
+        overduePayments,
+        oldestOverdueInvoiceDate,
+        oldestOverdueBillDate
+      };
+    }
+
+    function renderForecastTotals(model){
       const hasValidOpeningBalance = openingCashBalance.value.trim() &&
         openingCashBalance.checkValidity();
 
-      setText("currentCashPositionValue", formatCurrency(openingBalance));
+      setText("currentCashPositionValue", formatCurrency(model.openingBalance));
       setText("currentCashPositionMeta", hasValidOpeningBalance ? "From opening balance" : "Opening balance not set");
-      setText("expectedMoneyInValue", formatCurrency(expectedMoneyIn));
-      setText("expectedMoneyInMeta", `${visibleInvoices.length} unpaid invoice${visibleInvoices.length === 1 ? "" : "s"} in period`);
-      setText("expectedMoneyOutValue", formatCurrency(expectedMoneyOut));
-      setText("expectedMoneyOutMeta", `${visibleBills.length} unpaid bill${visibleBills.length === 1 ? "" : "s"} in period`);
-      setText("forecastBalanceValue", formatCurrency(forecastClosingBalance));
+      setText("expectedMoneyInValue", formatCurrency(model.expectedMoneyIn));
+      setText("expectedMoneyInMeta", `${model.visibleInvoices.length} unpaid invoice${model.visibleInvoices.length === 1 ? "" : "s"} in period`);
+      setText("expectedMoneyOutValue", formatCurrency(model.expectedMoneyOut));
+      setText("expectedMoneyOutMeta", `${model.visibleBills.length} unpaid bill${model.visibleBills.length === 1 ? "" : "s"} in period`);
+      setText("forecastBalanceValue", formatCurrency(model.forecastClosingBalance));
+      setText("forecastBalanceMeta", model.forecastClosingBalance < 0
+        ? "Projected closing balance is below zero"
+        : "Opening cash plus expected movement");
 
-      setText("summaryOpeningCashBalance", formatCurrency(openingBalance));
-      setText("summaryExpectedReceipts", formatCurrency(expectedMoneyIn));
-      setText("summaryExpectedPayments", formatCurrency(expectedMoneyOut));
-      setText("summaryNetCashMovement", formatCurrency(netCashMovement));
-      setText("summaryForecastClosingBalance", formatCurrency(forecastClosingBalance));
+      setText("summaryOpeningCashBalance", formatCurrency(model.openingBalance));
+      setText("summaryExpectedReceipts", formatCurrency(model.expectedMoneyIn));
+      setText("summaryExpectedPayments", formatCurrency(model.expectedMoneyOut));
+      setText("summaryNetCashMovement", formatCurrency(model.netCashMovement));
+      setText("summaryForecastClosingBalance", formatCurrency(model.forecastClosingBalance));
+    }
 
-      renderUpcomingCashIn(visibleInvoices);
-      renderUpcomingCashOut(visibleBills);
+    function renderForecastInsights(model){
+      const overdueInvoiceLabel = `${model.overdueInvoices.length} invoice${model.overdueInvoices.length === 1 ? "" : "s"}`;
+      const overdueBillLabel = `${model.overdueBills.length} bill${model.overdueBills.length === 1 ? "" : "s"}`;
+
+      setText("lowestForecastBalance", formatCurrency(model.lowestPoint.balance));
+      setText("lowestForecastDate", model.lowestPoint.isOpening ? `${formatDueDate(model.today)} (opening)` : formatDueDate(model.lowestPoint.date));
+      setText("firstNegativeBalanceDate", model.firstNegativePoint ? formatDueDate(model.firstNegativePoint.date) : "Not projected");
+      setText("overdueReceiptsInsight", `${formatCurrency(model.overdueReceipts)} / ${overdueInvoiceLabel}`);
+      setText("overduePaymentsInsight", `${formatCurrency(model.overduePayments)} / ${overdueBillLabel}`);
+    }
+
+    function chartPointsForModel(model){
+      const points = [model.openingPoint, ...model.timeline];
+      const lastPoint = points[points.length - 1];
+
+      if (dateKey(lastPoint.date) !== dateKey(model.endDate)) {
+        points.push({
+          key: `${dateKey(model.endDate)}-closing`,
+          date: model.endDate,
+          cashIn: 0,
+          cashOut: 0,
+          netMovement: 0,
+          balance: model.forecastClosingBalance,
+          isClosingExtension: true
+        });
+      }
+
+      return points;
+    }
+
+    function renderForecastChart(model){
+      const chartPoints = chartPointsForModel(model);
+
+      if (cashflowForecastChart) {
+        cashflowForecastChart.destroy();
+        cashflowForecastChart = null;
+      }
+
+      const movementCount = model.events.length;
+      const summary = movementCount
+        ? `Forecast from ${formatDueDate(model.today)} to ${formatDueDate(model.endDate)} with ${movementCount} cash movement${movementCount === 1 ? "" : "s"}. Closing balance ${formatCurrency(model.forecastClosingBalance)}; lowest balance ${formatCurrency(model.lowestPoint.balance)}.`
+        : `No unpaid invoice or bill movements fall in this period. The balance remains at ${formatCurrency(model.openingBalance)} through ${formatDueDate(model.endDate)}.`;
+      setText("cashflowChartSummary", summary);
+
+      if (typeof window.Chart === "undefined") {
+        cashflowChartCanvas.hidden = true;
+        setText("cashflowChartSummary", `The chart could not be displayed. ${summary}`);
+        return;
+      }
+
+      cashflowChartCanvas.hidden = false;
+      cashflowForecastChart = new window.Chart(cashflowChartCanvas, {
+        type: "line",
+        data: {
+          labels: chartPoints.map(point => {
+            const label = point.date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+            return point.isOpening ? `${label} opening` : label;
+          }),
+          datasets: [{
+            label: "Forecast cash balance",
+            data: chartPoints.map(point => point.balance),
+            borderColor: "#0077B6",
+            backgroundColor: "rgba(0,119,182,.12)",
+            pointBackgroundColor: chartPoints.map(point => point.balance < 0 ? "#dc2626" : "#0077B6"),
+            pointBorderColor: "#ffffff",
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            borderWidth: 3,
+            tension: .22,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { intersect: false, mode: "index" },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title(items){
+                  const point = chartPoints[items[0]?.dataIndex || 0];
+                  if (point.isOpening) return `${formatDueDate(point.date)} · Opening balance`;
+                  if (point.isClosingExtension) return `${formatDueDate(point.date)} · Forecast end`;
+                  return formatDueDate(point.date);
+                },
+                label(context){
+                  return `Closing balance: ${formatCurrency(context.parsed.y)}`;
+                },
+                afterLabel(context){
+                  const point = chartPoints[context.dataIndex];
+                  return [
+                    `Cash in: ${formatCurrency(point.cashIn)}`,
+                    `Cash out: ${formatCurrency(point.cashOut)}`,
+                    `Net movement: ${formatCurrency(point.netMovement)}`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: "#64748b", maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+            },
+            y: {
+              beginAtZero: false,
+              grid: { color: "rgba(148,163,184,.22)" },
+              ticks: {
+                color: "#64748b",
+                callback(value){ return formatCurrency(value); }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderCashflowAlerts(model){
+      if ((!invoicesLoaded && !invoiceLoadError) || (!billsLoaded && !billLoadError)) {
+        cashflowAlerts.innerHTML = '<div class="alerts-empty">Reviewing this forecast for cashflow risks.</div>';
+        return;
+      }
+
+      const alerts = [];
+      const addAlert = (priority, tone, severity, title, message) => {
+        alerts.push({ priority, tone, severity, title, message, order: alerts.length });
+      };
+
+      if (model.firstNegativePoint) {
+        addAlert(
+          1,
+          "critical",
+          "High priority",
+          "Negative forecast balance",
+          `Cash balance is projected to fall below zero on ${formatDueDate(model.firstNegativePoint.date)}. The lowest projected balance is ${formatCurrency(model.lowestPoint.balance)} across ${model.negativePointCount} negative forecast point${model.negativePointCount === 1 ? "" : "s"}.`
+        );
+      }
+
+      if (model.forecastClosingBalance < 0) {
+        addAlert(1, "critical", "High priority", "Negative closing balance", `Forecast closes at ${formatCurrency(model.forecastClosingBalance)}.`);
+      }
+
+      if (model.overdueInvoices.length) {
+        addAlert(
+          2,
+          "warning",
+          "Attention",
+          "Overdue unpaid invoices",
+          `${model.overdueInvoices.length} overdue invoice${model.overdueInvoices.length === 1 ? "" : "s"} total ${formatCurrency(model.overdueReceipts)}. The oldest was due ${formatDueDate(model.oldestOverdueInvoiceDate)}.`
+        );
+      }
+
+      if (model.overdueBills.length) {
+        addAlert(
+          2,
+          "warning",
+          "Attention",
+          "Overdue unpaid bills",
+          `${model.overdueBills.length} overdue bill${model.overdueBills.length === 1 ? "" : "s"} total ${formatCurrency(model.overduePayments)}. The oldest was due ${formatDueDate(model.oldestOverdueBillDate)}.`
+        );
+      }
+
+      if (model.expectedMoneyOut > model.expectedMoneyIn) {
+        addAlert(
+          3,
+          "warning",
+          "Attention",
+          "Payments exceed receipts",
+          `Expected payments exceed expected receipts by ${formatCurrency(model.expectedMoneyOut - model.expectedMoneyIn)} during this forecast period.`
+        );
+      }
+
+      if (model.expectedMoneyIn === 0 && model.expectedMoneyOut > 0) {
+        addAlert(
+          3,
+          "warning",
+          "Attention",
+          "No expected receipts",
+          `No invoice receipts are expected while ${formatCurrency(model.expectedMoneyOut)} of bill payments are forecast.`
+        );
+      }
+
+      const lowBalanceThreshold = Math.max(model.openingBalance > 0 ? model.openingBalance * .1 : 0, 100);
+      if (model.forecastClosingBalance >= 0 && model.forecastClosingBalance < lowBalanceThreshold) {
+        addAlert(
+          4,
+          "info",
+          "Information",
+          "Low closing balance",
+          `Forecast closes at ${formatCurrency(model.forecastClosingBalance)}, below the informational threshold of ${formatCurrency(lowBalanceThreshold)}.`
+        );
+      }
+
+      if (invoiceLoadError || billLoadError) {
+        addAlert(5, "info", "Information", "Forecast data incomplete", "Some invoice or bill data could not be loaded, so this forecast may be incomplete.");
+      }
+
+      alerts.sort((a, b) => a.priority - b.priority || a.order - b.order);
+
+      if (!alerts.length) {
+        cashflowAlerts.innerHTML = '<div class="alerts-empty">No cashflow risks identified for this forecast period.</div>';
+        return;
+      }
+
+      cashflowAlerts.innerHTML = alerts.map(alert => `
+        <article class="cashflow-alert ${alert.tone}">
+          <div class="alert-heading">
+            <span class="alert-severity">${escapeHtml(alert.severity)}</span>
+            <strong>${escapeHtml(alert.title)}</strong>
+          </div>
+          <p>${escapeHtml(alert.message)}</p>
+        </article>
+      `).join("");
+    }
+
+    function recalculateForecast(){
+      const model = buildForecastModel();
+      renderForecastTotals(model);
+      renderUpcomingCashIn(model.visibleInvoices, model.today);
+      renderUpcomingCashOut(model.visibleBills, model.today);
+      renderForecastChart(model);
+      renderForecastInsights(model);
+      renderCashflowAlerts(model);
     }
 
     function validateOpeningBalance(){
@@ -912,6 +1464,10 @@
     }
 
     onAuthStateChanged(auth, subscribeToCashflowData);
+    window.addEventListener("beforeunload", () => {
+      stopCashflowListeners();
+      if (cashflowForecastChart) cashflowForecastChart.destroy();
+    });
     recalculateForecast();
   </script>
 </body>
