@@ -1,0 +1,1875 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Budgets | Simple Books</title>
+  <script type="module" src="/auth-guard.js"></script>
+
+  <style>
+    :root{
+      --accent:#0077B6;
+      --accent-dark:#005f91;
+      --bg:#f4f7fb;
+      --card:#fff;
+      --text:#1f2933;
+      --muted:#64748b;
+      --border:#dbe3ec;
+      --success:#15803d;
+      --danger:#b42318;
+    }
+
+    *,*::before,*::after{box-sizing:border-box;}
+
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    }
+
+    button,input,select{font:inherit;}
+    button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
+      outline:3px solid rgba(0,119,182,.28);
+      outline-offset:2px;
+    }
+
+    h1,h2,h3,p{margin-top:0;}
+    h1{margin-bottom:7px;color:#102033;font-size:32px;line-height:1.1;}
+    h2{margin-bottom:5px;color:#102033;font-size:20px;}
+    h3{margin-bottom:5px;color:#102033;font-size:16px;}
+    .muted{color:var(--muted);line-height:1.5;}
+
+    .visually-hidden{
+      position:absolute;
+      width:1px;
+      height:1px;
+      padding:0;
+      margin:-1px;
+      overflow:hidden;
+      clip:rect(0,0,0,0);
+      white-space:nowrap;
+      border:0;
+    }
+
+    .page-title-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:24px;
+      margin:8px 0 20px;
+    }
+
+    .page-title-copy{display:flex;align-items:center;gap:14px;min-width:0;}
+    .page-title-copy p{max-width:720px;margin-bottom:0;}
+    .page-title-icon{
+      display:grid;
+      flex:0 0 48px;
+      width:48px;
+      height:48px;
+      place-items:center;
+      border-radius:14px;
+      background:linear-gradient(135deg,#0077B6,#0f9f9a);
+      color:#fff;
+      font-size:22px;
+      font-weight:900;
+      box-shadow:0 10px 24px rgba(0,119,182,.2);
+    }
+
+    .header-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;}
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:42px;
+      padding:10px 16px;
+      border:1px solid var(--accent);
+      border-radius:10px;
+      background:var(--accent);
+      color:#fff;
+      font-weight:800;
+      line-height:1.2;
+      cursor:pointer;
+    }
+    .btn:hover{background:var(--accent-dark);border-color:var(--accent-dark);}
+    .btn-secondary{background:#fff;color:var(--accent);}
+    .btn-secondary:hover{background:#eff8ff;color:var(--accent-dark);}
+    .btn:disabled{border-color:#cbd5e1;background:#e2e8f0;color:#64748b;cursor:not-allowed;}
+
+    .feedback{
+      margin:0 0 16px;
+      padding:12px 14px;
+      border:1px solid #bae6fd;
+      border-radius:10px;
+      background:#f0f9ff;
+      color:#075985;
+      font-size:14px;
+      font-weight:700;
+    }
+    .feedback.error{border-color:#fecaca;background:#fef2f2;color:#991b1b;}
+    .feedback[hidden]{display:none;}
+
+    .card{
+      min-width:0;
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      background:var(--card);
+      box-shadow:0 14px 34px rgba(15,23,42,.07);
+    }
+
+    .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px;}
+    .kpi-card{position:relative;min-height:112px;overflow:hidden;padding:20px;}
+    .kpi-card::before{content:"";position:absolute;inset:0 0 auto;height:4px;background:var(--kpi-accent,var(--accent));}
+    .kpi-card:nth-child(2){--kpi-accent:#7c3aed;}
+    .kpi-card:nth-child(3){--kpi-accent:#16a34a;}
+    .kpi-card:nth-child(4){--kpi-accent:#dc2626;}
+    .kpi-label{color:#64748b;font-size:13px;font-weight:800;}
+    .kpi-value{margin-top:10px;color:#102033;font-size:27px;font-weight:900;line-height:1.1;}
+    .kpi-meta{margin-top:7px;color:#94a3b8;font-size:12px;font-weight:700;}
+
+    .filters-card{margin-bottom:16px;padding:18px 20px;}
+    .filters-heading{margin-bottom:14px;}
+    .filters-heading p{margin-bottom:0;}
+    .filter-grid{display:grid;grid-template-columns:minmax(210px,1.4fr) repeat(4,minmax(135px,1fr)) auto;gap:14px;align-items:end;}
+    .field{min-width:0;}
+    .field label{display:block;margin-bottom:6px;color:#334155;font-size:13px;font-weight:800;}
+    .field input,.field select{
+      width:100%;
+      min-width:0;
+      height:42px;
+      padding:9px 11px;
+      border:1px solid #cbd5e1;
+      border-radius:10px;
+      background:#fff;
+      color:#1e293b;
+    }
+    .field input::placeholder{color:#94a3b8;}
+    .field-hint{display:block;margin-top:6px;color:#64748b;font-size:12px;line-height:1.4;}
+    .field-error{display:block;min-height:18px;margin-top:4px;color:var(--danger);font-size:12px;font-weight:700;}
+    .field input[aria-invalid="true"],.field select[aria-invalid="true"]{border-color:#dc2626;background:#fffafa;}
+    .clear-filters{white-space:nowrap;}
+
+    .content-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.75fr);gap:16px;margin-bottom:16px;}
+    .empty-card{display:grid;min-height:390px;padding:28px;place-items:center;text-align:center;}
+    .empty-state{max-width:590px;}
+    .empty-illustration{
+      display:grid;
+      width:74px;
+      height:74px;
+      margin:0 auto 18px;
+      place-items:center;
+      border:1px solid #bae6fd;
+      border-radius:24px;
+      background:linear-gradient(135deg,#f0f9ff,#ecfdf5);
+      color:var(--accent);
+      font-size:32px;
+      font-weight:900;
+      transform:rotate(-3deg);
+    }
+    .empty-state h2{font-size:23px;}
+    .empty-state p{margin:8px auto 18px;color:var(--muted);line-height:1.55;}
+    .measure-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:22px 0 0;text-align:left;}
+    .measure-item{padding:13px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;}
+    .measure-item strong{display:block;margin-bottom:4px;color:#102033;font-size:13px;}
+    .measure-item span{color:#64748b;font-size:12px;line-height:1.4;}
+
+    .how-card{padding:22px;}
+    .how-card > p{margin-bottom:18px;}
+    .how-list{display:grid;gap:14px;margin:0;padding:0;list-style:none;}
+    .how-list li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;color:#475569;font-size:13px;line-height:1.45;}
+    .how-icon{display:grid;width:28px;height:28px;place-items:center;border-radius:9px;background:#e0f2fe;color:#0369a1;font-weight:900;}
+
+    .list-card{min-height:390px;padding:22px;}
+    .list-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;}
+    .list-heading p{margin-bottom:0;}
+    .result-count{flex:0 0 auto;color:#64748b;font-size:13px;font-weight:800;}
+    .budget-list{display:grid;gap:13px;}
+    .budget-record{padding:17px;border:1px solid #dbe3ec;border-radius:14px;background:#fff;}
+    .budget-record-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;}
+    .budget-record-heading h3{margin-bottom:4px;font-size:18px;overflow-wrap:anywhere;}
+    .budget-record-period{color:#64748b;font-size:12px;font-weight:700;line-height:1.4;}
+    .status-badge{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:900;}
+    .status-active{background:#dcfce7;color:#166534;}
+    .status-completed{background:#e2e8f0;color:#475569;}
+    .budget-record-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px;}
+    .record-detail{min-width:0;padding:10px 11px;border-radius:10px;background:#f8fafc;}
+    .record-detail span{display:block;margin-bottom:4px;color:#64748b;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;}
+    .record-detail strong{display:block;color:#1e293b;font-size:13px;line-height:1.4;overflow-wrap:anywhere;}
+    .budget-progress-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;}
+    .progress-track{height:9px;overflow:hidden;border-radius:999px;background:#e2e8f0;}
+    .progress-fill{width:0;height:100%;border-radius:inherit;background:#94a3b8;}
+    .progress-fill.within{background:#16a34a;}
+    .progress-fill.approaching{background:#f59e0b;}
+    .progress-fill.over{background:#dc2626;}
+    .progress-label{color:#64748b;font-size:12px;font-weight:900;}
+    .indicator-badge{display:inline-flex;margin:8px 0 0;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:900;text-transform:none;letter-spacing:normal;}
+    .indicator-within{background:#dcfce7;color:#166534;}
+    .indicator-approaching{background:#fef3c7;color:#92400e;}
+    .indicator-over{background:#fee2e2;color:#991b1b;}
+    .record-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;padding-top:13px;border-top:1px solid #e2e8f0;}
+    .btn-small{min-height:36px;padding:7px 12px;font-size:13px;}
+    .btn-danger{border-color:#fecaca;background:#fff;color:#b42318;}
+    .btn-danger:hover{border-color:#b42318;background:#fef2f2;color:#991b1b;}
+    .state-panel{display:grid;min-height:285px;padding:22px;place-items:center;text-align:center;}
+    .state-panel[hidden],.budget-list[hidden]{display:none;}
+    .state-panel .empty-state{max-width:550px;}
+    .loading-mark{animation:pulse 1.25s ease-in-out infinite;}
+    @keyframes pulse{50%{opacity:.45;transform:scale(.94) rotate(-3deg);}}
+
+    .analytics-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:16px;margin-bottom:16px;}
+    .chart-card{min-width:0;padding:22px;}
+    .chart-card p{margin-bottom:0;}
+    .chart-shell{position:relative;width:100%;min-width:0;height:310px;margin-top:18px;overflow:hidden;}
+    .chart-shell[hidden],.chart-empty[hidden],.chart-note[hidden]{display:none;}
+    .chart-shell canvas{display:block;max-width:100%;}
+    .chart-empty{
+      display:grid;
+      min-height:150px;
+      margin-top:18px;
+      padding:18px;
+      place-items:center;
+      border:1px dashed #cbd5e1;
+      border-radius:13px;
+      background:#f8fafc;
+      color:#64748b;
+      text-align:center;
+    }
+    .chart-empty span{display:block;margin-bottom:7px;color:#94a3b8;font-size:28px;font-weight:900;}
+    .chart-empty strong{display:block;color:#475569;font-size:14px;}
+    .chart-empty small{display:block;margin-top:5px;line-height:1.4;}
+    .chart-note,.chart-text-summary{margin-top:10px;color:#64748b;font-size:12px;font-weight:700;line-height:1.45;}
+    .analytics-summary-card{padding:22px;margin-bottom:16px;}
+    .analytics-summary-card > p{margin-bottom:16px;}
+    .analytics-summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;}
+    .analytics-insight{min-width:0;padding:13px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;}
+    .analytics-insight span{display:block;margin-bottom:5px;color:#64748b;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;}
+    .analytics-insight strong{display:block;color:#102033;font-size:14px;line-height:1.4;overflow-wrap:anywhere;}
+    .analytics-insight small{display:block;margin-top:4px;color:#64748b;line-height:1.35;}
+
+    .alerts-card{padding:22px;margin-bottom:16px;}
+    .alerts-placeholder{display:flex;align-items:center;gap:14px;margin-top:16px;padding:17px;border:1px dashed #cbd5e1;border-radius:13px;background:#f8fafc;color:#64748b;}
+    .alerts-placeholder span{display:grid;flex:0 0 38px;width:38px;height:38px;place-items:center;border-radius:12px;background:#fff7ed;color:#c2410c;font-weight:900;}
+    .alerts-placeholder strong{display:block;margin-bottom:3px;color:#475569;}
+    .alerts-list{display:grid;gap:10px;margin-top:16px;}
+    .budget-alert{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;padding:14px;border:1px solid #fde68a;border-radius:12px;background:#fffbeb;}
+    .budget-alert.over{border-color:#fecaca;background:#fef2f2;}
+    .alert-mark{display:grid;width:34px;height:34px;place-items:center;border-radius:10px;background:#fef3c7;color:#92400e;font-weight:900;}
+    .budget-alert.over .alert-mark{background:#fee2e2;color:#991b1b;}
+    .budget-alert strong{display:block;margin-bottom:3px;color:#1e293b;}
+    .budget-alert p{margin:0;color:#64748b;font-size:13px;line-height:1.45;}
+    .alert-action{align-self:center;white-space:nowrap;}
+    .budget-record:focus{outline:3px solid rgba(0,119,182,.3);outline-offset:3px;}
+    .budget-position-over{color:#b42318 !important;}
+    .source-warning,.data-quality-warning{margin:0 0 16px;padding:12px 14px;border:1px solid #fed7aa;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px;font-weight:700;line-height:1.45;}
+    .source-warning[hidden],.data-quality-warning[hidden]{display:none;}
+
+    .modal-overlay{
+      position:fixed;
+      z-index:1000;
+      inset:0;
+      display:grid;
+      padding:20px;
+      place-items:center;
+      background:rgba(15,23,42,.56);
+    }
+    .modal-overlay[hidden]{display:none;}
+    .modal{width:min(100%,760px);max-height:calc(100vh - 40px);overflow:auto;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.28);}
+    .modal-small{width:min(100%,500px);}
+    .modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px;border-bottom:1px solid #e2e8f0;}
+    .modal-header p{margin-bottom:0;}
+    .modal-close{display:grid;width:38px;height:38px;place-items:center;border:0;border-radius:10px;background:#f1f5f9;color:#475569;font-size:24px;cursor:pointer;}
+    .modal-body{padding:22px;}
+    .modal-body p:last-child{margin-bottom:0;}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px;}
+    .field-wide{grid-column:1/-1;}
+    .period-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px;grid-column:1/-1;}
+    .period-fields[hidden],.category-field[hidden]{display:none;}
+    .form-feedback{margin-bottom:16px;padding:11px 13px;border:1px solid #fecaca;border-radius:10px;background:#fef2f2;color:#991b1b;font-size:13px;font-weight:700;}
+    .form-feedback[hidden]{display:none;}
+    .modal-actions{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid #e2e8f0;background:#f8fafc;}
+
+    @media (max-width:1100px){
+      .filter-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+      .content-grid{grid-template-columns:1fr;}
+      .how-card{min-height:0;}
+      .budget-record-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+      .analytics-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+    }
+
+    @media (max-width:820px){
+      .page-title-row{align-items:flex-start;flex-direction:column;}
+      .header-actions{width:100%;justify-content:flex-start;}
+      .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+      .analytics-grid{grid-template-columns:1fr;}
+      .measure-list{grid-template-columns:1fr;}
+    }
+
+    @media (max-width:640px){
+      h1{font-size:28px;}
+      .page-title-copy{align-items:flex-start;}
+      .page-title-icon{width:42px;height:42px;flex-basis:42px;border-radius:12px;}
+      .header-actions{display:grid;grid-template-columns:1fr 1fr;}
+      .header-actions .btn:first-child{grid-column:1/-1;}
+      .kpi-grid,.filter-grid{grid-template-columns:1fr;}
+      .form-grid,.period-fields,.budget-record-grid{grid-template-columns:1fr;}
+      .field-wide,.period-fields{grid-column:auto;}
+      .kpi-card{min-height:0;}
+      .empty-card{min-height:0;padding:24px 18px;}
+      .alerts-placeholder{align-items:flex-start;}
+      .modal-overlay{padding:12px;}
+      .modal{max-height:calc(100vh - 24px);}
+      .budget-record-heading{align-items:flex-start;flex-direction:column;}
+      .record-actions{justify-content:stretch;}
+      .record-actions .btn{flex:1;}
+      .analytics-summary-grid{grid-template-columns:1fr;}
+      .budget-alert{grid-template-columns:auto minmax(0,1fr);}
+      .alert-action{grid-column:2;justify-self:start;}
+    }
+
+    @media print{
+      @page{margin:14mm;}
+      body{background:#fff;color:#000;}
+      .app-header,.header-actions,.filters-card,.feedback,.source-warning,.data-quality-warning,.modal-overlay,button,input,select{display:none !important;}
+      .wrap{width:100%;max-width:none;margin:0;padding:0;}
+      .page-title-row{margin:0 0 14px;}
+      .page-title-icon{display:none;}
+      .card{border-color:#cbd5e1;box-shadow:none;break-inside:avoid;page-break-inside:avoid;}
+      .kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+      .kpi-card{min-height:0;padding:12px;}
+      .kpi-value{font-size:19px;}
+      .content-grid,.analytics-grid{gap:10px;}
+      .empty-card{min-height:230px;}
+    }
+  </style>
+  <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
+</head>
+
+<body>
+  <main class="wrap">
+    <header class="app-header">
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
+      </a>
+
+      <nav class="app-nav" aria-label="Main navigation">
+        <a href="/dashboard.html">Dashboard</a><span></span>
+        <a href="/resources/tools/invoice-generator.html">Invoices</a><span></span>
+        <a href="/resources/tools/bills.html">Bills</a><span></span>
+        <a href="/resources/tools/client-tracker.html">Clients</a><span></span>
+        <a href="/resources/tools/projects.html">Projects</a><span></span>
+        <a href="/resources/tools/expenses.html">Expenses</a><span></span>
+        <a class="active" href="/resources/tools/budgets.html" aria-current="page">Budgets</a><span></span>
+        <a href="/resources/tools/cashflow.html">Cashflow</a><span></span>
+        <a href="/exports.html">Exports</a><span></span>
+        <a href="/account.html">Account</a>
+      </nav>
+    </header>
+
+    <section class="page-title-row" aria-labelledby="pageTitle">
+      <div class="page-title-copy">
+        <div class="page-title-icon" aria-hidden="true">B</div>
+        <div>
+          <h1 id="pageTitle">Budgets</h1>
+          <p class="muted">Compare planned spending with actual Bills, Expenses and Mileage across the periods and projects that matter to your business.</p>
+        </div>
+      </div>
+      <div class="header-actions" aria-label="Budget actions">
+        <button class="btn" id="createBudgetButton" type="button">Create budget</button>
+        <button class="btn btn-secondary" type="button" disabled aria-label="Export budgets as CSV, available in a future stage" title="CSV export will be available in a future stage">Export CSV</button>
+        <button class="btn btn-secondary" type="button" disabled aria-label="Print budgets, available in a future stage" title="Printing will be available when budget data is implemented">Print</button>
+      </div>
+    </section>
+
+    <div class="feedback" id="pageFeedback" role="status" aria-live="polite" hidden></div>
+    <div class="source-warning" id="sourceLoadWarning" role="alert" hidden></div>
+    <div class="data-quality-warning" id="dataQualityWarning" role="status" aria-live="polite" hidden></div>
+
+    <section class="kpi-grid" aria-label="Budget summary">
+      <article class="card kpi-card"><div class="kpi-label">Total planned</div><div class="kpi-value" id="totalPlannedValue">&mdash;</div><div class="kpi-meta" id="totalPlannedMeta">Loading source data</div></article>
+      <article class="card kpi-card"><div class="kpi-label">Actual spending</div><div class="kpi-value" id="actualSpendingValue">&mdash;</div><div class="kpi-meta">Across visible budgets</div></article>
+      <article class="card kpi-card"><div class="kpi-label">Remaining</div><div class="kpi-value" id="remainingValue">&mdash;</div><div class="kpi-meta">Across visible budgets</div></article>
+      <article class="card kpi-card"><div class="kpi-label">Budgets over limit</div><div class="kpi-value" id="budgetsOverLimitValue">&mdash;</div><div class="kpi-meta">Across visible budgets</div></article>
+    </section>
+
+    <section class="card filters-card" aria-labelledby="budgetFiltersTitle">
+      <div class="filters-heading">
+        <h2 id="budgetFiltersTitle">Filters</h2>
+        <p class="muted">Search and narrow the saved budget definitions shown below.</p>
+      </div>
+      <div class="filter-grid">
+        <div class="field">
+          <label for="budgetSearch">Search budgets</label>
+          <input id="budgetSearch" type="search" placeholder="Budget name" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="budgetStatusFilter">Status</label>
+          <select id="budgetStatusFilter"><option value="all">All</option><option value="active">Active</option><option value="completed">Completed</option></select>
+        </div>
+        <div class="field">
+          <label for="budgetPeriodFilter">Period</label>
+          <select id="budgetPeriodFilter"><option value="all">All</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option><option value="custom">Custom</option></select>
+        </div>
+        <div class="field">
+          <label for="budgetTypeFilter">Type</label>
+          <select id="budgetTypeFilter"><option value="all">All</option><option value="overall">Overall</option><option value="category">Category</option></select>
+        </div>
+        <div class="field">
+          <label for="budgetProjectFilter">Project</label>
+          <select id="budgetProjectFilter" aria-busy="true"><option value="all">All projects</option></select>
+        </div>
+        <button class="btn btn-secondary clear-filters" id="clearFiltersButton" type="button">Clear filters</button>
+      </div>
+    </section>
+
+    <section class="content-grid" aria-label="Budget records and guidance">
+      <article class="card list-card" aria-labelledby="budgetListTitle">
+        <div class="list-heading">
+          <div><h2 id="budgetListTitle">Budget list</h2><p class="muted">Active budgets appear first, followed by the newest period.</p></div>
+          <div class="result-count" id="budgetResultCount" aria-live="polite">Loading budgets...</div>
+        </div>
+
+        <div class="budget-list" id="budgetList" hidden></div>
+
+        <div class="state-panel" id="loadingState">
+          <div class="empty-state"><div class="empty-illustration loading-mark" aria-hidden="true">&pound;</div><h2>Loading budgets</h2><p>Please wait while your budget records are loaded.</p></div>
+        </div>
+
+        <div class="state-panel" id="emptyState" hidden>
+          <div class="empty-state">
+            <div class="empty-illustration" aria-hidden="true">&pound;</div>
+            <h2>No budgets have been created</h2>
+            <p>Create a budget to set a planned spending limit and prepare for live spending comparisons.</p>
+            <button class="btn" id="emptyCreateBudgetButton" type="button">Create your first budget</button>
+            <div class="measure-list" aria-label="Budget types">
+              <div class="measure-item"><strong>Overall budgets</strong><span>Measure Bills, Expenses and Mileage across a selected period.</span></div>
+              <div class="measure-item"><strong>Category budgets</strong><span>Measure matching Expenses and Mileage categories.</span></div>
+              <div class="measure-item"><strong>Project budgets</strong><span>Measure spending allocated to one project using its project ID.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="state-panel" id="noResultsState" hidden>
+          <div class="empty-state"><div class="empty-illustration" aria-hidden="true">?</div><h2>No matching budgets</h2><p>Try different filter values or clear the current filters.</p><button class="btn btn-secondary" id="noResultsClearButton" type="button">Clear filters</button></div>
+        </div>
+
+        <div class="state-panel" id="errorState" hidden>
+          <div class="empty-state"><div class="empty-illustration" aria-hidden="true">!</div><h2>Budgets could not be loaded</h2><p>Check your connection and refresh the page to try again.</p></div>
+        </div>
+      </article>
+
+      <aside class="card how-card" aria-labelledby="howBudgetsWorkTitle">
+        <h2 id="howBudgetsWorkTitle">How budgets work</h2>
+        <p class="muted">Budgets are analytical comparisons and will not alter accounting transactions.</p>
+        <ul class="how-list">
+          <li><span class="how-icon" aria-hidden="true">1</span><span><strong>Overall budgets</strong><br>Include Bills, Expenses and Mileage.</span></li>
+          <li><span class="how-icon" aria-hidden="true">2</span><span><strong>Category budgets</strong><br>Include regular Expenses and Mileage.</span></li>
+          <li><span class="how-icon" aria-hidden="true">3</span><span><strong>All incurred spending</strong><br>Both paid and unpaid transactions will count.</span></li>
+          <li><span class="how-icon" aria-hidden="true">4</span><span><strong>Consistent values</strong><br>Actual spending will use transaction dates and gross amounts.</span></li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="analytics-grid" aria-label="Budget charts">
+      <article class="card chart-card" aria-labelledby="budgetActualTitle">
+        <h2 id="budgetActualTitle">Budget vs actual</h2>
+        <p class="muted">Planned and incurred spending for the first ten visible budgets.</p>
+        <div class="chart-shell" id="budgetComparisonChartShell" hidden><canvas id="budgetComparisonChart" role="img" aria-label="Horizontal bar chart comparing planned amounts with actual spending for visible budgets">Planned and actual budget values are summarised below the chart.</canvas></div>
+        <div class="chart-empty" id="budgetComparisonEmpty"><div><span aria-hidden="true">↗</span><strong id="budgetComparisonEmptyTitle">Loading budget chart</strong><small id="budgetComparisonEmptyMessage">The chart will appear after budget and spending records load.</small></div></div>
+        <p class="chart-note" id="budgetComparisonNote" hidden></p>
+        <p class="chart-text-summary" id="budgetComparisonSummary" aria-live="polite">Loading planned and actual spending summary.</p>
+      </article>
+      <article class="card chart-card" aria-labelledby="budgetStatusTitle">
+        <h2 id="budgetStatusTitle">Budget status</h2>
+        <p class="muted">Visible budgets grouped by calculated spending indicator.</p>
+        <div class="chart-shell" id="budgetStatusChartShell" hidden><canvas id="budgetStatusChart" role="img" aria-label="Doughnut chart showing visible budgets within budget, approaching limit and over budget">Budget status counts and percentages are summarised below the chart.</canvas></div>
+        <div class="chart-empty" id="budgetStatusEmpty"><div><span aria-hidden="true">○</span><strong id="budgetStatusEmptyTitle">Loading status chart</strong><small id="budgetStatusEmptyMessage">The chart will appear after budget and spending records load.</small></div></div>
+        <p class="chart-text-summary" id="budgetStatusSummary" aria-live="polite">Loading budget status summary.</p>
+      </article>
+    </section>
+
+    <section class="card analytics-summary-card" aria-labelledby="analyticsSummaryTitle">
+      <h2 id="analyticsSummaryTitle">Analytics summary</h2>
+      <p class="muted">Key insights across the currently visible budgets.</p>
+      <div class="analytics-summary-grid">
+        <div class="analytics-insight"><span>Highest percentage used</span><strong id="highestPercentageBudget">&mdash;</strong><small id="highestPercentageMeta">Loading</small></div>
+        <div class="analytics-insight"><span>Largest amount remaining</span><strong id="largestRemainingValue">&mdash;</strong><small id="largestRemainingBudget">Loading</small></div>
+        <div class="analytics-insight"><span>Largest amount over budget</span><strong id="largestOverValue">&mdash;</strong><small id="largestOverBudget">Loading</small></div>
+        <div class="analytics-insight"><span>Approaching limit</span><strong id="approachingCount">&mdash;</strong><small>Visible budgets at 80%–99.99%</small></div>
+        <div class="analytics-insight"><span>Over limit</span><strong id="overLimitCount">&mdash;</strong><small>Visible budgets at 100% or more</small></div>
+      </div>
+    </section>
+
+    <section class="card alerts-card" aria-labelledby="budgetAlertsTitle">
+      <h2 id="budgetAlertsTitle">Budget alerts</h2>
+      <p class="muted">Budgets approaching or exceeding their planned limits will be highlighted here.</p>
+      <div class="alerts-list" id="budgetAlerts" aria-live="polite"><div class="alerts-placeholder"><span aria-hidden="true">!</span><div><strong>Loading budget alerts</strong><div>Alerts will appear after all source records have loaded.</div></div></div></div>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="budgetModalOverlay" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="budgetModalTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="budgetModalTitle">Create budget</h2>
+          <p class="muted" id="budgetModalSubtitle">Set the planned amount, period and optional spending scope.</p>
+        </div>
+        <button class="modal-close" id="budgetModalClose" type="button" aria-label="Close budget form">&times;</button>
+      </div>
+      <form id="budgetForm" novalidate>
+        <div class="modal-body">
+          <div class="form-feedback" id="formFeedback" role="alert" hidden></div>
+          <div class="form-grid">
+            <div class="field field-wide">
+              <label for="budgetName">Budget name</label>
+              <input id="budgetName" name="name" type="text" maxlength="120" required aria-describedby="budgetNameError">
+              <span class="field-error" id="budgetNameError"></span>
+            </div>
+
+            <div class="field">
+              <label for="periodType">Period</label>
+              <select id="periodType" name="periodType"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option><option value="custom">Custom</option></select>
+            </div>
+
+            <div class="period-fields" id="monthlyPeriodFields">
+              <div class="field field-wide"><label for="budgetMonth">Month</label><input id="budgetMonth" type="month" aria-describedby="budgetMonthError"><span class="field-error" id="budgetMonthError"></span></div>
+            </div>
+
+            <div class="period-fields" id="quarterlyPeriodFields" hidden>
+              <div class="field"><label for="budgetQuarterYear">Year</label><input id="budgetQuarterYear" type="number" min="1900" max="9999" step="1" inputmode="numeric" aria-describedby="budgetQuarterYearError"><span class="field-error" id="budgetQuarterYearError"></span></div>
+              <div class="field"><label for="budgetQuarter">Quarter</label><select id="budgetQuarter"><option value="1">Q1: January–March</option><option value="2">Q2: April–June</option><option value="3">Q3: July–September</option><option value="4">Q4: October–December</option></select></div>
+            </div>
+
+            <div class="period-fields" id="annualPeriodFields" hidden>
+              <div class="field field-wide"><label for="budgetAnnualYear">Year</label><input id="budgetAnnualYear" type="number" min="1900" max="9999" step="1" inputmode="numeric" aria-describedby="budgetAnnualYearError"><span class="field-error" id="budgetAnnualYearError"></span></div>
+            </div>
+
+            <div class="period-fields" id="customPeriodFields" hidden>
+              <div class="field"><label for="budgetStartDate">Start date</label><input id="budgetStartDate" type="date" aria-describedby="budgetStartDateError"><span class="field-error" id="budgetStartDateError"></span></div>
+              <div class="field"><label for="budgetEndDate">End date</label><input id="budgetEndDate" type="date" aria-describedby="budgetEndDateError"><span class="field-error" id="budgetEndDateError"></span></div>
+            </div>
+
+            <div class="field">
+              <label for="budgetType">Budget type</label>
+              <select id="budgetType" name="budgetType"><option value="overall">Overall spending</option><option value="category">Category spending</option></select>
+            </div>
+
+            <div class="field category-field" id="categoryField" hidden>
+              <label for="budgetCategory">Category</label>
+              <select id="budgetCategory" aria-describedby="budgetCategoryHint budgetCategoryError"><option value="">Choose a category</option><option>General</option><option>Travel</option><option>Meals</option><option>Office</option><option>Software</option><option>Utilities</option><option>Professional fees</option><option>Other</option><option>Mileage</option></select>
+              <span class="field-hint" id="budgetCategoryHint">Category budgets count Expenses and Mileage only because Bills do not currently have categories.</span>
+              <span class="field-error" id="budgetCategoryError"></span>
+            </div>
+
+            <div class="field">
+              <label for="budgetProject">Project</label>
+              <select id="budgetProject"><option value="">All projects</option></select>
+              <span class="field-hint">Future transaction matching will use the project ID.</span>
+            </div>
+
+            <div class="field">
+              <label for="plannedAmount">Planned amount (&pound;)</label>
+              <input id="plannedAmount" name="plannedAmount" type="number" min="0.01" step="0.01" inputmode="decimal" required aria-describedby="plannedAmountError">
+              <span class="field-error" id="plannedAmountError"></span>
+            </div>
+
+            <div class="field">
+              <label for="budgetStatus">Status</label>
+              <select id="budgetStatus" name="status"><option value="Active">Active</option><option value="Completed">Completed</option></select>
+              <span class="field-hint">Status is controlled manually and will not change when the period ends.</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions"><button class="btn btn-secondary" id="cancelBudgetButton" type="button">Cancel</button><button class="btn" id="saveBudgetButton" type="submit">Create budget</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-overlay" id="deleteModalOverlay" hidden>
+    <section class="modal modal-small" role="alertdialog" aria-modal="true" aria-labelledby="deleteModalTitle" aria-describedby="deleteModalDescription">
+      <div class="modal-header"><div><h2 id="deleteModalTitle">Delete budget?</h2><p class="muted">This removes only the budget definition.</p></div><button class="modal-close" id="deleteModalClose" type="button" aria-label="Close delete confirmation">&times;</button></div>
+      <div class="modal-body"><div class="form-feedback" id="deleteFeedback" role="alert" hidden></div><p id="deleteModalDescription">Delete <strong id="deleteBudgetName"></strong>? Bills, Expenses, Mileage, Projects and accounting data will not be changed.</p></div>
+      <div class="modal-actions"><button class="btn btn-secondary" id="cancelDeleteButton" type="button">Cancel</button><button class="btn btn-danger" id="confirmDeleteButton" type="button">Delete budget</button></div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import { auth, db } from "/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      addDoc,
+      collection,
+      deleteDoc,
+      doc,
+      onSnapshot,
+      serverTimestamp,
+      updateDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const periodTypes = ["monthly", "quarterly", "annual", "custom"];
+    const budgetTypes = ["overall", "category"];
+    const budgetStatuses = ["Active", "Completed"];
+    const categoryNames = ["General", "Travel", "Meals", "Office", "Software", "Utilities", "Professional fees", "Other", "Mileage"];
+
+    const elements = {
+      pageFeedback: document.getElementById("pageFeedback"),
+      sourceLoadWarning: document.getElementById("sourceLoadWarning"),
+      dataQualityWarning: document.getElementById("dataQualityWarning"),
+      totalPlanned: document.getElementById("totalPlannedValue"),
+      totalPlannedMeta: document.getElementById("totalPlannedMeta"),
+      actualSpending: document.getElementById("actualSpendingValue"),
+      remaining: document.getElementById("remainingValue"),
+      overLimit: document.getElementById("budgetsOverLimitValue"),
+      search: document.getElementById("budgetSearch"),
+      statusFilter: document.getElementById("budgetStatusFilter"),
+      periodFilter: document.getElementById("budgetPeriodFilter"),
+      typeFilter: document.getElementById("budgetTypeFilter"),
+      projectFilter: document.getElementById("budgetProjectFilter"),
+      resultCount: document.getElementById("budgetResultCount"),
+      list: document.getElementById("budgetList"),
+      loadingState: document.getElementById("loadingState"),
+      emptyState: document.getElementById("emptyState"),
+      noResultsState: document.getElementById("noResultsState"),
+      errorState: document.getElementById("errorState"),
+      alerts: document.getElementById("budgetAlerts"),
+      comparisonChartShell: document.getElementById("budgetComparisonChartShell"),
+      comparisonEmpty: document.getElementById("budgetComparisonEmpty"),
+      comparisonEmptyTitle: document.getElementById("budgetComparisonEmptyTitle"),
+      comparisonEmptyMessage: document.getElementById("budgetComparisonEmptyMessage"),
+      comparisonNote: document.getElementById("budgetComparisonNote"),
+      comparisonSummary: document.getElementById("budgetComparisonSummary"),
+      statusChartShell: document.getElementById("budgetStatusChartShell"),
+      statusEmpty: document.getElementById("budgetStatusEmpty"),
+      statusEmptyTitle: document.getElementById("budgetStatusEmptyTitle"),
+      statusEmptyMessage: document.getElementById("budgetStatusEmptyMessage"),
+      statusSummary: document.getElementById("budgetStatusSummary"),
+      highestPercentageBudget: document.getElementById("highestPercentageBudget"),
+      highestPercentageMeta: document.getElementById("highestPercentageMeta"),
+      largestRemainingValue: document.getElementById("largestRemainingValue"),
+      largestRemainingBudget: document.getElementById("largestRemainingBudget"),
+      largestOverValue: document.getElementById("largestOverValue"),
+      largestOverBudget: document.getElementById("largestOverBudget"),
+      approachingCount: document.getElementById("approachingCount"),
+      overLimitCount: document.getElementById("overLimitCount"),
+      budgetOverlay: document.getElementById("budgetModalOverlay"),
+      budgetModalTitle: document.getElementById("budgetModalTitle"),
+      budgetModalSubtitle: document.getElementById("budgetModalSubtitle"),
+      budgetModalClose: document.getElementById("budgetModalClose"),
+      budgetForm: document.getElementById("budgetForm"),
+      formFeedback: document.getElementById("formFeedback"),
+      name: document.getElementById("budgetName"),
+      periodType: document.getElementById("periodType"),
+      month: document.getElementById("budgetMonth"),
+      quarterYear: document.getElementById("budgetQuarterYear"),
+      quarter: document.getElementById("budgetQuarter"),
+      annualYear: document.getElementById("budgetAnnualYear"),
+      startDate: document.getElementById("budgetStartDate"),
+      endDate: document.getElementById("budgetEndDate"),
+      budgetType: document.getElementById("budgetType"),
+      categoryField: document.getElementById("categoryField"),
+      category: document.getElementById("budgetCategory"),
+      project: document.getElementById("budgetProject"),
+      plannedAmount: document.getElementById("plannedAmount"),
+      status: document.getElementById("budgetStatus"),
+      cancelBudget: document.getElementById("cancelBudgetButton"),
+      saveBudget: document.getElementById("saveBudgetButton"),
+      deleteOverlay: document.getElementById("deleteModalOverlay"),
+      deleteModalClose: document.getElementById("deleteModalClose"),
+      deleteBudgetName: document.getElementById("deleteBudgetName"),
+      deleteFeedback: document.getElementById("deleteFeedback"),
+      cancelDelete: document.getElementById("cancelDeleteButton"),
+      confirmDelete: document.getElementById("confirmDeleteButton")
+    };
+
+    let currentUser = null;
+    let budgets = [];
+    let projects = [];
+    let billRecords = [];
+    let expenseRecords = [];
+    let loadState = { budgets:false, projects:false, bills:false, expenses:false };
+    let sourceErrors = new Set();
+    let budgetsLoadError = false;
+    let editingBudgetId = null;
+    let pendingDeleteId = null;
+    let modalTrigger = null;
+    let isSaving = false;
+    let feedbackTimer = null;
+    let unsubscribeBudgets = null;
+    let unsubscribeProjects = null;
+    let unsubscribeBills = null;
+    let unsubscribeExpenses = null;
+    let budgetComparisonChart = null;
+    let budgetStatusChart = null;
+    const chartDisplayLimit = 10;
+
+    function escapeHtml(value){
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function normaliseCurrencyValue(value){
+      const number = Number(value);
+      if(!Number.isFinite(number) || Math.abs(number) < 0.005) return 0;
+      return number;
+    }
+
+    function money(value){
+      return new Intl.NumberFormat("en-GB", {
+        style:"currency",
+        currency:"GBP",
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+      }).format(normaliseCurrencyValue(value));
+    }
+
+    function padNumber(value){
+      return String(value).padStart(2, "0");
+    }
+
+    function dateKey(year, month, day){
+      return `${String(year).padStart(4, "0")}-${padNumber(month)}-${padNumber(day)}`;
+    }
+
+    function parseLocalDate(value){
+      const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if(!match) return null;
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const date = new Date(year, month - 1, day);
+      return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+    }
+
+    function formatDate(value){
+      const date = parseLocalDate(value);
+      return date ? date.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "Date unavailable";
+    }
+
+    function finiteAmount(value){
+      if(value === null || value === undefined || value === "" || typeof value === "boolean") return null;
+      const amount = Number(value);
+      return Number.isFinite(amount) ? amount : null;
+    }
+
+    function firstFiniteAmount(values){
+      for(const value of values){
+        const amount = finiteAmount(value);
+        if(amount !== null) return amount;
+      }
+      return null;
+    }
+
+    function sumFiniteAmounts(first, second){
+      const firstAmount = finiteAmount(first);
+      const secondAmount = finiteAmount(second);
+      if(firstAmount === null || secondAmount === null) return null;
+      const total = firstAmount + secondAmount;
+      return Number.isFinite(total) ? total : null;
+    }
+
+    function normaliseCategory(value){
+      const normalised = String(value || "").trim().toLowerCase();
+      return categoryNames.find(category => category.toLowerCase() === normalised) || "";
+    }
+
+    function validTransactionDate(value){
+      const date = String(value || "");
+      return parseLocalDate(date) ? date : "";
+    }
+
+    function billAmount(record){
+      return firstFiniteAmount([record.total]) ?? sumFiniteAmounts(record.net, record.vat);
+    }
+
+    function expenseAmount(record){
+      return firstFiniteAmount([record.gross, record.grossAmount, record.total]) ?? sumFiniteAmounts(record.net, record.vat);
+    }
+
+    function mileageAmount(record){
+      const storedAmount = firstFiniteAmount([record.amount, record.mileageAmount, record.gross]);
+      if(storedAmount !== null) return storedAmount;
+      const miles = finiteAmount(record.miles);
+      const rate = finiteAmount(record.ratePerMile);
+      if(miles === null || rate === null) return null;
+      const calculated = miles * rate;
+      return Number.isFinite(calculated) ? calculated : null;
+    }
+
+    function normaliseSourceTransactions(sourceBills, sourceExpenses){
+      const transactions = [];
+      const seen = new Set();
+      let invalidDateCount = 0;
+      let invalidAmountCount = 0;
+      let excludedCount = 0;
+
+      function include(record, source, dateValue, amount, category, description){
+        const date = validTransactionDate(dateValue);
+        const validAmount = amount !== null && Number.isFinite(amount);
+        if(!date) invalidDateCount += 1;
+        if(!validAmount) invalidAmountCount += 1;
+        if(!date || !validAmount){
+          excludedCount += 1;
+          return;
+        }
+
+        const id = String(record.id || "");
+        const uniqueKey = `${source}:${id}`;
+        if(seen.has(uniqueKey)) return;
+        seen.add(uniqueKey);
+        transactions.push({
+          source,
+          id,
+          date,
+          amount,
+          category,
+          projectId:String(record.projectId || ""),
+          description:String(description || ""),
+          status:String(record.status || "")
+        });
+      }
+
+      sourceBills.forEach(record => {
+        include(
+          record,
+          "bill",
+          record.billDate,
+          billAmount(record),
+          "",
+          record.supplier || record.billNumber || "Bill"
+        );
+      });
+
+      sourceExpenses.forEach(record => {
+        const isMileage = record.type === "mileage";
+        if(isMileage){
+          const routeParts = [record.from, record.to].map(value => String(value || "").trim()).filter(Boolean);
+          const route = routeParts.length > 1 ? `${routeParts[0]} to ${routeParts[1]}` : routeParts[0];
+          include(
+            record,
+            "mileage",
+            record.date,
+            mileageAmount(record),
+            "Mileage",
+            route || record.businessPurpose || record.purpose || "Mileage"
+          );
+          return;
+        }
+
+        include(
+          record,
+          "expense",
+          record.date,
+          expenseAmount(record),
+          normaliseCategory(record.category),
+          record.merchant || record.description || "Expense"
+        );
+      });
+
+      return { transactions, invalidDateCount, invalidAmountCount, excludedCount };
+    }
+
+    function transactionInBudgetRange(transaction, budget){
+      if(!validTransactionDate(transaction.date) || !validTransactionDate(budget.startDate) || !validTransactionDate(budget.endDate)) return false;
+      return transaction.date >= budget.startDate && transaction.date <= budget.endDate;
+    }
+
+    function indicatorForPercentage(percentageUsed){
+      if(percentageUsed >= 100) return "over";
+      if(percentageUsed >= 80) return "approaching";
+      return "within";
+    }
+
+    function calculateBudget(budget, transactions){
+      const budgetCategory = normaliseCategory(budget.category);
+      const contributingTransactions = transactions.filter(transaction => {
+        if(!transactionInBudgetRange(transaction, budget)) return false;
+        if(budget.projectId && transaction.projectId !== budget.projectId) return false;
+        if(budget.budgetType === "category"){
+          if(transaction.source === "bill" || !budgetCategory) return false;
+          if(normaliseCategory(transaction.category) !== budgetCategory) return false;
+        }
+        return true;
+      });
+      const actualSpending = contributingTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+      const plannedAmount = finiteAmount(budget.plannedAmount) ?? 0;
+      const remaining = plannedAmount - actualSpending;
+      const percentageUsed = plannedAmount > 0 ? (actualSpending / plannedAmount) * 100 : 0;
+      return {
+        ...budget,
+        actualSpending,
+        remaining,
+        percentageUsed,
+        indicator:indicatorForPercentage(percentageUsed),
+        contributingTransactions
+      };
+    }
+
+    function formatPercentage(value){
+      const percentage = normaliseCurrencyValue(value);
+      return `${new Intl.NumberFormat("en-GB", { minimumFractionDigits:0, maximumFractionDigits:2 }).format(percentage)}%`;
+    }
+
+    function normaliseBudget(snapshot){
+      const data = snapshot.data();
+      const plannedAmount = Number(data.plannedAmount);
+      return {
+        id:snapshot.id,
+        schemaVersion:Number(data.schemaVersion) || 1,
+        name:String(data.name || "Unnamed budget"),
+        periodType:periodTypes.includes(data.periodType) ? data.periodType : "custom",
+        startDate:String(data.startDate || ""),
+        endDate:String(data.endDate || ""),
+        budgetType:budgetTypes.includes(data.budgetType) ? data.budgetType : "overall",
+        category:String(data.category || ""),
+        projectId:String(data.projectId || ""),
+        projectName:String(data.projectName || ""),
+        projectReference:String(data.projectReference || ""),
+        plannedAmount:Number.isFinite(plannedAmount) ? plannedAmount : 0,
+        status:budgetStatuses.includes(data.status) ? data.status : "Active",
+        createdAt:data.createdAt || null,
+        updatedAt:data.updatedAt || null
+      };
+    }
+
+    function normaliseProject(snapshot){
+      const data = snapshot.data();
+      return {
+        id:snapshot.id,
+        name:String(data.name || "Unnamed project"),
+        reference:String(data.reference || "")
+      };
+    }
+
+    function sortBudgets(records){
+      return [...records].sort((a, b) => {
+        const statusDifference = (a.status === "Active" ? 0 : 1) - (b.status === "Active" ? 0 : 1);
+        if(statusDifference) return statusDifference;
+        const dateDifference = String(b.startDate).localeCompare(String(a.startDate));
+        if(dateDifference) return dateDifference;
+        return a.name.localeCompare(b.name, "en-GB", { sensitivity:"base" });
+      });
+    }
+
+    function periodLabel(budget){
+      const start = parseLocalDate(budget.startDate);
+      if(budget.periodType === "monthly" && start) return start.toLocaleDateString("en-GB", { month:"long", year:"numeric" });
+      if(budget.periodType === "quarterly" && start) return `Q${Math.floor(start.getMonth() / 3) + 1} ${start.getFullYear()}`;
+      if(budget.periodType === "annual" && start) return String(start.getFullYear());
+      return "Custom period";
+    }
+
+    function showPageFeedback(message, isError = false){
+      window.clearTimeout(feedbackTimer);
+      elements.pageFeedback.textContent = message;
+      elements.pageFeedback.classList.toggle("error", isError);
+      elements.pageFeedback.hidden = !message;
+      if(message){
+        feedbackTimer = window.setTimeout(() => {
+          elements.pageFeedback.hidden = true;
+        }, 6000);
+      }
+    }
+
+    function setFormFeedback(message){
+      elements.formFeedback.textContent = message || "";
+      elements.formFeedback.hidden = !message;
+    }
+
+    function unavailableProjects(){
+      const availableIds = new Set(projects.map(project => project.id));
+      const unavailable = new Map();
+      budgets.forEach(budget => {
+        if(!budget.projectId || availableIds.has(budget.projectId) || unavailable.has(budget.projectId)) return;
+        unavailable.set(budget.projectId, {
+          id:budget.projectId,
+          name:budget.projectName || "Unavailable project",
+          reference:budget.projectReference || ""
+        });
+      });
+      return [...unavailable.values()].sort((a, b) => a.name.localeCompare(b.name, "en-GB", { sensitivity:"base" }));
+    }
+
+    function appendProjectOption(select, project, unavailable = false){
+      const option = document.createElement("option");
+      option.value = project.id;
+      option.textContent = `${project.name}${project.reference ? ` · ${project.reference}` : ""}${unavailable ? " (unavailable)" : ""}`;
+      option.dataset.projectName = project.name;
+      option.dataset.projectReference = project.reference;
+      if(unavailable) option.dataset.unavailable = "true";
+      select.appendChild(option);
+    }
+
+    function renderProjectFilter(){
+      const selectedValue = elements.projectFilter.value || "all";
+      elements.projectFilter.innerHTML = '<option value="all">All projects</option>';
+      projects.forEach(project => appendProjectOption(elements.projectFilter, project));
+      unavailableProjects().forEach(project => appendProjectOption(elements.projectFilter, project, true));
+      const optionExists = [...elements.projectFilter.options].some(option => option.value === selectedValue);
+      elements.projectFilter.value = optionExists ? selectedValue : "all";
+      elements.projectFilter.setAttribute("aria-busy", String(!loadState.projects));
+    }
+
+    function renderModalProjectOptions(selectedBudget = null){
+      elements.project.innerHTML = '<option value="">All projects</option>';
+      projects.forEach(project => appendProjectOption(elements.project, project));
+      if(selectedBudget?.projectId && !projects.some(project => project.id === selectedBudget.projectId)){
+        appendProjectOption(elements.project, {
+          id:selectedBudget.projectId,
+          name:selectedBudget.projectName || "Unavailable project",
+          reference:selectedBudget.projectReference || ""
+        }, true);
+      }
+      elements.project.value = selectedBudget?.projectId || "";
+    }
+
+    function filtersAreActive(){
+      return Boolean(elements.search.value.trim()) ||
+        elements.statusFilter.value !== "all" ||
+        elements.periodFilter.value !== "all" ||
+        elements.typeFilter.value !== "all" ||
+        elements.projectFilter.value !== "all";
+    }
+
+    function filteredBudgets(){
+      const search = elements.search.value.trim().toLowerCase();
+      return sortBudgets(budgets.filter(budget => {
+        const matchesSearch = !search || [budget.name, budget.category, budget.projectName, budget.projectReference]
+          .some(value => String(value || "").toLowerCase().includes(search));
+        const matchesStatus = elements.statusFilter.value === "all" || budget.status.toLowerCase() === elements.statusFilter.value;
+        const matchesPeriod = elements.periodFilter.value === "all" || budget.periodType === elements.periodFilter.value;
+        const matchesType = elements.typeFilter.value === "all" || budget.budgetType === elements.typeFilter.value;
+        const matchesProject = elements.projectFilter.value === "all" || budget.projectId === elements.projectFilter.value;
+        return matchesSearch && matchesStatus && matchesPeriod && matchesType && matchesProject;
+      }));
+    }
+
+    function allInitialDataResolved(){
+      return Object.values(loadState).every(Boolean);
+    }
+
+    function renderKpis(records){
+      if(records === null){
+        elements.totalPlanned.textContent = "—";
+        elements.actualSpending.textContent = "—";
+        elements.remaining.textContent = "—";
+        elements.overLimit.textContent = "—";
+        elements.totalPlannedMeta.textContent = "Loading source data";
+        return;
+      }
+      const totals = records.reduce((result, budget) => {
+        result.planned += normaliseCurrencyValue(budget.plannedAmount);
+        result.actual += normaliseCurrencyValue(budget.actualSpending);
+        result.remaining += normaliseCurrencyValue(budget.remaining);
+        if(budget.indicator === "over") result.overLimit += 1;
+        return result;
+      }, { planned:0, actual:0, remaining:0, overLimit:0 });
+      elements.totalPlanned.textContent = money(totals.planned);
+      elements.actualSpending.textContent = money(totals.actual);
+      elements.remaining.textContent = money(totals.remaining);
+      elements.overLimit.textContent = String(totals.overLimit);
+      elements.totalPlannedMeta.textContent = `${records.length} visible ${records.length === 1 ? "budget" : "budgets"}`;
+    }
+
+    function destroyCharts(){
+      if(budgetComparisonChart){
+        budgetComparisonChart.destroy();
+        budgetComparisonChart = null;
+      }
+      if(budgetStatusChart){
+        budgetStatusChart.destroy();
+        budgetStatusChart = null;
+      }
+    }
+
+    function analyticsForBudgets(records){
+      const highestPercentage = records.reduce((highest, budget) =>
+        !highest || budget.percentageUsed > highest.percentageUsed ? budget : highest
+      , null);
+      const remainingBudgets = records.filter(budget => budget.indicator !== "over");
+      const largestRemaining = remainingBudgets.reduce((largest, budget) =>
+        !largest || budget.remaining > largest.remaining ? budget : largest
+      , null);
+      const overBudgets = records.filter(budget => budget.indicator === "over");
+      const largestOver = overBudgets.reduce((largest, budget) => {
+        const overAmount = budget.actualSpending - budget.plannedAmount;
+        const largestAmount = largest ? largest.actualSpending - largest.plannedAmount : -Infinity;
+        return !largest || overAmount > largestAmount ? budget : largest;
+      }, null);
+      return {
+        highestPercentage,
+        largestRemaining,
+        largestOver,
+        approachingCount:records.filter(budget => budget.indicator === "approaching").length,
+        overCount:overBudgets.length
+      };
+    }
+
+    function renderAnalyticsSummary(records){
+      if(records === null){
+        [elements.highestPercentageBudget, elements.largestRemainingValue, elements.largestOverValue, elements.approachingCount, elements.overLimitCount]
+          .forEach(element => element.textContent = "—");
+        elements.highestPercentageMeta.textContent = "Loading";
+        elements.largestRemainingBudget.textContent = "Loading";
+        elements.largestOverBudget.textContent = "Loading";
+        return;
+      }
+      if(!records.length){
+        elements.highestPercentageBudget.textContent = "No visible budgets";
+        elements.highestPercentageMeta.textContent = "Adjust filters or create a budget";
+        elements.largestRemainingValue.textContent = money(0);
+        elements.largestRemainingBudget.textContent = "No visible budgets";
+        elements.largestOverValue.textContent = "None over budget";
+        elements.largestOverBudget.textContent = "No action needed";
+        elements.approachingCount.textContent = "0";
+        elements.overLimitCount.textContent = "0";
+        return;
+      }
+
+      const analytics = analyticsForBudgets(records);
+      elements.highestPercentageBudget.textContent = analytics.highestPercentage.name;
+      elements.highestPercentageMeta.textContent = `${formatPercentage(analytics.highestPercentage.percentageUsed)} used`;
+      elements.largestRemainingValue.textContent = analytics.largestRemaining ? money(analytics.largestRemaining.remaining) : money(0);
+      elements.largestRemainingBudget.textContent = analytics.largestRemaining?.name || "No budget has a remaining amount";
+      elements.largestOverValue.textContent = analytics.largestOver
+        ? money(analytics.largestOver.actualSpending - analytics.largestOver.plannedAmount)
+        : "None over budget";
+      elements.largestOverBudget.textContent = analytics.largestOver?.name || "All visible budgets are at or below plan";
+      elements.approachingCount.textContent = String(analytics.approachingCount);
+      elements.overLimitCount.textContent = String(analytics.overCount);
+    }
+
+    function setChartEmptyState(title, message){
+      elements.comparisonChartShell.hidden = true;
+      elements.statusChartShell.hidden = true;
+      elements.comparisonEmpty.hidden = false;
+      elements.statusEmpty.hidden = false;
+      elements.comparisonEmptyTitle.textContent = title;
+      elements.statusEmptyTitle.textContent = title;
+      elements.comparisonEmptyMessage.textContent = message;
+      elements.statusEmptyMessage.textContent = message;
+      elements.comparisonNote.hidden = true;
+    }
+
+    function renderAnalytics(records, state = "ready"){
+      destroyCharts();
+      if(state !== "ready"){
+        const isLoading = state === "loading";
+        setChartEmptyState(
+          isLoading ? "Loading budget analytics" : "Budget analytics unavailable",
+          isLoading ? "Charts will appear after all required records load." : "Budget records could not be loaded safely."
+        );
+        elements.comparisonSummary.textContent = isLoading ? "Loading planned and actual spending summary." : "Planned and actual spending summary is unavailable.";
+        elements.statusSummary.textContent = isLoading ? "Loading budget status summary." : "Budget status summary is unavailable.";
+        renderAnalyticsSummary(null);
+        return;
+      }
+
+      renderAnalyticsSummary(records);
+      if(!records.length){
+        setChartEmptyState("No visible budgets", "Create a budget or adjust the active filters to display analytics.");
+        elements.comparisonSummary.textContent = "No visible planned or actual budget values.";
+        elements.statusSummary.textContent = "No visible budget indicators.";
+        return;
+      }
+
+      if(typeof Chart === "undefined"){
+        setChartEmptyState("Charts unavailable", "Chart.js could not be loaded. The text summaries remain available.");
+        elements.comparisonSummary.textContent = "Chart rendering is unavailable, but budget cards and analytics remain current.";
+        elements.statusSummary.textContent = "Chart rendering is unavailable, but calculated indicator counts remain current.";
+        return;
+      }
+
+      const chartBudgets = records.slice(0, chartDisplayLimit);
+      const plannedTotal = chartBudgets.reduce((sum, budget) => sum + budget.plannedAmount, 0);
+      const actualTotal = chartBudgets.reduce((sum, budget) => sum + budget.actualSpending, 0);
+      elements.comparisonEmpty.hidden = true;
+      elements.comparisonChartShell.hidden = false;
+      elements.comparisonChartShell.style.height = `${Math.min(540, Math.max(280, (chartBudgets.length * 44) + 100))}px`;
+      elements.comparisonNote.textContent = records.length > chartDisplayLimit
+        ? `Showing the first ${chartDisplayLimit} of ${records.length} filtered budgets in the current list order.`
+        : "";
+      elements.comparisonNote.hidden = records.length <= chartDisplayLimit;
+      elements.comparisonSummary.textContent = `${chartBudgets.length} charted ${chartBudgets.length === 1 ? "budget" : "budgets"}: ${money(plannedTotal)} planned and ${money(actualTotal)} actual spending.`;
+
+      budgetComparisonChart = new Chart(document.getElementById("budgetComparisonChart"), {
+        type:"bar",
+        data:{
+          labels:chartBudgets.map(budget => budget.name),
+          datasets:[
+            { label:"Planned amount", data:chartBudgets.map(budget => budget.plannedAmount), backgroundColor:"rgba(0,119,182,.72)", borderColor:"#005f91", borderWidth:1 },
+            { label:"Actual spending", data:chartBudgets.map(budget => budget.actualSpending), backgroundColor:"rgba(124,58,237,.68)", borderColor:"#6d28d9", borderWidth:1 }
+          ]
+        },
+        options:{
+          indexAxis:"y",
+          responsive:true,
+          maintainAspectRatio:false,
+          interaction:{ mode:"index", intersect:false },
+          plugins:{
+            legend:{ position:"bottom", labels:{ usePointStyle:true, color:"#334155" } },
+            tooltip:{ callbacks:{ label:context => `${context.dataset.label}: ${money(context.parsed.x)}` } }
+          },
+          scales:{
+            x:{ beginAtZero:true, ticks:{ color:"#64748b", callback:value => money(value) }, grid:{ color:"rgba(148,163,184,.2)" } },
+            y:{ ticks:{ color:"#334155", autoSkip:false }, grid:{ display:false } }
+          }
+        }
+      });
+
+      const indicatorCounts = [
+        records.filter(budget => budget.indicator === "within").length,
+        records.filter(budget => budget.indicator === "approaching").length,
+        records.filter(budget => budget.indicator === "over").length
+      ];
+      const visibleCount = records.length;
+      elements.statusEmpty.hidden = true;
+      elements.statusChartShell.hidden = false;
+      elements.statusSummary.textContent = `${indicatorCounts[0]} within budget, ${indicatorCounts[1]} approaching limit and ${indicatorCounts[2]} over budget across ${visibleCount} visible ${visibleCount === 1 ? "budget" : "budgets"}.`;
+      budgetStatusChart = new Chart(document.getElementById("budgetStatusChart"), {
+        type:"doughnut",
+        data:{
+          labels:["Within budget", "Approaching limit", "Over budget"],
+          datasets:[{ data:indicatorCounts, backgroundColor:["#16a34a", "#f59e0b", "#dc2626"], borderColor:"#ffffff", borderWidth:3 }]
+        },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          cutout:"62%",
+          plugins:{
+            legend:{ position:"bottom", labels:{ usePointStyle:true, color:"#334155", padding:16 } },
+            tooltip:{ callbacks:{ label:context => {
+              const count = Number(context.raw || 0);
+              const percentage = visibleCount ? (count / visibleCount) * 100 : 0;
+              return `${context.label}: ${count} (${formatPercentage(percentage)})`;
+            } } }
+          }
+        }
+      });
+    }
+
+    function projectDisplayName(budget){
+      if(!budget.projectId) return "All projects";
+      const available = projects.find(project => project.id === budget.projectId);
+      const name = available?.name || budget.projectName || "Unavailable project";
+      const reference = available?.reference || budget.projectReference;
+      const suffix = available ? "" : " (unavailable)";
+      return `${name}${reference ? ` · ${reference}` : ""}${suffix}`;
+    }
+
+    function budgetRecordHtml(budget){
+      const typeLabel = budget.budgetType === "category" ? `Category · ${budget.category || "Unspecified"}` : "Overall spending";
+      const indicatorLabels = { within:"Within budget", approaching:"Approaching limit", over:"Over budget" };
+      const visualPercentage = Math.min(100, Math.max(0, Number.isFinite(budget.percentageUsed) ? budget.percentageUsed : 0));
+      const percentageText = formatPercentage(budget.percentageUsed);
+      const positionText = budget.indicator === "over"
+        ? `Over budget by ${money(budget.actualSpending - budget.plannedAmount)}`
+        : `${money(budget.remaining)} remaining`;
+      return `<article class="budget-record" data-budget-id="${escapeHtml(budget.id)}" tabindex="-1">
+        <div class="budget-record-heading">
+          <div><h3>${escapeHtml(budget.name)}</h3><div class="budget-record-period">${escapeHtml(periodLabel(budget))} · ${escapeHtml(formatDate(budget.startDate))} – ${escapeHtml(formatDate(budget.endDate))}</div></div>
+          <span class="status-badge ${budget.status === "Completed" ? "status-completed" : "status-active"}">${escapeHtml(budget.status)}</span>
+        </div>
+        <div class="budget-record-grid">
+          <div class="record-detail"><span>Type</span><strong>${escapeHtml(typeLabel)}</strong></div>
+          <div class="record-detail"><span>Project</span><strong>${escapeHtml(projectDisplayName(budget))}</strong></div>
+          <div class="record-detail"><span>Planned</span><strong>${escapeHtml(money(budget.plannedAmount))}</strong></div>
+          <div class="record-detail"><span>Actual spending</span><strong>${escapeHtml(money(budget.actualSpending))}</strong></div>
+          <div class="record-detail"><span>Budget position</span><strong class="${budget.indicator === "over" ? "budget-position-over" : ""}">${escapeHtml(positionText)}</strong><span class="indicator-badge indicator-${escapeHtml(budget.indicator)}">${escapeHtml(indicatorLabels[budget.indicator])}</span></div>
+        </div>
+        <div class="budget-progress-row"><div class="progress-track" role="progressbar" aria-label="Budget used for ${escapeHtml(budget.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${visualPercentage.toFixed(2)}" aria-valuetext="${escapeHtml(percentageText)} used"><div class="progress-fill ${escapeHtml(budget.indicator)}" style="width:${visualPercentage.toFixed(2)}%"></div></div><div class="progress-label">${escapeHtml(percentageText)} used</div></div>
+        <div class="record-actions"><button class="btn btn-secondary btn-small" type="button" data-budget-action="edit" data-budget-id="${escapeHtml(budget.id)}" aria-label="Edit ${escapeHtml(budget.name)}">Edit</button><button class="btn btn-danger btn-small" type="button" data-budget-action="delete" data-budget-id="${escapeHtml(budget.id)}" aria-label="Delete ${escapeHtml(budget.name)}">Delete</button></div>
+      </article>`;
+    }
+
+    function renderSourceWarning(){
+      const messages = [];
+      if(sourceErrors.has("projects")) messages.push("project names and project-filter choices may be incomplete");
+      if(sourceErrors.has("bills")) messages.push("bill spending is unavailable");
+      if(sourceErrors.has("expenses")) messages.push("expense and mileage spending is unavailable");
+      if(!messages.length){
+        elements.sourceLoadWarning.hidden = true;
+        elements.sourceLoadWarning.textContent = "";
+        return;
+      }
+      elements.sourceLoadWarning.textContent = `Some data could not be loaded: ${messages.join("; ")}. Calculations shown use safely available records only and may be incomplete.`;
+      elements.sourceLoadWarning.hidden = false;
+    }
+
+    function renderDataQualityWarning(sourceModel){
+      if(!sourceModel.excludedCount){
+        elements.dataQualityWarning.hidden = true;
+        elements.dataQualityWarning.textContent = "";
+        return;
+      }
+      const transactionLabel = sourceModel.excludedCount === 1 ? "transaction was" : "transactions were";
+      const dateLabel = `${sourceModel.invalidDateCount} with unreadable ${sourceModel.invalidDateCount === 1 ? "date" : "dates"}`;
+      const amountLabel = `${sourceModel.invalidAmountCount} with unreadable ${sourceModel.invalidAmountCount === 1 ? "amount" : "amounts"}`;
+      elements.dataQualityWarning.textContent = `${sourceModel.excludedCount} ${transactionLabel} excluded from budget calculations (${dateLabel}; ${amountLabel}).`;
+      elements.dataQualityWarning.hidden = false;
+    }
+
+    function renderAlerts(records){
+      const alerts = records
+        .filter(budget => budget.indicator === "over" || budget.indicator === "approaching")
+        .sort((a, b) => {
+          const indicatorDifference = (a.indicator === "over" ? 0 : 1) - (b.indicator === "over" ? 0 : 1);
+          return indicatorDifference || b.percentageUsed - a.percentageUsed;
+        });
+
+      if(!alerts.length){
+        const message = records.length
+          ? "All visible budgets are currently below 80% of their planned amount."
+          : "No visible budgets require attention.";
+        elements.alerts.innerHTML = `<div class="alerts-placeholder"><span aria-hidden="true">✓</span><div><strong>No budget alerts</strong><div>${escapeHtml(message)}</div></div></div>`;
+        return;
+      }
+
+      elements.alerts.innerHTML = alerts.map(budget => {
+        const isOver = budget.indicator === "over";
+        const difference = isOver ? budget.actualSpending - budget.plannedAmount : budget.remaining;
+        const comparison = `${money(budget.actualSpending)} actual versus ${money(budget.plannedAmount)} planned`;
+        const differenceText = isOver ? `${money(difference)} over budget` : `${money(difference)} remaining`;
+        const period = `${periodLabel(budget)} · ${formatDate(budget.startDate)} – ${formatDate(budget.endDate)}`;
+        return `<article class="budget-alert ${isOver ? "over" : "approaching"}"><span class="alert-mark" aria-hidden="true">${isOver ? "!" : "↑"}</span><div><strong>${escapeHtml(budget.name)} · ${isOver ? "Over budget" : "Approaching limit"}</strong><p>${escapeHtml(period)}<br>${escapeHtml(comparison)} · ${escapeHtml(formatPercentage(budget.percentageUsed))} used · ${escapeHtml(differenceText)}</p></div><button class="btn btn-secondary btn-small alert-action" type="button" data-alert-budget-id="${escapeHtml(budget.id)}" aria-label="View ${escapeHtml(budget.name)} in the budget list">View budget</button></article>`;
+      }).join("");
+    }
+
+    function renderBudgets(){
+      renderProjectFilter();
+      renderSourceWarning();
+      elements.loadingState.hidden = true;
+      elements.emptyState.hidden = true;
+      elements.noResultsState.hidden = true;
+      elements.errorState.hidden = true;
+      elements.list.hidden = true;
+
+      if(!allInitialDataResolved()){
+        elements.loadingState.hidden = false;
+        elements.resultCount.textContent = "Loading budgets and spending...";
+        elements.dataQualityWarning.hidden = true;
+        elements.alerts.innerHTML = '<div class="alerts-placeholder"><span aria-hidden="true">!</span><div><strong>Loading budget alerts</strong><div>Alerts will appear after all source records have loaded.</div></div></div>';
+        renderKpis(null);
+        renderAnalytics(null, "loading");
+        return;
+      }
+
+      if(budgetsLoadError){
+        elements.errorState.hidden = false;
+        elements.resultCount.textContent = "Budgets unavailable";
+        elements.dataQualityWarning.hidden = true;
+        elements.alerts.innerHTML = '<div class="alerts-placeholder"><span aria-hidden="true">!</span><div><strong>Budget alerts unavailable</strong><div>Budget records could not be loaded.</div></div></div>';
+        renderKpis(null);
+        renderAnalytics(null, "error");
+        return;
+      }
+
+      const sourceModel = normaliseSourceTransactions(billRecords, expenseRecords);
+      renderDataQualityWarning(sourceModel);
+      const visibleBudgets = filteredBudgets().map(budget => calculateBudget(budget, sourceModel.transactions));
+      renderKpis(visibleBudgets);
+      renderAlerts(visibleBudgets);
+      renderAnalytics(visibleBudgets);
+      elements.resultCount.textContent = filtersAreActive()
+        ? `${visibleBudgets.length} of ${budgets.length} ${budgets.length === 1 ? "budget" : "budgets"}`
+        : `${budgets.length} ${budgets.length === 1 ? "budget" : "budgets"}`;
+
+      if(!budgets.length){
+        elements.emptyState.hidden = false;
+        return;
+      }
+
+      if(!visibleBudgets.length){
+        elements.noResultsState.hidden = false;
+        return;
+      }
+
+      elements.list.innerHTML = visibleBudgets.map(budgetRecordHtml).join("");
+      elements.list.hidden = false;
+    }
+
+    function clearFilters(){
+      elements.search.value = "";
+      elements.statusFilter.value = "all";
+      elements.periodFilter.value = "all";
+      elements.typeFilter.value = "all";
+      elements.projectFilter.value = "all";
+      renderBudgets();
+      elements.search.focus();
+    }
+
+    function currentYear(){
+      return new Date().getFullYear();
+    }
+
+    function currentMonthValue(){
+      const today = new Date();
+      return `${today.getFullYear()}-${padNumber(today.getMonth() + 1)}`;
+    }
+
+    function clearValidation(){
+      [elements.name, elements.month, elements.quarterYear, elements.annualYear, elements.startDate, elements.endDate, elements.category, elements.plannedAmount]
+        .forEach(input => input.removeAttribute("aria-invalid"));
+      ["budgetNameError", "budgetMonthError", "budgetQuarterYearError", "budgetAnnualYearError", "budgetStartDateError", "budgetEndDateError", "budgetCategoryError", "plannedAmountError"]
+        .forEach(id => document.getElementById(id).textContent = "");
+      setFormFeedback("");
+    }
+
+    function markInvalid(input, errorId, message){
+      input.setAttribute("aria-invalid", "true");
+      document.getElementById(errorId).textContent = message;
+      return input;
+    }
+
+    function validYear(value){
+      const year = Number(value);
+      return Number.isInteger(year) && year >= 1900 && year <= 9999 ? year : null;
+    }
+
+    function derivePeriodDates(showErrors = true){
+      const type = elements.periodType.value;
+      if(type === "monthly"){
+        const match = elements.month.value.match(/^(\d{4})-(\d{2})$/);
+        if(!match || !validYear(match[1]) || Number(match[2]) < 1 || Number(match[2]) > 12){
+          if(showErrors) markInvalid(elements.month, "budgetMonthError", "Choose a valid month.");
+          return null;
+        }
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        return { startDate:dateKey(year, month, 1), endDate:dateKey(year, month, new Date(year, month, 0).getDate()) };
+      }
+
+      if(type === "quarterly"){
+        const year = validYear(elements.quarterYear.value);
+        const quarter = Number(elements.quarter.value);
+        if(!year){
+          if(showErrors) markInvalid(elements.quarterYear, "budgetQuarterYearError", "Enter a valid year.");
+          return null;
+        }
+        if(![1,2,3,4].includes(quarter)) return null;
+        const startMonth = ((quarter - 1) * 3) + 1;
+        const endMonth = quarter * 3;
+        return { startDate:dateKey(year, startMonth, 1), endDate:dateKey(year, endMonth, new Date(year, endMonth, 0).getDate()) };
+      }
+
+      if(type === "annual"){
+        const year = validYear(elements.annualYear.value);
+        if(!year){
+          if(showErrors) markInvalid(elements.annualYear, "budgetAnnualYearError", "Enter a valid year.");
+          return null;
+        }
+        return { startDate:dateKey(year, 1, 1), endDate:dateKey(year, 12, 31) };
+      }
+
+      const startDate = elements.startDate.value;
+      const endDate = elements.endDate.value;
+      let valid = true;
+      if(!parseLocalDate(startDate)){
+        if(showErrors) markInvalid(elements.startDate, "budgetStartDateError", "Choose a valid start date.");
+        valid = false;
+      }
+      if(!parseLocalDate(endDate)){
+        if(showErrors) markInvalid(elements.endDate, "budgetEndDateError", "Choose a valid end date.");
+        valid = false;
+      }else if(startDate && endDate < startDate){
+        if(showErrors) markInvalid(elements.endDate, "budgetEndDateError", "End date cannot be before the start date.");
+        valid = false;
+      }
+      return valid ? { startDate, endDate } : null;
+    }
+
+    function renderPeriodFields(){
+      document.getElementById("monthlyPeriodFields").hidden = elements.periodType.value !== "monthly";
+      document.getElementById("quarterlyPeriodFields").hidden = elements.periodType.value !== "quarterly";
+      document.getElementById("annualPeriodFields").hidden = elements.periodType.value !== "annual";
+      document.getElementById("customPeriodFields").hidden = elements.periodType.value !== "custom";
+    }
+
+    function renderCategoryField(){
+      const categoryBudget = elements.budgetType.value === "category";
+      elements.categoryField.hidden = !categoryBudget;
+      if(!categoryBudget){
+        elements.category.value = "";
+        elements.category.removeAttribute("aria-invalid");
+        document.getElementById("budgetCategoryError").textContent = "";
+      }
+    }
+
+    function selectedProject(){
+      const option = elements.project.selectedOptions[0];
+      if(!option?.value) return { projectId:"", projectName:"", projectReference:"" };
+      return {
+        projectId:option.value,
+        projectName:option.dataset.projectName || option.textContent.replace(/\s+\(unavailable\)$/, ""),
+        projectReference:option.dataset.projectReference || ""
+      };
+    }
+
+    function validateBudget(){
+      clearValidation();
+      let firstInvalid = null;
+      const name = elements.name.value.trim();
+      if(!name) firstInvalid ||= markInvalid(elements.name, "budgetNameError", "Enter a budget name.");
+      if(name.length > 120) firstInvalid ||= markInvalid(elements.name, "budgetNameError", "Use 120 characters or fewer.");
+
+      const dates = derivePeriodDates(true);
+      if(!dates){
+        const activePeriodField = elements.budgetOverlay.querySelector('.period-fields:not([hidden]) [aria-invalid="true"]');
+        firstInvalid ||= activePeriodField;
+      }
+
+      if(elements.budgetType.value === "category" && !categoryNames.includes(elements.category.value)){
+        firstInvalid ||= markInvalid(elements.category, "budgetCategoryError", "Choose a category.");
+      }
+
+      const amountText = elements.plannedAmount.value.trim();
+      const amount = Number(amountText);
+      if(!/^\d+(\.\d{1,2})?$/.test(amountText) || !Number.isFinite(amount) || amount <= 0){
+        firstInvalid ||= markInvalid(elements.plannedAmount, "plannedAmountError", "Enter a positive amount with no more than two decimal places.");
+      }
+
+      if(firstInvalid){
+        setFormFeedback("Please correct the highlighted fields.");
+        firstInvalid.focus();
+        return null;
+      }
+
+      return { name, dates, plannedAmount:amount };
+    }
+
+    function resetBudgetForm(){
+      elements.budgetForm.reset();
+      elements.periodType.value = "monthly";
+      elements.month.value = currentMonthValue();
+      elements.quarterYear.value = String(currentYear());
+      elements.quarter.value = String(Math.floor(new Date().getMonth() / 3) + 1);
+      elements.annualYear.value = String(currentYear());
+      elements.startDate.value = "";
+      elements.endDate.value = "";
+      elements.budgetType.value = "overall";
+      elements.category.value = "";
+      elements.status.value = "Active";
+      clearValidation();
+      renderPeriodFields();
+      renderCategoryField();
+    }
+
+    function openBudgetForm(trigger, budget = null){
+      editingBudgetId = budget?.id || null;
+      modalTrigger = trigger || document.activeElement;
+      resetBudgetForm();
+      renderModalProjectOptions(budget);
+
+      if(budget){
+        elements.name.value = budget.name;
+        elements.periodType.value = budget.periodType;
+        if(budget.periodType === "monthly") elements.month.value = budget.startDate.slice(0, 7);
+        if(budget.periodType === "quarterly"){
+          const start = parseLocalDate(budget.startDate);
+          if(start){
+            elements.quarterYear.value = String(start.getFullYear());
+            elements.quarter.value = String(Math.floor(start.getMonth() / 3) + 1);
+          }
+        }
+        if(budget.periodType === "annual") elements.annualYear.value = budget.startDate.slice(0, 4);
+        elements.startDate.value = budget.startDate;
+        elements.endDate.value = budget.endDate;
+        elements.budgetType.value = budget.budgetType;
+        elements.category.value = budget.category;
+        elements.plannedAmount.value = Number(budget.plannedAmount).toFixed(2);
+        elements.status.value = budget.status;
+      }
+
+      renderPeriodFields();
+      renderCategoryField();
+      elements.budgetModalTitle.textContent = budget ? "Edit budget" : "Create budget";
+      elements.budgetModalSubtitle.textContent = budget ? "Update this budget definition without changing any transactions." : "Set the planned amount, period and optional spending scope.";
+      elements.saveBudget.textContent = budget ? "Save changes" : "Create budget";
+      elements.budgetOverlay.hidden = false;
+      document.body.style.overflow = "hidden";
+      elements.name.focus();
+    }
+
+    function closeBudgetForm(){
+      if(isSaving) return;
+      elements.budgetOverlay.hidden = true;
+      document.body.style.overflow = "";
+      editingBudgetId = null;
+      modalTrigger?.focus();
+      modalTrigger = null;
+    }
+
+    async function saveBudget(event){
+      event.preventDefault();
+      if(isSaving) return;
+      if(!currentUser){
+        setFormFeedback("Your session has ended. Sign in again before saving.");
+        return;
+      }
+
+      const validated = validateBudget();
+      if(!validated) return;
+      const project = selectedProject();
+      const data = {
+        schemaVersion:1,
+        name:validated.name,
+        periodType:elements.periodType.value,
+        startDate:validated.dates.startDate,
+        endDate:validated.dates.endDate,
+        budgetType:elements.budgetType.value,
+        category:elements.budgetType.value === "category" ? elements.category.value : "",
+        projectId:project.projectId,
+        projectName:project.projectName,
+        projectReference:project.projectReference,
+        plannedAmount:validated.plannedAmount,
+        status:elements.status.value,
+        updatedAt:serverTimestamp()
+      };
+
+      isSaving = true;
+      elements.saveBudget.disabled = true;
+      elements.saveBudget.textContent = editingBudgetId ? "Saving changes..." : "Creating budget...";
+      try{
+        if(editingBudgetId){
+          await updateDoc(doc(db, "users", currentUser.uid, "budgets", editingBudgetId), data);
+          showPageFeedback("Budget updated.");
+        }else{
+          await addDoc(collection(db, "users", currentUser.uid, "budgets"), { ...data, createdAt:serverTimestamp() });
+          showPageFeedback("Budget created.");
+        }
+        closeBudgetFormAfterSave();
+      }catch(error){
+        console.error("Firestore budget save failed", error);
+        setFormFeedback("The budget could not be saved. Please try again.");
+      }finally{
+        isSaving = false;
+        elements.saveBudget.disabled = false;
+        if(!elements.budgetOverlay.hidden) elements.saveBudget.textContent = editingBudgetId ? "Save changes" : "Create budget";
+      }
+    }
+
+    function closeBudgetFormAfterSave(){
+      elements.budgetOverlay.hidden = true;
+      document.body.style.overflow = "";
+      editingBudgetId = null;
+      modalTrigger?.focus();
+      modalTrigger = null;
+    }
+
+    function openDeleteConfirmation(trigger, budget){
+      pendingDeleteId = budget.id;
+      modalTrigger = trigger;
+      elements.deleteBudgetName.textContent = budget.name;
+      elements.deleteFeedback.textContent = "";
+      elements.deleteFeedback.hidden = true;
+      elements.deleteOverlay.hidden = false;
+      document.body.style.overflow = "hidden";
+      elements.deleteModalClose.focus();
+    }
+
+    function closeDeleteConfirmation(){
+      if(elements.confirmDelete.disabled) return;
+      elements.deleteOverlay.hidden = true;
+      document.body.style.overflow = "";
+      pendingDeleteId = null;
+      elements.deleteFeedback.textContent = "";
+      elements.deleteFeedback.hidden = true;
+      modalTrigger?.focus();
+      modalTrigger = null;
+    }
+
+    async function deleteBudget(){
+      if(!pendingDeleteId || !currentUser || elements.confirmDelete.disabled) return;
+      const budgetId = pendingDeleteId;
+      elements.confirmDelete.disabled = true;
+      elements.confirmDelete.textContent = "Deleting...";
+      try{
+        await deleteDoc(doc(db, "users", currentUser.uid, "budgets", budgetId));
+        elements.deleteOverlay.hidden = true;
+        document.body.style.overflow = "";
+        pendingDeleteId = null;
+        modalTrigger?.focus();
+        modalTrigger = null;
+        showPageFeedback("Budget deleted.");
+      }catch(error){
+        console.error("Firestore budget delete failed", error);
+        elements.deleteFeedback.textContent = "The budget could not be deleted. Please try again.";
+        elements.deleteFeedback.hidden = false;
+      }finally{
+        elements.confirmDelete.disabled = false;
+        elements.confirmDelete.textContent = "Delete budget";
+      }
+    }
+
+    function cleanupSubscriptions(){
+      unsubscribeBudgets?.();
+      unsubscribeProjects?.();
+      unsubscribeBills?.();
+      unsubscribeExpenses?.();
+      unsubscribeBudgets = null;
+      unsubscribeProjects = null;
+      unsubscribeBills = null;
+      unsubscribeExpenses = null;
+    }
+
+    function subscribeToData(user){
+      cleanupSubscriptions();
+      currentUser = user;
+      budgets = [];
+      projects = [];
+      billRecords = [];
+      expenseRecords = [];
+      loadState = { budgets:false, projects:false, bills:false, expenses:false };
+      sourceErrors = new Set();
+      budgetsLoadError = false;
+      renderBudgets();
+
+      unsubscribeProjects = onSnapshot(
+        collection(db, "users", user.uid, "projects"),
+        snapshot => {
+          projects = snapshot.docs.map(normaliseProject).sort((a, b) => a.name.localeCompare(b.name, "en-GB", { sensitivity:"base" }));
+          loadState.projects = true;
+          sourceErrors.delete("projects");
+          renderBudgets();
+        },
+        error => {
+          console.error("Firestore projects subscription failed", error);
+          projects = [];
+          loadState.projects = true;
+          sourceErrors.add("projects");
+          elements.projectFilter.setAttribute("aria-busy", "false");
+          showPageFeedback("Projects could not be loaded. Saved project details are preserved.", true);
+          renderBudgets();
+        }
+      );
+
+      unsubscribeBudgets = onSnapshot(
+        collection(db, "users", user.uid, "budgets"),
+        snapshot => {
+          budgets = snapshot.docs.map(normaliseBudget);
+          loadState.budgets = true;
+          sourceErrors.delete("budgets");
+          budgetsLoadError = false;
+          renderBudgets();
+        },
+        error => {
+          console.error("Firestore budgets subscription failed", error);
+          budgets = [];
+          loadState.budgets = true;
+          sourceErrors.add("budgets");
+          budgetsLoadError = true;
+          showPageFeedback("Budget records could not be loaded.", true);
+          renderBudgets();
+        }
+      );
+
+      unsubscribeBills = onSnapshot(
+        collection(db, "users", user.uid, "bills"),
+        snapshot => {
+          billRecords = snapshot.docs.map(record => ({ id:record.id, ...record.data() }));
+          loadState.bills = true;
+          sourceErrors.delete("bills");
+          renderBudgets();
+        },
+        error => {
+          console.error("Firestore bills subscription failed", error);
+          billRecords = [];
+          loadState.bills = true;
+          sourceErrors.add("bills");
+          showPageFeedback("Bills could not be loaded. Budget calculations may be incomplete.", true);
+          renderBudgets();
+        }
+      );
+
+      unsubscribeExpenses = onSnapshot(
+        collection(db, "users", user.uid, "expenses"),
+        snapshot => {
+          expenseRecords = snapshot.docs.map(record => ({ id:record.id, ...record.data() }));
+          loadState.expenses = true;
+          sourceErrors.delete("expenses");
+          renderBudgets();
+        },
+        error => {
+          console.error("Firestore expenses subscription failed", error);
+          expenseRecords = [];
+          loadState.expenses = true;
+          sourceErrors.add("expenses");
+          showPageFeedback("Expenses and Mileage could not be loaded. Budget calculations may be incomplete.", true);
+          renderBudgets();
+        }
+      );
+    }
+
+    document.getElementById("createBudgetButton").addEventListener("click", event => openBudgetForm(event.currentTarget));
+    document.getElementById("emptyCreateBudgetButton").addEventListener("click", event => openBudgetForm(event.currentTarget));
+    document.getElementById("clearFiltersButton").addEventListener("click", clearFilters);
+    document.getElementById("noResultsClearButton").addEventListener("click", clearFilters);
+    elements.search.addEventListener("input", renderBudgets);
+    [elements.statusFilter, elements.periodFilter, elements.typeFilter, elements.projectFilter].forEach(filter => filter.addEventListener("change", renderBudgets));
+    elements.periodType.addEventListener("change", () => { clearValidation(); renderPeriodFields(); });
+    elements.budgetType.addEventListener("change", renderCategoryField);
+    elements.budgetForm.addEventListener("submit", saveBudget);
+    elements.cancelBudget.addEventListener("click", closeBudgetForm);
+    elements.budgetModalClose.addEventListener("click", closeBudgetForm);
+    elements.cancelDelete.addEventListener("click", closeDeleteConfirmation);
+    elements.deleteModalClose.addEventListener("click", closeDeleteConfirmation);
+    elements.confirmDelete.addEventListener("click", deleteBudget);
+
+    elements.list.addEventListener("click", event => {
+      const button = event.target.closest("button[data-budget-action][data-budget-id]");
+      if(!button) return;
+      const budget = budgets.find(item => item.id === button.dataset.budgetId);
+      if(!budget) return;
+      if(button.dataset.budgetAction === "edit") openBudgetForm(button, budget);
+      if(button.dataset.budgetAction === "delete") openDeleteConfirmation(button, budget);
+    });
+
+    elements.alerts.addEventListener("click", event => {
+      const button = event.target.closest("button[data-alert-budget-id]");
+      if(!button) return;
+      const card = [...elements.list.querySelectorAll(".budget-record")]
+        .find(record => record.dataset.budgetId === button.dataset.alertBudgetId);
+      if(!card) return;
+      card.scrollIntoView({ behavior:"smooth", block:"center" });
+      card.focus({ preventScroll:true });
+    });
+
+    [elements.budgetOverlay, elements.deleteOverlay].forEach(overlay => {
+      overlay.addEventListener("mousedown", event => {
+        if(event.target !== overlay) return;
+        if(overlay === elements.budgetOverlay) closeBudgetForm();
+        if(overlay === elements.deleteOverlay) closeDeleteConfirmation();
+      });
+    });
+
+    document.addEventListener("keydown", event => {
+      const openOverlay = !elements.deleteOverlay.hidden ? elements.deleteOverlay : (!elements.budgetOverlay.hidden ? elements.budgetOverlay : null);
+      if(!openOverlay) return;
+      if(event.key === "Escape"){
+        event.preventDefault();
+        if(openOverlay === elements.deleteOverlay) closeDeleteConfirmation();
+        else closeBudgetForm();
+        return;
+      }
+      if(event.key !== "Tab") return;
+      const focusable = [...openOverlay.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled])')]
+        .filter(control => !control.closest("[hidden]"));
+      if(!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if(event.shiftKey && document.activeElement === first){ event.preventDefault(); last.focus(); }
+      if(!event.shiftKey && document.activeElement === last){ event.preventDefault(); first.focus(); }
+    });
+
+    onAuthStateChanged(auth, user => {
+      cleanupSubscriptions();
+      currentUser = user;
+      if(user) subscribeToData(user);
+    });
+    window.addEventListener("beforeunload", cleanupSubscriptions);
+  </script>
+</body>
+</html>
