@@ -23,6 +23,10 @@
       box-sizing:border-box;
     }
 
+    [hidden]{
+      display:none !important;
+    }
+
     body{
       margin:0;
       font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
@@ -141,6 +145,45 @@
       font-size:27px;
       font-weight:900;
       line-height:1.1;
+    }
+
+    .kpi-value-row{
+      display:flex;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:8px 10px;
+    }
+
+    .cash-position-badge{
+      display:inline-flex;
+      align-items:center;
+      min-height:25px;
+      padding:3px 9px;
+      border:1px solid #bae6fd;
+      border-radius:999px;
+      background:#f0f9ff;
+      color:#075985;
+      font-size:11px;
+      font-weight:850;
+      line-height:1.2;
+    }
+
+    .cash-position-badge.healthy{
+      border-color:#bbf7d0;
+      background:#f0fdf4;
+      color:#166534;
+    }
+
+    .cash-position-badge.warning{
+      border-color:#fde68a;
+      background:#fffbeb;
+      color:#92400e;
+    }
+
+    .cash-position-badge.negative{
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
     }
 
     .kpi-meta{
@@ -272,7 +315,7 @@
     }
 
     .section-card{
-      margin-bottom:16px;
+      margin-bottom:20px;
     }
 
     .section-heading{
@@ -356,7 +399,7 @@
     }
 
     .forecast-metrics{
-      margin-top:16px;
+      margin-top:20px;
     }
 
     .forecast-metrics h3{
@@ -379,6 +422,100 @@
       border-radius:12px;
       background:#fff;
       box-shadow:0 5px 16px rgba(15,23,42,.045);
+    }
+
+    .derived-card{
+      margin-top:20px;
+      padding:16px;
+      border:1px solid #e2e8f0;
+      border-radius:14px;
+      background:#fff;
+      box-shadow:0 6px 18px rgba(15,23,42,.045);
+    }
+
+    .derived-card-heading{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:13px;
+    }
+
+    .derived-card-heading h3{
+      margin:0;
+      color:var(--heading);
+      font-size:16px;
+      line-height:1.3;
+    }
+
+    .derived-card-heading p{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.4;
+    }
+
+    .compact-table-scroll{
+      width:100%;
+      overflow-x:auto;
+      border:1px solid #e8eef5;
+      border-radius:11px;
+    }
+
+    .summary-table,
+    .top-payments-table{
+      width:100%;
+      border-collapse:collapse;
+    }
+
+    .summary-table{
+      min-width:520px;
+    }
+
+    .top-payments-table{
+      min-width:440px;
+    }
+
+    .summary-table th,
+    .top-payments-table th{
+      padding:10px 12px;
+      background:#f8fafc;
+      color:#64748b;
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.035em;
+      text-align:left;
+      text-transform:uppercase;
+    }
+
+    .summary-table th:not(:first-child),
+    .summary-table td:not(:first-child),
+    .top-payments-table th:last-child,
+    .top-payments-table td:last-child{
+      text-align:right;
+    }
+
+    .summary-table td,
+    .top-payments-table td{
+      padding:11px 12px;
+      border-top:1px solid #edf2f7;
+      color:#334155;
+      font-size:13px;
+      line-height:1.4;
+    }
+
+    .summary-table td:first-child,
+    .top-payments-table td:first-child{
+      color:var(--heading);
+      font-weight:800;
+    }
+
+    .money-in{color:#15803d !important;font-weight:800;}
+    .money-out{color:#b91c1c !important;font-weight:800;}
+    .money-neutral{color:#475569 !important;font-weight:750;}
+
+    .top-payments-card{
+      margin-bottom:20px;
     }
 
     .metric-label{
@@ -521,6 +658,59 @@
       background:#f8fafc;
       color:var(--muted);
       text-align:center;
+    }
+
+    .illustrated-empty{
+      display:grid;
+      min-height:142px;
+      padding:22px 18px;
+      place-items:center;
+      border:1px dashed #cbd5e1;
+      border-radius:12px;
+      background:linear-gradient(180deg,#fbfdff,#f8fafc);
+      color:var(--muted);
+      text-align:center;
+    }
+
+    .empty-illustration{
+      display:grid;
+      width:44px;
+      height:44px;
+      margin:0 auto 10px;
+      place-items:center;
+      border-radius:14px;
+      background:#e8f3ff;
+      color:var(--accent);
+      font-size:19px;
+      font-weight:900;
+      box-shadow:inset 0 0 0 1px rgba(0,119,182,.08);
+    }
+
+    .illustrated-empty strong{
+      display:block;
+      margin-bottom:5px;
+      color:var(--heading);
+      font-size:14px;
+    }
+
+    .illustrated-empty p{
+      max-width:460px;
+      margin:0;
+      font-size:13px;
+      line-height:1.45;
+    }
+
+    .chart-empty-state{
+      min-height:0;
+      margin-top:12px;
+      padding:16px;
+    }
+
+    .chart-empty-state .empty-illustration{
+      width:38px;
+      height:38px;
+      margin-bottom:7px;
+      font-size:16px;
     }
 
     .table-empty-state strong{
@@ -692,6 +882,10 @@
       .filter-toggles{
         grid-column:auto;
       }
+
+      .derived-card-heading{
+        display:block;
+      }
     }
 
     @media (max-width:640px){
@@ -730,6 +924,150 @@
 
       .summary-row{
         align-items:flex-start;
+      }
+
+      .page-title-row{
+        align-items:flex-start;
+      }
+
+      .derived-card,
+      .metric-card,
+      .insight-item{
+        padding:12px;
+      }
+
+      .due-date-wrap{
+        align-items:flex-start;
+        flex-direction:column;
+        gap:4px;
+      }
+    }
+
+    @media print{
+      @page{
+        margin:12mm;
+      }
+
+      :root{
+        --bg:#fff;
+        --card:#fff;
+      }
+
+      body{
+        background:#fff;
+        color:#111827;
+        font-size:11pt;
+      }
+
+      .app-header,
+      .controls-card,
+      .forecast-feedback,
+      button,
+      input,
+      select,
+      .filter-toggles{
+        display:none !important;
+      }
+
+      .wrap{
+        width:100%;
+        max-width:none;
+        margin:0;
+        padding:0;
+      }
+
+      .page-title-row{
+        margin:0 0 12px;
+      }
+
+      .page-title-icon{
+        display:none;
+      }
+
+      .card,
+      .derived-card,
+      .metric-card{
+        border-color:#cbd5e1;
+        box-shadow:none;
+      }
+
+      .card,
+      .section-card,
+      .derived-card,
+      .upcoming-card,
+      .top-payments-card,
+      .cashflow-alert{
+        break-inside:avoid;
+        page-break-inside:avoid;
+      }
+
+      .kpi-grid{
+        grid-template-columns:repeat(4,minmax(0,1fr));
+        gap:8px;
+      }
+
+      .kpi-card{
+        min-height:0;
+        padding:12px;
+      }
+
+      .kpi-value{
+        font-size:19px;
+      }
+
+      .forecast-chart-shell{
+        height:235px;
+      }
+
+      .forecast-metrics-grid,
+      .insights-grid{
+        grid-template-columns:repeat(5,minmax(0,1fr));
+        gap:6px;
+      }
+
+      .metric-label{
+        min-height:0;
+      }
+
+      .upcoming-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:10px;
+      }
+
+      .table-scroll,
+      .compact-table-scroll{
+        overflow:visible;
+        border-color:#cbd5e1;
+      }
+
+      .upcoming-table,
+      .summary-table,
+      .top-payments-table{
+        min-width:0;
+      }
+
+      .upcoming-table th,
+      .upcoming-table td,
+      .summary-table th,
+      .summary-table td,
+      .top-payments-table th,
+      .top-payments-table td{
+        padding:6px;
+        font-size:9pt;
+      }
+
+      .due-date-wrap{
+        white-space:normal;
+      }
+
+      .chart-summary,
+      .derived-card-heading p,
+      .section-heading p{
+        color:#475569;
+      }
+
+      canvas{
+        max-width:100% !important;
       }
     }
   </style>
@@ -785,7 +1123,10 @@
 
       <article class="card kpi-card">
         <div class="kpi-label">Forecast balance</div>
-        <div class="kpi-value" id="forecastBalanceValue">&pound;0.00</div>
+        <div class="kpi-value-row">
+          <div class="kpi-value" id="forecastBalanceValue">&pound;0.00</div>
+          <span class="cash-position-badge positive" id="cashPositionBadge" role="status" aria-live="polite">Positive</span>
+        </div>
         <div class="kpi-meta" id="forecastBalanceMeta">Opening cash plus expected movement</div>
       </article>
     </section>
@@ -816,7 +1157,7 @@
           </select>
         </div>
 
-        <button class="btn" type="submit">Update forecast</button>
+        <button class="btn" type="submit" aria-label="Update cashflow forecast">Update forecast</button>
 
         <fieldset class="filter-toggles">
           <legend>Display options</legend>
@@ -830,7 +1171,7 @@
           </label>
         </fieldset>
 
-        <button class="btn btn-secondary" id="exportCashflowCsv" type="button">Export Cashflow CSV</button>
+        <button class="btn btn-secondary" id="exportCashflowCsv" type="button" aria-label="Export the current cashflow forecast as CSV">Export Cashflow CSV</button>
       </form>
       <p class="forecast-feedback" id="forecastFeedback" role="status" aria-live="polite"></p>
     </section>
@@ -848,6 +1189,13 @@
           </canvas>
         </div>
         <p class="chart-summary" id="cashflowChartSummary" aria-live="polite">Preparing the cashflow forecast timeline.</p>
+        <div class="illustrated-empty chart-empty-state" id="forecastEmptyState" hidden>
+          <div>
+            <span class="empty-illustration" aria-hidden="true">↔</span>
+            <strong>No forecast transactions</strong>
+            <p>No cash movements match the current filters. The chart shows the opening balance across the selected period.</p>
+          </div>
+        </div>
       </div>
 
       <section class="forecast-metrics" aria-labelledby="forecastMetricsTitle">
@@ -878,6 +1226,28 @@
         </div>
       </section>
 
+      <section class="derived-card monthly-summary-card" aria-labelledby="monthlySummaryTitle">
+        <div class="derived-card-heading">
+          <div>
+            <h3 id="monthlySummaryTitle">Monthly forecast summary</h3>
+            <p>Transactions grouped by forecast month. Paid amounts are informational and never affect the running balance.</p>
+          </div>
+        </div>
+        <div class="compact-table-scroll">
+          <table class="summary-table" aria-label="Monthly cashflow forecast summary">
+            <thead>
+              <tr>
+                <th scope="col">Month</th>
+                <th scope="col">Cash In</th>
+                <th scope="col">Cash Out</th>
+                <th scope="col">Net Movement</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyForecastSummaryBody"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="forecast-insights" aria-labelledby="forecastInsightsTitle">
         <h3 id="forecastInsightsTitle">Forecast insights</h3>
         <div class="insights-grid">
@@ -905,18 +1275,49 @@
       </section>
     </section>
 
+    <section class="card top-payments-card" aria-labelledby="topPaymentsTitle">
+      <div class="derived-card-heading">
+        <div>
+          <h2 id="topPaymentsTitle">Top upcoming payments</h2>
+          <p>The five largest unpaid bills in the current forecast.</p>
+        </div>
+      </div>
+      <div class="illustrated-empty" id="topPaymentsEmptyState" hidden>
+        <div>
+          <span class="empty-illustration" aria-hidden="true">↓</span>
+          <strong id="topPaymentsEmptyTitle">No upcoming payments</strong>
+          <p id="topPaymentsEmptyMessage">No unpaid bills match the current forecast filters.</p>
+        </div>
+      </div>
+      <div class="compact-table-scroll" id="topPaymentsTableScroll">
+        <table class="top-payments-table" aria-label="Five largest upcoming bill payments">
+          <thead>
+            <tr>
+              <th scope="col">Supplier</th>
+              <th scope="col">Due Date</th>
+              <th scope="col">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="topUpcomingPaymentsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="upcoming-grid" aria-label="Upcoming cash movements">
       <article class="card upcoming-card" aria-labelledby="cashInTitle">
         <div class="section-heading">
           <h2 id="cashInTitle">Upcoming cash in</h2>
           <p class="muted" id="cashInDescription">Unpaid invoices due within the selected period.</p>
         </div>
-        <div class="table-empty-state" id="cashInEmptyState" hidden>
-          <strong>No incoming transactions found</strong>
-          <p>No invoices match the current cashflow filters.</p>
+        <div class="illustrated-empty" id="cashInEmptyState" hidden>
+          <div>
+            <span class="empty-illustration" aria-hidden="true">↑</span>
+            <strong>No cash movements</strong>
+            <p>No incoming invoice transactions match the current cashflow filters.</p>
+          </div>
         </div>
         <div class="table-scroll" id="cashInTableScroll">
-          <table class="upcoming-table">
+          <table class="upcoming-table" aria-label="Upcoming invoice cash receipts">
             <thead>
               <tr><th scope="col">Due date</th><th scope="col">Customer</th><th scope="col">Invoice</th><th scope="col">Amount</th></tr>
             </thead>
@@ -932,12 +1333,15 @@
           <h2 id="cashOutTitle">Upcoming cash out</h2>
           <p class="muted" id="cashOutDescription">Unpaid bills due within the selected period.</p>
         </div>
-        <div class="table-empty-state" id="cashOutEmptyState" hidden>
-          <strong>No outgoing transactions found</strong>
-          <p>No bills match the current cashflow filters.</p>
+        <div class="illustrated-empty" id="cashOutEmptyState" hidden>
+          <div>
+            <span class="empty-illustration" aria-hidden="true">↓</span>
+            <strong>No cash movements</strong>
+            <p>No outgoing bill transactions match the current cashflow filters.</p>
+          </div>
         </div>
         <div class="table-scroll" id="cashOutTableScroll">
-          <table class="upcoming-table">
+          <table class="upcoming-table" aria-label="Upcoming bill cash payments">
             <thead>
               <tr><th scope="col">Due date</th><th scope="col">Supplier</th><th scope="col">Bill</th><th scope="col">Amount</th></tr>
             </thead>
@@ -998,6 +1402,12 @@
     const cashOutTableScroll = document.getElementById("cashOutTableScroll");
     const cashInEmptyState = document.getElementById("cashInEmptyState");
     const cashOutEmptyState = document.getElementById("cashOutEmptyState");
+    const forecastEmptyState = document.getElementById("forecastEmptyState");
+    const monthlyForecastSummaryBody = document.getElementById("monthlyForecastSummaryBody");
+    const topUpcomingPaymentsBody = document.getElementById("topUpcomingPaymentsBody");
+    const topPaymentsTableScroll = document.getElementById("topPaymentsTableScroll");
+    const topPaymentsEmptyState = document.getElementById("topPaymentsEmptyState");
+    const cashPositionBadge = document.getElementById("cashPositionBadge");
     const cashflowAlerts = document.getElementById("cashflowAlerts");
     const cashflowChartCanvas = document.getElementById("cashflowForecastChart");
 
@@ -1016,9 +1426,14 @@
     let cashflowForecastChart = null;
     let currentForecastModel = null;
 
-    function formatCurrency(value){
+    function normaliseCurrencyValue(value){
       const numericValue = Number(value);
-      const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+      if (!Number.isFinite(numericValue)) return 0;
+      return Math.abs(numericValue) < .005 ? 0 : numericValue;
+    }
+
+    function formatCurrency(value){
+      const safeValue = normaliseCurrencyValue(value);
 
       return new Intl.NumberFormat("en-GB", {
         style: "currency",
@@ -1026,6 +1441,12 @@
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       }).format(safeValue);
+    }
+
+    function formatSignedCurrency(value){
+      const safeValue = normaliseCurrencyValue(value);
+      if (safeValue > 0) return `+${formatCurrency(safeValue)}`;
+      return formatCurrency(safeValue);
     }
 
     function escapeHtml(value){
@@ -1107,6 +1528,10 @@
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
       return `${year}-${month}-${day}`;
+    }
+
+    function monthKey(date){
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     }
 
     function addCalendarMonths(date, months){
@@ -1470,6 +1895,26 @@
       setText("cashOutDescription", showPaidTransactions.checked
         ? "Unpaid forecast payments and paid bills shown for reference."
         : "Unpaid bills due within the selected period.");
+      renderCashPositionBadge(model);
+    }
+
+    function renderCashPositionBadge(model){
+      let status = { label: "Positive", className: "positive" };
+
+      if (model.forecastClosingBalance < 0) {
+        status = { label: "Negative", className: "negative" };
+      } else if (model.forecastClosingBalance > model.openingBalance) {
+        status = { label: "Healthy", className: "healthy" };
+      } else if (model.forecastClosingBalance < model.openingBalance) {
+        status = { label: "Warning", className: "warning" };
+      }
+
+      cashPositionBadge.textContent = status.label;
+      cashPositionBadge.className = `cash-position-badge ${status.className}`;
+      cashPositionBadge.setAttribute(
+        "aria-label",
+        `Cash position ${status.label.toLowerCase()}: forecast closing balance ${formatCurrency(model.forecastClosingBalance)}`
+      );
     }
 
     function renderForecastInsights(model){
@@ -1489,6 +1934,107 @@
       setText("largestOutgoingPayment", formatCurrency(model.largestOutgoingPayment));
       setText("forecastTransactionCount", String(model.forecastTransactionCount));
       setText("forecastLengthDays", `${model.forecastLengthDays} day${model.forecastLengthDays === 1 ? "" : "s"}`);
+    }
+
+    function buildMonthlyForecastSummary(model){
+      const months = [];
+      const endMonth = new Date(model.endDate.getFullYear(), model.endDate.getMonth(), 1);
+      const cursor = new Date(model.today.getFullYear(), model.today.getMonth(), 1);
+
+      while (cursor <= endMonth) {
+        months.push({
+          key: monthKey(cursor),
+          date: new Date(cursor.getTime()),
+          cashIn: 0,
+          cashOut: 0,
+          netMovement: 0
+        });
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+
+      const monthsByKey = new Map(months.map(month => [month.key, month]));
+      model.timeline.forEach(point => {
+        const month = monthsByKey.get(monthKey(point.date));
+        if (!month) return;
+        month.cashIn += point.cashIn;
+        month.cashOut += point.cashOut;
+        month.netMovement += point.netMovement;
+      });
+
+      if (showPaidTransactions.checked) {
+        model.paidInvoices.forEach(invoice => {
+          const effectiveDate = invoice.forecastDueDate < model.today ? model.today : invoice.forecastDueDate;
+          const month = monthsByKey.get(monthKey(effectiveDate));
+          if (!month) return;
+          month.cashIn += invoice.forecastAmount;
+          month.netMovement += invoice.forecastAmount;
+        });
+        model.paidBills.forEach(bill => {
+          const effectiveDate = bill.forecastDueDate < model.today ? model.today : bill.forecastDueDate;
+          const month = monthsByKey.get(monthKey(effectiveDate));
+          if (!month) return;
+          month.cashOut += bill.forecastAmount;
+          month.netMovement -= bill.forecastAmount;
+        });
+      }
+
+      return months;
+    }
+
+    function moneyToneClass(value){
+      const normalisedValue = normaliseCurrencyValue(value);
+      if (normalisedValue > 0) return "money-in";
+      if (normalisedValue < 0) return "money-out";
+      return "money-neutral";
+    }
+
+    function renderMonthlyForecastSummary(model){
+      const months = buildMonthlyForecastSummary(model);
+      monthlyForecastSummaryBody.innerHTML = months.map(month => {
+        const cashOutValue = -month.cashOut;
+        return `
+          <tr>
+            <td>${escapeHtml(month.date.toLocaleDateString("en-GB", { month: "long", year: "numeric" }))}</td>
+            <td class="${moneyToneClass(month.cashIn)}">${escapeHtml(formatSignedCurrency(month.cashIn))}</td>
+            <td class="${moneyToneClass(cashOutValue)}">${escapeHtml(formatSignedCurrency(cashOutValue))}</td>
+            <td class="${moneyToneClass(month.netMovement)}">${escapeHtml(formatSignedCurrency(month.netMovement))}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderTopUpcomingPayments(model){
+      if (!billsLoaded || billLoadError) {
+        topPaymentsTableScroll.hidden = true;
+        topPaymentsEmptyState.hidden = false;
+        setText("topPaymentsEmptyTitle", billLoadError ? "Upcoming payments unavailable" : "Loading upcoming payments");
+        setText("topPaymentsEmptyMessage", billLoadError
+          ? "Bill data could not be loaded for this forecast."
+          : "Preparing the largest unpaid bills in this forecast.");
+        return;
+      }
+
+      const topBills = [...model.visibleBills]
+        .sort((a, b) => b.forecastAmount - a.forecastAmount || a.forecastDueDate - b.forecastDueDate)
+        .slice(0, 5);
+      const showEmptyState = topBills.length === 0;
+      topPaymentsTableScroll.hidden = showEmptyState;
+      topPaymentsEmptyState.hidden = !showEmptyState;
+      setText("topPaymentsEmptyTitle", "No upcoming payments");
+      setText("topPaymentsEmptyMessage", "No unpaid bills match the current forecast filters.");
+
+      if (showEmptyState) {
+        topUpcomingPaymentsBody.innerHTML = "";
+        return;
+      }
+
+      topUpcomingPaymentsBody.innerHTML = topBills.map(bill => `
+        <tr>
+          <td>${escapeHtml(bill.supplier || "Unknown supplier")}</td>
+          <td>${escapeHtml(formatDueDate(bill.forecastDueDate))}</td>
+          <td class="money-out">${escapeHtml(formatCurrency(bill.forecastAmount))}</td>
+        </tr>
+      `).join("");
     }
 
     function chartPointsForModel(model){
@@ -1523,6 +2069,7 @@
         ? `Forecast from ${formatDueDate(model.today)} to ${formatDueDate(model.endDate)} with ${movementCount} cash movement${movementCount === 1 ? "" : "s"}. Closing balance ${formatCurrency(model.forecastClosingBalance)}; lowest balance ${formatCurrency(model.lowestPoint.balance)}.`
         : `No unpaid invoice or bill movements fall in this period. The balance remains at ${formatCurrency(model.openingBalance)} through ${formatDueDate(model.endDate)}.`;
       setText("cashflowChartSummary", summary);
+      forecastEmptyState.hidden = movementCount !== 0 || !invoicesLoaded || !billsLoaded;
 
       if (typeof window.Chart === "undefined") {
         cashflowChartCanvas.hidden = true;
@@ -1605,7 +2152,8 @@
                   const point = chartPoints[context.dataIndex];
                   return [
                     `Cash in: ${formatCurrency(point.cashIn)}`,
-                    `Cash out: ${formatCurrency(point.cashOut)}`
+                    `Cash out: ${formatCurrency(point.cashOut)}`,
+                    `Net movement: ${formatCurrency(point.netMovement)}`
                   ];
                 }
               }
@@ -1735,6 +2283,8 @@
       renderUpcomingCashOut(model.displayBills, model.today);
       renderForecastChart(model);
       renderForecastMetrics(model);
+      renderMonthlyForecastSummary(model);
+      renderTopUpcomingPayments(model);
       renderForecastInsights(model);
       renderCashflowAlerts(model);
     }
