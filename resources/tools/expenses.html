@@ -522,6 +522,260 @@
       border:1px solid #991b1b;
     }
 
+    .btn-icon{
+      width:18px;
+      height:18px;
+      margin-right:8px;
+      flex:0 0 auto;
+    }
+
+    #scanReceiptButton:disabled{
+      cursor:not-allowed;
+      opacity:.55;
+      box-shadow:none;
+    }
+
+    .visually-hidden{
+      position:absolute;
+      width:1px;
+      height:1px;
+      padding:0;
+      margin:-1px;
+      overflow:hidden;
+      clip:rect(0,0,0,0);
+      white-space:nowrap;
+      border:0;
+    }
+
+    .modal-overlay{
+      position:fixed;
+      z-index:1000;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:rgba(15,23,42,.58);
+    }
+
+    .modal-overlay[hidden]{
+      display:none;
+    }
+
+    .modal{
+      width:min(620px,100%);
+      max-height:calc(100vh - 40px);
+      overflow:auto;
+      border:1px solid #dbe3ec;
+      border-radius:18px;
+      background:#fff;
+      box-shadow:0 28px 70px rgba(15,23,42,.28);
+    }
+
+    .modal-header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:18px;
+      padding:22px 22px 16px;
+      border-bottom:1px solid #e8edf3;
+    }
+
+    .modal-header p{
+      margin:6px 0 0;
+    }
+
+    .modal-close{
+      flex:0 0 auto;
+      width:38px;
+      height:38px;
+      border:1px solid #dbe3ec;
+      border-radius:10px;
+      background:#fff;
+      color:#475569;
+      font-size:22px;
+      line-height:1;
+      cursor:pointer;
+    }
+
+    .modal-close:hover{
+      background:#f8fafc;
+    }
+
+    .modal-close:focus-visible,
+    .receipt-scan-remove:focus-visible{
+      outline:3px solid rgba(0,119,182,.16);
+      outline-offset:3px;
+    }
+
+    .modal-body{
+      padding:20px 22px;
+    }
+
+    .modal-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:16px 22px 22px;
+      border-top:1px solid #e8edf3;
+    }
+
+    .receipt-scan-upload{
+      display:grid;
+      place-items:center;
+      gap:10px;
+      min-height:190px;
+      padding:24px;
+      border:2px dashed #cbd5e1;
+      border-radius:14px;
+      background:#f8fafc;
+      text-align:center;
+    }
+
+    .receipt-scan-upload-icon{
+      width:48px;
+      height:48px;
+      display:grid;
+      place-items:center;
+      border-radius:50%;
+      background:#e8f3ff;
+      color:var(--accent);
+    }
+
+    .receipt-scan-upload-icon svg{
+      width:25px;
+      height:25px;
+    }
+
+    .receipt-scan-upload p{
+      margin:0;
+      color:#475569;
+      font-size:14px;
+      line-height:1.45;
+    }
+
+    .receipt-scan-file-types{
+      color:#64748b;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .receipt-scan-input{
+      display:none;
+    }
+
+    .receipt-scan-error{
+      margin:14px 0 0;
+      padding:10px 12px;
+      border:1px solid #fda29b;
+      border-radius:9px;
+      background:#fff1f0;
+      color:#9f1c14;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.4;
+    }
+
+    .receipt-scan-selected{
+      display:grid;
+      gap:14px;
+    }
+
+    .receipt-scan-preview{
+      display:grid;
+      place-items:center;
+      min-height:180px;
+      max-height:320px;
+      overflow:hidden;
+      border:1px solid #dbe3ec;
+      border-radius:14px;
+      background:#f8fafc;
+    }
+
+    .receipt-scan-preview img{
+      display:block;
+      width:100%;
+      height:100%;
+      max-height:320px;
+      object-fit:contain;
+    }
+
+    .receipt-scan-pdf{
+      display:grid;
+      justify-items:center;
+      gap:10px;
+      max-width:100%;
+      padding:28px;
+      color:#475569;
+      text-align:center;
+    }
+
+    .receipt-scan-pdf-icon{
+      display:grid;
+      place-items:center;
+      width:62px;
+      height:72px;
+      border:2px solid #ef4444;
+      border-radius:8px;
+      background:#fff;
+      color:#b91c1c;
+      font-size:14px;
+      font-weight:900;
+    }
+
+    .receipt-scan-pdf-name{
+      max-width:100%;
+      overflow-wrap:anywhere;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .receipt-scan-file-details{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      padding:14px;
+      border:1px solid #e8eef7;
+      border-radius:12px;
+      background:#fbfdff;
+    }
+
+    .receipt-scan-file-name{
+      margin:0;
+      overflow-wrap:anywhere;
+      font-size:14px;
+      font-weight:900;
+    }
+
+    .receipt-scan-file-meta{
+      margin:4px 0 0;
+      color:#64748b;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .receipt-scan-remove{
+      flex:0 0 auto;
+      padding:0;
+      border:0;
+      background:transparent;
+      color:var(--accent);
+      font-family:inherit;
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .receipt-scan-stage-message{
+      margin:0 22px 14px;
+      color:#64748b;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.4;
+      text-align:right;
+    }
+
     .attachment-placeholder{
       display:flex;
       flex-wrap:wrap;
@@ -1162,6 +1416,60 @@
       .form-field-group{
         padding:14px;
       }
+
+      .section-heading{
+        flex-direction:column;
+      }
+
+      .section-heading > .btn{
+        width:100%;
+      }
+
+      .modal-overlay{
+        align-items:flex-end;
+        padding:12px;
+      }
+
+      .modal{
+        max-height:calc(100vh - 24px);
+        border-radius:16px;
+      }
+
+      .modal-header,
+      .modal-body{
+        padding-left:16px;
+        padding-right:16px;
+      }
+
+      .receipt-scan-upload{
+        min-height:160px;
+        padding:20px 16px;
+      }
+
+      .receipt-scan-preview,
+      .receipt-scan-preview img{
+        max-height:230px;
+      }
+
+      .receipt-scan-file-details{
+        flex-direction:column;
+        gap:10px;
+      }
+
+      .receipt-scan-stage-message{
+        margin-left:16px;
+        margin-right:16px;
+        text-align:left;
+      }
+
+      .modal-actions{
+        flex-direction:column-reverse;
+        padding:14px 16px 18px;
+      }
+
+      .modal-actions .btn{
+        width:100%;
+      }
     }
   </style>
   <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
@@ -1271,6 +1579,13 @@
               <h2 id="formTitle">Add expense</h2>
               <p class="muted">Save the date, supplier, category, VAT and payment status.</p>
             </div>
+            <button class="btn btn-secondary" id="openReceiptScanButton" type="button">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2" />
+                <path d="M8 8h8v8H8z" />
+              </svg>
+              Scan Receipt
+            </button>
           </div>
 
           <div class="claim-toggle" aria-label="Claim type">
@@ -1663,6 +1978,54 @@
     </section>
   </main>
 
+  <div class="modal-overlay" id="receiptScanModalOverlay" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="receiptScanModalTitle" aria-describedby="receiptScanModalDescription">
+      <div class="modal-header">
+        <div>
+          <h2 id="receiptScanModalTitle">Scan a receipt</h2>
+          <p class="muted" id="receiptScanModalDescription">Upload a photo, image or PDF of a receipt or other expense document. Simple Books will read the document and prepare the expense details for you to review.</p>
+        </div>
+        <button class="modal-close" id="receiptScanModalClose" type="button" aria-label="Close receipt scanner">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="receipt-scan-upload" id="receiptScanUploadState">
+          <span class="receipt-scan-upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3" />
+            </svg>
+          </span>
+          <p>Select a receipt or expense document from your device.</p>
+          <button class="btn" id="chooseReceiptScanFileButton" type="button">Choose file</button>
+          <span class="receipt-scan-file-types">JPG, JPEG, PNG, WEBP or PDF &middot; Maximum 10 MB</span>
+        </div>
+
+        <label class="visually-hidden" for="receiptScanFileInput">Choose a receipt image or PDF</label>
+        <input class="receipt-scan-input" id="receiptScanFileInput" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" aria-label="Choose a receipt image or PDF" aria-describedby="receiptScanFileTypes receiptScanError">
+        <span id="receiptScanFileTypes" hidden>Supported files are JPG, JPEG, PNG, WEBP and PDF, up to 10 MB.</span>
+        <p class="receipt-scan-error" id="receiptScanError" role="alert" hidden></p>
+
+        <div class="receipt-scan-selected" id="receiptScanSelectedState" hidden>
+          <div class="receipt-scan-preview" id="receiptScanPreview"></div>
+          <div class="receipt-scan-file-details">
+            <div>
+              <p class="receipt-scan-file-name" id="receiptScanFileName"></p>
+              <p class="receipt-scan-file-meta" id="receiptScanFileMeta"></p>
+            </div>
+            <button class="receipt-scan-remove" id="receiptScanRemoveFile" type="button">Choose another file</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="receipt-scan-stage-message" id="receiptScanStageMessage">AI scanning will be connected in the next stage.</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelReceiptScanButton" type="button">Cancel</button>
+        <button class="btn" id="scanReceiptButton" type="button" disabled aria-describedby="receiptScanStageMessage">Scan receipt</button>
+      </div>
+    </section>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script type="module">
@@ -1691,6 +2054,8 @@
     const statuses = ["Draft", "Submitted", "Approved", "Paid"];
     const storage = getStorage(app);
     const maxAttachmentSize = 10 * 1024 * 1024;
+    const maxReceiptScanFileSize = 10 * 1024 * 1024;
+    const receiptScanFileTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
     let expenses = dedupeExpensesById(getExpenses());
     let editingExpenseId = null;
     let claimType = "expense";
@@ -1704,6 +2069,9 @@
     let projectsLoaded = false;
     let projectsLoadError = false;
     let projectsUserId = "";
+    let selectedReceiptScanFile = null;
+    let receiptScanPreviewUrl = "";
+    let receiptScanPreviousFocus = null;
 
     const currentUserPromise = new Promise(resolve => {
       const unsubscribe = onAuthStateChanged(auth, user => {
@@ -1727,6 +2095,144 @@
 
     function money(value) {
       return "£" + Number(value || 0).toFixed(2);
+    }
+
+    function receiptScanFileType(file) {
+      if (receiptScanFileTypes.has(file.type)) return file.type;
+      if (file.type) return "";
+
+      const lowerName = file.name.toLowerCase();
+      if (/\.jpe?g$/.test(lowerName)) return "image/jpeg";
+      if (lowerName.endsWith(".png")) return "image/png";
+      if (lowerName.endsWith(".webp")) return "image/webp";
+      if (lowerName.endsWith(".pdf")) return "application/pdf";
+      return "";
+    }
+
+    function validateReceiptScanFile(file) {
+      if (!receiptScanFileType(file)) {
+        return "Unsupported file type. Please choose a JPG, PNG, WEBP or PDF file.";
+      }
+
+      if (file.size > maxReceiptScanFileSize) {
+        return "This file is larger than 10 MB. Please choose a smaller file.";
+      }
+
+      return "";
+    }
+
+    function formatReceiptScanFileSize(bytes) {
+      if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+      return `${bytes} bytes`;
+    }
+
+    function receiptScanFileTypeLabel(type) {
+      const labels = {
+        "image/jpeg": "JPEG image",
+        "image/png": "PNG image",
+        "image/webp": "WEBP image",
+        "application/pdf": "PDF document"
+      };
+      return labels[type] || type;
+    }
+
+    function clearReceiptScanPreviewUrl() {
+      if (!receiptScanPreviewUrl) return;
+      URL.revokeObjectURL(receiptScanPreviewUrl);
+      receiptScanPreviewUrl = "";
+    }
+
+    function resetReceiptScanModal() {
+      selectedReceiptScanFile = null;
+      clearReceiptScanPreviewUrl();
+
+      document.getElementById("receiptScanFileInput").value = "";
+      document.getElementById("receiptScanUploadState").hidden = false;
+      document.getElementById("receiptScanSelectedState").hidden = true;
+      document.getElementById("receiptScanPreview").replaceChildren();
+      document.getElementById("receiptScanFileName").textContent = "";
+      document.getElementById("receiptScanFileMeta").textContent = "";
+      document.getElementById("receiptScanError").textContent = "";
+      document.getElementById("receiptScanError").hidden = true;
+      document.getElementById("scanReceiptButton").disabled = true;
+    }
+
+    function openReceiptScanModal() {
+      receiptScanPreviousFocus = document.activeElement;
+      resetReceiptScanModal();
+      document.getElementById("receiptScanModalOverlay").hidden = false;
+      document.getElementById("chooseReceiptScanFileButton").focus();
+    }
+
+    function closeReceiptScanModal() {
+      const overlay = document.getElementById("receiptScanModalOverlay");
+      if (overlay.hidden) return;
+
+      overlay.hidden = true;
+      resetReceiptScanModal();
+
+      if (receiptScanPreviousFocus && typeof receiptScanPreviousFocus.focus === "function") {
+        receiptScanPreviousFocus.focus();
+      }
+      receiptScanPreviousFocus = null;
+    }
+
+    function renderReceiptScanPreview(file) {
+      const preview = document.getElementById("receiptScanPreview");
+      const fileType = receiptScanFileType(file);
+      clearReceiptScanPreviewUrl();
+      preview.replaceChildren();
+
+      if (fileType === "application/pdf") {
+        const placeholder = document.createElement("div");
+        placeholder.className = "receipt-scan-pdf";
+
+        const icon = document.createElement("span");
+        icon.className = "receipt-scan-pdf-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = "PDF";
+
+        const name = document.createElement("span");
+        name.className = "receipt-scan-pdf-name";
+        name.textContent = file.name;
+
+        placeholder.append(icon, name);
+        preview.append(placeholder);
+        return;
+      }
+
+      receiptScanPreviewUrl = URL.createObjectURL(file);
+      const image = document.createElement("img");
+      image.src = receiptScanPreviewUrl;
+      image.alt = `Preview of ${file.name}`;
+      preview.append(image);
+    }
+
+    function handleReceiptScanFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      resetReceiptScanModal();
+      const validationMessage = validateReceiptScanFile(file);
+
+      if (validationMessage) {
+        const error = document.getElementById("receiptScanError");
+        error.textContent = validationMessage;
+        error.hidden = false;
+        document.getElementById("chooseReceiptScanFileButton").focus();
+        return;
+      }
+
+      const fileType = receiptScanFileType(file);
+      selectedReceiptScanFile = file;
+      document.getElementById("receiptScanUploadState").hidden = true;
+      document.getElementById("receiptScanSelectedState").hidden = false;
+      document.getElementById("receiptScanFileName").textContent = file.name;
+      document.getElementById("receiptScanFileMeta").textContent =
+        `${receiptScanFileTypeLabel(fileType)} · ${formatReceiptScanFileSize(file.size)}`;
+      renderReceiptScanPreview(file);
+      document.getElementById("receiptScanRemoveFile").focus();
     }
 
     function roundCurrency(value) {
@@ -2990,6 +3496,24 @@
     document.getElementById("mileageMiles").addEventListener("input", calculateMileageAmount);
     document.getElementById("mileageRate").addEventListener("input", calculateMileageAmount);
     document.getElementById("expenseAttachment").addEventListener("change", handleAttachmentSelection);
+    document.getElementById("openReceiptScanButton").addEventListener("click", openReceiptScanModal);
+    document.getElementById("receiptScanModalClose").addEventListener("click", closeReceiptScanModal);
+    document.getElementById("cancelReceiptScanButton").addEventListener("click", closeReceiptScanModal);
+    document.getElementById("chooseReceiptScanFileButton").addEventListener("click", () => {
+      document.getElementById("receiptScanFileInput").click();
+    });
+    document.getElementById("receiptScanRemoveFile").addEventListener("click", () => {
+      document.getElementById("receiptScanFileInput").click();
+    });
+    document.getElementById("receiptScanFileInput").addEventListener("change", handleReceiptScanFileSelected);
+    document.getElementById("receiptScanModalOverlay").addEventListener("mousedown", event => {
+      if (event.target === event.currentTarget) closeReceiptScanModal();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !document.getElementById("receiptScanModalOverlay").hidden) {
+        closeReceiptScanModal();
+      }
+    });
     document.getElementById("recentExpensesSearch").addEventListener("input", renderExpenses);
     document.getElementById("recentProjectFilter").addEventListener("change", renderExpenses);
 

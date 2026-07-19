@@ -1191,6 +1191,260 @@
       color:#ffffff;
     }
 
+    .btn-icon{
+      width:18px;
+      height:18px;
+      margin-right:8px;
+      flex:0 0 auto;
+    }
+
+    #scanBillButton:disabled{
+      cursor:not-allowed;
+      opacity:.55;
+      box-shadow:none;
+    }
+
+    .visually-hidden{
+      position:absolute;
+      width:1px;
+      height:1px;
+      padding:0;
+      margin:-1px;
+      overflow:hidden;
+      clip:rect(0,0,0,0);
+      white-space:nowrap;
+      border:0;
+    }
+
+    .modal-overlay{
+      position:fixed;
+      z-index:1000;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:rgba(15,23,42,.58);
+    }
+
+    .modal-overlay[hidden]{
+      display:none;
+    }
+
+    .modal{
+      width:min(620px,100%);
+      max-height:calc(100vh - 40px);
+      overflow:auto;
+      border:1px solid #dbe3ec;
+      border-radius:18px;
+      background:#fff;
+      box-shadow:0 28px 70px rgba(15,23,42,.28);
+    }
+
+    .modal-header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:18px;
+      padding:22px 22px 16px;
+      border-bottom:1px solid #e8edf3;
+    }
+
+    .modal-header p{
+      margin:6px 0 0;
+    }
+
+    .modal-close{
+      flex:0 0 auto;
+      width:38px;
+      height:38px;
+      border:1px solid #dbe3ec;
+      border-radius:10px;
+      background:#fff;
+      color:#475569;
+      font-size:22px;
+      line-height:1;
+      cursor:pointer;
+    }
+
+    .modal-close:hover{
+      background:#f8fafc;
+    }
+
+    .modal-close:focus-visible,
+    .bill-scan-remove:focus-visible{
+      outline:3px solid rgba(0,119,182,.16);
+      outline-offset:3px;
+    }
+
+    .modal-body{
+      padding:20px 22px;
+    }
+
+    .modal-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:16px 22px 22px;
+      border-top:1px solid #e8edf3;
+    }
+
+    .bill-scan-upload{
+      display:grid;
+      place-items:center;
+      gap:10px;
+      min-height:190px;
+      padding:24px;
+      border:2px dashed #cbd5e1;
+      border-radius:14px;
+      background:#f8fafc;
+      text-align:center;
+    }
+
+    .bill-scan-upload-icon{
+      width:48px;
+      height:48px;
+      display:grid;
+      place-items:center;
+      border-radius:50%;
+      background:#e8f3ff;
+      color:#0077B6;
+    }
+
+    .bill-scan-upload-icon svg{
+      width:25px;
+      height:25px;
+    }
+
+    .bill-scan-upload p{
+      margin:0;
+      color:#475569;
+      font-size:14px;
+      line-height:1.45;
+    }
+
+    .bill-scan-file-types{
+      color:#64748b;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .bill-scan-input{
+      display:none;
+    }
+
+    .bill-scan-error{
+      margin:14px 0 0;
+      padding:10px 12px;
+      border:1px solid #fda29b;
+      border-radius:9px;
+      background:#fff1f0;
+      color:#9f1c14;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.4;
+    }
+
+    .bill-scan-selected{
+      display:grid;
+      gap:14px;
+    }
+
+    .bill-scan-preview{
+      display:grid;
+      place-items:center;
+      min-height:180px;
+      max-height:320px;
+      overflow:hidden;
+      border:1px solid #dbe3ec;
+      border-radius:14px;
+      background:#f8fafc;
+    }
+
+    .bill-scan-preview img{
+      display:block;
+      width:100%;
+      height:100%;
+      max-height:320px;
+      object-fit:contain;
+    }
+
+    .bill-scan-pdf{
+      display:grid;
+      justify-items:center;
+      gap:10px;
+      max-width:100%;
+      padding:28px;
+      color:#475569;
+      text-align:center;
+    }
+
+    .bill-scan-pdf-icon{
+      display:grid;
+      place-items:center;
+      width:62px;
+      height:72px;
+      border:2px solid #ef4444;
+      border-radius:8px;
+      background:#fff;
+      color:#b91c1c;
+      font-size:14px;
+      font-weight:900;
+    }
+
+    .bill-scan-pdf-name{
+      max-width:100%;
+      overflow-wrap:anywhere;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .bill-scan-file-details{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      padding:14px;
+      border:1px solid #e8eef7;
+      border-radius:12px;
+      background:#fbfdff;
+    }
+
+    .bill-scan-file-name{
+      margin:0;
+      overflow-wrap:anywhere;
+      font-size:14px;
+      font-weight:900;
+    }
+
+    .bill-scan-file-meta{
+      margin:4px 0 0;
+      color:#64748b;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .bill-scan-remove{
+      flex:0 0 auto;
+      padding:0;
+      border:0;
+      background:transparent;
+      color:#0077B6;
+      font-family:inherit;
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .bill-scan-stage-message{
+      margin:0 22px 14px;
+      color:#64748b;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.4;
+      text-align:right;
+    }
+
     .recent-footer{
       display:flex;
       justify-content:space-between;
@@ -1314,6 +1568,32 @@
       border-color:#334155;
     }
 
+    body.dark-mode .modal,
+    body.dark-mode .modal-close,
+    body.dark-mode .bill-scan-pdf-icon{
+      background:#111827;
+      color:#e5e7eb;
+      border-color:#334155;
+    }
+
+    body.dark-mode .modal-header,
+    body.dark-mode .modal-actions,
+    body.dark-mode .bill-scan-preview,
+    body.dark-mode .bill-scan-file-details{
+      border-color:#334155;
+    }
+
+    body.dark-mode .bill-scan-upload,
+    body.dark-mode .bill-scan-preview,
+    body.dark-mode .bill-scan-file-details{
+      background:#0b1220;
+    }
+
+    body.dark-mode .bill-scan-upload p,
+    body.dark-mode .bill-scan-pdf{
+      color:#cbd5e1;
+    }
+
     body.dark-mode .pill-paid{
       background:#143d2a;
       color:#bbf7d0;
@@ -1333,6 +1613,60 @@
     }
 
     @media (max-width:760px){
+      .section-heading{
+        flex-direction:column;
+      }
+
+      .section-heading > .btn{
+        width:100%;
+      }
+
+      .modal-overlay{
+        align-items:flex-end;
+        padding:12px;
+      }
+
+      .modal{
+        max-height:calc(100vh - 24px);
+        border-radius:16px;
+      }
+
+      .modal-header,
+      .modal-body{
+        padding-left:16px;
+        padding-right:16px;
+      }
+
+      .bill-scan-upload{
+        min-height:160px;
+        padding:20px 16px;
+      }
+
+      .bill-scan-preview,
+      .bill-scan-preview img{
+        max-height:230px;
+      }
+
+      .bill-scan-file-details{
+        flex-direction:column;
+        gap:10px;
+      }
+
+      .bill-scan-stage-message{
+        margin-left:16px;
+        margin-right:16px;
+        text-align:left;
+      }
+
+      .modal-actions{
+        flex-direction:column-reverse;
+        padding:14px 16px 18px;
+      }
+
+      .modal-actions .btn{
+        width:100%;
+      }
+
       .list-header{
         flex-direction:column;
         gap:10px;
@@ -1479,6 +1813,13 @@
             <h2 id="billFormTitle">Add bill</h2>
             <p class="muted">Record supplier details, amounts and payment status.</p>
           </div>
+          <button class="btn btn-secondary" id="openBillScanButton" type="button">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2" />
+              <path d="M8 8h8v8H8z" />
+            </svg>
+            Scan Bill
+          </button>
         </div>
 
         <div class="grid">
@@ -1677,6 +2018,54 @@
     </section>
   </main>
 
+  <div class="modal-overlay" id="billScanModalOverlay" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="billScanModalTitle" aria-describedby="billScanModalDescription">
+      <div class="modal-header">
+        <div>
+          <h2 id="billScanModalTitle">Scan a supplier bill</h2>
+          <p class="muted" id="billScanModalDescription">Upload a photo, image or PDF of a supplier invoice or bill. Simple Books will read the document and prepare the bill details for you to review.</p>
+        </div>
+        <button class="modal-close" id="billScanModalClose" type="button" aria-label="Close bill scanner">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="bill-scan-upload" id="billScanUploadState">
+          <span class="bill-scan-upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3" />
+            </svg>
+          </span>
+          <p>Select a supplier invoice or bill from your device.</p>
+          <button class="btn" id="chooseBillScanFileButton" type="button">Choose file</button>
+          <span class="bill-scan-file-types">JPG, JPEG, PNG, WEBP or PDF &middot; Maximum 10 MB</span>
+        </div>
+
+        <label class="visually-hidden" for="billScanFileInput">Choose a supplier invoice or bill image or PDF</label>
+        <input class="bill-scan-input" id="billScanFileInput" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" aria-label="Choose a supplier invoice or bill image or PDF" aria-describedby="billScanFileTypes billScanError">
+        <span id="billScanFileTypes" hidden>Supported files are JPG, JPEG, PNG, WEBP and PDF, up to 10 MB.</span>
+        <p class="bill-scan-error" id="billScanError" role="alert" hidden></p>
+
+        <div class="bill-scan-selected" id="billScanSelectedState" hidden>
+          <div class="bill-scan-preview" id="billScanPreview"></div>
+          <div class="bill-scan-file-details">
+            <div>
+              <p class="bill-scan-file-name" id="billScanFileName"></p>
+              <p class="bill-scan-file-meta" id="billScanFileMeta"></p>
+            </div>
+            <button class="bill-scan-remove" id="billScanRemoveFile" type="button">Choose another file</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="bill-scan-stage-message" id="billScanStageMessage">AI scanning will be connected in the next stage.</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelBillScanButton" type="button">Cancel</button>
+        <button class="btn" id="scanBillButton" type="button" disabled aria-describedby="billScanStageMessage">Scan bill</button>
+      </div>
+    </section>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script type="module">
@@ -1700,18 +2089,161 @@
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
     const storage = getStorage(app);
+    const maxBillScanFileSize = 10 * 1024 * 1024;
+    const billScanFileTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
     let selectedAttachment = null;
     let currentBills = [];
     let currentProjects = [];
     let projectsLoaded = false;
     let projectsLoadError = false;
     let editingBillId = null;
+    let selectedBillScanFile = null;
+    let billScanPreviewUrl = "";
+    let billScanPreviousFocus = null;
     const currentUserPromise = new Promise(resolve => {
       const unsubscribe = onAuthStateChanged(auth, user => {
         unsubscribe();
         resolve(user);
       });
     });
+
+    function billScanFileType(file) {
+      if (billScanFileTypes.has(file.type)) return file.type;
+      if (file.type) return "";
+
+      const lowerName = file.name.toLowerCase();
+      if (/\.jpe?g$/.test(lowerName)) return "image/jpeg";
+      if (lowerName.endsWith(".png")) return "image/png";
+      if (lowerName.endsWith(".webp")) return "image/webp";
+      if (lowerName.endsWith(".pdf")) return "application/pdf";
+      return "";
+    }
+
+    function validateBillScanFile(file) {
+      if (!billScanFileType(file)) {
+        return "Unsupported file type. Please choose a JPG, PNG, WEBP or PDF file.";
+      }
+
+      if (file.size > maxBillScanFileSize) {
+        return "This file is larger than 10 MB. Please choose a smaller file.";
+      }
+
+      return "";
+    }
+
+    function formatBillScanFileSize(bytes) {
+      if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+      return `${bytes} bytes`;
+    }
+
+    function billScanFileTypeLabel(type) {
+      const labels = {
+        "image/jpeg": "JPEG image",
+        "image/png": "PNG image",
+        "image/webp": "WEBP image",
+        "application/pdf": "PDF document"
+      };
+      return labels[type] || type;
+    }
+
+    function clearBillScanPreviewUrl() {
+      if (!billScanPreviewUrl) return;
+      URL.revokeObjectURL(billScanPreviewUrl);
+      billScanPreviewUrl = "";
+    }
+
+    function resetBillScanModal() {
+      selectedBillScanFile = null;
+      clearBillScanPreviewUrl();
+
+      document.getElementById("billScanFileInput").value = "";
+      document.getElementById("billScanUploadState").hidden = false;
+      document.getElementById("billScanSelectedState").hidden = true;
+      document.getElementById("billScanPreview").replaceChildren();
+      document.getElementById("billScanFileName").textContent = "";
+      document.getElementById("billScanFileMeta").textContent = "";
+      document.getElementById("billScanError").textContent = "";
+      document.getElementById("billScanError").hidden = true;
+      document.getElementById("scanBillButton").disabled = true;
+    }
+
+    function openBillScanModal() {
+      billScanPreviousFocus = document.activeElement;
+      resetBillScanModal();
+      document.getElementById("billScanModalOverlay").hidden = false;
+      document.getElementById("chooseBillScanFileButton").focus();
+    }
+
+    function closeBillScanModal() {
+      const overlay = document.getElementById("billScanModalOverlay");
+      if (overlay.hidden) return;
+
+      overlay.hidden = true;
+      resetBillScanModal();
+
+      if (billScanPreviousFocus && typeof billScanPreviousFocus.focus === "function") {
+        billScanPreviousFocus.focus();
+      }
+      billScanPreviousFocus = null;
+    }
+
+    function renderBillScanPreview(file) {
+      const preview = document.getElementById("billScanPreview");
+      const fileType = billScanFileType(file);
+      clearBillScanPreviewUrl();
+      preview.replaceChildren();
+
+      if (fileType === "application/pdf") {
+        const placeholder = document.createElement("div");
+        placeholder.className = "bill-scan-pdf";
+
+        const icon = document.createElement("span");
+        icon.className = "bill-scan-pdf-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = "PDF";
+
+        const name = document.createElement("span");
+        name.className = "bill-scan-pdf-name";
+        name.textContent = file.name;
+
+        placeholder.append(icon, name);
+        preview.append(placeholder);
+        return;
+      }
+
+      billScanPreviewUrl = URL.createObjectURL(file);
+      const image = document.createElement("img");
+      image.src = billScanPreviewUrl;
+      image.alt = `Preview of ${file.name}`;
+      preview.append(image);
+    }
+
+    function handleBillScanFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      resetBillScanModal();
+      const validationMessage = validateBillScanFile(file);
+
+      if (validationMessage) {
+        const error = document.getElementById("billScanError");
+        error.textContent = validationMessage;
+        error.hidden = false;
+        document.getElementById("chooseBillScanFileButton").focus();
+        return;
+      }
+
+      const fileType = billScanFileType(file);
+      selectedBillScanFile = file;
+      document.getElementById("billScanUploadState").hidden = true;
+      document.getElementById("billScanSelectedState").hidden = false;
+      document.getElementById("billScanFileName").textContent = file.name;
+      document.getElementById("billScanFileMeta").textContent =
+        `${billScanFileTypeLabel(fileType)} · ${formatBillScanFileSize(file.size)}`;
+      renderBillScanPreview(file);
+      document.getElementById("billScanRemoveFile").focus();
+    }
 
     function getBills() {
       return JSON.parse(localStorage.getItem("simpleBooksBills") || "[]");
@@ -2649,6 +3181,24 @@
     }
 
     document.getElementById("billAttachment").addEventListener("change", handleAttachmentSelection);
+    document.getElementById("openBillScanButton").addEventListener("click", openBillScanModal);
+    document.getElementById("billScanModalClose").addEventListener("click", closeBillScanModal);
+    document.getElementById("cancelBillScanButton").addEventListener("click", closeBillScanModal);
+    document.getElementById("chooseBillScanFileButton").addEventListener("click", () => {
+      document.getElementById("billScanFileInput").click();
+    });
+    document.getElementById("billScanRemoveFile").addEventListener("click", () => {
+      document.getElementById("billScanFileInput").click();
+    });
+    document.getElementById("billScanFileInput").addEventListener("change", handleBillScanFileSelected);
+    document.getElementById("billScanModalOverlay").addEventListener("mousedown", event => {
+      if (event.target === event.currentTarget) closeBillScanModal();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !document.getElementById("billScanModalOverlay").hidden) {
+        closeBillScanModal();
+      }
+    });
     document.getElementById("cancelEditButton").addEventListener("click", clearForm);
     document.getElementById("billsList").addEventListener("click", handleBillsListClick);
     document.getElementById("billSearch").addEventListener("input", () => renderBills(currentBills));
