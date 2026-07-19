@@ -254,6 +254,17 @@
       font-weight:700;
     }
 
+    .attachment-remove{
+      padding:0;
+      border:0;
+      background:transparent;
+      color:#b91c1c;
+      font-family:inherit;
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
     .attachment-error{
       color:#b91c1c;
     }
@@ -2012,6 +2023,7 @@
             </label>
             <input class="attachment-input" id="billAttachment" type="file" accept="application/pdf,.pdf">
             <span class="attachment-helper" id="attachmentFileName">No file selected</span>
+            <button class="attachment-remove" id="removePendingScannedBillFileButton" type="button" hidden>Remove scanned attachment</button>
             <progress class="attachment-progress" id="attachmentProgress" max="100" value="0" hidden></progress>
             <span class="attachment-status" id="attachmentStatus"></span>
           </div>
@@ -2228,6 +2240,7 @@
     const maxBillScanFileSize = 10 * 1024 * 1024;
     const billScanFileTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
     let selectedAttachment = null;
+    let pendingScannedBillFile = null;
     let currentBills = [];
     let currentProjects = [];
     let projectsLoaded = false;
@@ -2532,14 +2545,18 @@
       appliedFields.push(field);
     }
 
-    function showBillAiApplyFeedback(warnings) {
+    function showBillFormFeedback(message, isWarning = false) {
       const feedback = document.getElementById("billAiApplyFeedback");
-      feedback.textContent = [
-        "AI details added. Please check the highlighted fields before saving.",
-        ...warnings
-      ].join(" ");
-      feedback.classList.toggle("has-warnings", warnings.length > 0);
+      feedback.textContent = message;
+      feedback.classList.toggle("has-warnings", isWarning);
       feedback.hidden = false;
+    }
+
+    function showBillAiApplyFeedback(warnings, scannedAttachmentPending) {
+      const message = scannedAttachmentPending
+        ? "AI details added. The scanned document will be attached when you save. Please check the highlighted fields before saving."
+        : "AI details added. Please check the highlighted fields before saving.";
+      showBillFormFeedback([message, ...warnings].join(" "), warnings.length > 0);
     }
 
     function clearBillAiApplyFeedback() {
@@ -2628,7 +2645,16 @@
         return;
       }
 
-      showBillAiApplyFeedback(warnings);
+      const scannedFile = selectedBillScanFile;
+      let scannedAttachmentPending = false;
+      if (selectedAttachment) {
+        warnings.push("A manual attachment is already selected. Remove it first to use the scanned document as the attachment.");
+      } else if (scannedFile) {
+        setPendingScannedBillFile(scannedFile);
+        scannedAttachmentPending = true;
+      }
+
+      showBillAiApplyFeedback(warnings, scannedAttachmentPending);
       highlightBillAiFields(appliedFields);
       const firstField = appliedFields[0];
       closeBillScanModal();
@@ -3127,10 +3153,42 @@
       status.classList.toggle("attachment-error", Boolean(isError));
     }
 
-    function resetAttachmentUI() {
+    function renderPendingScannedBillFile(message = "Scanned document will be attached when you save.", isError = false) {
+      if (!pendingScannedBillFile) return;
+      const fileType = billScanFileType(pendingScannedBillFile);
+      document.getElementById("attachmentFileName").textContent =
+        `${pendingScannedBillFile.name} · ${billScanFileTypeLabel(fileType)} · ${formatBillScanFileSize(pendingScannedBillFile.size)}`;
+      document.getElementById("removePendingScannedBillFileButton").hidden = false;
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus(message, isError);
+    }
+
+    function setPendingScannedBillFile(file) {
+      pendingScannedBillFile = file;
       selectedAttachment = null;
       document.getElementById("billAttachment").value = "";
+      renderPendingScannedBillFile();
+    }
+
+    function clearPendingScannedBillFile(updateUi = true, message = "") {
+      pendingScannedBillFile = null;
+      document.getElementById("removePendingScannedBillFileButton").hidden = true;
+      if (!updateUi || selectedAttachment) return;
       document.getElementById("attachmentFileName").textContent = "No file selected";
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus(message);
+    }
+
+    function resetAttachmentUI() {
+      selectedAttachment = null;
+      pendingScannedBillFile = null;
+      document.getElementById("billAttachment").value = "";
+      document.getElementById("attachmentFileName").textContent = "No file selected";
+      document.getElementById("removePendingScannedBillFileButton").hidden = true;
       const progress = document.getElementById("attachmentProgress");
       progress.hidden = true;
       progress.value = 0;
@@ -3150,17 +3208,31 @@
       if (!isPdf) {
         event.target.value = "";
         selectedAttachment = null;
-        document.getElementById("attachmentFileName").textContent = "No file selected";
-        setAttachmentStatus("Please choose a PDF file.", true);
+        if (pendingScannedBillFile) {
+          renderPendingScannedBillFile("Please choose a PDF file. The scanned attachment is still pending.", true);
+        } else {
+          document.getElementById("attachmentFileName").textContent = "No file selected";
+          setAttachmentStatus("Please choose a PDF file.", true);
+        }
         return;
       }
 
+      const replacedPendingScan = Boolean(pendingScannedBillFile);
+      clearPendingScannedBillFile(false);
       selectedAttachment = file;
       document.getElementById("attachmentFileName").textContent = file.name;
+      document.getElementById("removePendingScannedBillFileButton").hidden = true;
       const progress = document.getElementById("attachmentProgress");
       progress.hidden = true;
       progress.value = 0;
-      setAttachmentStatus("");
+      setAttachmentStatus("Manual attachment selected. It will be uploaded when you save.");
+      if (replacedPendingScan) {
+        showBillFormFeedback("The manual attachment will be used instead of the scanned document when you save.");
+      }
+    }
+
+    function billAttachmentContentType(file) {
+      return billScanFileType(file) || "application/pdf";
     }
 
     function uploadAttachment(file, billId) {
@@ -3168,20 +3240,20 @@
         const progress = document.getElementById("attachmentProgress");
         const safeFileName = file.name.replace(/[^\w.\-() ]+/g, "_");
         const fileRef = storageRef(storage, `bills/${billId}/${safeFileName}`);
-        const uploadTask = uploadBytesResumable(fileRef, file, {
-          contentType: "application/pdf"
-        });
+        const attachmentType = billAttachmentContentType(file);
+        const uploadLabel = attachmentType === "application/pdf" ? "PDF" : "document";
+        const uploadTask = uploadBytesResumable(fileRef, file, { contentType: attachmentType });
 
         progress.hidden = false;
         progress.value = 0;
-        setAttachmentStatus("Uploading PDF... 0%");
+        setAttachmentStatus(`Uploading ${uploadLabel}... 0%`);
 
         uploadTask.on(
           "state_changed",
           snapshot => {
             const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
             progress.value = percent;
-            setAttachmentStatus(`Uploading PDF... ${percent}%`);
+            setAttachmentStatus(`Uploading ${uploadLabel}... ${percent}%`);
           },
           error => {
             setAttachmentStatus(`Upload failed: ${error.message}`, true);
@@ -3190,7 +3262,7 @@
           async () => {
             try {
               const attachmentUrl = await getDownloadURL(uploadTask.snapshot.ref);
-              setAttachmentStatus("PDF uploaded.");
+              setAttachmentStatus("Attachment uploaded.");
               resolve({
                 attachmentName: file.name,
                 attachmentUrl
@@ -3232,6 +3304,9 @@
         : currentBills.find(bill => String(bill.id) === String(editingBillId));
       const billId = existingBill?.id ?? Date.now();
       const project = selectedBillProject();
+      const scannedAttachment = !existingBill && !selectedAttachment
+        ? pendingScannedBillFile
+        : null;
 
       let attachment = {
         attachmentName: existingBill?.attachmentName || "",
@@ -3278,6 +3353,19 @@
         return;
       }
 
+      let scannedAttachmentWarning = "";
+      if (scannedAttachment) {
+        try {
+          attachment = await uploadAttachment(scannedAttachment, billId);
+          bill.attachmentName = attachment.attachmentName || "";
+          bill.attachmentUrl = attachment.attachmentUrl || "";
+          await setDoc(ref, bill);
+        } catch (error) {
+          console.error("Scanned bill attachment upload failed after the bill was saved", error);
+          scannedAttachmentWarning = "The bill was saved, but the scanned attachment could not be uploaded. You can edit the bill and attach the file manually.";
+        }
+      }
+
       if (existingBill) {
         currentBills = currentBills.map(item =>
           String(item.id) === String(billId) ? bill : item
@@ -3290,7 +3378,11 @@
       clearForm();
       renderBills(currentBills);
       saveButton.disabled = false;
-      alert(existingBill ? "Bill updated." : "Bill saved.");
+      if (scannedAttachmentWarning) {
+        showBillFormFeedback(scannedAttachmentWarning, true);
+      } else {
+        alert(existingBill ? "Bill updated." : "Bill saved.");
+      }
     }
 
     function clearForm() {
@@ -3315,6 +3407,8 @@
       const bill = currentBills.find(item => String(item.id) === String(id));
       if (!bill) return;
 
+      const removedPendingScan = Boolean(pendingScannedBillFile);
+      clearPendingScannedBillFile(false);
       clearBillAiApplyFeedback();
       editingBillId = bill.id;
       document.getElementById("supplier").value = bill.supplier || "";
@@ -3335,7 +3429,9 @@
       document.getElementById("billAttachment").value = "";
       document.getElementById("attachmentFileName").textContent =
         bill.attachmentName || "No file selected";
-      setAttachmentStatus(bill.attachmentName ? "Existing PDF will be kept." : "");
+      setAttachmentStatus(removedPendingScan
+        ? "The pending scanned attachment was removed because edit mode started."
+        : (bill.attachmentName ? "Existing PDF will be kept." : ""));
       document.getElementById("billFormTitle").textContent = "Edit bill";
       document.getElementById("saveBillButton").textContent = "Update bill";
       document.getElementById("cancelEditButton").hidden = false;
@@ -3613,6 +3709,10 @@
     }
 
     document.getElementById("billAttachment").addEventListener("change", handleAttachmentSelection);
+    document.getElementById("removePendingScannedBillFileButton").addEventListener("click", () => {
+      clearPendingScannedBillFile(true, "Scanned attachment removed.");
+      showBillFormFeedback("Scanned attachment removed. The AI-populated bill details remain in the form.");
+    });
     document.getElementById("openBillScanButton").addEventListener("click", openBillScanModal);
     document.getElementById("billScanModalClose").addEventListener("click", closeBillScanModal);
     document.getElementById("cancelBillScanButton").addEventListener("click", closeBillScanModal);

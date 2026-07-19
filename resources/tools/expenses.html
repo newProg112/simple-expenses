@@ -911,6 +911,17 @@
       font-weight:700;
     }
 
+    .attachment-remove{
+      padding:0;
+      border:0;
+      background:transparent;
+      color:#b91c1c;
+      font-family:inherit;
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
     .attachment-error{
       color:#b91c1c;
     }
@@ -1859,6 +1870,7 @@
                   </label>
                   <input class="attachment-input" id="expenseAttachment" type="file" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png">
                   <span class="attachment-helper" id="attachmentFileName">No file selected</span>
+                  <button class="attachment-remove" id="removePendingScannedReceiptFileButton" type="button" hidden>Remove scanned attachment</button>
                   <progress class="attachment-progress" id="attachmentProgress" max="100" value="0" hidden></progress>
                   <span class="attachment-status" id="attachmentStatus"></span>
                 </div>
@@ -2171,6 +2183,7 @@
     let recentStatusFilter = "all";
     let recentDateFilter = "all";
     let selectedAttachment = null;
+    let pendingScannedReceiptFile = null;
     let vatManuallyEdited = false;
     let unsubscribeExpenses = null;
     let projects = [];
@@ -2526,14 +2539,18 @@
       appliedFields.push(field);
     }
 
-    function showReceiptAiApplyFeedback(warnings) {
+    function showReceiptFormFeedback(message, isWarning = false) {
       const feedback = document.getElementById("receiptAiApplyFeedback");
-      feedback.textContent = [
-        "AI details added. Please check the highlighted fields before saving.",
-        ...warnings
-      ].join(" ");
-      feedback.classList.toggle("has-warnings", warnings.length > 0);
+      feedback.textContent = message;
+      feedback.classList.toggle("has-warnings", isWarning);
       feedback.hidden = false;
+    }
+
+    function showReceiptAiApplyFeedback(warnings, scannedAttachmentPending) {
+      const message = scannedAttachmentPending
+        ? "AI details added. The scanned receipt will be attached when you save. Please check the highlighted fields before saving."
+        : "AI details added. Please check the highlighted fields before saving.";
+      showReceiptFormFeedback([message, ...warnings].join(" "), warnings.length > 0);
     }
 
     function clearReceiptAiApplyFeedback() {
@@ -2625,7 +2642,16 @@
         return;
       }
 
-      showReceiptAiApplyFeedback(warnings);
+      const scannedFile = selectedReceiptScanFile;
+      let scannedAttachmentPending = false;
+      if (selectedAttachment) {
+        warnings.push("A manual attachment is already selected. Remove it first to use the scanned document as the attachment.");
+      } else if (scannedFile) {
+        setPendingScannedReceiptFile(scannedFile);
+        scannedAttachmentPending = true;
+      }
+
+      showReceiptAiApplyFeedback(warnings, scannedAttachmentPending);
       highlightReceiptAiFields(appliedFields);
       const firstField = appliedFields[0];
       closeReceiptScanModal();
@@ -2975,6 +3001,12 @@
     }
 
     function setClaimType(nextType) {
+      const switchingToMileage = nextType === "mileage" && claimType !== "mileage";
+      if (switchingToMileage && pendingScannedReceiptFile) {
+        clearPendingScannedReceiptFile(true, "The pending scanned receipt was removed because Mileage was selected.");
+        showReceiptFormFeedback("The pending scanned receipt was removed because Mileage was selected.", true);
+      }
+
       claimType = nextType === "mileage" ? "mileage" : "expense";
       const isMileage = claimType === "mileage";
 
@@ -3107,10 +3139,42 @@
       status.classList.toggle("attachment-error", Boolean(isError));
     }
 
-    function resetAttachmentUI() {
+    function renderPendingScannedReceiptFile(message = "Scanned receipt will be attached when you save.", isError = false) {
+      if (!pendingScannedReceiptFile) return;
+      const fileType = receiptScanFileType(pendingScannedReceiptFile);
+      document.getElementById("attachmentFileName").textContent =
+        `${pendingScannedReceiptFile.name} · ${receiptScanFileTypeLabel(fileType)} · ${formatReceiptScanFileSize(pendingScannedReceiptFile.size)}`;
+      document.getElementById("removePendingScannedReceiptFileButton").hidden = false;
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus(message, isError);
+    }
+
+    function setPendingScannedReceiptFile(file) {
+      pendingScannedReceiptFile = file;
       selectedAttachment = null;
       document.getElementById("expenseAttachment").value = "";
+      renderPendingScannedReceiptFile();
+    }
+
+    function clearPendingScannedReceiptFile(updateUi = true, message = "") {
+      pendingScannedReceiptFile = null;
+      document.getElementById("removePendingScannedReceiptFileButton").hidden = true;
+      if (!updateUi || selectedAttachment) return;
       document.getElementById("attachmentFileName").textContent = "No file selected";
+      const progress = document.getElementById("attachmentProgress");
+      progress.hidden = true;
+      progress.value = 0;
+      setAttachmentStatus(message);
+    }
+
+    function resetAttachmentUI() {
+      selectedAttachment = null;
+      pendingScannedReceiptFile = null;
+      document.getElementById("expenseAttachment").value = "";
+      document.getElementById("attachmentFileName").textContent = "No file selected";
+      document.getElementById("removePendingScannedReceiptFileButton").hidden = true;
       const progress = document.getElementById("attachmentProgress");
       progress.hidden = true;
       progress.value = 0;
@@ -3119,7 +3183,9 @@
 
     function showExistingAttachment(expense) {
       selectedAttachment = null;
+      pendingScannedReceiptFile = null;
       document.getElementById("expenseAttachment").value = "";
+      document.getElementById("removePendingScannedReceiptFileButton").hidden = true;
       document.getElementById("attachmentFileName").textContent =
         expense.attachmentName || "No file selected";
       const progress = document.getElementById("attachmentProgress");
@@ -3151,28 +3217,40 @@
       if (!isAllowedFile) {
         event.target.value = "";
         selectedAttachment = null;
-        document.getElementById("attachmentFileName").textContent = "No file selected";
-        setAttachmentStatus(
-          isMileage ? "Please choose a PDF, JPG or PNG file." : "Please choose a PDF file.",
-          true
-        );
+        const errorMessage = isMileage ? "Please choose a PDF, JPG or PNG file." : "Please choose a PDF file.";
+        if (pendingScannedReceiptFile) {
+          renderPendingScannedReceiptFile(`${errorMessage} The scanned attachment is still pending.`, true);
+        } else {
+          document.getElementById("attachmentFileName").textContent = "No file selected";
+          setAttachmentStatus(errorMessage, true);
+        }
         return;
       }
 
       if (file.size > maxAttachmentSize) {
         event.target.value = "";
         selectedAttachment = null;
-        document.getElementById("attachmentFileName").textContent = "No file selected";
-        setAttachmentStatus("PDF must be 10MB or smaller.", true);
+        if (pendingScannedReceiptFile) {
+          renderPendingScannedReceiptFile("The manual file must be 10MB or smaller. The scanned attachment is still pending.", true);
+        } else {
+          document.getElementById("attachmentFileName").textContent = "No file selected";
+          setAttachmentStatus("File must be 10MB or smaller.", true);
+        }
         return;
       }
 
+      const replacedPendingScan = Boolean(pendingScannedReceiptFile);
+      clearPendingScannedReceiptFile(false);
       selectedAttachment = file;
       document.getElementById("attachmentFileName").textContent = file.name;
+      document.getElementById("removePendingScannedReceiptFileButton").hidden = true;
       const progress = document.getElementById("attachmentProgress");
       progress.hidden = true;
       progress.value = 0;
-      setAttachmentStatus("");
+      setAttachmentStatus("Manual attachment selected. It will be uploaded when you save.");
+      if (replacedPendingScan) {
+        showReceiptFormFeedback("The manual attachment will be used instead of the scanned receipt when you save.");
+      }
     }
 
     function attachmentContentType(file) {
@@ -3191,20 +3269,21 @@
         const attachmentPath = `expenses/${expenseId}/${safeFileName}`;
         const fileRef = storageRef(storage, attachmentPath);
         const attachmentType = attachmentContentType(file);
+        const uploadLabel = attachmentType === "application/pdf" ? "PDF" : "document";
         const uploadTask = uploadBytesResumable(fileRef, file, {
           contentType: attachmentType
         });
 
         progress.hidden = false;
         progress.value = 0;
-        setAttachmentStatus("Uploading PDF... 0%");
+        setAttachmentStatus(`Uploading ${uploadLabel}... 0%`);
 
         uploadTask.on(
           "state_changed",
           snapshot => {
             const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
             progress.value = percent;
-            setAttachmentStatus(`Uploading PDF... ${percent}%`);
+            setAttachmentStatus(`Uploading ${uploadLabel}... ${percent}%`);
           },
           error => {
             setAttachmentStatus(`Upload failed: ${error.message}`, true);
@@ -3213,7 +3292,7 @@
           async () => {
             try {
               const attachmentUrl = await getDownloadURL(uploadTask.snapshot.ref);
-              setAttachmentStatus("PDF uploaded.");
+              setAttachmentStatus("Attachment uploaded.");
               resolve({
                 attachmentName: file.name,
                 attachmentUrl,
@@ -3342,6 +3421,9 @@
       const project = selectedProject(
         isMileage ? "mileageProjectSelect" : "expenseProjectSelect"
       );
+      const scannedAttachment = !existingExpense && !isMileage && !selectedAttachment
+        ? pendingScannedReceiptFile
+        : null;
 
       let attachment = existingExpense
         ? {
@@ -3393,7 +3475,7 @@
         };
       }
 
-      const expense = normaliseExpense({
+      let expense = normaliseExpense({
         id: expenseId,
         type: claimType,
         date: isMileage
@@ -3434,18 +3516,33 @@
         return;
       }
 
+      let scannedAttachmentWarning = "";
+      if (scannedAttachment) {
+        try {
+          attachment = await uploadAttachment(scannedAttachment, expenseId);
+          expense = normaliseExpense({ ...expense, ...attachment });
+          await setDoc(doc(db, "users", user.uid, "expenses", String(expenseId)), expense);
+        } catch (error) {
+          console.error("Scanned receipt attachment upload failed after the expense was saved", error);
+          scannedAttachmentWarning = "The expense was saved, but the scanned receipt could not be uploaded. You can edit the expense and attach the file manually.";
+        }
+      }
+
       if (replacedAttachmentPath) {
         await deleteAttachment(replacedAttachmentPath);
       }
 
       const nextExpenses = editingExpenseId
         ? expenses.map(existing => String(existing.id) === String(expenseId) ? expense : existing)
-        : [expense, ...expenses];
+        : [expense, ...expenses.filter(existing => String(existing.id) !== String(expenseId))];
 
       saveExpenses(nextExpenses);
       clearForm();
       renderExpenses();
       saveButton.disabled = false;
+      if (scannedAttachmentWarning) {
+        showReceiptFormFeedback(scannedAttachmentWarning, true);
+      }
     }
 
     function sortExpenses(nextExpenses) {
@@ -3461,6 +3558,8 @@
 
       if (!expense) return;
 
+      const removedPendingScan = Boolean(pendingScannedReceiptFile);
+      clearPendingScannedReceiptFile(false);
       clearReceiptAiApplyFeedback();
       editingExpenseId = expense.id;
       vatManuallyEdited = true;
@@ -3495,9 +3594,15 @@
       renderProjectDropdown("mileageProjectSelect", storedProject);
       if (expense.type === "mileage") {
         resetAttachmentUI();
+        if (removedPendingScan) {
+          setAttachmentStatus("The pending scanned receipt was removed because edit mode started.");
+        }
         document.getElementById("mileageFrom").focus();
       } else {
         showExistingAttachment(expense);
+        if (removedPendingScan) {
+          setAttachmentStatus("The pending scanned receipt was removed because edit mode started.");
+        }
         document.getElementById("merchant").focus();
       }
     }
@@ -3893,6 +3998,7 @@
       }
 
       if (!user) {
+        clearPendingScannedReceiptFile();
         loadProjects(null);
         renderExpenses();
         return;
@@ -3935,6 +4041,10 @@
     document.getElementById("mileageMiles").addEventListener("input", calculateMileageAmount);
     document.getElementById("mileageRate").addEventListener("input", calculateMileageAmount);
     document.getElementById("expenseAttachment").addEventListener("change", handleAttachmentSelection);
+    document.getElementById("removePendingScannedReceiptFileButton").addEventListener("click", () => {
+      clearPendingScannedReceiptFile(true, "Scanned attachment removed.");
+      showReceiptFormFeedback("Scanned attachment removed. The AI-populated expense details remain in the form.");
+    });
     document.getElementById("openReceiptScanButton").addEventListener("click", openReceiptScanModal);
     document.getElementById("receiptScanModalClose").addEventListener("click", closeReceiptScanModal);
     document.getElementById("cancelReceiptScanButton").addEventListener("click", closeReceiptScanModal);
