@@ -4,6 +4,7 @@
   "scripts": {
     "lint": "eslint .",
     "test:assistant": "node test/ai-assistant-preview.test.js && node test/ai-assistant.test.js",
+    "test:document-scan": "node test/business-document-scan.test.js",
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",

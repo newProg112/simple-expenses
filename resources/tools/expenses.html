@@ -776,6 +776,73 @@
       text-align:right;
     }
 
+    .scan-button-spinner{
+      width:16px;
+      height:16px;
+      margin-right:8px;
+      border:2px solid rgba(255,255,255,.45);
+      border-top-color:#fff;
+      border-radius:50%;
+      animation:scan-button-spin .75s linear infinite;
+    }
+
+    .scan-button-spinner[hidden]{
+      display:none;
+    }
+
+    @keyframes scan-button-spin{
+      to{ transform:rotate(360deg); }
+    }
+
+    .receipt-scan-results{
+      padding:16px;
+      border:1px solid #dbe3ec;
+      border-radius:14px;
+      background:#fff;
+    }
+
+    .receipt-scan-results h3{
+      margin:0 0 14px;
+      font-size:16px;
+    }
+
+    .receipt-scan-results dl{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+      margin:0;
+    }
+
+    .receipt-scan-result-item{
+      min-width:0;
+      padding:11px 12px;
+      border:1px solid #e8eef7;
+      border-radius:10px;
+      background:#f8fafc;
+    }
+
+    .receipt-scan-result-item dt{
+      margin:0 0 4px;
+      color:#64748b;
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.02em;
+      text-transform:uppercase;
+    }
+
+    .receipt-scan-result-item dd{
+      margin:0;
+      color:var(--text);
+      font-size:14px;
+      font-weight:800;
+      line-height:1.35;
+      overflow-wrap:anywhere;
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      .scan-button-spinner{ animation:none; }
+    }
+
     .attachment-placeholder{
       display:flex;
       flex-wrap:wrap;
@@ -1456,6 +1523,10 @@
         gap:10px;
       }
 
+      .receipt-scan-results dl{
+        grid-template-columns:1fr;
+      }
+
       .receipt-scan-stage-message{
         margin-left:16px;
         margin-right:16px;
@@ -2015,13 +2086,20 @@
             </div>
             <button class="receipt-scan-remove" id="receiptScanRemoveFile" type="button">Choose another file</button>
           </div>
+          <section class="receipt-scan-results" id="receiptScanResults" aria-labelledby="receiptScanResultsTitle" hidden>
+            <h3 id="receiptScanResultsTitle">Extracted details</h3>
+            <dl id="receiptScanResultsList"></dl>
+          </section>
         </div>
       </div>
 
-      <p class="receipt-scan-stage-message" id="receiptScanStageMessage">AI scanning will be connected in the next stage.</p>
+      <p class="receipt-scan-stage-message" id="receiptScanStatus" role="status" aria-live="polite" hidden></p>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="cancelReceiptScanButton" type="button">Cancel</button>
-        <button class="btn" id="scanReceiptButton" type="button" disabled aria-describedby="receiptScanStageMessage">Scan receipt</button>
+        <button class="btn" id="scanReceiptButton" type="button" disabled aria-describedby="receiptScanStatus">
+          <span class="scan-button-spinner" id="receiptScanSpinner" aria-hidden="true" hidden></span>
+          <span>Scan receipt</span>
+        </button>
       </div>
     </section>
   </div>
@@ -2029,7 +2107,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script type="module">
-    import { app, auth, db } from "../../firebase-config.js";
+    import { app, auth, db, functions } from "../../firebase-config.js";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -2050,6 +2128,9 @@
       ref as storageRef,
       uploadBytesResumable
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+    import {
+      httpsCallable
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
     const statuses = ["Draft", "Submitted", "Approved", "Paid"];
     const storage = getStorage(app);
@@ -2072,6 +2153,13 @@
     let selectedReceiptScanFile = null;
     let receiptScanPreviewUrl = "";
     let receiptScanPreviousFocus = null;
+    let receiptScanRequestToken = 0;
+    let receiptScanInProgress = false;
+    const scanReceiptDocument = httpsCallable(
+      functions,
+      "scanBusinessDocument",
+      { timeout: 60000 }
+    );
 
     const currentUserPromise = new Promise(resolve => {
       const unsubscribe = onAuthStateChanged(auth, user => {
@@ -2144,6 +2232,8 @@
     }
 
     function resetReceiptScanModal() {
+      receiptScanRequestToken += 1;
+      receiptScanInProgress = false;
       selectedReceiptScanFile = null;
       clearReceiptScanPreviewUrl();
 
@@ -2155,6 +2245,12 @@
       document.getElementById("receiptScanFileMeta").textContent = "";
       document.getElementById("receiptScanError").textContent = "";
       document.getElementById("receiptScanError").hidden = true;
+      document.getElementById("receiptScanResults").hidden = true;
+      document.getElementById("receiptScanResultsList").replaceChildren();
+      document.getElementById("receiptScanStatus").textContent = "";
+      document.getElementById("receiptScanStatus").hidden = true;
+      document.getElementById("receiptScanSpinner").hidden = true;
+      document.getElementById("receiptScanRemoveFile").disabled = false;
       document.getElementById("scanReceiptButton").disabled = true;
     }
 
@@ -2232,7 +2328,136 @@
       document.getElementById("receiptScanFileMeta").textContent =
         `${receiptScanFileTypeLabel(fileType)} · ${formatReceiptScanFileSize(file.size)}`;
       renderReceiptScanPreview(file);
+      document.getElementById("scanReceiptButton").disabled = false;
       document.getElementById("receiptScanRemoveFile").focus();
+    }
+
+    function readReceiptScanFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+          const result = String(reader.result || "");
+          const separator = result.indexOf(",");
+          if (separator < 0 || !result.slice(separator + 1)) {
+            reject(new Error("The selected file could not be read."));
+            return;
+          }
+          resolve(result.slice(separator + 1));
+        });
+        reader.addEventListener("error", () => reject(new Error("The selected file could not be read.")));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function setReceiptScanLoading(isLoading) {
+      receiptScanInProgress = isLoading;
+      document.getElementById("scanReceiptButton").disabled = isLoading || !selectedReceiptScanFile;
+      document.getElementById("receiptScanSpinner").hidden = !isLoading;
+      document.getElementById("receiptScanRemoveFile").disabled = isLoading;
+      const status = document.getElementById("receiptScanStatus");
+      status.textContent = isLoading ? "Reading document..." : "";
+      status.hidden = !isLoading;
+    }
+
+    function receiptScanErrorMessage(error) {
+      const code = String(error?.code || "");
+      if (error?.message === "The selected file could not be read.") return error.message;
+      if (code === "functions/unauthenticated") return "Please sign in again before scanning this receipt.";
+      if (code === "functions/deadline-exceeded") return "Document scanning timed out. Please try again.";
+      if (code === "functions/invalid-argument" || code === "functions/resource-exhausted" || code === "functions/failed-precondition") {
+        return error.message || "This document could not be scanned.";
+      }
+      if (code === "functions/data-loss") return "The scan returned an unreadable result. Please try again.";
+      if (code === "functions/unavailable" || code === "functions/internal") return "The document scanning service is temporarily unavailable. Please try again.";
+      return "The document could not be scanned. Check your connection and try again.";
+    }
+
+    function formatReceiptScanResult(field, value, currency) {
+      if (value === null || value === undefined || value === "") return "Not found";
+      if (["netAmount", "vatAmount", "totalAmount"].includes(field)) {
+        const currencyCode = /^[A-Z]{3}$/.test(String(currency || "")) ? String(currency) : "GBP";
+        try {
+          return new Intl.NumberFormat("en-GB", { style: "currency", currency: currencyCode }).format(Number(value));
+        } catch (error) {
+          return Number(value).toFixed(2);
+        }
+      }
+      if (field === "confidence") return `${Math.round(Number(value) * 100)}%`;
+      if (["invoiceDate", "dueDate"].includes(field) && /^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+        return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+          .format(new Date(`${value}T12:00:00Z`));
+      }
+      if (field === "documentType") {
+        return String(value).replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+      }
+      return String(value);
+    }
+
+    function renderReceiptScanResults(extraction) {
+      const fields = [
+        ["documentType", "Document Type"],
+        ["supplier", "Supplier"],
+        ["merchant", "Merchant"],
+        ["invoiceNumber", "Invoice Number"],
+        ["invoiceDate", "Invoice Date"],
+        ["dueDate", "Due Date"],
+        ["currency", "Currency"],
+        ["netAmount", "Net"],
+        ["vatAmount", "VAT"],
+        ["totalAmount", "Total"],
+        ["description", "Description"],
+        ["categorySuggestion", "Category Suggestion"],
+        ["confidence", "Confidence"]
+      ];
+      const list = document.getElementById("receiptScanResultsList");
+      list.replaceChildren();
+      fields.forEach(([field, label]) => {
+        const item = document.createElement("div");
+        item.className = "receipt-scan-result-item";
+        const term = document.createElement("dt");
+        term.textContent = label;
+        const detail = document.createElement("dd");
+        detail.textContent = formatReceiptScanResult(field, extraction[field], extraction.currency);
+        item.append(term, detail);
+        list.append(item);
+      });
+      document.getElementById("receiptScanResults").hidden = false;
+    }
+
+    async function scanSelectedReceipt() {
+      if (!selectedReceiptScanFile || receiptScanInProgress) return;
+
+      const requestToken = ++receiptScanRequestToken;
+      const file = selectedReceiptScanFile;
+      const errorElement = document.getElementById("receiptScanError");
+      errorElement.textContent = "";
+      errorElement.hidden = true;
+      document.getElementById("receiptScanResults").hidden = true;
+      document.getElementById("receiptScanResultsList").replaceChildren();
+      setReceiptScanLoading(true);
+
+      try {
+        const base64 = await readReceiptScanFileAsBase64(file);
+        if (requestToken !== receiptScanRequestToken) return;
+        const response = await scanReceiptDocument({
+          context: "expense",
+          file: { name: file.name, mimeType: receiptScanFileType(file), size: file.size, base64 }
+        });
+        if (requestToken !== receiptScanRequestToken) return;
+        const extraction = response?.data?.extraction;
+        if (!extraction || typeof extraction !== "object") {
+          const invalidResponse = new Error("Invalid scan response");
+          invalidResponse.code = "functions/data-loss";
+          throw invalidResponse;
+        }
+        renderReceiptScanResults(extraction);
+      } catch (error) {
+        if (requestToken !== receiptScanRequestToken) return;
+        errorElement.textContent = receiptScanErrorMessage(error);
+        errorElement.hidden = false;
+      } finally {
+        if (requestToken === receiptScanRequestToken) setReceiptScanLoading(false);
+      }
     }
 
     function roundCurrency(value) {
@@ -3506,6 +3731,7 @@
       document.getElementById("receiptScanFileInput").click();
     });
     document.getElementById("receiptScanFileInput").addEventListener("change", handleReceiptScanFileSelected);
+    document.getElementById("scanReceiptButton").addEventListener("click", scanSelectedReceipt);
     document.getElementById("receiptScanModalOverlay").addEventListener("mousedown", event => {
       if (event.target === event.currentTarget) closeReceiptScanModal();
     });

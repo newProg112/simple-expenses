@@ -674,6 +674,10 @@ const {
 const {
   askBusinessAssistant,
 } = require("./ai-assistant");
+const {
+  scanBusinessDocument,
+} = require("./business-document-scan");
 
 exports.askBusinessAssistantPreview = askBusinessAssistantPreview;
 exports.askBusinessAssistant = askBusinessAssistant;
+exports.scanBusinessDocument = scanBusinessDocument;

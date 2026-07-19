@@ -1445,6 +1445,73 @@
       text-align:right;
     }
 
+    .scan-button-spinner{
+      width:16px;
+      height:16px;
+      margin-right:8px;
+      border:2px solid rgba(255,255,255,.45);
+      border-top-color:#fff;
+      border-radius:50%;
+      animation:scan-button-spin .75s linear infinite;
+    }
+
+    .scan-button-spinner[hidden]{
+      display:none;
+    }
+
+    @keyframes scan-button-spin{
+      to{ transform:rotate(360deg); }
+    }
+
+    .bill-scan-results{
+      padding:16px;
+      border:1px solid #dbe3ec;
+      border-radius:14px;
+      background:#fff;
+    }
+
+    .bill-scan-results h3{
+      margin:0 0 14px;
+      font-size:16px;
+    }
+
+    .bill-scan-results dl{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+      margin:0;
+    }
+
+    .bill-scan-result-item{
+      min-width:0;
+      padding:11px 12px;
+      border:1px solid #e8eef7;
+      border-radius:10px;
+      background:#f8fafc;
+    }
+
+    .bill-scan-result-item dt{
+      margin:0 0 4px;
+      color:#64748b;
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.02em;
+      text-transform:uppercase;
+    }
+
+    .bill-scan-result-item dd{
+      margin:0;
+      color:#102033;
+      font-size:14px;
+      font-weight:800;
+      line-height:1.35;
+      overflow-wrap:anywhere;
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      .scan-button-spinner{ animation:none; }
+    }
+
     .recent-footer{
       display:flex;
       justify-content:space-between;
@@ -1585,13 +1652,24 @@
 
     body.dark-mode .bill-scan-upload,
     body.dark-mode .bill-scan-preview,
-    body.dark-mode .bill-scan-file-details{
+    body.dark-mode .bill-scan-file-details,
+    body.dark-mode .bill-scan-results,
+    body.dark-mode .bill-scan-result-item{
       background:#0b1220;
     }
 
     body.dark-mode .bill-scan-upload p,
     body.dark-mode .bill-scan-pdf{
       color:#cbd5e1;
+    }
+
+    body.dark-mode .bill-scan-results,
+    body.dark-mode .bill-scan-result-item{
+      border-color:#334155;
+    }
+
+    body.dark-mode .bill-scan-result-item dd{
+      color:#e5e7eb;
     }
 
     body.dark-mode .pill-paid{
@@ -1650,6 +1728,10 @@
       .bill-scan-file-details{
         flex-direction:column;
         gap:10px;
+      }
+
+      .bill-scan-results dl{
+        grid-template-columns:1fr;
       }
 
       .bill-scan-stage-message{
@@ -2055,13 +2137,20 @@
             </div>
             <button class="bill-scan-remove" id="billScanRemoveFile" type="button">Choose another file</button>
           </div>
+          <section class="bill-scan-results" id="billScanResults" aria-labelledby="billScanResultsTitle" hidden>
+            <h3 id="billScanResultsTitle">Extracted details</h3>
+            <dl id="billScanResultsList"></dl>
+          </section>
         </div>
       </div>
 
-      <p class="bill-scan-stage-message" id="billScanStageMessage">AI scanning will be connected in the next stage.</p>
+      <p class="bill-scan-stage-message" id="billScanStatus" role="status" aria-live="polite" hidden></p>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="cancelBillScanButton" type="button">Cancel</button>
-        <button class="btn" id="scanBillButton" type="button" disabled aria-describedby="billScanStageMessage">Scan bill</button>
+        <button class="btn" id="scanBillButton" type="button" disabled aria-describedby="billScanStatus">
+          <span class="scan-button-spinner" id="billScanSpinner" aria-hidden="true" hidden></span>
+          <span>Scan bill</span>
+        </button>
       </div>
     </section>
   </div>
@@ -2069,7 +2158,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script type="module">
-    import { app, auth, db } from "../../firebase-config.js";
+    import { app, auth, db, functions } from "../../firebase-config.js";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -2087,6 +2176,9 @@
       ref as storageRef,
       uploadBytesResumable
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+    import {
+      httpsCallable
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
     const storage = getStorage(app);
     const maxBillScanFileSize = 10 * 1024 * 1024;
@@ -2100,6 +2192,13 @@
     let selectedBillScanFile = null;
     let billScanPreviewUrl = "";
     let billScanPreviousFocus = null;
+    let billScanRequestToken = 0;
+    let billScanInProgress = false;
+    const scanBillDocument = httpsCallable(
+      functions,
+      "scanBusinessDocument",
+      { timeout: 60000 }
+    );
     const currentUserPromise = new Promise(resolve => {
       const unsubscribe = onAuthStateChanged(auth, user => {
         unsubscribe();
@@ -2154,6 +2253,8 @@
     }
 
     function resetBillScanModal() {
+      billScanRequestToken += 1;
+      billScanInProgress = false;
       selectedBillScanFile = null;
       clearBillScanPreviewUrl();
 
@@ -2165,6 +2266,12 @@
       document.getElementById("billScanFileMeta").textContent = "";
       document.getElementById("billScanError").textContent = "";
       document.getElementById("billScanError").hidden = true;
+      document.getElementById("billScanResults").hidden = true;
+      document.getElementById("billScanResultsList").replaceChildren();
+      document.getElementById("billScanStatus").textContent = "";
+      document.getElementById("billScanStatus").hidden = true;
+      document.getElementById("billScanSpinner").hidden = true;
+      document.getElementById("billScanRemoveFile").disabled = false;
       document.getElementById("scanBillButton").disabled = true;
     }
 
@@ -2242,7 +2349,136 @@
       document.getElementById("billScanFileMeta").textContent =
         `${billScanFileTypeLabel(fileType)} · ${formatBillScanFileSize(file.size)}`;
       renderBillScanPreview(file);
+      document.getElementById("scanBillButton").disabled = false;
       document.getElementById("billScanRemoveFile").focus();
+    }
+
+    function readBillScanFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+          const result = String(reader.result || "");
+          const separator = result.indexOf(",");
+          if (separator < 0 || !result.slice(separator + 1)) {
+            reject(new Error("The selected file could not be read."));
+            return;
+          }
+          resolve(result.slice(separator + 1));
+        });
+        reader.addEventListener("error", () => reject(new Error("The selected file could not be read.")));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function setBillScanLoading(isLoading) {
+      billScanInProgress = isLoading;
+      document.getElementById("scanBillButton").disabled = isLoading || !selectedBillScanFile;
+      document.getElementById("billScanSpinner").hidden = !isLoading;
+      document.getElementById("billScanRemoveFile").disabled = isLoading;
+      const status = document.getElementById("billScanStatus");
+      status.textContent = isLoading ? "Reading document..." : "";
+      status.hidden = !isLoading;
+    }
+
+    function billScanErrorMessage(error) {
+      const code = String(error?.code || "");
+      if (error?.message === "The selected file could not be read.") return error.message;
+      if (code === "functions/unauthenticated") return "Please sign in again before scanning this bill.";
+      if (code === "functions/deadline-exceeded") return "Document scanning timed out. Please try again.";
+      if (code === "functions/invalid-argument" || code === "functions/resource-exhausted" || code === "functions/failed-precondition") {
+        return error.message || "This document could not be scanned.";
+      }
+      if (code === "functions/data-loss") return "The scan returned an unreadable result. Please try again.";
+      if (code === "functions/unavailable" || code === "functions/internal") return "The document scanning service is temporarily unavailable. Please try again.";
+      return "The document could not be scanned. Check your connection and try again.";
+    }
+
+    function formatBillScanResult(field, value, currency) {
+      if (value === null || value === undefined || value === "") return "Not found";
+      if (["netAmount", "vatAmount", "totalAmount"].includes(field)) {
+        const currencyCode = /^[A-Z]{3}$/.test(String(currency || "")) ? String(currency) : "GBP";
+        try {
+          return new Intl.NumberFormat("en-GB", { style: "currency", currency: currencyCode }).format(Number(value));
+        } catch (error) {
+          return Number(value).toFixed(2);
+        }
+      }
+      if (field === "confidence") return `${Math.round(Number(value) * 100)}%`;
+      if (["invoiceDate", "dueDate"].includes(field) && /^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+        return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+          .format(new Date(`${value}T12:00:00Z`));
+      }
+      if (field === "documentType") {
+        return String(value).replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+      }
+      return String(value);
+    }
+
+    function renderBillScanResults(extraction) {
+      const fields = [
+        ["documentType", "Document Type"],
+        ["supplier", "Supplier"],
+        ["merchant", "Merchant"],
+        ["invoiceNumber", "Invoice Number"],
+        ["invoiceDate", "Invoice Date"],
+        ["dueDate", "Due Date"],
+        ["currency", "Currency"],
+        ["netAmount", "Net"],
+        ["vatAmount", "VAT"],
+        ["totalAmount", "Total"],
+        ["description", "Description"],
+        ["categorySuggestion", "Category Suggestion"],
+        ["confidence", "Confidence"]
+      ];
+      const list = document.getElementById("billScanResultsList");
+      list.replaceChildren();
+      fields.forEach(([field, label]) => {
+        const item = document.createElement("div");
+        item.className = "bill-scan-result-item";
+        const term = document.createElement("dt");
+        term.textContent = label;
+        const detail = document.createElement("dd");
+        detail.textContent = formatBillScanResult(field, extraction[field], extraction.currency);
+        item.append(term, detail);
+        list.append(item);
+      });
+      document.getElementById("billScanResults").hidden = false;
+    }
+
+    async function scanSelectedBill() {
+      if (!selectedBillScanFile || billScanInProgress) return;
+
+      const requestToken = ++billScanRequestToken;
+      const file = selectedBillScanFile;
+      const errorElement = document.getElementById("billScanError");
+      errorElement.textContent = "";
+      errorElement.hidden = true;
+      document.getElementById("billScanResults").hidden = true;
+      document.getElementById("billScanResultsList").replaceChildren();
+      setBillScanLoading(true);
+
+      try {
+        const base64 = await readBillScanFileAsBase64(file);
+        if (requestToken !== billScanRequestToken) return;
+        const response = await scanBillDocument({
+          context: "bill",
+          file: { name: file.name, mimeType: billScanFileType(file), size: file.size, base64 }
+        });
+        if (requestToken !== billScanRequestToken) return;
+        const extraction = response?.data?.extraction;
+        if (!extraction || typeof extraction !== "object") {
+          const invalidResponse = new Error("Invalid scan response");
+          invalidResponse.code = "functions/data-loss";
+          throw invalidResponse;
+        }
+        renderBillScanResults(extraction);
+      } catch (error) {
+        if (requestToken !== billScanRequestToken) return;
+        errorElement.textContent = billScanErrorMessage(error);
+        errorElement.hidden = false;
+      } finally {
+        if (requestToken === billScanRequestToken) setBillScanLoading(false);
+      }
     }
 
     function getBills() {
@@ -3191,6 +3427,7 @@
       document.getElementById("billScanFileInput").click();
     });
     document.getElementById("billScanFileInput").addEventListener("change", handleBillScanFileSelected);
+    document.getElementById("scanBillButton").addEventListener("click", scanSelectedBill);
     document.getElementById("billScanModalOverlay").addEventListener("mousedown", event => {
       if (event.target === event.currentTarget) closeBillScanModal();
     });
