@@ -2,6 +2,8 @@
 
 "use strict";
 
+const {countNoun, verbForCount} = require("./grammar");
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CASHFLOW_DAYS = 90;
 const UPCOMING_BILL_DAYS = 7;
@@ -44,13 +46,6 @@ function firstFinite(record, fields) {
   }
 
   return null;
-}
-
-function sumFinite(first, second) {
-  const firstValue = finiteNumber(first);
-  const secondValue = finiteNumber(second);
-  if (firstValue === null || secondValue === null) return null;
-  return firstValue + secondValue;
 }
 
 function roundCurrency(value) {
@@ -135,7 +130,10 @@ function recordDate(record, fields) {
 }
 
 function normalizeName(value) {
-  return String(value || "").trim().toLocaleLowerCase("en-GB");
+  return String(value || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLocaleLowerCase("en-GB");
 }
 
 function displayName(value, fallback) {
@@ -150,13 +148,17 @@ function isPaid(record) {
 function invoiceValue(record) {
   const total = firstFinite(record, ["total"]);
   if (total !== null) return total;
-  return sumFinite(record.amount, record.vat) || 0;
+  const amount = firstFinite(record, ["amount"]);
+  const vat = firstFinite(record, ["vat"]);
+  return (amount || 0) + (vat || 0);
 }
 
 function billValue(record) {
   const total = firstFinite(record, ["total"]);
   if (total !== null) return total;
-  return sumFinite(record.net, record.vat) || 0;
+  const net = firstFinite(record, ["net"]);
+  const vat = firstFinite(record, ["vat"]);
+  return (net || 0) + (vat || 0);
 }
 
 function expenseNet(record) {
@@ -307,10 +309,19 @@ function summarizeInvoices(records, clients, scope, warnings) {
 
     const name = displayName(invoice.client || invoice.customerName, "Unknown customer");
     const key = normalizeName(name) || "unknown customer";
-    const customer = customers.get(key) || {name, invoiceCount: 0, raisedValue: 0, outstandingValue: 0};
+    const customer = customers.get(key) || {
+      name,
+      invoiceCount: 0,
+      outstandingInvoiceCount: 0,
+      raisedValue: 0,
+      outstandingValue: 0,
+    };
     customer.invoiceCount += 1;
     customer.raisedValue += value;
-    if (!isPaid(invoice)) customer.outstandingValue += value;
+    if (!isPaid(invoice)) {
+      customer.outstandingInvoiceCount += 1;
+      customer.outstandingValue += value;
+    }
     customers.set(key, customer);
 
     if (key !== "unknown customer" && !knownClients.has(key)) unmatchedClients.add(name);
@@ -321,7 +332,7 @@ function summarizeInvoices(records, clients, scope, warnings) {
         "unmatched-clients",
         "invoices",
         unmatchedClients.size,
-        `${unmatchedClients.size} invoice customer name(s) did not match a saved client by name.`,
+        `${countNoun(unmatchedClients.size, "invoice customer name")} did not match a saved client by name.`,
     ));
   }
 
@@ -372,6 +383,7 @@ function summarizeInvoices(records, clients, scope, warnings) {
         .map((customer) => ({
           name: customer.name,
           invoiceCount: customer.invoiceCount,
+          outstandingInvoiceCount: customer.outstandingInvoiceCount,
           raisedValue: roundCurrency(customer.raisedValue),
           outstandingValue: roundCurrency(customer.outstandingValue),
         }))
@@ -795,7 +807,7 @@ function addDataQualityWarnings(data, projects, warnings) {
           "missing-or-invalid-dates",
           check.area,
           missing,
-          `${missing} ${check.area} record(s) had no valid activity date.`,
+          `${countNoun(missing, check.area.replace(/s$/, "") + " record")} had no valid activity date.`,
       ));
     }
   });
@@ -806,7 +818,7 @@ function addDataQualityWarnings(data, projects, warnings) {
         "missing-invoice-due-dates",
         "invoices",
         missingInvoiceDueDates,
-        `${missingInvoiceDueDates} outstanding invoice(s) had no valid due date.`,
+        `${countNoun(missingInvoiceDueDates, "outstanding invoice")} had no valid due date.`,
     ));
   }
 
@@ -816,7 +828,7 @@ function addDataQualityWarnings(data, projects, warnings) {
         "missing-bill-due-dates",
         "bills",
         missingBillDueDates,
-        `${missingBillDueDates} outstanding bill(s) had no valid due date.`,
+        `${countNoun(missingBillDueDates, "outstanding bill")} had no valid due date.`,
     ));
   }
 
@@ -835,7 +847,7 @@ function addDataQualityWarnings(data, projects, warnings) {
           "invalid-numbers",
           check.area,
           invalid,
-          `${invalid} ${check.area} record(s) contained an invalid numeric value; safe fallbacks were used.`,
+          `${countNoun(invalid, check.area.replace(/s$/, "") + " record")} contained an invalid numeric value; safe fallbacks were used.`,
       ));
     }
   });
@@ -850,7 +862,7 @@ function addDataQualityWarnings(data, projects, warnings) {
         "unknown-project-references",
         "projects",
         unknownProjects.size,
-        `${unknownProjects.size} unknown project reference(s) were found on financial records.`,
+        `${countNoun(unknownProjects.size, "unknown project reference")} ${verbForCount(unknownProjects.size, "was", "were")} found on financial records.`,
     ));
   }
 }

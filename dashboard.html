@@ -1294,7 +1294,7 @@
         .filter(inv => inv.status !== "Paid")
         .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
 
-      const overdue = invoices.filter(inv => inv.status !== "Paid" && inv.dueDate).length;
+      const overdue = invoices.filter(isInvoiceOverdue).length;
 
       const unpaidBills = bills
         .filter(b => b.status !== "Paid")
@@ -1334,11 +1334,13 @@
         .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
 
       const currentOverdue = invoices
-        .filter(inv => inv.status !== "Paid" && isSameMonth(inv.dueDate, currentMonth))
+        .filter(inv => isInvoiceOverdue(inv) &&
+          isSameMonth(inv.dueDate, currentMonth))
         .length;
 
       const previousOverdue = invoices
-        .filter(inv => inv.status !== "Paid" && isSameMonth(inv.dueDate, previousMonthStart))
+        .filter(inv => isInvoiceOverdue(inv) &&
+          isSameMonth(inv.dueDate, previousMonthStart))
         .length;
 
       const currentMonthBills =

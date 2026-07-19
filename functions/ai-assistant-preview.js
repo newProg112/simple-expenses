@@ -6,12 +6,14 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const {buildBusinessSummary} = require("./lib/business-summary");
+const {countNoun, verbForCount} = require("./lib/grammar");
 
 const REGION = "us-central1";
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_REQUEST_ID_LENGTH = 64;
 const MAX_PROJECT_ID_LENGTH = 128;
 const MAX_WARNINGS = 10;
+const MAX_VISIBLE_WARNINGS = 5;
 const MAX_ANSWER_LENGTH = 1200;
 const MAX_INSIGHTS = 10;
 const MAX_FACTS = 10;
@@ -32,6 +34,18 @@ const SOURCES = {
   projects: {module: "Projects", href: "/resources/tools/projects.html"},
   budgets: {module: "Budgets", href: "/resources/tools/budgets.html"},
   cashflow: {module: "Cashflow", href: "/resources/tools/cashflow.html"},
+};
+const WARNING_AREAS = {
+  "overall-summary": new Set(["scope", "invoices", "bills", "expenses", "projects"]),
+  "overdue-invoices": new Set(["scope", "invoices"]),
+  "customer-balances": new Set(["scope", "invoices", "clients"]),
+  "bills": new Set(["scope", "bills"]),
+  "expenses": new Set(["scope", "expenses"]),
+  "project-profitability": new Set(["scope", "projects", "invoices", "bills", "expenses"]),
+  "budgets": new Set(["scope", "budgets", "projects", "bills", "expenses"]),
+  "cashflow": new Set(["scope", "cashflow", "invoices", "bills"]),
+  "priorities": new Set(["scope", "invoices", "bills", "expenses", "projects", "budgets", "cashflow"]),
+  "unsupported": new Set(),
 };
 
 function isPlainObject(value) {
@@ -214,8 +228,8 @@ function formatNumber(value, maximumFractionDigits) {
 }
 
 function countText(count, singular, plural) {
-  const number = safeNumber(count);
-  return `${formatNumber(number, 0)} ${number === 1 ? singular : (plural || `${singular}s`)}`;
+  return countNoun(safeNumber(count), singular, plural, (number) =>
+    formatNumber(number, 0));
 }
 
 function fact(id, label, value, formattedValue) {
@@ -230,15 +244,45 @@ function selectedSources(keys) {
   return [...new Set(keys)].map((key) => SOURCES[key]).filter(Boolean);
 }
 
-function safeWarnings(summary) {
+function safeWarnings(summary, category) {
   const warnings = Array.isArray(summary.warnings) ? summary.warnings : [];
-  return warnings.slice(0, MAX_WARNINGS).map((warning) => ({
+  const areas = WARNING_AREAS[category] || WARNING_AREAS.unsupported;
+  const relevant = warnings.filter((warning) => {
+    const code = String(warning.code || "");
+    if (!areas.has(String(warning.area || ""))) return false;
+    if (code === "unmatched-clients") {
+      return ["overall-summary", "overdue-invoices", "customer-balances"]
+          .includes(category);
+    }
+    if (code === "unknown-project-references") {
+      return ["project-profitability", "budgets", "priorities"].includes(category);
+    }
+    return true;
+  })
+      .sort((first, second) => {
+        const firstSerious = /(?:read-failed|invalid-numbers)/.test(String(first.code || "")) ? 0 : 1;
+        const secondSerious = /(?:read-failed|invalid-numbers)/.test(String(second.code || "")) ? 0 : 1;
+        return firstSerious - secondSerious;
+      });
+  const hasAdditional = relevant.length > MAX_VISIBLE_WARNINGS;
+  const visibleLimit = hasAdditional ? MAX_VISIBLE_WARNINGS - 1 : MAX_VISIBLE_WARNINGS;
+  const visible = relevant.slice(0, visibleLimit).map((warning) => ({
     code: boundedText(warning.code || "data-warning", 80),
+    area: boundedText(warning.area || "general", 80),
     message: boundedText(
         warning.message || "Some business records could not be included.",
         500,
     ),
   }));
+  if (hasAdditional) {
+    const additionalCount = relevant.length - visible.length;
+    visible.push({
+      code: "additional-data-issues",
+      area: "general",
+      message: `${countText(additionalCount, "additional data issue")} ${verbForCount(additionalCount, "exists", "exist")}; some may affect completeness.`,
+    });
+  }
+  return visible.slice(0, MAX_WARNINGS);
 }
 
 function boundedResponse(response) {
@@ -267,7 +311,7 @@ function responseBase(summary, category) {
     insights: [],
     facts: [],
     sources: [],
-    warnings: safeWarnings(summary),
+    warnings: safeWarnings(summary, category),
   };
 }
 
@@ -296,11 +340,12 @@ function overallResponse(summary) {
 function invoiceResponse(summary) {
   const response = responseBase(summary, "overdue-invoices");
   const invoices = summary.invoices;
-  response.answer = `You currently have ${countText(invoices.overdueCount, "overdue invoice")} with a total overdue value of ${formatGbp(invoices.overdueValue)}.`;
+  response.answer = invoices.overdueCount === 0 ?
+    "No invoices are overdue." :
+    `${countText(invoices.overdueCount, "invoice")} ${verbForCount(invoices.overdueCount, "is", "are")} overdue, totalling ${formatGbp(invoices.overdueValue)}.`;
   response.insights = [
-    insight("Overdue invoices", `${countText(invoices.overdueCount, "invoice")} are overdue.`),
-    insight("Overdue value", `The total overdue value is ${formatGbp(invoices.overdueValue)}.`),
-    insight("All outstanding invoices", `${countText(invoices.outstandingCount, "invoice")} remain outstanding, totalling ${formatGbp(invoices.outstandingValue)}.`),
+    insight("Overdue value", `${formatGbp(invoices.overdueValue)} is overdue.`),
+    insight("All outstanding invoices", `${countText(invoices.outstandingCount, "invoice")} ${verbForCount(invoices.outstandingCount, "remains", "remain")} outstanding, totalling ${formatGbp(invoices.outstandingValue)}.`),
   ];
   response.facts = [
     fact("invoices.overdueCount", "Overdue invoice count", invoices.overdueCount, formatNumber(invoices.overdueCount, 0)),
@@ -325,7 +370,7 @@ function customerResponse(summary) {
     response.answer = `${customers[0].name} has the largest outstanding invoice balance at ${formatGbp(customers[0].outstandingValue)}.`;
     response.insights = customers.map((customer) => insight(
         customer.name,
-        `${formatGbp(customer.outstandingValue)} outstanding across ${countText(customer.invoiceCount, "saved invoice")}.`,
+        `${formatGbp(customer.outstandingValue)} outstanding across ${countText(customer.outstandingInvoiceCount === undefined ? customer.invoiceCount : customer.outstandingInvoiceCount, "invoice")}.`,
     ));
     response.facts = customers.map((customer, index) => fact(
         `invoices.customerBalances.${index + 1}`,
@@ -341,11 +386,11 @@ function customerResponse(summary) {
 function billsResponse(summary) {
   const response = responseBase(summary, "bills");
   const bills = summary.bills;
-  response.answer = `${countText(bills.upcomingCount, "bill")} totalling ${formatGbp(bills.upcomingValue)} are due within the next ${formatNumber(bills.upcomingWindowDays, 0)} days. Overall, ${formatGbp(bills.outstandingValue)} remains unpaid.`;
+  response.answer = bills.upcomingCount === 0 ?
+    "No unpaid bills are due within the next seven days." :
+    `${countText(bills.upcomingCount, "unpaid bill")} ${verbForCount(bills.upcomingCount, "is", "are")} due within the next seven days, totalling ${formatGbp(bills.upcomingValue)}.`;
   response.insights = [
-    insight("Bills due soon", `${countText(bills.upcomingCount, "bill")} are due within seven days.`),
-    insight("Upcoming value", `Those upcoming bills total ${formatGbp(bills.upcomingValue)}.`),
-    insight("All unpaid bills", `${countText(bills.outstandingCount, "bill")} remain unpaid, totalling ${formatGbp(bills.outstandingValue)}.`),
+    insight("All unpaid bills", `${countText(bills.outstandingCount, "bill")} ${verbForCount(bills.outstandingCount, "remains", "remain")} unpaid, totalling ${formatGbp(bills.outstandingValue)}.`),
   ];
   response.facts = [
     fact("bills.upcomingCount", "Bills due soon", bills.upcomingCount, formatNumber(bills.upcomingCount, 0)),
@@ -405,7 +450,7 @@ function projectsResponse(summary) {
     response.insights = [
       insight("Lowest project profit", `${lowest.name}: ${formatGbp(lowest.profit)}.`),
       insight("Project margin", `${lowest.name}: ${formatNumber(lowest.marginPercent)}%.`),
-      insight("Projects requiring attention", `${countText(projects.requiringAttention.length, "project")} meet the current attention rules.`),
+      insight("Projects requiring attention", `${countText(projects.requiringAttention.length, "project")} ${verbForCount(projects.requiringAttention.length, "requires", "require")} attention under the current rules.`),
     ];
     response.facts = [
       fact("projects.lowestProfit.profit", "Lowest project profit", lowest.profit, formatGbp(lowest.profit)),
@@ -420,10 +465,12 @@ function projectsResponse(summary) {
 function budgetsResponse(summary) {
   const response = responseBase(summary, "budgets");
   const budgets = summary.budgets;
-  response.answer = `${countText(budgets.exceededCount, "budget")} have reached or exceeded their planned amount, while ${countText(budgets.nearLimitCount, "budget")} are near their limit.`;
+  response.answer = budgets.exceededCount === 0 && budgets.nearLimitCount === 0 ?
+    "No budgets are close to or above their planned limits." :
+    `${countText(budgets.exceededCount, "budget")} ${verbForCount(budgets.exceededCount, "has", "have")} reached or exceeded the planned amount; ${countText(budgets.nearLimitCount, "budget")} ${verbForCount(budgets.nearLimitCount, "is", "are")} near the limit.`;
   response.insights = [
-    insight("Exceeded budgets", `${countText(budgets.exceededCount, "budget")} have used at least 100% of their planned amount.`),
-    insight("Near-limit budgets", `${countText(budgets.nearLimitCount, "budget")} are between 80% and 100% used.`),
+    insight("Exceeded budgets", `${countText(budgets.exceededCount, "budget")} ${verbForCount(budgets.exceededCount, "has", "have")} used at least 100% of the planned amount.`),
+    insight("Near-limit budgets", `${countText(budgets.nearLimitCount, "budget")} ${verbForCount(budgets.nearLimitCount, "is", "are")} between 80% and 100% used.`),
     insight("Overall budget position", `${formatGbp(budgets.actualValue)} actual against ${formatGbp(budgets.plannedValue)} planned.`),
   ];
   if (budgets.topOverspends.length) {
@@ -443,10 +490,10 @@ function budgetsResponse(summary) {
 function cashflowResponse(summary) {
   const response = responseBase(summary, "cashflow");
   const cashflow = summary.cashflow;
-  response.answer = `The current deterministic forecast expects ${formatGbp(cashflow.expectedReceipts)} in receipts and ${formatGbp(cashflow.expectedPayments)} in payments, producing a closing scenario balance of ${formatGbp(cashflow.closingBalance)}.`;
+  response.answer = `The forecast includes ${formatGbp(cashflow.expectedReceipts)} in receipts and ${formatGbp(cashflow.expectedPayments)} in payments, giving a closing balance of ${formatGbp(cashflow.closingBalance)}.`;
   response.insights = [
-    insight("Expected receipts", `${countText(cashflow.expectedReceiptCount, "receipt")} total ${formatGbp(cashflow.expectedReceipts)}.`),
-    insight("Expected payments", `${countText(cashflow.expectedPaymentCount, "payment")} total ${formatGbp(cashflow.expectedPayments)}.`),
+    insight("Expected receipts", `${countText(cashflow.expectedReceiptCount, "receipt")} ${verbForCount(cashflow.expectedReceiptCount, "totals", "total")} ${formatGbp(cashflow.expectedReceipts)}.`),
+    insight("Expected payments", `${countText(cashflow.expectedPaymentCount, "payment")} ${verbForCount(cashflow.expectedPaymentCount, "totals", "total")} ${formatGbp(cashflow.expectedPayments)}.`),
     insight("Lowest forecast balance", `${formatGbp(cashflow.lowestBalance)} on ${cashflow.lowestBalanceDate}.`),
   ];
   response.facts = [
@@ -466,7 +513,7 @@ function prioritiesResponse(summary) {
   const sources = [];
 
   if (summary.budgets.exceededCount > 0) {
-    priorities.push(insight("Exceeded budgets", `${countText(summary.budgets.exceededCount, "budget")} have reached or exceeded their planned amount.`));
+    priorities.push(insight("Exceeded budgets", `${countText(summary.budgets.exceededCount, "budget")} ${verbForCount(summary.budgets.exceededCount, "has", "have")} reached or exceeded the planned amount.`));
     facts.push(fact("budgets.exceededCount", "Exceeded budget count", summary.budgets.exceededCount, formatNumber(summary.budgets.exceededCount, 0)));
     sources.push("budgets");
   }
@@ -476,32 +523,32 @@ function prioritiesResponse(summary) {
     sources.push("cashflow");
   }
   if (summary.invoices.overdueCount > 0) {
-    priorities.push(insight("Overdue invoices", `${countText(summary.invoices.overdueCount, "invoice")} are overdue, totalling ${formatGbp(summary.invoices.overdueValue)}.`));
+    priorities.push(insight("Overdue invoices", `${countText(summary.invoices.overdueCount, "invoice")} ${verbForCount(summary.invoices.overdueCount, "is", "are")} overdue, totalling ${formatGbp(summary.invoices.overdueValue)}.`));
     facts.push(fact("invoices.overdueValue", "Overdue invoice value", summary.invoices.overdueValue, formatGbp(summary.invoices.overdueValue)));
     sources.push("invoices");
   }
   if (summary.bills.upcomingCount > 0) {
-    priorities.push(insight("Bills due soon", `${countText(summary.bills.upcomingCount, "bill")} are due within seven days, totalling ${formatGbp(summary.bills.upcomingValue)}.`));
+    priorities.push(insight("Bills due soon", `${countText(summary.bills.upcomingCount, "bill")} ${verbForCount(summary.bills.upcomingCount, "is", "are")} due within seven days, totalling ${formatGbp(summary.bills.upcomingValue)}.`));
     facts.push(fact("bills.upcomingValue", "Bills due soon value", summary.bills.upcomingValue, formatGbp(summary.bills.upcomingValue)));
     sources.push("bills");
   }
   if (summary.projects.requiringAttention.length > 0) {
-    priorities.push(insight("Projects requiring attention", `${countText(summary.projects.requiringAttention.length, "project")} meet the supported attention rules.`));
+    priorities.push(insight("Projects requiring attention", `${countText(summary.projects.requiringAttention.length, "project")} ${verbForCount(summary.projects.requiringAttention.length, "requires", "require")} attention under the current rules.`));
     facts.push(fact("projects.requiringAttention.count", "Projects requiring attention", summary.projects.requiringAttention.length, formatNumber(summary.projects.requiringAttention.length, 0)));
     sources.push("projects");
   }
   if (summary.budgets.nearLimitCount > 0) {
-    priorities.push(insight("Budgets near their limit", `${countText(summary.budgets.nearLimitCount, "budget")} are between 80% and 100% used.`));
+    priorities.push(insight("Budgets near their limit", `${countText(summary.budgets.nearLimitCount, "budget")} ${verbForCount(summary.budgets.nearLimitCount, "is", "are")} between 80% and 100% used.`));
     facts.push(fact("budgets.nearLimitCount", "Near-limit budget count", summary.budgets.nearLimitCount, formatNumber(summary.budgets.nearLimitCount, 0)));
     sources.push("budgets");
   }
-  if (summary.warnings.length > 0) {
-    priorities.push(insight("Data quality", `${countText(summary.warnings.length, "data warning")} may affect the supported figures.`));
+  if (response.warnings.length > 0) {
+    priorities.push(insight("Data quality", `${countText(response.warnings.length, "warning")} may affect the supported figures.`));
   }
 
   response.answer = priorities.length ?
-    `The deterministic rules identified ${countText(priorities.length, "item")} to review, shown in priority order.` :
-    "No urgent issues were identified from the currently supported business facts.";
+    `${countText(priorities.length, "item")} ${verbForCount(priorities.length, "needs", "need")} your attention, shown in priority order.` :
+    "No urgent issues were identified from the business areas currently supported by this preview.";
   response.insights = priorities.slice(0, 7);
   response.facts = facts.slice(0, 7);
   response.sources = selectedSources(sources);
