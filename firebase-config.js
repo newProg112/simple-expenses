@@ -27,6 +27,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app, "us-central1");
 
+// Developer-only feature flag. Supported values: "preview" or "ai".
+const businessAssistantMode = "ai";
+
 console.log("Firebase SDK loaded");
 
-export { app, auth, db, functions };
+export { app, auth, businessAssistantMode, db, functions };

@@ -762,8 +762,8 @@
               <h2 id="conversationTitle">AI Business Assistant</h2>
               <div class="preview-status">
                 <span class="status-dot" aria-hidden="true"></span>
-                <strong>Deterministic preview</strong>
-                <span>Secure rule-based business insights</span>
+                <strong id="assistantModeTitle">Deterministic preview</strong>
+                <span id="assistantModeDetail">Secure rule-based business insights</span>
               </div>
             </div>
           </div>
@@ -785,7 +785,7 @@
               <button class="capability-chip" type="button" data-question="Are any budgets close to being exceeded?"><span class="chip-icon" aria-hidden="true">›</span>Budget progress</button>
               <button class="capability-chip" type="button" data-question="What could affect my cashflow?"><span class="chip-icon" aria-hidden="true">›</span>Cashflow outlook</button>
             </div>
-            <p class="later-note">This preview uses secure, rule-based Simple Books calculations. Natural-language AI analysis will be connected in a later stage.</p>
+            <p class="later-note" id="assistantModeNote">This preview uses secure, rule-based Simple Books calculations. Natural-language AI analysis will be connected in a later stage.</p>
           </section>
           <div class="message-list" id="messageList"></div>
         </div>
@@ -849,13 +849,17 @@
   </main>
 
   <script type="module">
-    import { functions } from "../../firebase-config.js";
+    import { businessAssistantMode, functions } from "../../firebase-config.js";
     import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
     (() => {
-      const askBusinessAssistantPreview = httpsCallable(
+      const mode = businessAssistantMode === "ai" ? "ai" : "preview";
+      const callableName = mode === "ai" ?
+        "askBusinessAssistant" :
+        "askBusinessAssistantPreview";
+      const askBusinessAssistant = httpsCallable(
         functions,
-        "askBusinessAssistantPreview",
+        callableName,
         { timeout: 60000 }
       );
       const form = document.getElementById("questionForm");
@@ -879,6 +883,12 @@
       ]);
       let isResponding = false;
       let activeRequestToken = 0;
+
+      if(mode === "ai"){
+        document.getElementById("assistantModeTitle").textContent = "AI mode";
+        document.getElementById("assistantModeDetail").textContent = "Secure server-side responses";
+        document.getElementById("assistantModeNote").textContent = "AI responses use trusted Simple Books calculations. If the AI service is unavailable, the assistant falls back to a rule-based answer.";
+      }
 
       function resizeComposer(){
         input.style.height = "auto";
@@ -1078,7 +1088,7 @@
         createTypingIndicator();
 
         try{
-          const result = await askBusinessAssistantPreview({
+          const result = await askBusinessAssistant({
             requestId: createRequestId(),
             question,
             scope: {}

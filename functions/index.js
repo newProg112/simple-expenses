@@ -671,5 +671,9 @@ exports.stripeWebhook = onRequest(
 const {
   askBusinessAssistantPreview,
 } = require("./ai-assistant-preview");
+const {
+  askBusinessAssistant,
+} = require("./ai-assistant");
 
 exports.askBusinessAssistantPreview = askBusinessAssistantPreview;
+exports.askBusinessAssistant = askBusinessAssistant;
