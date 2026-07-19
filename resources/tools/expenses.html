@@ -839,6 +839,30 @@
       overflow-wrap:anywhere;
     }
 
+    .receipt-ai-apply-feedback{
+      margin:0 0 16px;
+      padding:12px 14px;
+      border:1px solid #86efac;
+      border-radius:10px;
+      background:#f0fdf4;
+      color:#166534;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.45;
+    }
+
+    .receipt-ai-apply-feedback.has-warnings{
+      border-color:#fcd34d;
+      background:#fffbeb;
+      color:#92400e;
+    }
+
+    .receipt-ai-populated-field{
+      border-color:#22c55e !important;
+      background:#f0fdf4 !important;
+      box-shadow:0 0 0 3px rgba(34,197,94,.16) !important;
+    }
+
     @media (prefers-reduced-motion:reduce){
       .scan-button-spinner{ animation:none; }
     }
@@ -1659,6 +1683,8 @@
             </button>
           </div>
 
+          <p class="receipt-ai-apply-feedback" id="receiptAiApplyFeedback" role="status" tabindex="-1" hidden></p>
+
           <div class="claim-toggle" aria-label="Claim type">
             <button class="active" id="expenseModeButton" type="button" onclick="setClaimType('expense')">Expense</button>
             <button id="mileageModeButton" type="button" onclick="setClaimType('mileage')">Mileage</button>
@@ -2100,6 +2126,7 @@
           <span class="scan-button-spinner" id="receiptScanSpinner" aria-hidden="true" hidden></span>
           <span>Scan receipt</span>
         </button>
+        <button class="btn" id="useReceiptScanDetailsButton" type="button" hidden disabled>Use these details</button>
       </div>
     </section>
   </div>
@@ -2155,6 +2182,7 @@
     let receiptScanPreviousFocus = null;
     let receiptScanRequestToken = 0;
     let receiptScanInProgress = false;
+    let receiptScanExtraction = null;
     const scanReceiptDocument = httpsCallable(
       functions,
       "scanBusinessDocument",
@@ -2234,6 +2262,7 @@
     function resetReceiptScanModal() {
       receiptScanRequestToken += 1;
       receiptScanInProgress = false;
+      receiptScanExtraction = null;
       selectedReceiptScanFile = null;
       clearReceiptScanPreviewUrl();
 
@@ -2252,6 +2281,8 @@
       document.getElementById("receiptScanSpinner").hidden = true;
       document.getElementById("receiptScanRemoveFile").disabled = false;
       document.getElementById("scanReceiptButton").disabled = true;
+      document.getElementById("useReceiptScanDetailsButton").hidden = true;
+      document.getElementById("useReceiptScanDetailsButton").disabled = true;
     }
 
     function openReceiptScanModal() {
@@ -2354,6 +2385,7 @@
       document.getElementById("scanReceiptButton").disabled = isLoading || !selectedReceiptScanFile;
       document.getElementById("receiptScanSpinner").hidden = !isLoading;
       document.getElementById("receiptScanRemoveFile").disabled = isLoading;
+      document.getElementById("useReceiptScanDetailsButton").disabled = isLoading || !receiptScanExtraction;
       const status = document.getElementById("receiptScanStatus");
       status.textContent = isLoading ? "Reading document..." : "";
       status.hidden = !isLoading;
@@ -2421,7 +2453,184 @@
         item.append(term, detail);
         list.append(item);
       });
+      receiptScanExtraction = extraction;
       document.getElementById("receiptScanResults").hidden = false;
+      document.getElementById("useReceiptScanDetailsButton").hidden = false;
+      document.getElementById("useReceiptScanDetailsButton").disabled = false;
+    }
+
+    function receiptScanTextValue(value) {
+      return typeof value === "string" ? value.trim() : "";
+    }
+
+    function receiptScanAmountValue(value) {
+      if (value === null || value === undefined || value === "") return null;
+      const amount = Number(value);
+      return Number.isFinite(amount) && amount >= 0 ? amount : null;
+    }
+
+    function receiptScanDateValue(value) {
+      const date = receiptScanTextValue(value);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
+      const parsed = new Date(`${date}T00:00:00Z`);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date ? date : "";
+    }
+
+    function normalizeReceiptCategory(value) {
+      return receiptScanTextValue(value)
+        .toLowerCase()
+        .replace(/&/g, " and ")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ");
+    }
+
+    function matchedReceiptCategory(value) {
+      const normalized = normalizeReceiptCategory(value);
+      if (!normalized) return "";
+
+      const categorySelect = document.getElementById("category");
+      const exactOption = [...categorySelect.options].find(option => normalizeReceiptCategory(option.value) === normalized);
+      if (exactOption) return exactOption.value;
+
+      const safeAliases = {
+        "accounting": "Professional fees",
+        "accountancy": "Professional fees",
+        "accounting and bookkeeping services": "Professional fees",
+        "professional services": "Professional fees",
+        "office supplies": "Office",
+        "stationery": "Office",
+        "software subscription": "Software",
+        "software subscriptions": "Software",
+        "business travel": "Travel",
+        "food and drink": "Meals"
+      };
+      return safeAliases[normalized] || "";
+    }
+
+    function matchedReceiptVatRate(netAmount, vatAmount) {
+      if (netAmount === null || netAmount <= 0 || vatAmount === null) return "";
+      const extractedRate = vatAmount / netAmount;
+      const options = [...document.getElementById("vatRate").options];
+      const closest = options.reduce((match, option) => {
+        const difference = Math.abs(Number(option.value) - extractedRate);
+        return !match || difference < match.difference ? { value: option.value, difference } : match;
+      }, null);
+      return closest && closest.difference <= 0.0025 ? closest.value : "";
+    }
+
+    function populateReceiptField(id, value, appliedFields, eventName = "input") {
+      const field = document.getElementById(id);
+      field.value = value;
+      field.dispatchEvent(new Event(eventName, { bubbles: true }));
+      appliedFields.push(field);
+    }
+
+    function showReceiptAiApplyFeedback(warnings) {
+      const feedback = document.getElementById("receiptAiApplyFeedback");
+      feedback.textContent = [
+        "AI details added. Please check the highlighted fields before saving.",
+        ...warnings
+      ].join(" ");
+      feedback.classList.toggle("has-warnings", warnings.length > 0);
+      feedback.hidden = false;
+    }
+
+    function clearReceiptAiApplyFeedback() {
+      const feedback = document.getElementById("receiptAiApplyFeedback");
+      feedback.textContent = "";
+      feedback.classList.remove("has-warnings");
+      feedback.hidden = true;
+      document.querySelectorAll(".receipt-ai-populated-field").forEach(field => field.classList.remove("receipt-ai-populated-field"));
+    }
+
+    function highlightReceiptAiFields(fields) {
+      document.querySelectorAll(".receipt-ai-populated-field").forEach(field => field.classList.remove("receipt-ai-populated-field"));
+      fields.forEach(field => {
+        field.classList.add("receipt-ai-populated-field");
+        const removeHighlight = () => field.classList.remove("receipt-ai-populated-field");
+        field.addEventListener("input", removeHighlight, { once: true });
+        field.addEventListener("change", removeHighlight, { once: true });
+        window.setTimeout(removeHighlight, 6000);
+      });
+    }
+
+    function applyReceiptScanDetails() {
+      const errorElement = document.getElementById("receiptScanError");
+      errorElement.textContent = "";
+      errorElement.hidden = true;
+
+      if (editingExpenseId !== null) {
+        errorElement.textContent = "Finish or cancel editing this expense before applying scanned details.";
+        errorElement.hidden = false;
+        return;
+      }
+
+      if (!receiptScanExtraction) return;
+
+      const extraction = receiptScanExtraction;
+      const appliedFields = [];
+      const warnings = [];
+      const merchant = receiptScanTextValue(extraction.merchant) || receiptScanTextValue(extraction.supplier);
+      const description = receiptScanTextValue(extraction.description);
+      const categorySuggestion = receiptScanTextValue(extraction.categorySuggestion);
+      const netAmount = receiptScanAmountValue(extraction.netAmount);
+      const vatAmount = receiptScanAmountValue(extraction.vatAmount);
+      const totalAmount = receiptScanAmountValue(extraction.totalAmount);
+
+      if (extraction.netAmount !== null && extraction.netAmount !== undefined && extraction.netAmount !== "" && netAmount === null) {
+        warnings.push("Net amount was invalid and was ignored.");
+      }
+      if (extraction.vatAmount !== null && extraction.vatAmount !== undefined && extraction.vatAmount !== "" && vatAmount === null) {
+        warnings.push("VAT amount was invalid and was ignored.");
+      }
+      if (extraction.totalAmount !== null && extraction.totalAmount !== undefined && extraction.totalAmount !== "" && totalAmount === null) {
+        warnings.push("Total was invalid and was ignored.");
+      }
+
+      setClaimType("expense");
+
+      if (merchant) populateReceiptField("merchant", merchant, appliedFields);
+      if (description) populateReceiptField("notes", description, appliedFields);
+
+      if (extraction.invoiceDate !== null && extraction.invoiceDate !== undefined && extraction.invoiceDate !== "") {
+        const invoiceDate = receiptScanDateValue(extraction.invoiceDate);
+        if (invoiceDate) populateReceiptField("expenseDate", invoiceDate, appliedFields, "change");
+        else warnings.push("Expense date was invalid and was ignored.");
+      }
+
+      if (categorySuggestion) {
+        const category = matchedReceiptCategory(categorySuggestion);
+        if (category) populateReceiptField("category", category, appliedFields, "change");
+        else warnings.push("Category needs manual review.");
+      }
+
+      if (netAmount !== null) populateReceiptField("netAmount", netAmount.toFixed(2), appliedFields);
+
+      if (vatAmount !== null) {
+        const vatRate = matchedReceiptVatRate(netAmount, vatAmount);
+        if (vatRate) populateReceiptField("vatRate", vatRate, appliedFields, "change");
+        else warnings.push("VAT rate needs manual review.");
+      }
+
+      calculateAmounts();
+
+      if (totalAmount !== null && netAmount !== null && vatAmount !== null && Math.abs(totalAmount - netAmount - vatAmount) > 0.02) {
+        warnings.push("Total needs manual review because it does not match net plus VAT.");
+      }
+
+      if (!appliedFields.length) {
+        errorElement.textContent = "No extracted values could be safely added to the expense form.";
+        errorElement.hidden = false;
+        return;
+      }
+
+      showReceiptAiApplyFeedback(warnings);
+      highlightReceiptAiFields(appliedFields);
+      const firstField = appliedFields[0];
+      closeReceiptScanModal();
+      document.getElementById("formTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => firstField.focus(), 250);
     }
 
     async function scanSelectedReceipt() {
@@ -2434,6 +2643,9 @@
       errorElement.hidden = true;
       document.getElementById("receiptScanResults").hidden = true;
       document.getElementById("receiptScanResultsList").replaceChildren();
+      receiptScanExtraction = null;
+      document.getElementById("useReceiptScanDetailsButton").hidden = true;
+      document.getElementById("useReceiptScanDetailsButton").disabled = true;
       setReceiptScanLoading(true);
 
       try {
@@ -3031,6 +3243,7 @@
     function clearForm() {
       editingExpenseId = null;
       vatManuallyEdited = false;
+      clearReceiptAiApplyFeedback();
 
       document.getElementById("saveExpenseButton").textContent = "Save expense";
       document.getElementById("cancelEditButton").hidden = true;
@@ -3248,6 +3461,7 @@
 
       if (!expense) return;
 
+      clearReceiptAiApplyFeedback();
       editingExpenseId = expense.id;
       vatManuallyEdited = true;
 
@@ -3732,6 +3946,7 @@
     });
     document.getElementById("receiptScanFileInput").addEventListener("change", handleReceiptScanFileSelected);
     document.getElementById("scanReceiptButton").addEventListener("click", scanSelectedReceipt);
+    document.getElementById("useReceiptScanDetailsButton").addEventListener("click", applyReceiptScanDetails);
     document.getElementById("receiptScanModalOverlay").addEventListener("mousedown", event => {
       if (event.target === event.currentTarget) closeReceiptScanModal();
     });
