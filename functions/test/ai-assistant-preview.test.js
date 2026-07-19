@@ -83,6 +83,17 @@ const routes = new Map([
   ["Summarise my business this month.", "overall-summary"],
   ["What could affect my cashflow?", "cashflow"],
   ["Which invoices are overdue?", "overdue-invoices"],
+  ["How much did I invoice this month?", "overdue-invoices"],
+  ["How much mileage did I claim this month?", "expenses"],
+  ["How are my projects doing?", "project-profitability"],
+  ["How is my business doing?", "overall-summary"],
+  ["What is an invoice?", "unsupported"],
+  ["Tell me a joke about invoices", "unsupported"],
+  ["Calculate 2 + 2", "unsupported"],
+  ["How much is a billion?", "unsupported"],
+  ["Give me an overview of Rome", "unsupported"],
+  ["What is business performance?", "unsupported"],
+  ["Who invented invoices?", "unsupported"],
   ["Write me a poem about bookkeeping", "unsupported"],
 ]);
 routes.forEach((category, question) => {

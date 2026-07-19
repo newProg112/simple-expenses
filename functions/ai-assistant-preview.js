@@ -160,43 +160,86 @@ function containsAny(question, phrases) {
   return phrases.some((phrase) => question.includes(phrase));
 }
 
+function containsWord(question, words) {
+  const questionWords = new Set(question.split(" "));
+  return words.some((word) => questionWords.has(word));
+}
+
+function isObviouslyUnrelatedQuestion(question, normalized) {
+  const raw = String(question || "").trim().toLocaleLowerCase("en-GB");
+  if (/^(?:(?:what is|calculate|solve)\s+)?-?\d+(?:\.\d+)?\s*(?:\+|-|\*|\/|x|\u00d7|\u00f7)\s*-?\d+(?:\.\d+)?\??$/.test(raw)) {
+    return true;
+  }
+  return containsAny(normalized, [
+    "tell me a joke", "write a joke", "make a joke", "write me a poem",
+    "write a poem", "write me a story", "write a story", "write a song",
+    "creative writing", "write a haiku", "write a limerick",
+    "give me a riddle", "quiz me", "trivia question", "who invented",
+    "history of",
+  ]);
+}
+
 function routeQuestion(question) {
   const normalized = normalizeQuestion(question);
+  if (isObviouslyUnrelatedQuestion(question, normalized)) return "unsupported";
+  const hasDataIntent = containsAny(normalized, [
+    "my ", "our ", "which", "how much", "how many", "total",
+    "show", "list", "compare", "this month", "last month", "this year",
+    "last year", "current", "today", "doing", "performing", "status",
+    "active",
+  ]);
 
   if (containsAny(normalized, [
     "focus on today", "focus today", "priorities", "priority", "needs attention",
   ])) return "priorities";
 
-  if (containsAny(normalized, ["customer", "client"]) &&
-    containsAny(normalized, ["owe", "owes", "owing", "balance", "most"])) {
+  if (containsWord(normalized, ["customer", "customers", "client", "clients"]) &&
+    containsAny(normalized, ["owe", "owes", "owing", "balance"])) {
     return "customer-balances";
   }
 
-  if (normalized.includes("budget")) return "budgets";
+  if (containsWord(normalized, ["budget", "budgets"]) && (hasDataIntent || containsAny(normalized, [
+    "close", "exceed", "remaining", "spent", "used", "overspend", "within",
+  ]))) return "budgets";
 
-  if (normalized.includes("project") &&
-    containsAny(normalized, ["profit", "profitable", "loss", "margin"])) {
+  if (containsWord(normalized, ["project", "projects"]) &&
+    (hasDataIntent || containsAny(normalized, ["profit", "profitable", "loss", "margin"]))) {
     return "project-profitability";
   }
 
-  if (containsAny(normalized, ["expense", "expenses", "spending category", "expense category"])) {
+  if ((containsWord(normalized, ["expense", "expenses", "mileage"]) ||
+    containsAny(normalized, ["spending category", "expense category"])) &&
+    (hasDataIntent || containsAny(normalized, ["spending", "category", "claim", "miles"]))) {
     return "expenses";
   }
 
-  if (containsAny(normalized, ["bill", "bills", "supplier"])) return "bills";
+  if (containsWord(normalized, ["bill", "bills", "supplier", "suppliers"]) &&
+    (hasDataIntent || containsAny(normalized, ["due", "unpaid", "outstanding", "paid", "supplier"]))) {
+    return "bills";
+  }
 
-  if (normalized.includes("invoice") &&
-    containsAny(normalized, ["overdue", "outstanding", "unpaid", "owe"])) {
+  if (containsWord(normalized, ["invoice", "invoices", "invoiced", "invoicing"]) &&
+    (hasDataIntent || containsAny(normalized, ["overdue", "outstanding", "unpaid", "owe", "paid", "raised"]))) {
     return "overdue-invoices";
   }
 
   if (containsAny(normalized, [
     "cashflow", "cash flow", "cash position", "expected receipt", "expected payment",
-  ])) return "cashflow";
+  ]) && (hasDataIntent || containsAny(normalized, [
+    "negative", "positive", "low", "forecast", "expected", "affect",
+  ]))) return "cashflow";
 
   if (containsAny(normalized, [
     "summarise", "summarize", "summary", "overview", "performance", "business this month",
-  ])) return "overall-summary";
+  ]) && hasDataIntent) return "overall-summary";
+
+  if (containsWord(normalized, ["customer", "customers", "client", "clients"]) && hasDataIntent) {
+    return "customer-balances";
+  }
+
+  if (containsWord(normalized, ["business", "revenue", "profit", "margin"]) && hasDataIntent) {
+    return "overall-summary";
+  }
 
   return "unsupported";
 }

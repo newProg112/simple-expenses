@@ -220,6 +220,58 @@ const callableRequest = {
 const silentLogger = {error() {}, info() {}, warn() {}};
 
 async function run() {
+  const expectedUnsupportedAnswer = [
+    "I'm the Simple Books Business Assistant, so I can help explain your invoices, bills, expenses, projects, budgets and cashflow.",
+    "",
+    "Try asking something like:",
+    "",
+    "\u2022 Why is my cashflow negative?",
+    "\u2022 Which customers owe me the most?",
+    "\u2022 Which projects are least profitable?",
+    "\u2022 Are any budgets close to being exceeded?",
+    "\u2022 What should I focus on today?",
+  ].join("\n");
+  let unsupportedSummaryCalls = 0;
+  let unsupportedProviderCalls = 0;
+  const unrelatedQuestions = [
+    "What is the capital of France?",
+    "Give me a trivia question.",
+    "What is 12 * 7?",
+    "Tell me a joke.",
+    "Write me a poem about invoices.",
+    "Explain photosynthesis.",
+  ];
+  for (const question of unrelatedQuestions) {
+    const unsupported = await handleAssistantRequest({
+      ...callableRequest,
+      data: {...callableRequest.data, question},
+    }, {
+      buildBusinessSummary: async () => {
+        unsupportedSummaryCalls += 1;
+        throw new Error("Summary must not be called for unrelated questions.");
+      },
+      openaiClient: {
+        responses: {
+          create: async () => {
+            unsupportedProviderCalls += 1;
+            throw new Error("Provider must not be called for unrelated questions.");
+          },
+        },
+      },
+      logger: silentLogger,
+    });
+    assert.equal(unsupported.success, true);
+    assert.equal(unsupported.mode, "unsupported");
+    assert.equal(unsupported.category, "unsupported");
+    assert.equal(unsupported.answer, expectedUnsupportedAnswer);
+    assert.deepEqual(unsupported.insights, []);
+    assert.deepEqual(unsupported.warnings, []);
+    assert.deepEqual(unsupported.sources, []);
+    assert.equal(Object.hasOwn(unsupported, "dataAsOf"), false);
+  }
+  assert.equal(unsupportedSummaryCalls, 0);
+  assert.equal(unsupportedProviderCalls, 0);
+
   let capturedRequest = null;
   const aiResponse = await handleAssistantRequest(callableRequest, {
     firestore: {},
