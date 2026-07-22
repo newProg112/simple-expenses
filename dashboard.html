@@ -822,6 +822,7 @@
 
   <script type="module">
     import { auth, db } from "./firebase-config.js";
+    import { buildReceivablesAgeing } from "./resources/js/business-logic.js";
 
     import {
       onAuthStateChanged
@@ -1532,58 +1533,8 @@
       renderInvoiceAgeingChart(invoices);
     }
 
-    function isOutstandingInvoice(invoice) {
-      const status = String(invoice.status || "Unpaid").toLowerCase();
-
-      return (
-        status === "unpaid" ||
-        status === "outstanding" ||
-        status === "overdue"
-      );
-    }
-
     function renderInvoiceAgeingChart(invoices) {
-      const buckets = {
-        "Not yet due": 0,
-        "0-30 days": 0,
-        "31-60 days": 0,
-        "61+ days": 0
-      };
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      invoices.forEach(invoice => {
-        if (!isOutstandingInvoice(invoice)) return;
-
-        const ageingDate = parseDashboardDate(invoice.dueDate || invoice.date || invoice.invoiceDate);
-        if (!ageingDate) return;
-
-        ageingDate.setHours(0, 0, 0, 0);
-
-        const daysOverdue = Math.floor(
-          (today - ageingDate) / (1000 * 60 * 60 * 24)
-        );
-
-        const total = Number(invoice.total || 0);
-
-        if (daysOverdue < 0) {
-          buckets["Not yet due"] += total;
-          return;
-        }
-
-        if (daysOverdue <= 30) {
-          buckets["0-30 days"] += total;
-          return;
-        }
-
-        if (daysOverdue <= 60) {
-          buckets["31-60 days"] += total;
-          return;
-        }
-
-        buckets["61+ days"] += total;
-      });
+      const buckets = buildReceivablesAgeing(invoices, new Date());
 
       const ctx = document.getElementById("invoiceAgeingChart");
 
