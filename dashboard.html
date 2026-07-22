@@ -1544,6 +1544,7 @@
 
     function renderInvoiceAgeingChart(invoices) {
       const buckets = {
+        "Not yet due": 0,
         "0-30 days": 0,
         "31-60 days": 0,
         "61+ days": 0
@@ -1560,19 +1561,23 @@
 
         ageingDate.setHours(0, 0, 0, 0);
 
-        const daysOld = Math.max(
-          0,
-          Math.floor((today - ageingDate) / (1000 * 60 * 60 * 24))
+        const daysOverdue = Math.floor(
+          (today - ageingDate) / (1000 * 60 * 60 * 24)
         );
 
         const total = Number(invoice.total || 0);
 
-        if (daysOld <= 30) {
+        if (daysOverdue < 0) {
+          buckets["Not yet due"] += total;
+          return;
+        }
+
+        if (daysOverdue <= 30) {
           buckets["0-30 days"] += total;
           return;
         }
 
-        if (daysOld <= 60) {
+        if (daysOverdue <= 60) {
           buckets["31-60 days"] += total;
           return;
         }
@@ -1598,7 +1603,7 @@
             {
               label: "Outstanding value",
               data: Object.values(buckets),
-              backgroundColor: ["#22c55e", "#f97316", "#dc2626"],
+              backgroundColor: ["#0077B6", "#22c55e", "#f97316", "#dc2626"],
               borderRadius: 8,
               maxBarThickness: 56
             }
