@@ -2392,6 +2392,11 @@
                 </div>
 
                 <div class="invoice-field-wide">
+                  <label for="invoiceDate">Invoice Date</label>
+                  <input id="invoiceDate" type="date">
+                </div>
+
+                <div class="invoice-field-wide">
                   <label for="projectSelect">Project</label>
                   <select id="projectSelect">
                     <option value="">No project</option>
@@ -2891,6 +2896,10 @@
 
     document.getElementById("paymentTerms").value =
       account.paymentTermsDefault || "14 days";
+
+    if(!editingInvoiceId){
+      updateDueDateFromInvoiceDate();
+    }
 
     if(typeof updateBusinessPreview === "function"){
       updateBusinessPreview();
@@ -3446,7 +3455,8 @@ function normaliseInvoiceDate(value){
   const invalidResult = {
     date: null,
     display: "-",
-    monthKey: ""
+    monthKey: "",
+    inputValue: ""
   };
 
   if(value === null || value === undefined || value === ""){
@@ -3469,6 +3479,20 @@ function normaliseInvoiceDate(value){
 
   let date = null;
 
+  function localCalendarDate(year, month, day){
+    const parsed = new Date(year, month - 1, day);
+
+    if(
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ){
+      return null;
+    }
+
+    return parsed;
+  }
+
   if(value instanceof Date){
     date = new Date(value.getTime());
   } else {
@@ -3476,28 +3500,12 @@ function normaliseInvoiceDate(value){
     let match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
 
     if(match){
-      date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
-
-      if(
-        date.getFullYear() !== Number(match[3]) ||
-        date.getMonth() !== Number(match[2]) - 1 ||
-        date.getDate() !== Number(match[1])
-      ){
-        date = null;
-      }
+      date = localCalendarDate(Number(match[3]), Number(match[2]), Number(match[1]));
     } else {
-      match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/);
 
       if(match){
-        date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-
-        if(
-          date.getFullYear() !== Number(match[1]) ||
-          date.getMonth() !== Number(match[2]) - 1 ||
-          date.getDate() !== Number(match[3])
-        ){
-          date = null;
-        }
+        date = localCalendarDate(Number(match[1]), Number(match[2]), Number(match[3]));
       } else {
         const parsed = new Date(text);
         date = Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -3509,18 +3517,94 @@ function normaliseInvoiceDate(value){
     return invalidResult;
   }
 
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
   return {
     date,
-    display: date.toLocaleDateString("en-GB"),
-    monthKey:
-      String(date.getMonth() + 1).padStart(2, "0") +
-      "/" +
-      date.getFullYear()
+    display: `${day}/${month}/${year}`,
+    monthKey: `${month}/${year}`,
+    inputValue: `${year}-${month}-${day}`
   };
+}
+
+function todayLocalDateInputValue(){
+  return normaliseInvoiceDate(new Date()).inputValue;
+}
+
+function storedInvoiceDate(invoice){
+  const candidates = [
+    invoice?.date,
+    invoice?.invoiceDate,
+    invoice?.createdAt
+  ];
+
+  for(const candidate of candidates){
+    const normalised = normaliseInvoiceDate(candidate);
+
+    if(normalised.date){
+      return normalised;
+    }
+  }
+
+  return normaliseInvoiceDate(new Date());
+}
+
+function selectedInvoiceDate(){
+  const input = document.getElementById("invoiceDate");
+  const selected = normaliseInvoiceDate(input?.value);
+
+  if(selected.date){
+    return selected;
+  }
+
+  const fallback = normaliseInvoiceDate(new Date());
+
+  if(input){
+    input.value = fallback.inputValue;
+  }
+
+  return fallback;
+}
+
+function paymentTermsDays(){
+  const terms = document.getElementById("paymentTerms")?.value || "";
+  const match = terms.match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+function updateDueDateFromInvoiceDate(){
+  const dueDateInput = document.getElementById("dueDate");
+  const invoiceDate = selectedInvoiceDate().date;
+  const dueDays = paymentTermsDays();
+
+  if(!dueDateInput || !invoiceDate || dueDays === null){
+    return;
+  }
+
+  const dueDate = new Date(
+    invoiceDate.getFullYear(),
+    invoiceDate.getMonth(),
+    invoiceDate.getDate() + dueDays
+  );
+
+  dueDateInput.value = normaliseInvoiceDate(dueDate).inputValue;
+}
+
+function resetInvoiceDateToToday(){
+  const input = document.getElementById("invoiceDate");
+
+  if(input){
+    input.value = todayLocalDateInputValue();
+  }
+
+  updateDueDateFromInvoiceDate();
 }
 
 async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items){
   const project = selectedInvoiceProject();
+  const invoiceDate = selectedInvoiceDate();
 
   const invoice = {
     invoiceNo: invoiceNo,
@@ -3534,7 +3618,7 @@ async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items
     total: total,
     items: items,
     status: "Unpaid",
-    date: new Date().toLocaleDateString("en-GB"),
+    date: invoiceDate.display,
     createdAt: new Date().toISOString(),
     recurringInvoice: document.getElementById("recurringInvoice")?.value || "No",
     recurringFrequency: document.getElementById("recurringFrequency")?.value || "",
@@ -4055,11 +4139,21 @@ async function toggleInvoiceStatus(invoiceId){
 }
 
 async function populateInvoiceForm(invoice){
+  const invoiceDate = storedInvoiceDate(invoice);
+
+  document.getElementById("invoiceDate").value =
+    invoiceDate.inputValue || todayLocalDateInputValue();
+
   document.getElementById("clientName").value = invoice.client || "";
   document.getElementById("clientEmail").value = invoice.clientEmail || "";
   document.getElementById("clientAddress").value = invoice.clientAddress || "";
   document.getElementById("paymentTerms").value = invoice.paymentTerms || "14 days";
-  document.getElementById("dueDate").value = invoice.dueDate || "";
+  document.getElementById("dueDate").value =
+    normaliseInvoiceDate(invoice.dueDate).inputValue;
+
+  if(!document.getElementById("dueDate").value){
+    updateDueDateFromInvoiceDate();
+  }
 
   document.getElementById("recurringInvoice").value =
     invoice.recurringInvoice || "No";
@@ -4113,7 +4207,7 @@ async function populateInvoiceForm(invoice){
   document.getElementById("description3").value = items[2]?.description || "";
   document.getElementById("amount3").value = items[2]?.amount || "";
 
-  await generateInvoice(false, invoice.date);
+  await generateInvoice(false);
 }
 
 async function reopenInvoice(invoiceId){
@@ -4166,6 +4260,7 @@ async function duplicateInvoice(invoiceId){
     "Creating a duplicate of " + (invoice.invoiceNo || "invoice");
 
   await populateInvoiceForm(invoice);
+  resetInvoiceDateToToday();
   await setInitialInvoiceNumber();
   await generateInvoice(false);
 
@@ -4204,6 +4299,7 @@ async function updateExistingInvoice(){
   const vat = amount * vatRate;
   const total = amount + vat;
   const project = selectedInvoiceProject();
+  updateDueDateFromInvoiceDate();
 
   const updatedInvoice = {
     invoiceNo: invoiceNo,
@@ -4218,6 +4314,7 @@ async function updateExistingInvoice(){
     clientAddress: document.getElementById("clientAddress")?.value || "",
     paymentTerms: document.getElementById("paymentTerms")?.value || "14 days",
     dueDate: document.getElementById("dueDate")?.value || "",
+    date: selectedInvoiceDate().display,
     amount: amount,
     vat: vat,
     total: total,
@@ -4243,7 +4340,8 @@ async function updateExistingInvoice(){
   document.getElementById("editModeStatus").textContent =
     "Creating new invoice";
 
-  generateInvoice(false);
+  await generateInvoice(false);
+  resetInvoiceDateToToday();
   renderRecentInvoices();
 
   alert("Invoice updated.");
@@ -4263,6 +4361,7 @@ function cancelInvoiceEdit(){
     projectReference: ""
   });
 
+  resetInvoiceDateToToday();
   setInitialInvoiceNumber();
 
   alert("Edit cancelled.");
@@ -4572,10 +4671,13 @@ function accountPaymentLines(account){
   ].filter(row => row.value);
 }
 
-async function generateInvoice(saveToHistory = true, previewDate = ""){
+async function generateInvoice(saveToHistory = true){
   const client = document.getElementById("clientName").value;
   const clientEmail = document.getElementById("clientEmail").value;
   const invoiceNo = document.getElementById("invoiceNumber").value;
+  const invoiceDate = selectedInvoiceDate();
+
+  updateDueDateFromInvoiceDate();
 
   if(saveToHistory && await invoiceNumberExists(invoiceNo)){
     alert("An invoice with this number already exists. Please use a different invoice number.");
@@ -4614,8 +4716,6 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
       return;
     }
   }
-
-  const today = normaliseInvoiceDate(previewDate || new Date()).display;
 
   const clientAddress =
     document.getElementById("clientAddress")?.value || "";
@@ -4671,7 +4771,7 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
       <div class="invoice-meta">
         <div><strong>INVOICE</strong></div>
         <div style="margin-top:10px;">${invoiceNo}</div>
-        <div style="margin-top:8px;">${today}</div>
+        <div style="margin-top:8px;">${invoiceDate.display}</div>
         <div style="margin-top:8px;">Due: ${
           document.getElementById("dueDate")?.value
             ? normaliseInvoiceDate(document.getElementById("dueDate").value).display
@@ -4776,6 +4876,8 @@ async function generateInvoice(saveToHistory = true, previewDate = ""){
     }catch(error){
       console.error("Could not refresh invoice number", error);
     }
+
+    resetInvoiceDateToToday();
   }
 }
 
@@ -5577,6 +5679,10 @@ function loadBusinessProfileIntoInvoice() {
   document.getElementById("paymentTerms").value =
     account.paymentTermsDefault || "14 days";
 
+  if(!editingInvoiceId){
+    updateDueDateFromInvoiceDate();
+  }
+
   updateBusinessPreview();
 }
 
@@ -5610,6 +5716,10 @@ function updateBusinessPreview() {
     document.getElementById(id).addEventListener("input", updateBusinessPreview);
 });
 
+document.getElementById("invoiceDate").addEventListener("change", updateDueDateFromInvoiceDate);
+document.getElementById("paymentTerms").addEventListener("input", updateDueDateFromInvoiceDate);
+
+resetInvoiceDateToToday();
 setInitialInvoiceNumber();
 renderRecentInvoices();
 renderCustomerDropdown();
