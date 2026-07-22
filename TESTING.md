@@ -39,3 +39,13 @@ Creation posts only after the invoice write succeeds. Updating an older invoice 
 For local diagnostics, save a test invoice and look for `Ledger journal saved for invoice <number>` in the browser console. While signed in, `await window.getInvoiceJournalFromFirestore("<invoice-document-id>")` returns that invoice's journal for inspection.
 
 Stage 2A deliberately excludes immutable edit reversals, deletion reversals, receipt and payment journals, bank postings, historic backfill, bills, expenses, mileage, General Ledger and Trial Balance interfaces, and financial-statement pages. Replacing a journal on invoice edit is temporary; immutable reversal and repost history belongs in a later stage.
+
+## General Ledger Stage 2B: supplier bill integration
+
+Successfully created or updated Firestore bills now create or replace their supplier-bill journal in the same top-level `journals` collection. Each deterministic document ID is `bill_<userId>_<billDocumentId>`, and the stored `sourceId` is the actual Firestore bill document ID. Older bills remain viewable without journals; editing and saving one creates its current journal without running a historic backfill.
+
+Bill categories map as follows: `Utilities` to 5300, `Professional fees` to 5400, `Software/subscriptions` to 5500, `Travel/mileage` to 5200, and `General`, `Other`, missing, or unknown values to 5000. Category matching in the engine is case-insensitive and trims surrounding whitespace. Bill journals debit the expense and VAT Input where applicable, then credit Trade Payables for the gross value.
+
+Creation posts only after the bill document save succeeds. Updates replace the same journal while preserving `createdAt` and refreshing `updatedAt`. Page load, filtering, editing/reopening, attachment viewing, and paid/unpaid changes do not post journals. Locally, a successful posting logs `Ledger journal saved for bill <number>`; while signed in, use `await window.getBillJournalFromFirestore("<bill-document-id>")` for inspection.
+
+Stage 2B excludes historic bill backfill, immutable edit reversals, deletion reversals, supplier-payment and bank journals, expense and mileage Firestore integration, General Ledger and Trial Balance interfaces, and financial-statement pages. Bill deletion is unchanged and carries a source-level TODO for a future immutable reversal.

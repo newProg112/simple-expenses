@@ -39,6 +39,31 @@ export function calculateInvoiceTotals(items = [], vatRate = 0) {
   };
 }
 
+export function normaliseVatRateOptionValue(
+  value,
+  optionValues = ["0.20", "0.05", "0"]
+) {
+  const numericRate = Number(value);
+
+  if (!Number.isFinite(numericRate)) return "";
+
+  return optionValues.find(optionValue => Number(optionValue) === numericRate) || "";
+}
+
+export function calculateBillAmounts(netValue, vatRateValue) {
+  const net = roundMoney(netValue);
+  const vatRate = Number(vatRateValue);
+  const safeVatRate = Number.isFinite(vatRate) && vatRate >= 0 ? vatRate : 0;
+  const vat = calculateVat(net, safeVatRate);
+
+  return {
+    net,
+    vatRate: safeVatRate,
+    vat,
+    total: roundMoney(net + vat)
+  };
+}
+
 function localCalendarDate(year, month, day) {
   const parsed = new Date(year, month - 1, day);
 

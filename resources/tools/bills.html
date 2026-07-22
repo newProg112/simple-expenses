@@ -1979,6 +1979,18 @@
             <input id="dueDate" type="date">
           </div>
 
+          <div class="field">
+            <label>Category</label>
+            <select id="category">
+              <option>General</option>
+              <option>Utilities</option>
+              <option>Professional fees</option>
+              <option>Software/subscriptions</option>
+              <option>Travel/mileage</option>
+              <option>Other</option>
+            </select>
+          </div>
+
         <div class="field">
           <label>Net amount (£)</label>
           <input id="netAmount" type="number" step="0.01" placeholder="100.00">
@@ -2216,12 +2228,21 @@
   <script type="module">
     import { app, auth, db, functions } from "../../firebase-config.js";
     import {
+      getJournalForSource,
+      replaceBillJournal
+    } from "../js/ledger-firestore.js";
+    import {
+      calculateBillAmounts,
+      normaliseVatRateOptionValue
+    } from "../js/business-logic.js";
+    import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
       deleteDoc,
       doc,
+      getDoc,
       getDocs,
       setDoc,
       updateDoc
@@ -2236,6 +2257,7 @@
       httpsCallable
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
+    const ledgerFirestoreApi = { doc, getDoc, setDoc };
     const storage = getStorage(app);
     const maxBillScanFileSize = 10 * 1024 * 1024;
     const billScanFileTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
@@ -3148,6 +3170,48 @@
       return auth.currentUser || await currentUserPromise;
     }
 
+    function isLocalBillDevelopment() {
+      return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    }
+
+    async function postBillJournalAfterSave(userId, billId, bill) {
+      try {
+        await replaceBillJournal(
+          db,
+          userId,
+          String(billId),
+          bill,
+          ledgerFirestoreApi
+        );
+
+        if (isLocalBillDevelopment()) {
+          console.info(`Ledger journal saved for bill ${bill.billNumber || billId}`);
+        }
+
+        return "";
+      } catch (error) {
+        console.error("Bill ledger posting failed", {
+          billId: String(billId || ""),
+          error
+        });
+
+        return "The bill was saved, but its ledger posting could not be completed. Your bill is safe; please retry the update or contact support.";
+      }
+    }
+
+    window.getBillJournalFromFirestore = async function(billId) {
+      const user = await getCurrentUser();
+      if (!user) throw new Error("An authenticated user is required to inspect a journal.");
+
+      return getJournalForSource(
+        db,
+        user.uid,
+        "supplierBill",
+        String(billId),
+        ledgerFirestoreApi
+      );
+    };
+
     function setAttachmentStatus(message, isError = false) {
       const status = document.getElementById("attachmentStatus");
       status.textContent = message || "";
@@ -3296,10 +3360,10 @@
         return;
       }
 
-      const net = Number(document.getElementById("netAmount").value || 0);
-      const vatRate = Number(document.getElementById("vatRate").value || 0);
-      const vat = net * vatRate;
-      const total = net + vat;
+      const { net, vatRate, vat, total } = calculateBillAmounts(
+        document.getElementById("netAmount").value,
+        document.getElementById("vatRate").value
+      );
       const existingBill = editingBillId === null
         ? null
         : currentBills.find(bill => String(bill.id) === String(editingBillId));
@@ -3330,6 +3394,7 @@
         billNumber: document.getElementById("billNumber").value.trim(),
         billDate: document.getElementById("billDate").value,
         dueDate: document.getElementById("dueDate").value,
+        category: document.getElementById("category").value,
         net,
         vatRate,
         vat,
@@ -3367,6 +3432,12 @@
         }
       }
 
+      const ledgerPostingWarning = await postBillJournalAfterSave(
+        user.uid,
+        billId,
+        bill
+      );
+
       if (existingBill) {
         currentBills = currentBills.map(item =>
           String(item.id) === String(billId) ? bill : item
@@ -3379,8 +3450,9 @@
       clearForm();
       renderBills(currentBills);
       saveButton.disabled = false;
-      if (scannedAttachmentWarning) {
-        showBillFormFeedback(scannedAttachmentWarning, true);
+      const saveWarnings = [scannedAttachmentWarning, ledgerPostingWarning].filter(Boolean);
+      if (saveWarnings.length) {
+        showBillFormFeedback(saveWarnings.join(" "), true);
       } else {
         alert(existingBill ? "Bill updated." : "Bill saved.");
       }
@@ -3393,6 +3465,7 @@
       document.getElementById("billNumber").value = "";
       document.getElementById("billDate").value = "";
       document.getElementById("dueDate").value = "";
+      document.getElementById("category").value = "General";
       document.getElementById("netAmount").value = "";
       document.getElementById("vatRate").value = "0.20";
       document.getElementById("status").value = "Unpaid";
@@ -3416,8 +3489,14 @@
       document.getElementById("billNumber").value = bill.billNumber || "";
       document.getElementById("billDate").value = bill.billDate || "";
       document.getElementById("dueDate").value = bill.dueDate || "";
+      document.getElementById("category").value = bill.category || "General";
       document.getElementById("netAmount").value = Number(bill.net || 0);
-      document.getElementById("vatRate").value = String(bill.vatRate ?? "0.20");
+      const vatRateSelect = document.getElementById("vatRate");
+      const reopenedVatRate = normaliseVatRateOptionValue(
+        bill.vatRate ?? 0.20,
+        [...vatRateSelect.options].map(option => option.value)
+      );
+      vatRateSelect.value = reopenedVatRate || "0.20";
       document.getElementById("status").value = bill.status || "Unpaid";
       document.getElementById("notes").value = bill.notes || "";
       renderProjectDropdown({
@@ -3469,6 +3548,7 @@
     }
 
     async function deleteBill(id) {
+      // TODO GL: post an immutable reversal before deleting a supplier bill journal source.
       if (!confirm("Delete this bill?")) return;
 
       if (!currentBills.length) {

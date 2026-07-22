@@ -30,8 +30,10 @@ const EXPENSE_ACCOUNT_BY_CATEGORY = Object.freeze({
   accounting: "5400",
   legal: "5400",
   software: "5500",
+  "software/subscriptions": "5500",
   subscriptions: "5500",
-  subscription: "5500"
+  subscription: "5500",
+  "travel/mileage": "5200"
 });
 
 function firstPresent(source, fields) {
@@ -313,7 +315,7 @@ export function createBillJournal(bill) {
   return finishJournal({
     id: `bill:${sourceId}`,
     date: sourceDate(bill, ["billDate", "date", "invoiceDate"]),
-    sourceType: "bill",
+    sourceType: "supplierBill",
     sourceId,
     description,
     lines

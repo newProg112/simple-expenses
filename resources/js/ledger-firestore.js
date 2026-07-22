@@ -1,4 +1,5 @@
 import {
+  createBillJournal,
   createSalesInvoiceJournal,
   validateJournal
 } from "./ledger-engine.js";
@@ -10,7 +11,9 @@ function requiredIdentifier(value, label) {
 }
 
 function sourcePrefix(sourceType) {
-  return sourceType === "salesInvoice" ? "invoice" : String(sourceType || "source");
+  if (sourceType === "salesInvoice") return "invoice";
+  if (sourceType === "supplierBill") return "bill";
+  return String(sourceType || "source");
 }
 
 function safeIdPart(value) {
@@ -27,6 +30,10 @@ export function journalDocumentId(userId, sourceType, sourceId) {
 
 export function invoiceJournalDocumentId(userId, invoiceId) {
   return journalDocumentId(userId, "salesInvoice", invoiceId);
+}
+
+export function billJournalDocumentId(userId, billId) {
+  return journalDocumentId(userId, "supplierBill", billId);
 }
 
 export function toFirestoreSafeObject(value) {
@@ -89,26 +96,63 @@ export function serialiseJournalForFirestore(journal, metadata) {
   });
 }
 
-export function prepareInvoiceJournal(userId, invoiceId, invoiceData, timestamps = {}) {
+function prepareSourceJournal({
+  userId,
+  sourceId,
+  sourceLabel,
+  sourceNumber,
+  journalId,
+  journal,
+  timestamps
+}) {
   const owner = requiredIdentifier(userId, "User ID");
-  const sourceId = requiredIdentifier(invoiceId, "Invoice ID");
-  const journalId = invoiceJournalDocumentId(owner, sourceId);
-  const journal = createSalesInvoiceJournal({
-    ...invoiceData,
-    id: sourceId
-  });
+  requiredIdentifier(sourceId, `${sourceLabel} ID`);
   const validation = validateJournal(journal);
 
   if (!validation.valid) {
-    throw new Error(`Invalid invoice journal: ${validation.errors.join(" ")}`);
+    throw new Error(`Invalid ${sourceLabel.toLowerCase()} journal: ${validation.errors.join(" ")}`);
   }
 
   return serialiseJournalForFirestore(journal, {
     userId: owner,
     journalId,
-    sourceNumber: invoiceData?.invoiceNo || "",
+    sourceNumber: sourceNumber || "",
     createdAt: timestamps.createdAt || "",
     updatedAt: timestamps.updatedAt || ""
+  });
+}
+
+export function prepareInvoiceJournal(userId, invoiceId, invoiceData, timestamps = {}) {
+  const owner = requiredIdentifier(userId, "User ID");
+  const sourceId = requiredIdentifier(invoiceId, "Invoice ID");
+  const journalId = invoiceJournalDocumentId(owner, sourceId);
+  const journal = createSalesInvoiceJournal({ ...invoiceData, id: sourceId });
+
+  return prepareSourceJournal({
+    userId: owner,
+    sourceId,
+    sourceLabel: "Invoice",
+    sourceNumber: invoiceData?.invoiceNo,
+    journalId,
+    journal,
+    timestamps
+  });
+}
+
+export function prepareBillJournal(userId, billId, billData, timestamps = {}) {
+  const owner = requiredIdentifier(userId, "User ID");
+  const sourceId = requiredIdentifier(billId, "Bill ID");
+  const journalId = billJournalDocumentId(owner, sourceId);
+  const journal = createBillJournal({ ...billData, id: sourceId });
+
+  return prepareSourceJournal({
+    userId: owner,
+    sourceId,
+    sourceLabel: "Bill",
+    sourceNumber: billData?.billNumber,
+    journalId,
+    journal,
+    timestamps
   });
 }
 
@@ -169,15 +213,38 @@ export async function replaceInvoiceJournal(
   firestoreApi,
   options = {}
 ) {
+  return replaceSourceJournal(
+    db,
+    userId,
+    invoiceId,
+    invoiceData,
+    firestoreApi,
+    options,
+    {
+      documentId: invoiceJournalDocumentId(userId, invoiceId),
+      prepare: prepareInvoiceJournal
+    }
+  );
+}
+
+async function replaceSourceJournal(
+  db,
+  userId,
+  sourceId,
+  sourceData,
+  firestoreApi,
+  options,
+  sourceAdapter
+) {
   requireFirestoreWriteApi(firestoreApi);
-  const documentId = invoiceJournalDocumentId(userId, invoiceId);
+  const documentId = sourceAdapter.documentId;
   const reference = firestoreApi.doc(db, "journals", documentId);
   const existingSnapshot = await firestoreApi.getDoc(reference);
   const existingData = documentExists(existingSnapshot) ? existingSnapshot.data() : null;
   const now = typeof options.now === "function"
     ? options.now()
     : new Date().toISOString();
-  const journalData = prepareInvoiceJournal(userId, invoiceId, invoiceData, {
+  const journalData = sourceAdapter.prepare(userId, sourceId, sourceData, {
     createdAt: existingData?.createdAt || now,
     updatedAt: now
   });
@@ -204,6 +271,46 @@ export async function saveInvoiceJournal(
     userId,
     invoiceId,
     invoiceData,
+    firestoreApi,
+    options
+  );
+}
+
+export async function replaceBillJournal(
+  db,
+  userId,
+  billId,
+  billData,
+  firestoreApi,
+  options = {}
+) {
+  return replaceSourceJournal(
+    db,
+    userId,
+    billId,
+    billData,
+    firestoreApi,
+    options,
+    {
+      documentId: billJournalDocumentId(userId, billId),
+      prepare: prepareBillJournal
+    }
+  );
+}
+
+export async function saveBillJournal(
+  db,
+  userId,
+  billId,
+  billData,
+  firestoreApi,
+  options = {}
+) {
+  return replaceBillJournal(
+    db,
+    userId,
+    billId,
+    billData,
     firestoreApi,
     options
   );
