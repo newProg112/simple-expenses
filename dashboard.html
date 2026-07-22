@@ -797,8 +797,8 @@
       </section>
 
       <section class="card chart-card">
-        <h2>Outstanding Invoice Ageing</h2>
-        <p class="muted">Unpaid invoice value by days since due date.</p>
+        <h2>Outstanding Receivables Ageing</h2>
+        <p class="muted">Outstanding receivable value grouped by overdue age.</p>
         <div class="chart-shell">
           <canvas id="invoiceAgeingChart"></canvas>
         </div>
@@ -1598,7 +1598,7 @@
             {
               label: "Outstanding value",
               data: Object.values(buckets),
-              backgroundColor: ["#0077B6", "#f97316", "#dc2626"],
+              backgroundColor: ["#22c55e", "#f97316", "#dc2626"],
               borderRadius: 8,
               maxBarThickness: 56
             }
