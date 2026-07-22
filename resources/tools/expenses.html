@@ -3770,9 +3770,10 @@
         return totals;
       }, {});
 
-      const months = Object.values(monthlyTotals)
-        .filter(month => month.value > 0)
-        .sort((a, b) => a.date - b.date);
+      const months = Object.entries(monthlyTotals)
+        .filter(([, month]) => month.value > 0)
+        .sort(([firstKey], [secondKey]) => firstKey.localeCompare(secondKey))
+        .map(([, month]) => month);
 
       const labels = months.map(month =>
         month.date.toLocaleDateString("en-GB", {

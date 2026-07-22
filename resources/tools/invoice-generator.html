@@ -3456,6 +3456,7 @@ function normaliseInvoiceDate(value){
     date: null,
     display: "-",
     monthKey: "",
+    yearMonthKey: "",
     inputValue: ""
   };
 
@@ -3525,8 +3526,14 @@ function normaliseInvoiceDate(value){
     date,
     display: `${day}/${month}/${year}`,
     monthKey: `${month}/${year}`,
+    yearMonthKey: `${year}-${month}`,
     inputValue: `${year}-${month}-${day}`
   };
+}
+
+function invoiceChartMonthLabel(yearMonthKey){
+  const match = String(yearMonthKey).match(/^(\d{4})-(\d{2})$/);
+  return match ? `${match[2]}/${match[1]}` : "";
 }
 
 function todayLocalDateInputValue(){
@@ -5291,7 +5298,7 @@ function renderRevenueChart(invoices){
   const monthlyTotals = {};
 
   invoices.forEach(invoice => {
-    const monthKey = normaliseInvoiceDate(invoice.date).monthKey;
+    const monthKey = normaliseInvoiceDate(invoice.date).yearMonthKey;
 
     if(!monthKey){
       return;
@@ -5302,9 +5309,9 @@ function renderRevenueChart(invoices){
 
   });
 
-  const labels = Object.keys(monthlyTotals);
-
-  const data = Object.values(monthlyTotals);
+  const monthKeys = Object.keys(monthlyTotals).sort((a, b) => a.localeCompare(b));
+  const labels = monthKeys.map(invoiceChartMonthLabel);
+  const data = monthKeys.map(key => monthlyTotals[key]);
 
   const chartTotal = data.reduce((sum, value) => sum + value, 0);
 
@@ -5384,7 +5391,7 @@ function renderMonthlyRevenueBarChart(invoices){
   const monthlyTotals = {};
 
   invoices.forEach(invoice => {
-    const key = normaliseInvoiceDate(invoice.date).monthKey;
+    const key = normaliseInvoiceDate(invoice.date).yearMonthKey;
 
     if(!key){
       return;
@@ -5395,9 +5402,9 @@ function renderMonthlyRevenueBarChart(invoices){
 
   });
 
-  const labels = Object.keys(monthlyTotals);
-
-  const values = Object.values(monthlyTotals);
+  const monthKeys = Object.keys(monthlyTotals).sort((a, b) => a.localeCompare(b));
+  const labels = monthKeys.map(invoiceChartMonthLabel);
+  const values = monthKeys.map(key => monthlyTotals[key]);
 
   const ctx =
     document.getElementById("monthlyRevenueBarChart");
