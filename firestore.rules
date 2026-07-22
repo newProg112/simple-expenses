@@ -21,5 +21,19 @@ service cloud.firestore {
     match /userProfiles/{uid} {
       allow read: if isOwner(uid);
     }
+
+    match /journals/{journalId} {
+      allow get: if isSignedIn()
+        && (
+          !exists(/databases/$(database)/documents/journals/$(journalId))
+          || resource.data.userId == request.auth.uid
+        );
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
   }
 }

@@ -2734,6 +2734,10 @@
   <script type="module">
 
   import { app, auth, db } from "../../firebase-config.js";
+  import {
+    getJournalForSource,
+    replaceInvoiceJournal
+  } from "../js/ledger-firestore.js";
 
   import {
     collection,
@@ -2749,6 +2753,12 @@
   import {
     onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const ledgerFirestoreApi = { doc, getDoc, setDoc };
+
+  function isLocalInvoiceDevelopment(){
+    return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  }
 
   // const db = getFirestore(app);
 
@@ -3038,11 +3048,46 @@
       return;
     }
 
-    await addDoc(
+    const invoiceRef = await addDoc(
       collection(db, "users", window.currentUser.uid, "invoices"),
       invoice
     );
     console.log("Invoice saved to Firestore");
+    return invoiceRef.id;
+  };
+
+  window.saveInvoiceJournalToFirestore = async function(invoiceId, invoice){
+    if(!window.currentUser){
+      throw new Error("An authenticated user is required for ledger posting.");
+    }
+
+    const result = await replaceInvoiceJournal(
+      db,
+      window.currentUser.uid,
+      String(invoiceId),
+      invoice,
+      ledgerFirestoreApi
+    );
+
+    if(isLocalInvoiceDevelopment()){
+      console.info(`Ledger journal saved for invoice ${invoice.invoiceNo || invoiceId}`);
+    }
+
+    return result;
+  };
+
+  window.getInvoiceJournalFromFirestore = async function(invoiceId){
+    if(!window.currentUser){
+      throw new Error("An authenticated user is required to inspect a journal.");
+    }
+
+    return getJournalForSource(
+      db,
+      window.currentUser.uid,
+      "salesInvoice",
+      String(invoiceId),
+      ledgerFirestoreApi
+    );
   };
 
   window.updateInvoiceStatusInFirestore = async function(invoiceId, newStatus){
@@ -3645,8 +3690,10 @@ async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items
     }
 
     console.log("Invoice generation: saving invoice to Firestore", invoiceNo);
-    await window.saveInvoiceToFirestore(invoice);
+    const invoiceId = await window.saveInvoiceToFirestore(invoice);
     console.log("Invoice generation: Firestore save complete", invoiceNo);
+
+    await postInvoiceJournalAfterInvoiceSave(invoiceId, invoice, "saved");
     return true;
   }
 
@@ -3660,6 +3707,29 @@ async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items
   localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
 
   return true;
+}
+
+async function postInvoiceJournalAfterInvoiceSave(invoiceId, invoice, action){
+  try{
+    if(!window.saveInvoiceJournalToFirestore){
+      throw new Error("Invoice journal persistence is unavailable.");
+    }
+
+    await window.saveInvoiceJournalToFirestore(invoiceId, invoice);
+    return true;
+  }catch(error){
+    console.error("Invoice ledger posting failed", {
+      invoiceId: String(invoiceId || ""),
+      error
+    });
+
+    alert(
+      `The invoice was ${action}, but its ledger posting could not be completed. ` +
+      "Your invoice is safe; please retry the update or contact support."
+    );
+
+    return false;
+  }
 }
 
 function isInvoiceOverdue(invoice){
@@ -4336,8 +4406,15 @@ async function updateExistingInvoice(){
     projectReference: project.projectReference,
   };
 
+  let journalSaved = true;
+
   if(window.updateInvoiceInFirestore){
     await window.updateInvoiceInFirestore(editingInvoiceId, updatedInvoice);
+    journalSaved = await postInvoiceJournalAfterInvoiceSave(
+      editingInvoiceId,
+      updatedInvoice,
+      "updated"
+    );
   }
 
   editingInvoiceId = null;
@@ -4351,7 +4428,9 @@ async function updateExistingInvoice(){
   resetInvoiceDateToToday();
   renderRecentInvoices();
 
-  alert("Invoice updated.");
+  if(journalSaved){
+    alert("Invoice updated.");
+  }
 }
 
 function cancelInvoiceEdit(){
@@ -4375,6 +4454,7 @@ function cancelInvoiceEdit(){
 }
 
 async function deleteInvoice(invoiceId){
+  // TODO GL Stage 2B: post an immutable reversal before deleting an invoiced journal source.
   if(!confirm("Delete this invoice?")){
     return;
   }
