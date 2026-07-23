@@ -253,3 +253,34 @@ Before finishing shell changes, also run:
 ```sh
 git diff --check
 ```
+
+## Marketing landing page
+
+`index.html` presents Simple Books as business management software for freelancers, sole traders and small businesses. Its existing visual system, responsive CSS, mobile-menu behavior, authentication routes, and client-side interactions remain unchanged while the page copy reflects the current dashboard, operational tools, planning features, AI Assistant, financial reports, and Accountant Pack.
+
+Automated contracts live in `tests/marketing-page.test.js`. They verify the desktop and mobile navigation labels, absence of the landing-page Tools link, continued presence of the standalone Tools page, current feature coverage, the two-plan pricing structure, permitted prices, removal of legacy service wording, and mobile-menu accessibility attributes.
+
+Run the focused suite with:
+
+```sh
+npm.cmd test -- tests/marketing-page.test.js
+```
+
+Manual verification:
+
+1. Open `/` at desktop, tablet, and mobile widths and confirm the existing layout and styling remain intact.
+2. Confirm the desktop navigation shows Features, Pricing, Contact, Login, and Sign Up with no Tools item.
+3. Open the mobile menu and confirm it shows Features, Pricing, Contact, Login, and Sign Up, updates `aria-expanded`, closes after selecting a link, and retains its existing animation.
+4. Confirm every landing-page anchor still scrolls to the correct section and Login, Sign Up, Try Demo, dashboard, and email routes remain unchanged.
+5. Confirm the hero presents Simple Books as one connected business platform.
+6. Confirm the feature grid remains responsive and accurately describes the current application.
+7. Confirm pricing contains only Starter at Free and Pro at £15/month, with the documented usage limits and Pro features.
+8. Search the rendered page for obsolete service wording and confirm none remains.
+9. Confirm keyboard focus remains visible and navigation controls retain accessible names.
+
+Run the complete suite and whitespace validation before finishing:
+
+```sh
+npm.cmd test
+git diff --check
+```
