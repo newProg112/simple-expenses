@@ -99,3 +99,25 @@ npm.cmd test
 ```
 
 This stage excludes date filters, comparative periods, exports, drill-down account ledgers, P&L and Balance Sheet pages, journal editing, and any change to posting behaviour.
+
+## General Ledger Stage 3B.1: page scaffold
+
+`resources/tools/general-ledger.html` provides the authenticated General Ledger UI scaffold using the same visual system and responsive structure as the Trial Balance page. It contains placeholder KPI cards, account and optional date controls, a disabled Refresh button, and a responsive empty journal-entry table.
+
+This stage is presentation-only. It contains no Firestore access, ledger imports, journal calculations, or data-loading behaviour, and it does not change accounting or posting logic.
+
+Run the existing suite with:
+
+```sh
+npm.cmd test
+```
+
+## General Ledger Stage 3B.2: account activity
+
+The authenticated General Ledger page now performs a read-only equality query against the top-level `journals` collection using the current user's `userId`. It converts journal documents without mutation or repair, builds active account options from the tested Trial Balance engine, and delegates chronological entries and running-balance accounting to `buildAccountLedger()`.
+
+Accounts with activity are sorted by code and use the engine's chart-of-accounts names. Selecting an account renders only its postings, with source number preferred as the reference. Optional Date From and Date To filters are inclusive calendar-date filters and are applied by the Refresh button; an invalid range shows a clear warning without partial totals.
+
+Positive running balances are presented as debit balances such as `£240.00 Dr`, negative engine balances are presented as positive credit values such as `£200.00 Cr`, and zero is shown as `£0.00`. Trial Balance account codes link to the corresponding preselected General Ledger account.
+
+Pure reporting tests live in `tests/general-ledger-view.test.js`. This stage remains read-only and excludes journal editing, opening-balance calculations outside the selected period, export, P&L, Balance Sheet, and account-ledger pagination.

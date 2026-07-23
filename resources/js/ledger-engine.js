@@ -533,6 +533,8 @@ export function buildAccountLedger(journals = [], accountCode) {
         debit: line.debit,
         credit: line.credit,
         journalReference: journal.id || journal.sourceId || "",
+        journalId: journal.journalId || journal.id || "",
+        sourceNumber: journal.sourceNumber || "",
         sourceType: journal.sourceType || "",
         sourceId: journal.sourceId || "",
         description: line.description || journal.description || "",

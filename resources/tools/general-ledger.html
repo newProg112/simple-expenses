@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>General Ledger | Simple Books</title>
+  <script type="module" src="/auth-guard.js"></script>
+
+  <style>
+    :root{
+      --accent:#0077B6;
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --text:#1f2933;
+      --heading:#102033;
+      --muted:#64748b;
+      --border:#dbe3ec;
+    }
+
+    *,
+    *::before,
+    *::after{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    button,
+    input,
+    select{
+      font:inherit;
+    }
+
+    h1,
+    h2,
+    p{
+      margin-top:0;
+    }
+
+    h1,
+    h2{
+      color:var(--heading);
+    }
+
+    h1{
+      margin-bottom:0;
+      font-size:30px;
+      line-height:1.1;
+    }
+
+    h2{
+      margin-bottom:0;
+      font-size:20px;
+      line-height:1.25;
+    }
+
+    .muted{
+      color:var(--muted);
+      line-height:1.45;
+    }
+
+    .page-title-row{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin:14px 0 18px;
+    }
+
+    .page-title-icon{
+      display:grid;
+      width:42px;
+      height:42px;
+      flex:0 0 auto;
+      place-items:center;
+      border-radius:12px;
+      background:#e8f3ff;
+      color:var(--accent);
+      font-size:14px;
+      font-weight:900;
+      box-shadow:inset 0 0 0 1px rgba(0,119,182,.08);
+    }
+
+    .page-title-row p{
+      margin:5px 0 0;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:14px;
+      margin-bottom:18px;
+    }
+
+    .kpi-card{
+      position:relative;
+      min-height:132px;
+      overflow:hidden;
+      border-color:#e6edf5;
+    }
+
+    .kpi-card::before{
+      content:"";
+      position:absolute;
+      inset:0 0 auto;
+      height:4px;
+      background:var(--kpi-accent,var(--accent));
+    }
+
+    .kpi-card:nth-child(2){--kpi-accent:#16a34a;}
+    .kpi-card:nth-child(3){--kpi-accent:#f97316;}
+    .kpi-card:nth-child(4){--kpi-accent:#7c3aed;}
+
+    .kpi-label{
+      color:var(--muted);
+      font-size:13px;
+      font-weight:750;
+    }
+
+    .kpi-value{
+      margin:10px 0 6px;
+      color:var(--heading);
+      font-size:27px;
+      font-weight:900;
+      line-height:1.1;
+    }
+
+    .kpi-meta{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    .status-placeholder{
+      display:inline-flex;
+      align-items:center;
+      min-height:28px;
+      padding:4px 10px;
+      border:1px solid #cbd5e1;
+      border-radius:999px;
+      background:#f8fafc;
+      color:#475569;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .status-placeholder.loaded,
+    .status-placeholder.ready{
+      border-color:#bbf7d0;
+      background:#f0fdf4;
+      color:#166534;
+    }
+
+    .status-placeholder.warning{
+      border-color:#fde68a;
+      background:#fffbeb;
+      color:#92400e;
+    }
+
+    .status-placeholder.error{
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#991b1b;
+    }
+
+    .page-feedback{
+      margin-bottom:18px;
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#991b1b;
+      box-shadow:none;
+    }
+
+    .filter-feedback{
+      margin:0;
+      padding:10px 20px;
+      border-bottom:1px solid #fde68a;
+      background:#fffbeb;
+      color:#92400e;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .ledger-card{
+      padding:0;
+      overflow:hidden;
+    }
+
+    .ledger-toolbar{
+      display:grid;
+      grid-template-columns:minmax(220px,1.6fr) minmax(150px,1fr) minmax(150px,1fr) auto;
+      gap:14px;
+      align-items:end;
+      padding:20px;
+      border-bottom:1px solid var(--border);
+    }
+
+    .field{
+      display:grid;
+      gap:6px;
+    }
+
+    .field label{
+      color:#334155;
+      font-size:13px;
+      font-weight:750;
+    }
+
+    .field-hint{
+      color:var(--muted);
+      font-size:11px;
+      font-weight:500;
+    }
+
+    input,
+    select{
+      width:100%;
+      min-height:42px;
+      padding:9px 11px;
+      border:1px solid #cbd5e1;
+      border-radius:10px;
+      background:#fff;
+      color:var(--text);
+      outline:none;
+    }
+
+    input:focus,
+    select:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(0,119,182,.12);
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:42px;
+      padding:10px 16px;
+      border:1px solid var(--accent);
+      border-radius:10px;
+      background:var(--accent);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .btn:disabled{
+      cursor:not-allowed;
+      opacity:.58;
+    }
+
+    .table-heading{
+      padding:20px;
+      border-bottom:1px solid var(--border);
+    }
+
+    .table-heading p{
+      margin:5px 0 0;
+    }
+
+    .closing-balance{
+      margin:8px 0 0;
+      color:#334155;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .table-scroll{
+      width:100%;
+      overflow-x:auto;
+    }
+
+    table{
+      width:100%;
+      min-width:920px;
+      border-collapse:collapse;
+    }
+
+    th,
+    td{
+      padding:14px 18px;
+      border-bottom:1px solid #e8eef5;
+      text-align:left;
+      vertical-align:middle;
+    }
+
+    th{
+      background:#f8fafc;
+      color:#475569;
+      font-size:12px;
+      font-weight:850;
+      letter-spacing:.02em;
+      text-transform:uppercase;
+    }
+
+    th:nth-child(n+4),
+    td:nth-child(n+4){
+      text-align:right;
+    }
+
+    tbody tr:last-child td{
+      border-bottom:0;
+    }
+
+    .empty-row td{
+      padding:48px 20px;
+      text-align:center;
+    }
+
+    .empty-state{
+      display:grid;
+      justify-items:center;
+      gap:8px;
+    }
+
+    .empty-state-icon{
+      display:grid;
+      width:44px;
+      height:44px;
+      place-items:center;
+      border-radius:50%;
+      background:#e8f3ff;
+      color:var(--accent);
+      font-size:13px;
+      font-weight:900;
+    }
+
+    .empty-state strong{
+      color:var(--heading);
+      font-size:15px;
+    }
+
+    .empty-state p{
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    @media (max-width:900px){
+      .kpi-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+
+      .ledger-toolbar{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+
+    @media (max-width:560px){
+      h1{
+        font-size:25px;
+      }
+
+      .page-title-row{
+        align-items:flex-start;
+      }
+
+      .kpi-grid,
+      .ledger-toolbar{
+        grid-template-columns:1fr;
+      }
+
+      .kpi-card{
+        min-height:116px;
+      }
+
+      .ledger-toolbar,
+      .table-heading{
+        padding:18px;
+      }
+
+      .btn{
+        width:100%;
+      }
+
+      th,
+      td{
+        padding:12px 14px;
+      }
+    }
+  </style>
+
+  <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
+</head>
+
+<body>
+  <main class="wrap">
+    <header class="app-header">
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
+      </a>
+
+      <nav class="app-nav" aria-label="Main navigation">
+        <a href="/dashboard.html">Dashboard</a><span></span>
+        <a href="/resources/tools/invoice-generator.html">Invoices</a><span></span>
+        <a href="/resources/tools/bills.html">Bills</a><span></span>
+        <a href="/resources/tools/client-tracker.html">Clients</a><span></span>
+        <a href="/resources/tools/projects.html">Projects</a><span></span>
+        <a href="/resources/tools/expenses.html">Expenses</a><span></span>
+        <a href="/resources/tools/budgets.html">Budgets</a><span></span>
+        <a href="/resources/tools/cashflow.html">Cashflow</a><span></span>
+        <a href="/resources/tools/trial-balance.html">Trial Balance</a><span></span>
+        <a class="active" href="/resources/tools/general-ledger.html" aria-current="page">General Ledger</a><span></span>
+        <a href="/resources/tools/ai-assistant.html">AI Assistant</a><span></span>
+        <a href="/exports.html">Exports</a><span></span>
+        <a href="/account.html">Account</a>
+      </nav>
+    </header>
+
+    <section class="page-title-row" aria-labelledby="pageTitle">
+      <div class="page-title-icon" aria-hidden="true">GL</div>
+      <div>
+        <h1 id="pageTitle">General Ledger</h1>
+        <p class="muted">Review every journal posted to your chart of accounts.</p>
+      </div>
+    </section>
+
+    <section class="kpi-grid" aria-label="General Ledger summary">
+      <article class="card kpi-card">
+        <div class="kpi-label">Accounts</div>
+        <div class="kpi-value" id="accountsValue">&mdash;</div>
+        <div class="kpi-meta" id="accountsMeta">Loading journal data&hellip;</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Journal Entries</div>
+        <div class="kpi-value" id="journalEntriesValue">&mdash;</div>
+        <div class="kpi-meta" id="journalEntriesMeta">Loading journal data&hellip;</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Selected Account</div>
+        <div class="kpi-value" id="selectedAccountValue">&mdash;</div>
+        <div class="kpi-meta" id="selectedAccountMeta">Choose an account</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Status</div>
+        <div class="kpi-value"><span class="status-placeholder" id="statusValue">Loading</span></div>
+        <div class="kpi-meta" id="statusMeta">Loading journal data</div>
+      </article>
+    </section>
+
+    <div class="card page-feedback" id="pageError" role="alert" hidden>
+      We could not load the General Ledger. Please try again.
+    </div>
+
+    <section class="card ledger-card" aria-labelledby="journalEntriesTitle">
+      <div class="ledger-toolbar" aria-label="General Ledger filters">
+        <div class="field">
+          <label for="accountSelect">Account</label>
+          <select id="accountSelect">
+            <option value="">Select account</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="dateFrom">Date From <span class="field-hint">(optional)</span></label>
+          <input id="dateFrom" type="date">
+        </div>
+
+        <div class="field">
+          <label for="dateTo">Date To <span class="field-hint">(optional)</span></label>
+          <input id="dateTo" type="date">
+        </div>
+
+        <button class="btn" id="refreshButton" type="button" disabled>
+          Refresh
+        </button>
+      </div>
+
+      <p class="filter-feedback" id="filterFeedback" role="status" hidden>
+        Date From must be on or before Date To.
+      </p>
+
+      <div class="table-heading">
+        <h2 id="journalEntriesTitle">Journal entries</h2>
+        <p class="muted" id="journalEntriesSummary">Loading journal data&hellip;</p>
+        <p class="closing-balance" id="closingBalance">Closing balance: &pound;0.00</p>
+      </div>
+
+      <div class="table-scroll">
+        <table aria-labelledby="journalEntriesTitle">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Reference</th>
+              <th scope="col">Description</th>
+              <th scope="col">Debit</th>
+              <th scope="col">Credit</th>
+              <th scope="col">Running Balance</th>
+            </tr>
+          </thead>
+          <tbody id="generalLedgerTableBody">
+            <tr class="empty-row">
+              <td colspan="6">
+                <div class="empty-state">
+                  <span class="empty-state-icon" aria-hidden="true">GL</span>
+                  <strong>Loading journal data&hellip;</strong>
+                  <p>Please wait while your General Ledger is prepared.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth, db } from "../../firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      collection,
+      getDocs,
+      query,
+      where
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      journalFromFirestoreData,
+      requireJournalOwnerId
+    } from "../js/trial-balance-view.js";
+    import { generalLedgerViewFromJournals } from "../js/general-ledger-view.js";
+
+    const accountsValue = document.getElementById("accountsValue");
+    const accountsMeta = document.getElementById("accountsMeta");
+    const journalEntriesValue = document.getElementById("journalEntriesValue");
+    const journalEntriesMeta = document.getElementById("journalEntriesMeta");
+    const selectedAccountValue = document.getElementById("selectedAccountValue");
+    const selectedAccountMeta = document.getElementById("selectedAccountMeta");
+    const statusValue = document.getElementById("statusValue");
+    const statusMeta = document.getElementById("statusMeta");
+    const accountSelect = document.getElementById("accountSelect");
+    const dateFrom = document.getElementById("dateFrom");
+    const dateTo = document.getElementById("dateTo");
+    const refreshButton = document.getElementById("refreshButton");
+    const filterFeedback = document.getElementById("filterFeedback");
+    const journalEntriesTitle = document.getElementById("journalEntriesTitle");
+    const journalEntriesSummary = document.getElementById("journalEntriesSummary");
+    const closingBalance = document.getElementById("closingBalance");
+    const tableBody = document.getElementById("generalLedgerTableBody");
+    const pageError = document.getElementById("pageError");
+    const requestedAccount = new URLSearchParams(window.location.search).get("account") || "";
+    let journals = [];
+    let loadedUserId = "";
+    let loadSequence = 0;
+    let journalsLoaded = false;
+
+    function setStatus(status, className = "") {
+      statusValue.textContent = status;
+      statusValue.className =
+        `status-placeholder${className ? ` ${className}` : ""}`;
+    }
+
+    function renderStateRow(title, message) {
+      tableBody.replaceChildren();
+      const row = document.createElement("tr");
+      row.className = "empty-row";
+      const cell = document.createElement("td");
+      cell.colSpan = 6;
+      const state = document.createElement("div");
+      state.className = "empty-state";
+      const icon = document.createElement("span");
+      icon.className = "empty-state-icon";
+      icon.setAttribute("aria-hidden", "true");
+      icon.textContent = "GL";
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const copy = document.createElement("p");
+      copy.textContent = message;
+      state.append(icon, heading, copy);
+      cell.append(state);
+      row.append(cell);
+      tableBody.append(row);
+    }
+
+    function renderLoading() {
+      pageError.hidden = true;
+      filterFeedback.hidden = true;
+      accountsValue.textContent = "—";
+      accountsMeta.textContent = "Loading journal data…";
+      journalEntriesValue.textContent = "—";
+      journalEntriesMeta.textContent = "Loading journal data…";
+      selectedAccountValue.textContent = "—";
+      selectedAccountMeta.textContent = "Choose an account";
+      setStatus("Loading");
+      statusMeta.textContent = "Loading journal data";
+      journalEntriesTitle.textContent = "Journal entries";
+      journalEntriesSummary.textContent = "Loading journal data…";
+      closingBalance.textContent = "Closing balance: £0.00";
+      renderStateRow(
+        "Loading journal data…",
+        "Please wait while your General Ledger is prepared."
+      );
+    }
+
+    function populateAccounts(accounts, selectedCode = "") {
+      accountSelect.replaceChildren();
+      const defaultOption = document.createElement("option");
+      defaultOption.value = "";
+      defaultOption.textContent = "Select account";
+      accountSelect.append(defaultOption);
+
+      accounts.forEach(account => {
+        const option = document.createElement("option");
+        option.value = account.accountCode;
+        option.textContent = account.label;
+        accountSelect.append(option);
+      });
+
+      accountSelect.value = accounts.some(
+        account => account.accountCode === selectedCode
+      ) ? selectedCode : "";
+    }
+
+    function renderRows(rows) {
+      tableBody.replaceChildren();
+
+      rows.forEach(entry => {
+        const row = document.createElement("tr");
+        [
+          entry.date,
+          entry.reference || "—",
+          entry.description || "—",
+          entry.debitDisplay,
+          entry.creditDisplay,
+          entry.runningBalanceDisplay
+        ].forEach(value => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        });
+        tableBody.append(row);
+      });
+    }
+
+    function renderView(view, { repopulateAccounts = false } = {}) {
+      pageError.hidden = view.state !== "error";
+      filterFeedback.hidden = view.state !== "invalidDate";
+      filterFeedback.textContent =
+        view.dateError || "Date From must be on or before Date To.";
+      accountsValue.textContent = String(view.accountsCount);
+      accountsMeta.textContent = "Chart of accounts";
+      journalEntriesValue.textContent = String(view.entriesCount);
+      journalEntriesMeta.textContent = "Loaded entries";
+      selectedAccountValue.textContent = view.selectedAccountCode || "—";
+      selectedAccountMeta.textContent =
+        view.selectedAccountName || "Choose an account";
+      statusMeta.textContent = view.statusText;
+      journalEntriesTitle.textContent = view.heading;
+      journalEntriesSummary.textContent = view.headingText;
+      closingBalance.textContent =
+        `Closing balance: ${view.closingBalanceDisplay}`;
+
+      if (repopulateAccounts) {
+        populateAccounts(view.accounts, view.selectedAccountCode);
+      }
+
+      const statusClass = view.state === "loaded"
+        ? "loaded"
+        : view.state === "ready"
+          ? "ready"
+          : ["invalidDate", "noActivity"].includes(view.state)
+            ? "warning"
+            : view.state === "error"
+              ? "error"
+              : "";
+      setStatus(view.status, statusClass);
+
+      if (view.state === "loaded") {
+        renderRows(view.rows);
+      } else {
+        renderStateRow(view.emptyTitle, view.emptyText);
+      }
+    }
+
+    function applyCurrentFilters() {
+      if (!journalsLoaded) return;
+      const view = generalLedgerViewFromJournals(journals, {
+        accountCode: accountSelect.value,
+        dateFrom: dateFrom.value,
+        dateTo: dateTo.value
+      });
+
+      if (view.state === "error") {
+        console.error("General Ledger calculation failed", view.error);
+      }
+
+      renderView(view);
+    }
+
+    async function loadGeneralLedger(user) {
+      const sequence = ++loadSequence;
+      journalsLoaded = false;
+      refreshButton.disabled = true;
+      renderLoading();
+
+      try {
+        const ownerId = requireJournalOwnerId(user.uid);
+        const ownerQuery = query(
+          collection(db, "journals"),
+          where("userId", "==", ownerId)
+        );
+        const snapshot = await getDocs(ownerQuery);
+        if (sequence !== loadSequence || auth.currentUser?.uid !== ownerId) return;
+
+        journals = snapshot.docs.map(documentSnapshot =>
+          journalFromFirestoreData(
+            documentSnapshot.id,
+            documentSnapshot.data()
+          )
+        );
+        journalsLoaded = true;
+        refreshButton.disabled = false;
+        const view = generalLedgerViewFromJournals(journals, {
+          accountCode: requestedAccount
+        });
+
+        if (view.state === "error") {
+          console.error("General Ledger calculation failed", view.error);
+        }
+
+        renderView(view, { repopulateAccounts: true });
+      } catch (error) {
+        if (sequence !== loadSequence) return;
+        journals = [];
+        journalsLoaded = false;
+        refreshButton.disabled = true;
+        console.error("General Ledger journal load failed", error);
+        renderView({
+          accounts: [],
+          accountsCount: 0,
+          entriesCount: 0,
+          rows: [],
+          selectedAccountCode: "",
+          selectedAccountName: "",
+          heading: "Journal entries",
+          headingText: "General Ledger unavailable.",
+          closingBalanceDisplay: "£0.00",
+          state: "error",
+          status: "Unable to load",
+          statusText: "Please try again",
+          emptyTitle: "We could not load the General Ledger. Please try again.",
+          emptyText: "No partial journal results have been displayed."
+        }, { repopulateAccounts: true });
+      }
+    }
+
+    accountSelect.addEventListener("change", applyCurrentFilters);
+    refreshButton.addEventListener("click", applyCurrentFilters);
+
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        journals = [];
+        journalsLoaded = false;
+        loadedUserId = "";
+        loadSequence += 1;
+        return;
+      }
+      if (loadedUserId === user.uid) return;
+      loadedUserId = user.uid;
+      loadGeneralLedger(user);
+    });
+  </script>
+</body>
+</html>

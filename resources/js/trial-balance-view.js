@@ -33,6 +33,7 @@ export function journalFromFirestoreData(documentId, data) {
     date: journalData.date,
     sourceType: journalData.sourceType,
     sourceId: journalData.sourceId,
+    sourceNumber: journalData.sourceNumber,
     description: journalData.description,
     lines: Array.isArray(journalData.lines)
       ? journalData.lines.map(line => ({
@@ -64,6 +65,10 @@ export function createTrialBalanceView(trialBalance, journalCount = 0) {
       return {
         accountCode: String(account.accountCode || ""),
         accountName: String(account.accountName || ""),
+        generalLedgerHref:
+          `/resources/tools/general-ledger.html?account=${encodeURIComponent(String(account.accountCode || ""))}`,
+        generalLedgerLabel:
+          `View General Ledger for ${String(account.accountName || account.accountCode || "account")}`,
         debitBalance,
         creditBalance,
         debitDisplay: debitBalance > 0 ? formatTrialBalanceGbp(debitBalance) : "",

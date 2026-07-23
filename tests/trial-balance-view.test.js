@@ -188,6 +188,7 @@ describe("Firestore journal preparation and owner isolation", () => {
       date: "2026-07-01",
       sourceType: "salesInvoice",
       sourceId: "invoice-1",
+      sourceNumber: "INV-001",
       description: "Invoice",
       lines: [
         { accountCode: "1100", description: "Receivable", debit: 120, credit: 0 },
@@ -203,6 +204,7 @@ describe("Firestore journal preparation and owner isolation", () => {
       date: "2026-07-01",
       sourceType: "salesInvoice",
       sourceId: "invoice-1",
+      sourceNumber: "INV-001",
       description: "Invoice",
       lines: data.lines
     });
@@ -227,5 +229,28 @@ describe("Firestore journal preparation and owner isolation", () => {
     expect(requireJournalOwnerId(" user-1 ")).toBe("user-1");
     expect(() => requireJournalOwnerId("")).toThrow("authenticated user ID");
     expect(() => requireJournalOwnerId(null)).toThrow("authenticated user ID");
+  });
+});
+
+describe("Trial Balance General Ledger drill-down", () => {
+  it("builds an encoded, accessible General Ledger link for each account", () => {
+    const view = createTrialBalanceView({
+      accounts: [{
+        accountCode: "1100/A",
+        accountName: "Trade Receivables",
+        debitBalance: 10,
+        creditBalance: 0
+      }],
+      totalDebits: 10,
+      totalCredits: 10,
+      balanced: true
+    }, 1);
+
+    expect(view.rows[0]).toEqual(expect.objectContaining({
+      generalLedgerHref: "/resources/tools/general-ledger.html?account=1100%2FA",
+      generalLedgerLabel: "View General Ledger for Trade Receivables"
+    }));
+    expect(view.totalDebits).toBe(10);
+    expect(view.totalCredits).toBe(10);
   });
 });
