@@ -121,3 +121,52 @@ Accounts with activity are sorted by code and use the engine's chart-of-accounts
 Positive running balances are presented as debit balances such as `£240.00 Dr`, negative engine balances are presented as positive credit values such as `£200.00 Cr`, and zero is shown as `£0.00`. Trial Balance account codes link to the corresponding preselected General Ledger account.
 
 Pure reporting tests live in `tests/general-ledger-view.test.js`. This stage remains read-only and excludes journal editing, opening-balance calculations outside the selected period, export, P&L, Balance Sheet, and account-ledger pagination.
+
+## General Ledger Stage 4.1: Profit & Loss page scaffold
+
+`resources/tools/profit-loss.html` provides the authenticated Profit & Loss UI scaffold using the established Trial Balance, General Ledger, and Dashboard visual system. It includes four placeholder KPI cards, Date From and Date To controls, a disabled Refresh button, a responsive financial-statement layout for Income, Expenses, and Net Profit / (Loss), and the `No financial data available.` empty state.
+
+Verify at desktop, tablet, and mobile widths that the KPI cards change from four columns to two and then one, the report controls stack on narrow screens, monetary amounts remain right-aligned, and the statement stays legible without horizontal page overflow. Confirm that Profit & Loss appears immediately after General Ledger in every authenticated navigation bar and is marked as the current page on the new report.
+
+This stage is presentation-only. It contains no Firestore access, ledger or journal imports, financial calculations, report loading, or posting behaviour.
+
+Run the complete suite with:
+
+```sh
+npm.cmd test
+```
+
+## General Ledger Stage 4.2: Profit & Loss journal data
+
+The authenticated Profit & Loss page now performs a read-only equality query against the top-level `journals` collection using the current user's `userId`. Firestore journal documents are copied with the existing Trial Balance normaliser, validated by the ledger engine without repair or mutation, and passed to the pure `resources/js/profit-loss-view.js` reporting helper.
+
+The report classifies accounts from the existing chart of accounts. `Income` accounts use credits less debits, `Expense` accounts use debits less credits, and Net Profit is Total Income less Total Expenses. Balance-sheet accounts are excluded by account type. Active account rows are ordered by account code, normal balances display as positive GBP amounts, abnormal contra balances use accounting parentheses, and a negative result is labelled and displayed as Net Loss.
+
+Optional Date From and Date To filters are applied inclusively when Refresh is selected. Journal dates use their written `YYYY-MM-DD` calendar date without timezone conversion. An invalid range returns the Check dates state without partial totals. Loading, no-data, profit, loss, break-even, invalid-date, and unable-to-calculate states remain distinct.
+
+Automated tests live in `tests/profit-loss-view.test.js` and cover source journals, account exclusion and classification, totals, profit/loss/break-even states, inclusive dates, sorting, contra activity, malformed journals, no-data states, and non-mutating Firestore normalisation. Run the focused tests with:
+
+```sh
+npm.cmd test -- tests/profit-loss-view.test.js
+```
+
+Run the complete suite with:
+
+```sh
+npm.cmd test
+```
+
+Manual verification:
+
+1. Sign in with a test user that already has invoice, bill, expense, and mileage journals.
+2. Open `/resources/tools/profit-loss.html` and confirm real journal data loads.
+3. Confirm Sales Revenue appears under Income and General Expenses and Travel & Mileage appear under Expenses where the user's journals contain those accounts.
+4. Confirm VAT Input, VAT Output, Trade Receivables, Trade Payables, and Employee Reimbursements Payable do not appear.
+5. Reconcile Total Income, Total Expenses, and Net Profit or Net Loss to the test journals.
+6. Apply Date From and Date To boundaries and confirm transactions on both boundary dates remain included.
+7. Enter a Date From later than Date To and confirm Check dates appears with no financial totals.
+8. Clear both dates, select Refresh, and confirm all journal activity returns.
+9. Sign in as another user and confirm the first user's figures are no longer visible.
+10. Refresh the browser and confirm that no journal is created, updated, or deleted.
+
+Current limitations: the report uses the current fixed ledger-engine chart of accounts and supports one reporting period at a time. It has no comparative periods, cash/accrual switch, exports, drill-down, report persistence, opening-balance adjustment, year-end closing, or journal editing. The page performs no Firestore writes and requires no Firestore rules change.

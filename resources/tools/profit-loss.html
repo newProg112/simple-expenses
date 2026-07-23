@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Profit &amp; Loss | Simple Books</title>
+  <script type="module" src="/auth-guard.js"></script>
+
+  <style>
+    :root{
+      --accent:#0077B6;
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --text:#1f2933;
+      --heading:#102033;
+      --muted:#64748b;
+      --border:#dbe3ec;
+    }
+
+    *,
+    *::before,
+    *::after{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    button,
+    input{
+      font:inherit;
+    }
+
+    h1,
+    h2,
+    p{
+      margin-top:0;
+    }
+
+    h1,
+    h2{
+      color:var(--heading);
+    }
+
+    h1{
+      margin-bottom:0;
+      font-size:30px;
+      line-height:1.1;
+    }
+
+    h2{
+      margin-bottom:0;
+      font-size:20px;
+      line-height:1.25;
+    }
+
+    .muted{
+      color:var(--muted);
+      line-height:1.45;
+    }
+
+    .page-title-row{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin:14px 0 18px;
+    }
+
+    .page-title-icon{
+      display:grid;
+      width:42px;
+      height:42px;
+      flex:0 0 auto;
+      place-items:center;
+      border-radius:12px;
+      background:#e8f3ff;
+      color:var(--accent);
+      font-size:14px;
+      font-weight:900;
+      box-shadow:inset 0 0 0 1px rgba(0,119,182,.08);
+    }
+
+    .page-title-row p{
+      margin:5px 0 0;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:14px;
+      margin-bottom:18px;
+    }
+
+    .kpi-card{
+      position:relative;
+      min-height:132px;
+      overflow:hidden;
+      border-color:#e6edf5;
+    }
+
+    .kpi-card::before{
+      content:"";
+      position:absolute;
+      inset:0 0 auto;
+      height:4px;
+      background:var(--kpi-accent,var(--accent));
+    }
+
+    .kpi-card:nth-child(2){--kpi-accent:#f97316;}
+    .kpi-card:nth-child(3){--kpi-accent:#16a34a;}
+    .kpi-card:nth-child(4){--kpi-accent:#7c3aed;}
+
+    .kpi-label{
+      color:var(--muted);
+      font-size:13px;
+      font-weight:750;
+    }
+
+    .kpi-value{
+      margin:10px 0 6px;
+      color:var(--heading);
+      font-size:27px;
+      font-weight:900;
+      line-height:1.1;
+    }
+
+    .kpi-meta{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    .status-placeholder{
+      display:inline-flex;
+      align-items:center;
+      min-height:28px;
+      padding:4px 10px;
+      border:1px solid #cbd5e1;
+      border-radius:999px;
+      background:#f8fafc;
+      color:#475569;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .status-placeholder.profit,
+    .status-placeholder.break-even{
+      border-color:#bbf7d0;
+      background:#f0fdf4;
+      color:#166534;
+    }
+
+    .status-placeholder.loss,
+    .status-placeholder.error{
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#991b1b;
+    }
+
+    .status-placeholder.warning{
+      border-color:#fde68a;
+      background:#fffbeb;
+      color:#92400e;
+    }
+
+    .page-feedback{
+      margin-bottom:18px;
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#991b1b;
+      box-shadow:none;
+    }
+
+    .filter-feedback{
+      margin:0;
+      padding:10px 20px;
+      border-bottom:1px solid #fde68a;
+      background:#fffbeb;
+      color:#92400e;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    [hidden]{
+      display:none !important;
+    }
+
+    .report-card{
+      padding:0;
+      overflow:hidden;
+    }
+
+    .report-toolbar{
+      display:grid;
+      grid-template-columns:minmax(170px,1fr) minmax(170px,1fr) auto;
+      gap:14px;
+      align-items:end;
+      padding:20px;
+      border-bottom:1px solid var(--border);
+    }
+
+    .field{
+      display:grid;
+      gap:6px;
+    }
+
+    .field label{
+      color:#334155;
+      font-size:13px;
+      font-weight:750;
+    }
+
+    input{
+      width:100%;
+      min-height:42px;
+      padding:9px 11px;
+      border:1px solid #cbd5e1;
+      border-radius:10px;
+      background:#fff;
+      color:var(--text);
+      outline:none;
+    }
+
+    input:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(0,119,182,.12);
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:42px;
+      padding:10px 16px;
+      border:1px solid var(--accent);
+      border-radius:10px;
+      background:var(--accent);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .btn:disabled{
+      cursor:not-allowed;
+      opacity:.58;
+    }
+
+    .statement-heading{
+      padding:20px;
+      border-bottom:1px solid var(--border);
+    }
+
+    .statement-heading p{
+      margin:5px 0 0;
+    }
+
+    .statement{
+      max-width:860px;
+      margin:0 auto;
+      padding:12px 20px 0;
+    }
+
+    .statement-columns{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(120px,auto);
+      gap:20px;
+      padding:8px 0;
+      border-bottom:1px solid #cbd5e1;
+      color:#475569;
+      font-size:12px;
+      font-weight:850;
+      letter-spacing:.02em;
+      text-transform:uppercase;
+    }
+
+    .statement-columns span:last-child{
+      text-align:right;
+    }
+
+    .statement-section{
+      padding:18px 0;
+      border-bottom:1px solid #e8eef5;
+    }
+
+    .statement-section:last-child{
+      border-bottom:0;
+    }
+
+    .statement-section h3{
+      margin:0 0 8px;
+      color:var(--heading);
+      font-size:15px;
+      font-weight:850;
+    }
+
+    .statement-line{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(120px,auto);
+      gap:20px;
+      padding:9px 0;
+      color:#334155;
+      font-size:14px;
+    }
+
+    .statement-line span:last-child{
+      text-align:right;
+      font-variant-numeric:tabular-nums;
+    }
+
+    .statement-total{
+      margin-top:7px;
+      padding-top:13px;
+      border-top:1px solid #cbd5e1;
+      color:var(--heading);
+      font-weight:850;
+    }
+
+    .statement-result{
+      padding:18px 0;
+      border-top:2px solid var(--heading);
+      border-bottom:3px double var(--heading);
+      font-size:16px;
+      font-weight:900;
+    }
+
+    .empty-state{
+      display:grid;
+      justify-items:center;
+      gap:8px;
+      margin-top:12px;
+      padding:42px 20px 46px;
+      border-top:1px solid var(--border);
+      text-align:center;
+    }
+
+    .empty-state-icon{
+      display:grid;
+      width:44px;
+      height:44px;
+      place-items:center;
+      border-radius:50%;
+      background:#e8f3ff;
+      color:var(--accent);
+      font-size:13px;
+      font-weight:900;
+    }
+
+    .empty-state strong{
+      color:var(--heading);
+      font-size:15px;
+    }
+
+    .empty-state p{
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    @media (max-width:900px){
+      .kpi-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+
+    @media (max-width:560px){
+      h1{
+        font-size:25px;
+      }
+
+      .page-title-row{
+        align-items:flex-start;
+      }
+
+      .kpi-grid,
+      .report-toolbar{
+        grid-template-columns:1fr;
+      }
+
+      .kpi-card{
+        min-height:116px;
+      }
+
+      .report-toolbar,
+      .statement-heading,
+      .statement{
+        padding-right:18px;
+        padding-left:18px;
+      }
+
+      .btn{
+        width:100%;
+      }
+
+      .statement-line{
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:12px;
+      }
+    }
+  </style>
+
+  <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
+</head>
+
+<body>
+  <main class="wrap">
+    <header class="app-header">
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
+      </a>
+
+      <nav class="app-nav" aria-label="Main navigation">
+        <a href="/dashboard.html">Dashboard</a><span></span>
+        <a href="/resources/tools/invoice-generator.html">Invoices</a><span></span>
+        <a href="/resources/tools/bills.html">Bills</a><span></span>
+        <a href="/resources/tools/client-tracker.html">Clients</a><span></span>
+        <a href="/resources/tools/projects.html">Projects</a><span></span>
+        <a href="/resources/tools/expenses.html">Expenses</a><span></span>
+        <a href="/resources/tools/budgets.html">Budgets</a><span></span>
+        <a href="/resources/tools/cashflow.html">Cashflow</a><span></span>
+        <a href="/resources/tools/trial-balance.html">Trial Balance</a><span></span>
+        <a href="/resources/tools/general-ledger.html">General Ledger</a><span></span>
+        <a class="active" href="/resources/tools/profit-loss.html" aria-current="page">Profit &amp; Loss</a><span></span>
+        <a href="/resources/tools/ai-assistant.html">AI Assistant</a><span></span>
+        <a href="/exports.html">Exports</a><span></span>
+        <a href="/account.html">Account</a>
+      </nav>
+    </header>
+
+    <section class="page-title-row" aria-labelledby="pageTitle">
+      <div class="page-title-icon" aria-hidden="true">P&amp;L</div>
+      <div>
+        <h1 id="pageTitle">Profit &amp; Loss</h1>
+        <p class="muted">Review income, expenses and net profit for any reporting period.</p>
+      </div>
+    </section>
+
+    <section class="kpi-grid" aria-label="Profit and Loss summary">
+      <article class="card kpi-card">
+        <div class="kpi-label">Revenue</div>
+        <div class="kpi-value" id="revenueValue">&mdash;</div>
+        <div class="kpi-meta" id="revenueMeta">Loading journal data&hellip;</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Expenses</div>
+        <div class="kpi-value" id="expensesValue">&mdash;</div>
+        <div class="kpi-meta" id="expensesMeta">Loading journal data&hellip;</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label" id="netResultKpiLabel">Net Profit</div>
+        <div class="kpi-value" id="netResultValue">&mdash;</div>
+        <div class="kpi-meta" id="netResultMeta">Loading journal data&hellip;</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Status</div>
+        <div class="kpi-value">
+          <span class="status-placeholder" id="statusValue">Loading</span>
+        </div>
+        <div class="kpi-meta" id="statusMeta">Loading journal data&hellip;</div>
+      </article>
+    </section>
+
+    <div class="card page-feedback" id="pageError" role="alert" hidden>
+      We could not calculate the Profit &amp; Loss report. Please try again.
+    </div>
+
+    <section class="card report-card" aria-labelledby="statementTitle">
+      <div class="report-toolbar" aria-label="Profit and Loss filters">
+        <div class="field">
+          <label for="dateFrom">Date From</label>
+          <input id="dateFrom" type="date">
+        </div>
+
+        <div class="field">
+          <label for="dateTo">Date To</label>
+          <input id="dateTo" type="date">
+        </div>
+
+        <button class="btn" id="refreshButton" type="button" disabled>Refresh</button>
+      </div>
+
+      <p class="filter-feedback" id="filterFeedback" role="status" hidden>
+        Date From must be on or before Date To.
+      </p>
+
+      <div class="statement-heading">
+        <h2 id="statementTitle">Financial statement</h2>
+        <p class="muted" id="statementSummary">Loading journal data&hellip;</p>
+      </div>
+
+      <div class="statement" id="statement" aria-label="Profit and Loss statement" hidden>
+        <div class="statement-columns" aria-hidden="true">
+          <span>Account Name</span>
+          <span>Amount</span>
+        </div>
+
+        <section class="statement-section" aria-labelledby="incomeTitle">
+          <h3 id="incomeTitle">Income</h3>
+          <div id="incomeRows"></div>
+          <div class="statement-line statement-total">
+            <span>Total Income</span>
+            <span id="totalIncomeValue">&mdash;</span>
+          </div>
+        </section>
+
+        <section class="statement-section" aria-labelledby="expensesTitle">
+          <h3 id="expensesTitle">Expenses</h3>
+          <div id="expenseRows"></div>
+          <div class="statement-line statement-total">
+            <span>Total Expenses</span>
+            <span id="totalExpensesValue">&mdash;</span>
+          </div>
+        </section>
+
+        <section class="statement-section" aria-labelledby="netProfitTitle">
+          <h3 id="netProfitTitle">Net Profit / (Loss)</h3>
+          <div class="statement-line statement-result">
+            <span id="netResultStatementLabel">Net Profit / (Loss)</span>
+            <span id="netResultStatementValue">&mdash;</span>
+          </div>
+        </section>
+      </div>
+
+      <div class="empty-state" id="emptyState">
+        <span class="empty-state-icon" aria-hidden="true">P&amp;L</span>
+        <strong id="emptyStateTitle">Loading journal data&hellip;</strong>
+        <p id="emptyStateText">Please wait while your Profit &amp; Loss report is prepared.</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth, db } from "../../firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      collection,
+      getDocs,
+      query,
+      where
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      journalFromFirestoreData,
+      requireJournalOwnerId
+    } from "../js/trial-balance-view.js";
+    import { profitLossViewFromJournals } from "../js/profit-loss-view.js";
+
+    const revenueValue = document.getElementById("revenueValue");
+    const revenueMeta = document.getElementById("revenueMeta");
+    const expensesValue = document.getElementById("expensesValue");
+    const expensesMeta = document.getElementById("expensesMeta");
+    const netResultKpiLabel = document.getElementById("netResultKpiLabel");
+    const netResultValue = document.getElementById("netResultValue");
+    const netResultMeta = document.getElementById("netResultMeta");
+    const statusValue = document.getElementById("statusValue");
+    const statusMeta = document.getElementById("statusMeta");
+    const dateFrom = document.getElementById("dateFrom");
+    const dateTo = document.getElementById("dateTo");
+    const refreshButton = document.getElementById("refreshButton");
+    const filterFeedback = document.getElementById("filterFeedback");
+    const pageError = document.getElementById("pageError");
+    const statement = document.getElementById("statement");
+    const statementSummary = document.getElementById("statementSummary");
+    const incomeRows = document.getElementById("incomeRows");
+    const expenseRows = document.getElementById("expenseRows");
+    const totalIncomeValue = document.getElementById("totalIncomeValue");
+    const totalExpensesValue = document.getElementById("totalExpensesValue");
+    const netResultStatementLabel = document.getElementById("netResultStatementLabel");
+    const netResultStatementValue = document.getElementById("netResultStatementValue");
+    const emptyState = document.getElementById("emptyState");
+    const emptyStateTitle = document.getElementById("emptyStateTitle");
+    const emptyStateText = document.getElementById("emptyStateText");
+    let journals = [];
+    let loadedUserId = "";
+    let loadSequence = 0;
+    let journalsLoaded = false;
+
+    function setStatus(status, className = "") {
+      statusValue.textContent = status;
+      statusValue.className =
+        `status-placeholder${className ? ` ${className}` : ""}`;
+    }
+
+    function clearRows() {
+      incomeRows.replaceChildren();
+      expenseRows.replaceChildren();
+    }
+
+    function renderAccountRows(container, rows) {
+      container.replaceChildren();
+      rows.forEach(account => {
+        const line = document.createElement("div");
+        line.className = "statement-line";
+        const accountName = document.createElement("span");
+        accountName.textContent = account.accountName;
+        const amount = document.createElement("span");
+        amount.textContent = account.amountDisplay;
+        line.append(accountName, amount);
+        container.append(line);
+      });
+    }
+
+    function showEmptyState(title, message) {
+      statement.hidden = true;
+      emptyState.hidden = false;
+      emptyStateTitle.textContent = title;
+      emptyStateText.textContent = message;
+      clearRows();
+    }
+
+    function renderLoading() {
+      pageError.hidden = true;
+      filterFeedback.hidden = true;
+      revenueValue.textContent = "—";
+      revenueMeta.textContent = "Loading journal data…";
+      expensesValue.textContent = "—";
+      expensesMeta.textContent = "Loading journal data…";
+      netResultKpiLabel.textContent = "Net Profit";
+      netResultValue.textContent = "—";
+      netResultMeta.textContent = "Loading journal data…";
+      setStatus("Loading");
+      statusMeta.textContent = "Loading journal data…";
+      statementSummary.textContent = "Loading journal data…";
+      totalIncomeValue.textContent = "—";
+      totalExpensesValue.textContent = "—";
+      netResultStatementLabel.textContent = "Net Profit / (Loss)";
+      netResultStatementValue.textContent = "—";
+      showEmptyState(
+        "Loading journal data…",
+        "Please wait while your Profit & Loss report is prepared."
+      );
+    }
+
+    function renderView(view) {
+      const hasReport = ["profit", "loss", "breakEven"].includes(view.state);
+      pageError.hidden = view.state !== "error";
+      filterFeedback.hidden = view.state !== "invalidDate";
+      filterFeedback.textContent =
+        view.dateError || "Date From must be on or before Date To.";
+      revenueValue.textContent = hasReport ? view.totalIncomeDisplay : "—";
+      revenueMeta.textContent = hasReport
+        ? "Reporting period income"
+        : "No calculated total";
+      expensesValue.textContent = hasReport ? view.totalExpensesDisplay : "—";
+      expensesMeta.textContent = hasReport
+        ? "Reporting period costs"
+        : "No calculated total";
+      netResultKpiLabel.textContent = hasReport
+        ? view.netResultLabel
+        : "Net Profit";
+      netResultValue.textContent = hasReport ? view.netResultDisplay : "—";
+      netResultMeta.textContent = hasReport
+        ? view.statusText
+        : "No calculated result";
+      statusMeta.textContent = view.statusText;
+      const statusClass = view.state === "profit"
+        ? "profit"
+        : view.state === "loss"
+          ? "loss"
+          : view.state === "breakEven"
+            ? "break-even"
+            : view.state === "invalidDate"
+              ? "warning"
+              : view.state === "error"
+                ? "error"
+                : "";
+      setStatus(view.status, statusClass);
+
+      if (!hasReport) {
+        statementSummary.textContent = view.state === "invalidDate"
+          ? "Select a valid reporting period."
+          : view.state === "error"
+            ? "Profit & Loss report unavailable."
+            : "No income or expense activity to display.";
+        showEmptyState(view.emptyTitle, view.emptyText);
+        return;
+      }
+
+      renderAccountRows(incomeRows, view.incomeRows);
+      renderAccountRows(expenseRows, view.expenseRows);
+      totalIncomeValue.textContent = view.totalIncomeDisplay;
+      totalExpensesValue.textContent = view.totalExpensesDisplay;
+      netResultStatementLabel.textContent = view.netResultLabel;
+      netResultStatementValue.textContent = view.netResultDisplay;
+      statementSummary.textContent =
+        "Income and expenses for the selected reporting period.";
+      emptyState.hidden = true;
+      statement.hidden = false;
+    }
+
+    function applyCurrentFilters() {
+      if (!journalsLoaded) return;
+      renderView(profitLossViewFromJournals(journals, {
+        dateFrom: dateFrom.value,
+        dateTo: dateTo.value
+      }));
+    }
+
+    async function loadProfitLoss(user) {
+      const sequence = ++loadSequence;
+      journalsLoaded = false;
+      refreshButton.disabled = true;
+      renderLoading();
+
+      try {
+        const ownerId = requireJournalOwnerId(user.uid);
+        const ownerQuery = query(
+          collection(db, "journals"),
+          where("userId", "==", ownerId)
+        );
+        const snapshot = await getDocs(ownerQuery);
+        if (sequence !== loadSequence || auth.currentUser?.uid !== ownerId) return;
+
+        journals = snapshot.docs.map(documentSnapshot =>
+          journalFromFirestoreData(
+            documentSnapshot.id,
+            documentSnapshot.data()
+          )
+        );
+        journalsLoaded = true;
+        refreshButton.disabled = false;
+        renderView(profitLossViewFromJournals(journals));
+      } catch (error) {
+        if (sequence !== loadSequence) return;
+        journals = [];
+        journalsLoaded = false;
+        refreshButton.disabled = true;
+        console.error("Profit & Loss journal load failed", error);
+        renderView({
+          state: "error",
+          status: "Unable to calculate",
+          statusText: "Please try again",
+          emptyTitle: "Unable to calculate.",
+          emptyText: "No partial financial results have been displayed."
+        });
+      }
+    }
+
+    refreshButton.addEventListener("click", applyCurrentFilters);
+
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        journals = [];
+        journalsLoaded = false;
+        loadedUserId = "";
+        loadSequence += 1;
+        refreshButton.disabled = true;
+        renderLoading();
+        return;
+      }
+      if (loadedUserId === user.uid) return;
+      loadedUserId = user.uid;
+      loadProfitLoss(user);
+    });
+  </script>
+</body>
+</html>
