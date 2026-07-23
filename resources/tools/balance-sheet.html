@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Profit &amp; Loss | Simple Books</title>
+  <title>Balance Sheet | Simple Books</title>
   <script type="module" src="/auth-guard.js"></script>
 
   <style>
@@ -37,12 +37,16 @@
 
     h1,
     h2,
+    h3,
+    h4,
     p{
       margin-top:0;
     }
 
     h1,
-    h2{
+    h2,
+    h3,
+    h4{
       color:var(--heading);
     }
 
@@ -119,8 +123,8 @@
     }
 
     .kpi-card:nth-child(2){--kpi-accent:#f97316;}
-    .kpi-card:nth-child(3){--kpi-accent:#16a34a;}
-    .kpi-card:nth-child(4){--kpi-accent:#7c3aed;}
+    .kpi-card:nth-child(3){--kpi-accent:#7c3aed;}
+    .kpi-card:nth-child(4){--kpi-accent:#16a34a;}
 
     .kpi-label{
       color:var(--muted);
@@ -155,14 +159,13 @@
       font-weight:800;
     }
 
-    .status-placeholder.profit,
-    .status-placeholder.break-even{
+    .status-placeholder.balanced{
       border-color:#bbf7d0;
       background:#f0fdf4;
       color:#166534;
     }
 
-    .status-placeholder.loss,
+    .status-placeholder.out-of-balance,
     .status-placeholder.error{
       border-color:#fecaca;
       background:#fef2f2;
@@ -183,20 +186,6 @@
       box-shadow:none;
     }
 
-    .filter-feedback{
-      margin:0;
-      padding:10px 20px;
-      border-bottom:1px solid #fde68a;
-      background:#fffbeb;
-      color:#92400e;
-      font-size:13px;
-      font-weight:700;
-    }
-
-    [hidden]{
-      display:none !important;
-    }
-
     .report-card{
       padding:0;
       overflow:hidden;
@@ -204,7 +193,7 @@
 
     .report-toolbar{
       display:grid;
-      grid-template-columns:minmax(170px,1fr) minmax(170px,1fr) auto;
+      grid-template-columns:minmax(220px,1fr) auto;
       gap:14px;
       align-items:end;
       padding:20px;
@@ -220,6 +209,12 @@
       color:#334155;
       font-size:13px;
       font-weight:750;
+    }
+
+    .field-hint{
+      color:var(--muted);
+      font-size:11px;
+      font-weight:500;
     }
 
     input{
@@ -257,6 +252,16 @@
       opacity:.58;
     }
 
+    .filter-feedback{
+      margin:0;
+      padding:10px 20px;
+      border-bottom:1px solid #fde68a;
+      background:#fffbeb;
+      color:#92400e;
+      font-size:13px;
+      font-weight:700;
+    }
+
     .statement-heading{
       padding:20px;
       border-bottom:1px solid var(--border);
@@ -269,13 +274,17 @@
     .statement{
       max-width:860px;
       margin:0 auto;
-      padding:12px 20px 0;
+      padding:12px 20px 24px;
     }
 
-    .statement-columns{
+    .statement-columns,
+    .statement-line{
       display:grid;
       grid-template-columns:minmax(0,1fr) minmax(120px,auto);
       gap:20px;
+    }
+
+    .statement-columns{
       padding:8px 0;
       border-bottom:1px solid #cbd5e1;
       color:#475569;
@@ -285,38 +294,56 @@
       text-transform:uppercase;
     }
 
-    .statement-columns span:last-child{
+    .statement-columns span:last-child,
+    .statement-line span:last-child{
       text-align:right;
     }
 
     .statement-section{
-      padding:18px 0;
+      padding:20px 0;
       border-bottom:1px solid #e8eef5;
     }
 
-    .statement-section:last-child{
-      border-bottom:0;
+    .statement-section h3{
+      margin:0 0 12px;
+      font-size:16px;
+      font-weight:900;
     }
 
-    .statement-section h3{
-      margin:0 0 8px;
-      color:var(--heading);
-      font-size:15px;
-      font-weight:850;
+    .statement-section h4{
+      margin:0 0 6px;
+      color:#475569;
+      font-size:13px;
+      font-weight:800;
     }
 
     .statement-line{
-      display:grid;
-      grid-template-columns:minmax(0,1fr) minmax(120px,auto);
-      gap:20px;
       padding:9px 0;
       color:#334155;
       font-size:14px;
     }
 
     .statement-line span:last-child{
-      text-align:right;
       font-variant-numeric:tabular-nums;
+    }
+
+    .account-link,
+    .report-link{
+      color:var(--accent);
+      font-weight:750;
+      text-decoration:none;
+    }
+
+    .account-link:hover,
+    .report-link:hover{
+      text-decoration:underline;
+    }
+
+    .account-link:focus-visible,
+    .report-link:focus-visible{
+      border-radius:4px;
+      outline:3px solid rgba(0,119,182,.2);
+      outline-offset:3px;
     }
 
     .statement-total{
@@ -327,11 +354,24 @@
       font-weight:850;
     }
 
-    .statement-result{
-      padding:18px 0;
-      border-top:2px solid var(--heading);
-      border-bottom:3px double var(--heading);
-      font-size:16px;
+    .equation-section{
+      margin-top:22px;
+      padding:20px;
+      border:1px solid #dbe3ec;
+      border-radius:12px;
+      background:#f8fafc;
+    }
+
+    .equation-section h3{
+      margin:0 0 10px;
+      font-size:15px;
+    }
+
+    .equation-result{
+      margin-top:8px;
+      padding-top:13px;
+      border-top:3px double var(--heading);
+      color:var(--heading);
       font-weight:900;
     }
 
@@ -339,8 +379,7 @@
       display:grid;
       justify-items:center;
       gap:8px;
-      margin-top:12px;
-      padding:42px 20px 46px;
+      padding:48px 20px;
       border-top:1px solid var(--border);
       text-align:center;
     }
@@ -366,6 +405,10 @@
       margin:0;
       color:var(--muted);
       font-size:13px;
+    }
+
+    [hidden]{
+      display:none !important;
     }
 
     @media (max-width:900px){
@@ -403,9 +446,14 @@
         width:100%;
       }
 
+      .statement-columns,
       .statement-line{
         grid-template-columns:minmax(0,1fr) auto;
         gap:12px;
+      }
+
+      .equation-section{
+        padding:16px;
       }
     }
   </style>
@@ -431,8 +479,8 @@
         <a href="/resources/tools/cashflow.html">Cashflow</a><span></span>
         <a href="/resources/tools/trial-balance.html">Trial Balance</a><span></span>
         <a href="/resources/tools/general-ledger.html">General Ledger</a><span></span>
-        <a class="active" href="/resources/tools/profit-loss.html" aria-current="page">Profit &amp; Loss</a><span></span>
-        <a href="/resources/tools/balance-sheet.html">Balance Sheet</a><span></span>
+        <a href="/resources/tools/profit-loss.html">Profit &amp; Loss</a><span></span>
+        <a class="active" href="/resources/tools/balance-sheet.html" aria-current="page">Balance Sheet</a><span></span>
         <a href="/resources/tools/ai-assistant.html">AI Assistant</a><span></span>
         <a href="/exports.html">Exports</a><span></span>
         <a href="/account.html">Account</a>
@@ -440,30 +488,30 @@
     </header>
 
     <section class="page-title-row" aria-labelledby="pageTitle">
-      <div class="page-title-icon" aria-hidden="true">P&amp;L</div>
+      <div class="page-title-icon" aria-hidden="true">BS</div>
       <div>
-        <h1 id="pageTitle">Profit &amp; Loss</h1>
-        <p class="muted">Review income, expenses and net profit for any reporting period.</p>
+        <h1 id="pageTitle">Balance Sheet</h1>
+        <p class="muted">Review assets, liabilities and equity at a selected reporting date.</p>
       </div>
     </section>
 
-    <section class="kpi-grid" aria-label="Profit and Loss summary">
+    <section class="kpi-grid" aria-label="Balance Sheet summary">
       <article class="card kpi-card">
-        <div class="kpi-label">Revenue</div>
-        <div class="kpi-value" id="revenueValue">&mdash;</div>
-        <div class="kpi-meta" id="revenueMeta">Loading journal data&hellip;</div>
+        <div class="kpi-label">Total Assets</div>
+        <div class="kpi-value" id="totalAssetsKpi">&mdash;</div>
+        <div class="kpi-meta" id="totalAssetsMeta">Loading journal data&hellip;</div>
       </article>
 
       <article class="card kpi-card">
-        <div class="kpi-label">Expenses</div>
-        <div class="kpi-value" id="expensesValue">&mdash;</div>
-        <div class="kpi-meta" id="expensesMeta">Loading journal data&hellip;</div>
+        <div class="kpi-label">Total Liabilities</div>
+        <div class="kpi-value" id="totalLiabilitiesKpi">&mdash;</div>
+        <div class="kpi-meta" id="totalLiabilitiesMeta">Loading journal data&hellip;</div>
       </article>
 
       <article class="card kpi-card">
-        <div class="kpi-label" id="netResultKpiLabel">Net Profit</div>
-        <div class="kpi-value" id="netResultValue">&mdash;</div>
-        <div class="kpi-meta" id="netResultMeta">Loading journal data&hellip;</div>
+        <div class="kpi-label">Total Equity</div>
+        <div class="kpi-value" id="totalEquityKpi">&mdash;</div>
+        <div class="kpi-meta" id="totalEquityMeta">Loading journal data&hellip;</div>
       </article>
 
       <article class="card kpi-card">
@@ -476,70 +524,94 @@
     </section>
 
     <div class="card page-feedback" id="pageError" role="alert" hidden>
-      We could not calculate the Profit &amp; Loss report. Please try again.
+      We could not calculate the Balance Sheet. Please try again.
     </div>
 
     <section class="card report-card" aria-labelledby="statementTitle">
-      <div class="report-toolbar" aria-label="Profit and Loss filters">
+      <div class="report-toolbar" aria-label="Balance Sheet reporting date">
         <div class="field">
-          <label for="dateFrom">Date From</label>
-          <input id="dateFrom" type="date">
+          <label for="asAtDate">As at <span class="field-hint">(optional)</span></label>
+          <input id="asAtDate" type="date">
         </div>
 
-        <div class="field">
-          <label for="dateTo">Date To</label>
-          <input id="dateTo" type="date">
-        </div>
-
-        <button class="btn" id="refreshButton" type="button" disabled>Refresh</button>
+        <button class="btn" id="refreshButton" type="button" disabled>
+          Refresh
+        </button>
       </div>
 
       <p class="filter-feedback" id="filterFeedback" role="status" hidden>
-        Date From must be on or before Date To.
+        Enter a valid As at date.
       </p>
 
       <div class="statement-heading">
-        <h2 id="statementTitle">Financial statement</h2>
+        <h2 id="statementTitle">Balance Sheet</h2>
         <p class="muted" id="statementSummary">Loading journal data&hellip;</p>
       </div>
 
-      <div class="statement" id="statement" aria-label="Profit and Loss statement" hidden>
+      <div class="statement" id="statement" hidden>
         <div class="statement-columns" aria-hidden="true">
           <span>Account Name</span>
           <span>Amount</span>
         </div>
 
-        <section class="statement-section" aria-labelledby="incomeTitle">
-          <h3 id="incomeTitle">Income</h3>
-          <div id="incomeRows"></div>
+        <section class="statement-section" aria-labelledby="assetsTitle">
+          <h3 id="assetsTitle">Assets</h3>
+          <h4>Current assets</h4>
+          <div id="assetRows"></div>
           <div class="statement-line statement-total">
-            <span>Total Income</span>
-            <span id="totalIncomeValue">&mdash;</span>
+            <span>Total Assets</span>
+            <span id="totalAssetsValue">&mdash;</span>
           </div>
         </section>
 
-        <section class="statement-section" aria-labelledby="expensesTitle">
-          <h3 id="expensesTitle">Expenses</h3>
-          <div id="expenseRows"></div>
+        <section class="statement-section" aria-labelledby="liabilitiesTitle">
+          <h3 id="liabilitiesTitle">Liabilities</h3>
+          <h4>Current liabilities</h4>
+          <div id="liabilityRows"></div>
           <div class="statement-line statement-total">
-            <span>Total Expenses</span>
-            <span id="totalExpensesValue">&mdash;</span>
+            <span>Total Liabilities</span>
+            <span id="totalLiabilitiesValue">&mdash;</span>
           </div>
         </section>
 
-        <section class="statement-section" aria-labelledby="netProfitTitle">
-          <h3 id="netProfitTitle">Net Profit / (Loss)</h3>
-          <div class="statement-line statement-result">
-            <span id="netResultStatementLabel">Net Profit / (Loss)</span>
-            <span id="netResultStatementValue">&mdash;</span>
+        <section class="statement-section" aria-labelledby="equityTitle">
+          <h3 id="equityTitle">Equity</h3>
+          <div id="equityRows"></div>
+          <div class="statement-line" id="currentYearResultRow">
+            <span>
+              <a class="report-link" id="currentYearResultLink" href="/resources/tools/profit-loss.html">
+                Current Year Profit
+              </a>
+            </span>
+            <span id="currentYearResultValue">&mdash;</span>
+          </div>
+          <div class="statement-line statement-total">
+            <span>Total Equity</span>
+            <span id="totalEquityValue">&mdash;</span>
+          </div>
+        </section>
+
+        <section class="equation-section" aria-labelledby="equationTitle">
+          <h3 id="equationTitle">Accounting equation</h3>
+          <div class="statement-line">
+            <span>Total Assets</span>
+            <span id="equationAssetsValue">&mdash;</span>
+          </div>
+          <div class="statement-line">
+            <span>Total Liabilities and Equity</span>
+            <span id="equationLiabilitiesEquityValue">&mdash;</span>
+          </div>
+          <div class="statement-line equation-result">
+            <span>Difference</span>
+            <span id="differenceValue">&mdash;</span>
           </div>
         </section>
       </div>
 
       <div class="empty-state" id="emptyState">
-        <span class="empty-state-icon" aria-hidden="true">P&amp;L</span>
+        <span class="empty-state-icon" aria-hidden="true">BS</span>
         <strong id="emptyStateTitle">Loading journal data&hellip;</strong>
-        <p id="emptyStateText">Please wait while your Profit &amp; Loss report is prepared.</p>
+        <p id="emptyStateText">Please wait while your Balance Sheet is prepared.</p>
       </div>
     </section>
   </main>
@@ -553,41 +625,46 @@
       query,
       where
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { requireJournalOwnerId } from "../js/trial-balance-view.js";
     import {
-      journalFromFirestoreData,
-      requireJournalOwnerId
-    } from "../js/trial-balance-view.js";
-    import { profitLossViewFromJournals } from "../js/profit-loss-view.js";
+      balanceSheetErrorView,
+      balanceSheetViewFromJournals,
+      ownerJournalsFromDocuments
+    } from "../js/balance-sheet-view.js";
 
-    const revenueValue = document.getElementById("revenueValue");
-    const revenueMeta = document.getElementById("revenueMeta");
-    const expensesValue = document.getElementById("expensesValue");
-    const expensesMeta = document.getElementById("expensesMeta");
-    const netResultKpiLabel = document.getElementById("netResultKpiLabel");
-    const netResultValue = document.getElementById("netResultValue");
-    const netResultMeta = document.getElementById("netResultMeta");
+    const totalAssetsKpi = document.getElementById("totalAssetsKpi");
+    const totalAssetsMeta = document.getElementById("totalAssetsMeta");
+    const totalLiabilitiesKpi = document.getElementById("totalLiabilitiesKpi");
+    const totalLiabilitiesMeta = document.getElementById("totalLiabilitiesMeta");
+    const totalEquityKpi = document.getElementById("totalEquityKpi");
+    const totalEquityMeta = document.getElementById("totalEquityMeta");
     const statusValue = document.getElementById("statusValue");
     const statusMeta = document.getElementById("statusMeta");
-    const dateFrom = document.getElementById("dateFrom");
-    const dateTo = document.getElementById("dateTo");
+    const asAtDate = document.getElementById("asAtDate");
     const refreshButton = document.getElementById("refreshButton");
     const filterFeedback = document.getElementById("filterFeedback");
     const pageError = document.getElementById("pageError");
     const statement = document.getElementById("statement");
     const statementSummary = document.getElementById("statementSummary");
-    const incomeRows = document.getElementById("incomeRows");
-    const expenseRows = document.getElementById("expenseRows");
-    const totalIncomeValue = document.getElementById("totalIncomeValue");
-    const totalExpensesValue = document.getElementById("totalExpensesValue");
-    const netResultStatementLabel = document.getElementById("netResultStatementLabel");
-    const netResultStatementValue = document.getElementById("netResultStatementValue");
+    const assetRows = document.getElementById("assetRows");
+    const liabilityRows = document.getElementById("liabilityRows");
+    const equityRows = document.getElementById("equityRows");
+    const totalAssetsValue = document.getElementById("totalAssetsValue");
+    const totalLiabilitiesValue = document.getElementById("totalLiabilitiesValue");
+    const totalEquityValue = document.getElementById("totalEquityValue");
+    const currentYearResultLink = document.getElementById("currentYearResultLink");
+    const currentYearResultValue = document.getElementById("currentYearResultValue");
+    const equationAssetsValue = document.getElementById("equationAssetsValue");
+    const equationLiabilitiesEquityValue =
+      document.getElementById("equationLiabilitiesEquityValue");
+    const differenceValue = document.getElementById("differenceValue");
     const emptyState = document.getElementById("emptyState");
     const emptyStateTitle = document.getElementById("emptyStateTitle");
     const emptyStateText = document.getElementById("emptyStateText");
     let journals = [];
+    let journalsLoaded = false;
     let loadedUserId = "";
     let loadSequence = 0;
-    let journalsLoaded = false;
 
     function setStatus(status, className = "") {
       statusValue.textContent = status;
@@ -596,8 +673,9 @@
     }
 
     function clearRows() {
-      incomeRows.replaceChildren();
-      expenseRows.replaceChildren();
+      assetRows.replaceChildren();
+      liabilityRows.replaceChildren();
+      equityRows.replaceChildren();
     }
 
     function renderAccountRows(container, rows) {
@@ -605,11 +683,16 @@
       rows.forEach(account => {
         const line = document.createElement("div");
         line.className = "statement-line";
-        const accountName = document.createElement("span");
-        accountName.textContent = account.accountName;
+        const name = document.createElement("span");
+        const link = document.createElement("a");
+        link.className = "account-link";
+        link.href = account.generalLedgerHref;
+        link.setAttribute("aria-label", account.generalLedgerLabel);
+        link.textContent = `${account.accountCode} — ${account.accountName}`;
+        name.append(link);
         const amount = document.createElement("span");
         amount.textContent = account.amountDisplay;
-        line.append(accountName, amount);
+        line.append(name, amount);
         container.append(line);
       });
     }
@@ -625,92 +708,90 @@
     function renderLoading() {
       pageError.hidden = true;
       filterFeedback.hidden = true;
-      revenueValue.textContent = "—";
-      revenueMeta.textContent = "Loading journal data…";
-      expensesValue.textContent = "—";
-      expensesMeta.textContent = "Loading journal data…";
-      netResultKpiLabel.textContent = "Net Profit";
-      netResultValue.textContent = "—";
-      netResultMeta.textContent = "Loading journal data…";
+      totalAssetsKpi.textContent = "—";
+      totalAssetsMeta.textContent = "Loading journal data…";
+      totalLiabilitiesKpi.textContent = "—";
+      totalLiabilitiesMeta.textContent = "Loading journal data…";
+      totalEquityKpi.textContent = "—";
+      totalEquityMeta.textContent = "Loading journal data…";
       setStatus("Loading");
       statusMeta.textContent = "Loading journal data…";
       statementSummary.textContent = "Loading journal data…";
-      totalIncomeValue.textContent = "—";
-      totalExpensesValue.textContent = "—";
-      netResultStatementLabel.textContent = "Net Profit / (Loss)";
-      netResultStatementValue.textContent = "—";
       showEmptyState(
         "Loading journal data…",
-        "Please wait while your Profit & Loss report is prepared."
+        "Please wait while your Balance Sheet is prepared."
       );
     }
 
     function renderView(view) {
-      const hasReport = ["profit", "loss", "breakEven"].includes(view.state);
+      const hasReport = ["balanced", "outOfBalance"].includes(view.state);
       pageError.hidden = view.state !== "error";
       filterFeedback.hidden = view.state !== "invalidDate";
       filterFeedback.textContent =
-        view.dateError || "Date From must be on or before Date To.";
-      revenueValue.textContent = hasReport ? view.totalIncomeDisplay : "—";
-      revenueMeta.textContent = hasReport
-        ? "Reporting period income"
+        view.dateError || "Enter a valid As at date.";
+      totalAssetsKpi.textContent = hasReport ? view.totalAssetsDisplay : "—";
+      totalAssetsMeta.textContent = hasReport
+        ? "Assets at reporting date"
         : "No calculated total";
-      expensesValue.textContent = hasReport ? view.totalExpensesDisplay : "—";
-      expensesMeta.textContent = hasReport
-        ? "Reporting period costs"
+      totalLiabilitiesKpi.textContent =
+        hasReport ? view.totalLiabilitiesDisplay : "—";
+      totalLiabilitiesMeta.textContent = hasReport
+        ? "Liabilities at reporting date"
         : "No calculated total";
-      netResultKpiLabel.textContent = hasReport
-        ? view.netResultLabel
-        : "Net Profit";
-      netResultValue.textContent = hasReport ? view.netResultDisplay : "—";
-      netResultMeta.textContent = hasReport
-        ? view.statusText
-        : "No calculated result";
+      totalEquityKpi.textContent = hasReport ? view.totalEquityDisplay : "—";
+      totalEquityMeta.textContent = hasReport
+        ? "Including current-year result"
+        : "No calculated total";
       statusMeta.textContent = view.statusText;
-      const statusClass = view.state === "profit"
-        ? "profit"
-        : view.state === "loss"
-          ? "loss"
-          : view.state === "breakEven"
-            ? "break-even"
-            : view.state === "invalidDate"
-              ? "warning"
-              : view.state === "error"
-                ? "error"
-                : "";
+      const statusClass = view.state === "balanced"
+        ? "balanced"
+        : view.state === "outOfBalance"
+          ? "out-of-balance"
+          : view.state === "invalidDate"
+            ? "warning"
+            : view.state === "error"
+              ? "error"
+              : "";
       setStatus(view.status, statusClass);
 
       if (!hasReport) {
         statementSummary.textContent = view.state === "invalidDate"
-          ? "Select a valid reporting period."
+          ? "Choose a valid reporting date."
           : view.state === "error"
-            ? "Profit & Loss report unavailable."
-            : "No income or expense activity to display.";
+            ? "Balance Sheet unavailable."
+            : "No journal data to display.";
         showEmptyState(view.emptyTitle, view.emptyText);
         return;
       }
 
-      renderAccountRows(incomeRows, view.incomeRows);
-      renderAccountRows(expenseRows, view.expenseRows);
-      totalIncomeValue.textContent = view.totalIncomeDisplay;
-      totalExpensesValue.textContent = view.totalExpensesDisplay;
-      netResultStatementLabel.textContent = view.netResultLabel;
-      netResultStatementValue.textContent = view.netResultDisplay;
-      statementSummary.textContent =
-        "Income and expenses for the selected reporting period.";
+      renderAccountRows(assetRows, view.assetRows);
+      renderAccountRows(liabilityRows, view.liabilityRows);
+      renderAccountRows(equityRows, view.equityRows);
+      totalAssetsValue.textContent = view.totalAssetsDisplay;
+      totalLiabilitiesValue.textContent = view.totalLiabilitiesDisplay;
+      totalEquityValue.textContent = view.totalEquityDisplay;
+      currentYearResultLink.textContent = view.currentYearResultLabel;
+      currentYearResultLink.href = view.currentYearResultHref;
+      currentYearResultValue.textContent = view.currentYearResultDisplay;
+      equationAssetsValue.textContent = view.totalAssetsDisplay;
+      equationLiabilitiesEquityValue.textContent =
+        view.totalLiabilitiesAndEquityDisplay;
+      differenceValue.textContent = view.differenceDisplay;
+      statementSummary.textContent = view.reportingDate
+        ? `Balances as at ${view.reportingDate}.`
+        : "Balances from all available journal data.";
       emptyState.hidden = true;
       statement.hidden = false;
     }
 
-    function applyCurrentFilters() {
+    function applyCurrentDate() {
       if (!journalsLoaded) return;
-      renderView(profitLossViewFromJournals(journals, {
-        dateFrom: dateFrom.value,
-        dateTo: dateTo.value
+      renderView(balanceSheetViewFromJournals(journals, {
+        asAt: asAtDate.value
       }));
     }
 
-    async function loadProfitLoss(user) {
+    async function loadBalanceSheet(user) {
       const sequence = ++loadSequence;
       journalsLoaded = false;
       refreshButton.disabled = true;
@@ -725,32 +806,21 @@
         const snapshot = await getDocs(ownerQuery);
         if (sequence !== loadSequence || auth.currentUser?.uid !== ownerId) return;
 
-        journals = snapshot.docs.map(documentSnapshot =>
-          journalFromFirestoreData(
-            documentSnapshot.id,
-            documentSnapshot.data()
-          )
-        );
+        journals = ownerJournalsFromDocuments(snapshot.docs, ownerId);
         journalsLoaded = true;
         refreshButton.disabled = false;
-        renderView(profitLossViewFromJournals(journals));
+        renderView(balanceSheetViewFromJournals(journals));
       } catch (error) {
         if (sequence !== loadSequence) return;
         journals = [];
         journalsLoaded = false;
         refreshButton.disabled = true;
-        console.error("Profit & Loss journal load failed", error);
-        renderView({
-          state: "error",
-          status: "Unable to calculate",
-          statusText: "Please try again",
-          emptyTitle: "Unable to calculate.",
-          emptyText: "No partial financial results have been displayed."
-        });
+        console.error("Balance Sheet journal load failed", error);
+        renderView(balanceSheetErrorView(error));
       }
     }
 
-    refreshButton.addEventListener("click", applyCurrentFilters);
+    refreshButton.addEventListener("click", applyCurrentDate);
 
     onAuthStateChanged(auth, user => {
       if (!user) {
@@ -764,7 +834,7 @@
       }
       if (loadedUserId === user.uid) return;
       loadedUserId = user.uid;
-      loadProfitLoss(user);
+      loadBalanceSheet(user);
     });
   </script>
 </body>

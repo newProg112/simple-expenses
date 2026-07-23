@@ -8,10 +8,6 @@ import {
 } from "./general-ledger-view.js";
 import { formatTrialBalanceGbp } from "./trial-balance-view.js";
 
-const ACCOUNT_BY_CODE = new Map(
-  DEFAULT_CHART_OF_ACCOUNTS.map(account => [account.code, account])
-);
-
 function roundMoney(value) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }
@@ -48,10 +44,18 @@ export function filterJournalsByDateRange(
   return filterJournalsByDate(journals, dateFrom, dateTo);
 }
 
-function accountRows(trialBalance, accountType) {
+function accountRows(
+  trialBalance,
+  accountType,
+  chartOfAccounts = DEFAULT_CHART_OF_ACCOUNTS
+) {
+  const accountByCode = new Map(
+    chartOfAccounts.map(account => [account.code, account])
+  );
+
   return trialBalance.accounts
     .filter(account => {
-      const chartAccount = ACCOUNT_BY_CODE.get(account.accountCode);
+      const chartAccount = accountByCode.get(account.accountCode);
       return chartAccount?.type === accountType &&
         (Number(account.debits) !== 0 || Number(account.credits) !== 0);
     })
@@ -62,7 +66,7 @@ function accountRows(trialBalance, accountType) {
 
       return {
         accountCode: account.accountCode,
-        accountName: ACCOUNT_BY_CODE.get(account.accountCode).name,
+        accountName: accountByCode.get(account.accountCode).name,
         amount,
         amountDisplay: formatProfitLossAmount(amount)
       };
@@ -70,12 +74,18 @@ function accountRows(trialBalance, accountType) {
     .sort((left, right) => left.accountCode.localeCompare(right.accountCode));
 }
 
-export function getIncomeAccountRows(trialBalance) {
-  return accountRows(trialBalance, "Income");
+export function getIncomeAccountRows(
+  trialBalance,
+  chartOfAccounts = DEFAULT_CHART_OF_ACCOUNTS
+) {
+  return accountRows(trialBalance, "Income", chartOfAccounts);
 }
 
-export function getExpenseAccountRows(trialBalance) {
-  return accountRows(trialBalance, "Expense");
+export function getExpenseAccountRows(
+  trialBalance,
+  chartOfAccounts = DEFAULT_CHART_OF_ACCOUNTS
+) {
+  return accountRows(trialBalance, "Expense", chartOfAccounts);
 }
 
 export function determineProfitLossStatus(netResult, hasFinancialActivity) {
@@ -109,10 +119,13 @@ export function determineProfitLossStatus(netResult, hasFinancialActivity) {
   };
 }
 
-export function buildProfitLossReport(journals = []) {
-  const trialBalance = buildTrialBalance(journals);
-  const incomeRows = getIncomeAccountRows(trialBalance);
-  const expenseRows = getExpenseAccountRows(trialBalance);
+export function buildProfitLossReport(
+  journals = [],
+  chartOfAccounts = DEFAULT_CHART_OF_ACCOUNTS
+) {
+  const trialBalance = buildTrialBalance(journals, chartOfAccounts);
+  const incomeRows = getIncomeAccountRows(trialBalance, chartOfAccounts);
+  const expenseRows = getExpenseAccountRows(trialBalance, chartOfAccounts);
   const totalIncome = roundMoney(
     incomeRows.reduce((sum, row) => sum + row.amount, 0)
   );
@@ -140,7 +153,11 @@ export function buildProfitLossReport(journals = []) {
 
 export function profitLossViewFromJournals(
   journals,
-  { dateFrom = "", dateTo = "" } = {}
+  {
+    dateFrom = "",
+    dateTo = "",
+    chartOfAccounts = DEFAULT_CHART_OF_ACCOUNTS
+  } = {}
 ) {
   const base = emptyReport();
 
@@ -162,7 +179,7 @@ export function profitLossViewFromJournals(
 
     // Validate every loaded journal before filtering so malformed records never
     // disappear outside a selected period and leave misleading partial totals.
-    buildTrialBalance(journals);
+    buildTrialBalance(journals, chartOfAccounts);
     const validDateJournals = filterJournalsByDateRange(journals);
     if (validDateJournals.length !== journals.length) {
       throw new Error("A valid journal calendar date is required.");
@@ -173,7 +190,7 @@ export function profitLossViewFromJournals(
       dateFrom,
       dateTo
     );
-    const report = buildProfitLossReport(filteredJournals);
+    const report = buildProfitLossReport(filteredJournals, chartOfAccounts);
     const hasFinancialActivity =
       report.incomeRows.length > 0 || report.expenseRows.length > 0;
     const status = determineProfitLossStatus(

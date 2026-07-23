@@ -170,3 +170,43 @@ Manual verification:
 10. Refresh the browser and confirm that no journal is created, updated, or deleted.
 
 Current limitations: the report uses the current fixed ledger-engine chart of accounts and supports one reporting period at a time. It has no comparative periods, cash/accrual switch, exports, drill-down, report persistence, opening-balance adjustment, year-end closing, or journal editing. The page performs no Firestore writes and requires no Firestore rules change.
+
+## General Ledger Stage 4.3: Balance Sheet
+
+`resources/tools/balance-sheet.html` provides an authenticated, read-only Balance Sheet generated entirely from the current user's top-level `journals` documents. The page uses an owner-scoped equality query, the existing non-mutating Firestore journal normaliser, and the ledger engine's journal validation and Trial Balance aggregation. It performs no Firestore writes.
+
+Assets use debits less credits. Liabilities and equity accounts use credits less debits. The current-year result is derived through the tested Profit & Loss helper, with profit added to equity and loss subtracted from equity. The final equation compares Total Assets with Total Liabilities and Equity and exposes any rounded difference without adding Bank, opening-balance, equity, or suspense entries.
+
+The optional As at filter includes journals on or before the written calendar date without timezone conversion. A blank date includes all valid journals through the latest available journal date. Loading, no-data, balanced, out-of-balance, invalid-date, and unable-to-calculate states remain distinct. Account rows link to their General Ledger account, and Current Year Profit or Loss links to Profit & Loss.
+
+Automated tests live in `tests/balance-sheet-view.test.js` and cover account classification and orientation, current-year profit/loss, equity treatment, inclusive dates, custom valid chart accounts, zero-row suppression, equation states, malformed data, owner isolation, links, rounding, determinism, and source immutability. Run the focused suite with:
+
+```sh
+npm.cmd test -- tests/balance-sheet-view.test.js
+```
+
+Run the complete suite with:
+
+```sh
+npm.cmd test
+```
+
+Manual verification:
+
+1. Sign in with the user who already has invoice, bill, expense, and mileage journals.
+2. Open `/resources/tools/balance-sheet.html`.
+3. Confirm journal data loads without creating or changing any journals.
+4. Confirm Trade Receivables, VAT Input where applicable, and Bank only where bank journals exist appear under Assets.
+5. Confirm Trade Payables, VAT Output, and Employee Reimbursements Payable appear under Liabilities where applicable.
+6. Confirm Sales Revenue and expense accounts do not appear directly in Assets, Liabilities, or Equity.
+7. Confirm their net result appears as Current Year Profit or Current Year Loss.
+8. Confirm account rows open the correct preselected General Ledger account.
+9. Confirm Current Year Profit or Loss opens Profit & Loss.
+10. Reconcile Total Assets, Total Liabilities, Total Equity, and Difference to the journals.
+11. Confirm Balanced appears only when Total Assets equals Total Liabilities plus Equity after two-decimal rounding.
+12. Apply an As at date and confirm later journals are excluded while the boundary date remains included.
+13. Clear As at, select Refresh, and confirm all valid journals return.
+14. Refresh the browser and confirm no journals are created or altered.
+15. Sign in as another user and confirm the first user's balances are not visible.
+
+Current limitations: the Balance Sheet uses accrual journal activity from the ledger engine's chart and has no comparative periods, account group configuration, exports, opening-balance workflow, year-end closing, payment journals, bank reconciliation, migrations, or journal editing. Existing production data may legitimately report Out of balance if the necessary Bank or Owner's Equity/opening-balance journals do not yet exist. The report never invents or repairs those amounts and requires no Firestore rules change.

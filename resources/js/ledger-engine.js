@@ -20,6 +20,16 @@ const ACCOUNT_BY_CODE = new Map(
   DEFAULT_CHART_OF_ACCOUNTS.map(account => [account.code, account])
 );
 
+function accountMapFromChart(chartOfAccounts = DEFAULT_CHART_OF_ACCOUNTS) {
+  if (!Array.isArray(chartOfAccounts)) {
+    throw new Error("Chart of accounts must be an array.");
+  }
+
+  return new Map(
+    chartOfAccounts.map(account => [String(account?.code || ""), account])
+  );
+}
+
 const EXPENSE_ACCOUNT_BY_CATEGORY = Object.freeze({
   travel: "5200",
   mileage: "5200",
@@ -142,10 +152,14 @@ function hasTwoDecimalPlaces(value) {
   return Math.abs(value * 100 - Math.round(value * 100)) < 1e-8;
 }
 
-export function validateJournal(journal) {
+export function validateJournal(
+  journal,
+  chartOfAccounts = DEFAULT_CHART_OF_ACCOUNTS
+) {
   const errors = [];
   let totalDebits = 0;
   let totalCredits = 0;
+  const accountByCode = accountMapFromChart(chartOfAccounts);
 
   if (!journal || typeof journal !== "object" || Array.isArray(journal)) {
     return {
@@ -167,7 +181,7 @@ export function validateJournal(journal) {
       const label = `Line ${index + 1}`;
       const accountCode = String(line?.accountCode || "");
 
-      if (!ACCOUNT_BY_CODE.has(accountCode)) {
+      if (!accountByCode.has(accountCode)) {
         errors.push(`${label} has an invalid account code.`);
       }
 
@@ -459,19 +473,26 @@ export function reverseJournal(originalJournal) {
   return finishJournal(reversal);
 }
 
-function requireValidJournals(journals) {
+function requireValidJournals(
+  journals,
+  chartOfAccounts = DEFAULT_CHART_OF_ACCOUNTS
+) {
   if (!Array.isArray(journals)) throw new Error("Journals must be an array.");
 
   journals.forEach((journal, index) => {
-    const validation = validateJournal(journal);
+    const validation = validateJournal(journal, chartOfAccounts);
     if (!validation.valid) {
       throw new Error(`Journal ${index + 1} is invalid: ${validation.errors.join(" ")}`);
     }
   });
 }
 
-export function buildTrialBalance(journals = []) {
-  requireValidJournals(journals);
+export function buildTrialBalance(
+  journals = [],
+  chartOfAccounts = DEFAULT_CHART_OF_ACCOUNTS
+) {
+  requireValidJournals(journals, chartOfAccounts);
+  const accountByCode = accountMapFromChart(chartOfAccounts);
   const totalsByAccount = new Map();
 
   journals.forEach(journal => {
@@ -486,7 +507,7 @@ export function buildTrialBalance(journals = []) {
   const accounts = [...totalsByAccount.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([accountCode, totals]) => {
-      const account = ACCOUNT_BY_CODE.get(accountCode);
+      const account = accountByCode.get(accountCode);
       const balance = roundMoney(totals.debits - totals.credits);
 
       return {
