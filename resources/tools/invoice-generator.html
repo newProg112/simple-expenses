@@ -993,60 +993,6 @@
       font-size:.85rem;
     }
 
-    .app-nav{
-      display:flex;
-      align-items:center;
-      gap:14px;
-      margin-bottom:36px;
-      font-weight:600;
-    }
-
-    .app-nav a{
-      text-decoration:none;
-      color:#1f2937;
-    }
-
-    .app-nav span{
-      color:#cbd5e1;
-    }
-
-    .app-nav a.active{
-      color:#0077B6;
-      border-bottom:3px solid #0077B6;
-      padding-bottom:4px;
-    }
-
-    .app-header{
-      display:flex;
-      align-items:center;
-      gap:48px;
-      margin-bottom:14px;
-    }
-
-    .app-brand{
-      display:flex;
-      align-items:center;
-      text-decoration:none;
-    }
-
-    .app-brand img{
-      width:80px;
-      height:auto;
-      display:block;
-      mix-blend-mode:multiply;
-      transform:translateY(-8px);
-    }
-
-    .app-nav{
-      display:flex;
-      flex-wrap:wrap;
-      align-items:center;
-      gap:12px;
-      margin-left:auto;
-      margin-bottom:0;
-      font-weight:700;
-    }
-
     @media (max-width:900px){
       .invoice-row{
         grid-template-columns:1fr;
@@ -1958,7 +1904,7 @@
       }
     }
 
-    @media print {
+    @media print{
       @page{
         size: A4;
         margin: 8mm;
@@ -2111,7 +2057,7 @@
       }
     }
 
-    @media print {
+    @media print{
 
         body{
             background:white;
@@ -2171,73 +2117,16 @@
 
         }
   </style>
-  <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
+  <link rel="stylesheet" href="/assets/app-shell.css?v=20260723-shell1">
+  <script type="module" src="/assets/app-shell.js?v=20260723-shell1"></script>
 </head>
 
 <body>
+  <div data-app-navigation data-auth-controlled hidden></div>
+  <div class="app-content">
 
   <div class="wrap">
-
-    <header class="app-header">
-
-      <a class="app-brand" href="/dashboard.html">
-        <img src="/assets/logo.png" alt="Simple Books logo">
-      </a>
-
-      <nav class="app-nav" id="invoiceAppNav" style="display:none;">
-        <a href="/dashboard.html">Dashboard</a>
-        <span>|</span>
-
-        <a class="active"
-          href="/resources/tools/invoice-generator.html">
-          Invoices
-        </a>
-        <span>|</span>
-
-        <a href="/resources/tools/bills.html">Bills</a>
-        <span>|</span>
-
-        <a href="/resources/tools/client-tracker.html">Clients</a>
-        <span>|</span>
-
-        <a href="/resources/tools/projects.html">Projects</a>
-        <span>|</span>
-
-        <a href="/resources/tools/expenses.html">
-          Expenses
-        </a>
-        <span>|</span>
-
-        <a href="/resources/tools/budgets.html">Budgets</a>
-        <span>|</span>
-
-        <a href="/resources/tools/cashflow.html">Cashflow</a>
-        <span>|</span>
-
-        <a href="/resources/tools/trial-balance.html">Trial Balance</a>
-        <span>|</span>
-
-        <a href="/resources/tools/general-ledger.html">General Ledger</a>
-        <span>|</span>
-
-        <a href="/resources/tools/profit-loss.html">Profit &amp; Loss</a>
-        <span>|</span>
-
-        <a href="/resources/tools/balance-sheet.html">Balance Sheet</a>
-        <span>|</span>
-
-        <a href="/resources/tools/ai-assistant.html">AI Assistant</a>
-        <span>|</span>
-
-        <a href="/exports.html">Exports</a>
-        <span>|</span>
-
-        <a href="/account.html">Account</a>
-      </nav>
-
-    </header>
-
-      <div class="card login-prompt-card" id="loginPrompt" style="display:none;">
+<div class="card login-prompt-card" id="loginPrompt" style="display:none;">
         <h2>Please log in to use Invoices.</h2>
         <p class="muted">
           Sign in to access invoice creation, saved invoices and customer data.
@@ -2945,7 +2834,7 @@
 
     const loginPrompt = document.getElementById("loginPrompt");
 
-    const invoiceAppNav = document.getElementById("invoiceAppNav");
+    const invoiceAppShell = window.SimpleBooksAppShell;
 
     if(user){
       loadBusinessDetailsFromAccount(user);
@@ -2958,8 +2847,8 @@
         loginPrompt.style.display = "none";
       }
 
-      if(invoiceAppNav){
-        invoiceAppNav.style.display = "flex";
+      if(invoiceAppShell){
+        invoiceAppShell.setVisible(true);
       }
 
       renderCustomerDropdown();
@@ -2986,8 +2875,8 @@
         loginPrompt.style.display = "block";
       }
 
-      if(invoiceAppNav){
-        invoiceAppNav.style.display = "none";
+      if(invoiceAppShell){
+        invoiceAppShell.setVisible(false);
       }
     }
   });
@@ -5846,6 +5735,6 @@ setTimeout(function(){
 }, 500);
 
 </script>
-
+  </div>
 </body>
 </html>

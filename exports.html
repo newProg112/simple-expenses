@@ -20,58 +20,6 @@
       padding: 20px 20px 28px;
     }
 
-    .app-header{
-      display:flex;
-      align-items:center;
-      gap:48px;
-      margin-bottom:10px;
-    }
-
-    .app-brand{
-      display:flex;
-      align-items:center;
-      text-decoration:none;
-    }
-
-    .app-brand img{
-      width:80px;
-      height:auto;
-      display:block;
-      mix-blend-mode:multiply;
-      transform:translateY(-8px);
-    }
-
-    .app-nav{
-      display:flex;
-      flex-wrap:wrap;
-      align-items:center;
-      gap:12px;
-      margin-left:auto;
-      margin-bottom:0;
-      font-weight:700;
-    }
-
-    .app-nav a {
-      text-decoration: none;
-      color: #475569;
-    }
-
-    .app-nav a:hover {
-      color: #0077B6;
-    }
-
-    .app-nav span {
-      width: 1px;
-      height: 18px;
-      background: #cbd5e1;
-    }
-
-    .app-nav a.active {
-      color: #0077B6;
-      border-bottom: 3px solid #0077B6;
-      padding-bottom: 4px;
-    }
-
     .page-title-row{
       display:flex;
       align-items:center;
@@ -184,7 +132,7 @@
     .export-kpi-purple { --kpi-accent: #7c3aed; }
     .export-kpi-slate { --kpi-accent: #475569; }
 
-    @media (hover:hover) and (pointer:fine) {
+    @media (hover:hover) and (pointer:fine){
       .export-kpi {
         transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
       }
@@ -927,11 +875,7 @@
       margin-top: 0;
     }
 
-    @media (max-width: 800px) {
-      .app-header {
-        align-items: flex-start;
-        flex-direction: column;
-      }
+    @media (max-width: 800px){
 
       .exports-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -942,7 +886,7 @@
       }
     }
 
-    @media (max-width: 560px) {
+    @media (max-width: 560px){
       .exports-grid,
       .export-kpi-grid {
         grid-template-columns: 1fr;
@@ -967,64 +911,15 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="/assets/app-shell.css?v=20260723-shell1">
+  <script type="module" src="/assets/app-shell.js?v=20260723-shell1"></script>
 </head>
 
 <body>
+  <div data-app-navigation></div>
+  <div class="app-content">
   <main class="wrap">
-
-    <header class="app-header">
-      <a class="app-brand" href="/dashboard.html">
-        <img src="/assets/logo.png" alt="Simple Books logo">
-      </a>
-
-      <nav class="app-nav">
-        <a href="/dashboard.html">Dashboard</a>
-        <span></span>
-
-        <a href="/resources/tools/invoice-generator.html">Invoices</a>
-        <span></span>
-
-        <a href="/resources/tools/bills.html">Bills</a>
-        <span></span>
-
-        <a href="/resources/tools/client-tracker.html">Clients</a>
-        <span></span>
-
-        <a href="/resources/tools/projects.html">Projects</a>
-        <span></span>
-
-        <a href="/resources/tools/expenses.html">Expenses</a>
-        <span></span>
-
-        <a href="/resources/tools/budgets.html">Budgets</a>
-        <span></span>
-
-        <a href="/resources/tools/cashflow.html">Cashflow</a>
-        <span></span>
-
-        <a href="/resources/tools/trial-balance.html">Trial Balance</a>
-        <span></span>
-
-        <a href="/resources/tools/general-ledger.html">General Ledger</a>
-        <span></span>
-
-        <a href="/resources/tools/profit-loss.html">Profit &amp; Loss</a>
-        <span></span>
-
-        <a href="/resources/tools/balance-sheet.html">Balance Sheet</a>
-        <span></span>
-
-        <a href="/resources/tools/ai-assistant.html">AI Assistant</a>
-        <span></span>
-
-        <a class="active" href="/exports.html">Exports</a>
-        <span></span>
-
-        <a href="/account.html">Account</a>
-      </nav>
-    </header>
-
-    <section class="page-title-row">
+<section class="page-title-row">
       <div class="page-title-icon" aria-hidden="true">E</div>
       <div>
         <h1>Exports</h1>
@@ -5558,5 +5453,6 @@
     loadLastBackupDownloadedAt();
     loadBusinessRecordsTotal();
   </script>
+  </div>
 </body>
 </html>

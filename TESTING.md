@@ -210,3 +210,39 @@ Manual verification:
 15. Sign in as another user and confirm the first user's balances are not visible.
 
 Current limitations: the Balance Sheet uses accrual journal activity from the ledger engine's chart and has no comparative periods, account group configuration, exports, opening-balance workflow, year-end closing, payment journals, bank reconciliation, migrations, or journal editing. Existing production data may legitimately report Out of balance if the necessary Bank or Owner's Equity/opening-balance journals do not yet exist. The report never invents or repairs those amounts and requires no Firestore rules change.
+
+## Reusable application shell
+
+Authenticated application pages use `assets/app-shell.js` and `assets/app-shell.css` for their shared desktop sidebar and mobile navigation drawer. The shell owns the route list, navigation grouping, active-page matching, project-details alias, responsive layout, drawer accessibility, and print reset. It does not import Firebase or change authentication, Firestore, or business logic.
+
+Automated navigation tests live in `tests/app-navigation.test.js`. They cover the route definitions, unique URLs, group order, normalised pathname matching, and the Project Details to Projects alias. Run the focused tests with:
+
+```sh
+npm.cmd test -- tests/app-navigation.test.js
+```
+
+Run the complete suite with:
+
+```sh
+npm.cmd test
+```
+
+Manual verification:
+
+1. Sign in and open every authenticated application route from the sidebar.
+2. Confirm the current route has the active treatment and `aria-current="page"`.
+3. Open a project details URL with an `id` query and confirm Projects remains active.
+4. At 901px and above, confirm the sidebar is fixed, independently scrollable, and does not change the inner `.wrap` width or page layout.
+5. At 900px and below, confirm the hamburger opens the drawer and updates `aria-expanded`.
+6. Confirm the close button, backdrop, Escape key, and selecting a link close the drawer.
+7. Confirm keyboard focus moves into the drawer, remains contained while open, and returns to the hamburger when closed.
+8. Confirm the underlying page cannot scroll or receive focus while the drawer is open.
+9. On the invoice page, sign out and confirm its existing login prompt remains available while application navigation is hidden; sign in and confirm the shell appears.
+10. Print or preview an invoice, budget, cashflow report, Trial Balance, General Ledger, Profit & Loss, and Balance Sheet. Confirm shell controls are absent and content has no sidebar or mobile-header offset.
+11. Enable reduced motion and confirm the drawer does not animate.
+
+Before finishing shell changes, also run:
+
+```sh
+git diff --check
+```

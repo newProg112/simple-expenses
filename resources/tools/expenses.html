@@ -33,59 +33,6 @@
       padding:24px 32px 56px;
     }
 
-    .app-header{
-      display:flex;
-      align-items:center;
-      gap:24px;
-      margin-bottom:14px;
-    }
-
-    .app-brand{
-      display:flex;
-      align-items:center;
-      text-decoration:none;
-      color:var(--text);
-      font-weight:800;
-    }
-
-    .app-brand img{
-      width:80px;
-      height:auto;
-      display:block;
-      mix-blend-mode:multiply;
-      transform:translateY(-8px);
-    }
-
-    .app-nav{
-      display:flex;
-      flex-wrap:wrap;
-      align-items:center;
-      gap:12px;
-      margin-left:auto;
-      font-weight:700;
-    }
-
-    .app-nav a{
-      color:#475569;
-      text-decoration:none;
-    }
-
-    .app-nav a:hover,
-    .app-nav a.active{
-      color:var(--accent);
-    }
-
-    .app-nav a.active{
-      border-bottom:3px solid var(--accent);
-      padding-bottom:4px;
-    }
-
-    .app-nav span{
-      width:1px;
-      height:18px;
-      background:#cbd5e1;
-    }
-
     .page-title-row{
       display:flex;
       align-items:center;
@@ -1438,15 +1385,6 @@
         padding:32px 20px 56px;
       }
 
-      .app-header{
-        align-items:flex-start;
-        flex-direction:column;
-      }
-
-      .app-nav{
-        margin-left:0;
-      }
-
       .grid,
       .form-group-grid,
       .form-group-grid-project,
@@ -1578,50 +1516,15 @@
       }
     }
   </style>
-  <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
+  <link rel="stylesheet" href="/assets/app-shell.css?v=20260723-shell1">
+  <script type="module" src="/assets/app-shell.js?v=20260723-shell1"></script>
 </head>
 
 <body>
+  <div data-app-navigation></div>
+  <div class="app-content">
   <main class="wrap">
-    <header class="app-header">
-      <a class="app-brand" href="/dashboard.html">
-        <img src="/assets/logo.png" alt="Simple Books logo">
-      </a>
-
-      <nav class="app-nav">
-        <a href="/dashboard.html">Dashboard</a>
-        <span></span>
-        <a href="/resources/tools/invoice-generator.html">Invoices</a>
-        <span></span>
-        <a href="/resources/tools/bills.html">Bills</a>
-        <span></span>
-        <a href="/resources/tools/client-tracker.html">Clients</a>
-        <span></span>
-        <a href="/resources/tools/projects.html">Projects</a>
-        <span></span>
-        <a class="active" href="/resources/tools/expenses.html">Expenses</a>
-        <span></span>
-        <a href="/resources/tools/budgets.html">Budgets</a>
-        <span></span>
-        <a href="/resources/tools/cashflow.html">Cashflow</a>
-        <span></span>
-        <a href="/resources/tools/trial-balance.html">Trial Balance</a>
-        <span></span>
-        <a href="/resources/tools/general-ledger.html">General Ledger</a>
-        <span></span>
-        <a href="/resources/tools/profit-loss.html">Profit &amp; Loss</a>
-        <span></span>
-        <a href="/resources/tools/balance-sheet.html">Balance Sheet</a>
-        <span></span>
-        <a href="/resources/tools/ai-assistant.html">AI Assistant</a>
-        <span></span>
-        <a href="/exports.html">Exports</a>
-        <span></span>
-        <a href="/account.html">Account</a>
-      </nav>
-    </header>
-
-    <section class="page-title-row">
+<section class="page-title-row">
       <div class="page-title-icon" aria-hidden="true">E</div>
       <div>
         <h1>Expenses</h1>
@@ -4213,5 +4116,6 @@
     setRecentStatusFilter("all");
     setRecentDateFilter("all");
   </script>
+  </div>
 </body>
 </html>

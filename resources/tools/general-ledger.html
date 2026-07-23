@@ -392,36 +392,15 @@
     }
   </style>
 
-  <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
+  <link rel="stylesheet" href="/assets/app-shell.css?v=20260723-shell1">
+  <script type="module" src="/assets/app-shell.js?v=20260723-shell1"></script>
 </head>
 
 <body>
+  <div data-app-navigation></div>
+  <div class="app-content">
   <main class="wrap">
-    <header class="app-header">
-      <a class="app-brand" href="/dashboard.html">
-        <img src="/assets/logo.png" alt="Simple Books logo">
-      </a>
-
-      <nav class="app-nav" aria-label="Main navigation">
-        <a href="/dashboard.html">Dashboard</a><span></span>
-        <a href="/resources/tools/invoice-generator.html">Invoices</a><span></span>
-        <a href="/resources/tools/bills.html">Bills</a><span></span>
-        <a href="/resources/tools/client-tracker.html">Clients</a><span></span>
-        <a href="/resources/tools/projects.html">Projects</a><span></span>
-        <a href="/resources/tools/expenses.html">Expenses</a><span></span>
-        <a href="/resources/tools/budgets.html">Budgets</a><span></span>
-        <a href="/resources/tools/cashflow.html">Cashflow</a><span></span>
-        <a href="/resources/tools/trial-balance.html">Trial Balance</a><span></span>
-        <a class="active" href="/resources/tools/general-ledger.html" aria-current="page">General Ledger</a><span></span>
-        <a href="/resources/tools/profit-loss.html">Profit &amp; Loss</a><span></span>
-        <a href="/resources/tools/balance-sheet.html">Balance Sheet</a><span></span>
-        <a href="/resources/tools/ai-assistant.html">AI Assistant</a><span></span>
-        <a href="/exports.html">Exports</a><span></span>
-        <a href="/account.html">Account</a>
-      </nav>
-    </header>
-
-    <section class="page-title-row" aria-labelledby="pageTitle">
+<section class="page-title-row" aria-labelledby="pageTitle">
       <div class="page-title-icon" aria-hidden="true">GL</div>
       <div>
         <h1 id="pageTitle">General Ledger</h1>
@@ -776,5 +755,6 @@
       loadGeneralLedger(user);
     });
   </script>
+  </div>
 </body>
 </html>
