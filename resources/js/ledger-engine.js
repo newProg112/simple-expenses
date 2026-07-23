@@ -414,14 +414,17 @@ export function createMileageJournal(mileage) {
   }
 
   const route = [mileage.from, mileage.to].filter(Boolean).join(" to ");
-  const description = route
-    ? `Mileage claim ${sourceId} - ${route}`
-    : `Mileage claim ${sourceId}`;
+  const purpose = String(mileage.businessPurpose || mileage.purpose || "").trim();
+  const calculation = miles !== null && rate !== null
+    ? `${miles} miles at £${rate.toFixed(2)}`
+    : "";
+  const context = [route, purpose, calculation].filter(Boolean).join(" - ");
+  const description = `Mileage claim ${sourceId}${context ? `: ${context}` : ""}`;
 
   return finishJournal({
     id: `mileage:${sourceId}`,
     date: sourceDate(mileage, ["date", "mileageDate"]),
-    sourceType: "mileage",
+    sourceType: "mileageClaim",
     sourceId,
     description,
     lines: [

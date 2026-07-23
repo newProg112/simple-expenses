@@ -2149,7 +2149,8 @@
     import { app, auth, db, functions } from "../../firebase-config.js";
     import {
       getJournalForSource,
-      replaceExpenseJournal
+      replaceExpenseJournal,
+      replaceMileageJournal
     } from "../js/ledger-firestore.js";
     import {
       onAuthStateChanged
@@ -3401,6 +3402,33 @@
       }
     }
 
+    async function postMileageJournalAfterSave(userId, mileageId, mileage) {
+      if (mileage?.type !== "mileage") return "";
+
+      try {
+        await replaceMileageJournal(
+          db,
+          userId,
+          String(mileageId),
+          mileage,
+          ledgerFirestoreApi
+        );
+
+        if (isLocalExpenseDevelopment()) {
+          console.info(`Ledger journal saved for mileage ${mileageId}`);
+        }
+
+        return "";
+      } catch (error) {
+        console.error("Mileage ledger posting failed", {
+          mileageId: String(mileageId || ""),
+          error
+        });
+
+        return "The mileage claim was saved, but its ledger posting could not be completed. Your claim is safe; please retry the update or contact support.";
+      }
+    }
+
     window.getExpenseJournalFromFirestore = async function(expenseId) {
       const user = await getCurrentUser();
       if (!user) throw new Error("An authenticated user is required to inspect a journal.");
@@ -3410,6 +3438,19 @@
         user.uid,
         "expenseClaim",
         String(expenseId),
+        ledgerFirestoreApi
+      );
+    };
+
+    window.getMileageJournalFromFirestore = async function(mileageId) {
+      const user = await getCurrentUser();
+      if (!user) throw new Error("An authenticated user is required to inspect a journal.");
+
+      return getJournalForSource(
+        db,
+        user.uid,
+        "mileageClaim",
+        String(mileageId),
         ledgerFirestoreApi
       );
     };
@@ -3582,11 +3623,9 @@
         await deleteAttachment(replacedAttachmentPath);
       }
 
-      const ledgerPostingWarning = await postExpenseJournalAfterSave(
-        user.uid,
-        expenseId,
-        expense
-      );
+      const ledgerPostingWarning = isMileage
+        ? await postMileageJournalAfterSave(user.uid, expenseId, expense)
+        : await postExpenseJournalAfterSave(user.uid, expenseId, expense);
 
       const nextExpenses = editingExpenseId
         ? expenses.map(existing => String(existing.id) === String(expenseId) ? expense : existing)
@@ -3697,7 +3736,7 @@
     }
 
     async function deleteExpense(id) {
-      // TODO GL: post an immutable reversal before deleting an expense journal source.
+      // TODO GL: post an immutable reversal before deleting an expense or mileage journal source.
       if (!confirm("Delete this expense?")) return;
 
       const expenseToDelete = expenses.find(expense => String(expense.id) === String(id));

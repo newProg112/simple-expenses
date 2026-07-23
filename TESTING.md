@@ -67,3 +67,21 @@ npm.cmd test
 ```
 
 Stage 2C excludes historical expense backfill, immutable reversal-and-repost history on edit, deletion reversals, reimbursement-payment journals, bank postings, mileage persistence integration, a General Ledger UI, Trial Balance UI, and P&L or Balance Sheet interfaces. Expense deletion remains unchanged and carries a source-level TODO for a future immutable reversal.
+
+## General Ledger Stage 2D: mileage integration
+
+Explicitly saved mileage claims now create or replace a balanced journal in the top-level `journals` collection. The deterministic document ID is `mileage_<encodedUserId>_<encodedMileageDocumentId>`, the stored source type is `mileageClaim`, and the source ID is the actual expense-collection document ID. Creation and editing post only after the mileage document succeeds. Editing and saving an older claim creates its missing journal without a migration; subsequent saves replace the same journal, preserve `createdAt`, and refresh `updatedAt`.
+
+Mileage journals debit 5200 Travel & Mileage and credit 2200 Employee Reimbursements Payable for the full claim amount. They never create a VAT Input line. The engine uses the stored `amount` where available and validates it against `miles × ratePerMile` when both inputs exist; if the stored amount is absent, it derives and rounds the result using the same production calculation. It does not introduce or hard-code a new mileage rate.
+
+Stage 2D recognises every explicitly saved mileage claim regardless of Draft, Submitted, Approved, or Paid status. The separate Mark paid action remains ledger-neutral and creates neither a reimbursement-payment nor bank journal. Loading, changing claim tabs, filtering, reopening without saving, and viewing attachments do not post.
+
+The two claim flows are explicitly separated by the production `type` discriminator. Only `type: "mileage"` can reach `createMileageJournal()`; ordinary expenses continue through `createExpenseJournal()` and cannot create mileage journals. Locally, successful mileage posting logs `Ledger journal saved for mileage <mileage-document-id>`; while signed in, use `await window.getMileageJournalFromFirestore("<mileage-document-id>")` to inspect it.
+
+Run the complete suite with:
+
+```sh
+npm.cmd test
+```
+
+Stage 2D excludes historical mileage backfill, immutable reversal-and-repost history on edit, deletion reversals, reimbursement-payment journals, bank postings, a General Ledger UI, Trial Balance UI, and P&L or Balance Sheet interfaces. Mileage deletion remains unchanged and carries a source-level TODO for a future immutable reversal.
