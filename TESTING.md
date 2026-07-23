@@ -215,7 +215,9 @@ Current limitations: the Balance Sheet uses accrual journal activity from the le
 
 Authenticated application pages use `assets/app-shell.js` and `assets/app-shell.css` for their shared desktop sidebar and mobile navigation drawer. The shell owns the route list, navigation grouping, active-page matching, project-details alias, responsive layout, drawer accessibility, and print reset. It does not import Firebase or change authentication, Firestore, or business logic.
 
-Automated navigation tests live in `tests/app-navigation.test.js`. They cover the route definitions, unique URLs, group order, normalised pathname matching, and the Project Details to Projects alias. Run the focused tests with:
+At 901px and above, the control beside the brand collapses the sidebar to its icon navigation and expands it again. Its `aria-label`, `title`, and `aria-expanded` state describe the available action and current expansion state. The validated preference is stored under the namespaced `simple-books:app-shell:sidebar-state:v1` local-storage key and defaults to expanded when missing, invalid, or unavailable. The desktop navigation scroll position is stored in session storage under `simple-books:app-shell:sidebar-scroll:v1` only for an ordinary same-window internal navigation click. Restoration is validated, clamped, and adjusted only when needed to keep the active link visible.
+
+Automated navigation tests live in `tests/app-navigation.test.js`. They cover route definitions and uniqueness, group order, normalised pathname matching, the Project Details to Projects alias, complete icon coverage, expanded/collapsed state handling, valid and invalid persisted state, scroll parsing and clamping, ordinary navigation, modified clicks, and the desktop/mobile CSS contract. Run the focused tests with:
 
 ```sh
 npm.cmd test -- tests/app-navigation.test.js
@@ -232,14 +234,19 @@ Manual verification:
 1. Sign in and open every authenticated application route from the sidebar.
 2. Confirm the current route has the active treatment and `aria-current="page"`.
 3. Open a project details URL with an `id` query and confirm Projects remains active.
-4. At 901px and above, confirm the sidebar is fixed, independently scrollable, and does not change the inner `.wrap` width or page layout.
-5. At 900px and below, confirm the hamburger opens the drawer and updates `aria-expanded`.
-6. Confirm the close button, backdrop, Escape key, and selecting a link close the drawer.
-7. Confirm keyboard focus moves into the drawer, remains contained while open, and returns to the hamburger when closed.
-8. Confirm the underlying page cannot scroll or receive focus while the drawer is open.
-9. On the invoice page, sign out and confirm its existing login prompt remains available while application navigation is hidden; sign in and confirm the shell appears.
-10. Print or preview an invoice, budget, cashflow report, Trial Balance, General Ledger, Profit & Loss, and Balance Sheet. Confirm shell controls are absent and content has no sidebar or mobile-header offset.
-11. Enable reduced motion and confirm the drawer does not animate.
+4. At 901px and above, operate the collapse button with both pointer and keyboard. Confirm the sidebar and main-content offset transition together between the expanded width and approximately 76px.
+5. Confirm the collapse button updates `aria-label`, `title`, and `aria-expanded`, retains a visible keyboard focus indicator, and that the preference survives navigation, refresh, and a new browser session.
+6. In collapsed mode, confirm group headings and text labels are visually hidden while every icon, active-page treatment, accessible link name, and native tooltip remains available.
+7. Scroll the expanded desktop navigation, follow an ordinary sidebar link, and confirm the position returns without forcing the active item to the top. Repeat near the bottom and confirm restoration is clamped safely.
+8. Confirm Ctrl/Cmd-click, Shift-click, Alt-click, middle-click, downloads, external links, and `_blank` links retain their normal behavior and do not replace the saved scroll position.
+9. At 900px and below, confirm the hamburger opens the full-width off-canvas drawer regardless of the saved desktop collapsed preference.
+10. Resize repeatedly across the 900/901px boundary. Confirm desktop width/state restoration and unchanged mobile drawer sizing.
+11. Confirm the mobile close button, backdrop, Escape key, and selecting a link close the drawer.
+12. Confirm keyboard focus moves into the drawer, remains contained while open, and returns to the hamburger when closed.
+13. Confirm the underlying page cannot scroll or receive focus while the drawer is open.
+14. On the invoice page, sign out and confirm its existing login prompt remains available while application navigation is hidden; sign in and confirm the shell appears.
+15. Print or preview an invoice, budget, cashflow report, Trial Balance, General Ledger, Profit & Loss, and Balance Sheet. Confirm the sidebar, collapse control, drawer controls, and backdrop are absent and content has no shell offset.
+16. Enable reduced motion and confirm neither the drawer nor desktop collapse transition animates.
 
 Before finishing shell changes, also run:
 
