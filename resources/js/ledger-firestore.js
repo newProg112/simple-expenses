@@ -1,5 +1,6 @@
 import {
   createBillJournal,
+  createExpenseJournal,
   createSalesInvoiceJournal,
   validateJournal
 } from "./ledger-engine.js";
@@ -13,6 +14,7 @@ function requiredIdentifier(value, label) {
 function sourcePrefix(sourceType) {
   if (sourceType === "salesInvoice") return "invoice";
   if (sourceType === "supplierBill") return "bill";
+  if (sourceType === "expenseClaim") return "expense";
   return String(sourceType || "source");
 }
 
@@ -34,6 +36,14 @@ export function invoiceJournalDocumentId(userId, invoiceId) {
 
 export function billJournalDocumentId(userId, billId) {
   return journalDocumentId(userId, "supplierBill", billId);
+}
+
+export function expenseJournalDocumentId(userId, expenseId) {
+  return journalDocumentId(userId, "expenseClaim", expenseId);
+}
+
+export function isMileageExpenseRecord(expenseData) {
+  return String(expenseData?.type || "").trim().toLowerCase() === "mileage";
 }
 
 export function toFirestoreSafeObject(value) {
@@ -150,6 +160,28 @@ export function prepareBillJournal(userId, billId, billData, timestamps = {}) {
     sourceId,
     sourceLabel: "Bill",
     sourceNumber: billData?.billNumber,
+    journalId,
+    journal,
+    timestamps
+  });
+}
+
+export function prepareExpenseJournal(userId, expenseId, expenseData, timestamps = {}) {
+  const owner = requiredIdentifier(userId, "User ID");
+  const sourceId = requiredIdentifier(expenseId, "Expense ID");
+
+  if (isMileageExpenseRecord(expenseData)) {
+    throw new Error("Mileage records are not eligible for expense journal persistence.");
+  }
+
+  const journalId = expenseJournalDocumentId(owner, sourceId);
+  const journal = createExpenseJournal({ ...expenseData, id: sourceId });
+
+  return prepareSourceJournal({
+    userId: owner,
+    sourceId,
+    sourceLabel: "Expense",
+    sourceNumber: expenseData?.expenseNumber || expenseData?.reference || sourceId,
     journalId,
     journal,
     timestamps
@@ -311,6 +343,56 @@ export async function saveBillJournal(
     userId,
     billId,
     billData,
+    firestoreApi,
+    options
+  );
+}
+
+export async function replaceExpenseJournal(
+  db,
+  userId,
+  expenseId,
+  expenseData,
+  firestoreApi,
+  options = {}
+) {
+  if (isMileageExpenseRecord(expenseData)) {
+    return {
+      documentId: null,
+      journal: null,
+      replaced: false,
+      skipped: true,
+      reason: "mileage"
+    };
+  }
+
+  return replaceSourceJournal(
+    db,
+    userId,
+    expenseId,
+    expenseData,
+    firestoreApi,
+    options,
+    {
+      documentId: expenseJournalDocumentId(userId, expenseId),
+      prepare: prepareExpenseJournal
+    }
+  );
+}
+
+export async function saveExpenseJournal(
+  db,
+  userId,
+  expenseId,
+  expenseData,
+  firestoreApi,
+  options = {}
+) {
+  return replaceExpenseJournal(
+    db,
+    userId,
+    expenseId,
+    expenseData,
     firestoreApi,
     options
   );

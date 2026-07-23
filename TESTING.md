@@ -49,3 +49,21 @@ Bill categories map as follows: `Utilities` to 5300, `Professional fees` to 5400
 Creation posts only after the bill document save succeeds. Updates replace the same journal while preserving `createdAt` and refreshing `updatedAt`. Page load, filtering, editing/reopening, attachment viewing, and paid/unpaid changes do not post journals. Locally, a successful posting logs `Ledger journal saved for bill <number>`; while signed in, use `await window.getBillJournalFromFirestore("<bill-document-id>")` for inspection.
 
 Stage 2B excludes historic bill backfill, immutable edit reversals, deletion reversals, supplier-payment and bank journals, expense and mileage Firestore integration, General Ledger and Trial Balance interfaces, and financial-statement pages. Bill deletion is unchanged and carries a source-level TODO for a future immutable reversal.
+
+## General Ledger Stage 2C: expense integration
+
+Successfully saved ordinary expenses now create or replace a balanced reimbursement journal in the top-level `journals` collection. The deterministic document ID is `expense_<encodedUserId>_<encodedExpenseDocumentId>` and the stored source type is `expenseClaim`. Creation and editing post only after the expense document succeeds; editing an older expense creates its missing journal without a migration, while later saves replace that same journal, preserve `createdAt`, and refresh `updatedAt`.
+
+Stage 2C recognises every explicitly saved ordinary expense, including Draft, Submitted, Approved, and Paid records. The separate Mark paid action remains ledger-neutral: it creates neither a reimbursement-payment journal nor a bank entry. Loading, filtering, reopening/editing without saving, and viewing attachments also do not post.
+
+Production categories map as follows: `Travel` to 5200, `Utilities` to 5300, `Professional fees` to 5400, `Software` to 5500, and `General`, `Meals`, `Office`, `Other`, missing, or unknown categories to 5000. Matching is case-insensitive and whitespace-tolerant. Journals debit the mapped expense account for net, debit VAT Input 1200 when VAT exists, and credit Employee Reimbursements Payable 2200 for gross. Explicit VAT amounts and 0%, 5%, and 20% rates are supported; inconsistent totals are rejected.
+
+Records whose production discriminator is `type: "mileage"` are explicitly skipped before Firestore journal access. Mileage saving, editing, filtering, and attachment behaviour are otherwise unchanged. Locally, a successful ordinary-expense posting logs `Ledger journal saved for expense <expense-document-id>`; while signed in, use `await window.getExpenseJournalFromFirestore("<expense-document-id>")` to inspect it.
+
+Run the complete suite with:
+
+```sh
+npm.cmd test
+```
+
+Stage 2C excludes historical expense backfill, immutable reversal-and-repost history on edit, deletion reversals, reimbursement-payment journals, bank postings, mileage persistence integration, a General Ledger UI, Trial Balance UI, and P&L or Balance Sheet interfaces. Expense deletion remains unchanged and carries a source-level TODO for a future immutable reversal.

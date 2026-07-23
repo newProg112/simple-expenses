@@ -115,7 +115,7 @@ function amountFromNetVatTotal(source, options) {
 }
 
 function expenseAccountCode(category) {
-  const key = String(category || "").trim().toLowerCase();
+  const key = String(category || "").trim().toLowerCase().replace(/\s+/g, " ");
   return EXPENSE_ACCOUNT_BY_CATEGORY[key] || "5000";
 }
 
@@ -327,17 +327,51 @@ export function createExpenseJournal(expense) {
 
   const sourceId = sourceReference(expense, ["id", "expenseId"], "expense");
   const merchant = sourceReference(expense, ["merchant", "supplier"], "expense");
-  const values = amountFromNetVatTotal(expense, {
+  const expenseDescription = String(expense.description || "").trim();
+  const claimant = String(expense.claimant || expense.claimantName || "").trim();
+  const suppliedNet = firstPresent(expense, ["net", "netAmount"]);
+  const suppliedGross = readMoney(
+    expense,
+    ["gross", "grossAmount", "total", "totalAmount", "claimAmount"],
+    "Expense gross"
+  );
+  const suppliedVat = readMoney(expense, ["vat", "vatAmount"], "Expense VAT");
+  const suppliedRate = firstPresent(expense, ["vatRate"]);
+  let expenseValues = expense;
+
+  if ((suppliedNet === null || Number(suppliedNet) === 0) && suppliedGross > 0) {
+    let derivedVat = suppliedVat;
+    let derivedNet;
+
+    if (derivedVat !== null) {
+      derivedNet = roundMoney(suppliedGross - derivedVat);
+    } else if (suppliedRate !== null) {
+      const vatRate = Number(suppliedRate);
+      if (!Number.isFinite(vatRate) || vatRate < 0) {
+        throw new Error("VAT rate must be a finite, non-negative number.");
+      }
+      derivedNet = roundMoney(suppliedGross / (1 + vatRate));
+      derivedVat = roundMoney(suppliedGross - derivedNet);
+    } else {
+      derivedNet = suppliedGross;
+      derivedVat = 0;
+    }
+
+    expenseValues = { ...expense, net: derivedNet, vat: derivedVat };
+  }
+
+  const values = amountFromNetVatTotal(expenseValues, {
     netFields: ["net", "netAmount"],
     vatFields: ["vat", "vatAmount"],
     vatRateFields: ["vatRate"],
-    totalFields: ["gross", "grossAmount", "total"],
+    totalFields: ["gross", "grossAmount", "total", "totalAmount", "claimAmount"],
     netLabel: "Expense net",
     vatLabel: "Expense VAT",
     totalLabel: "Expense gross"
   });
   const accountCode = expenseAccountCode(expense.category);
-  const description = `Expense ${sourceId} - ${merchant}`;
+  const context = [merchant, claimant, expenseDescription].filter(Boolean).join(" - ");
+  const description = `Expense ${sourceId}${context ? ` - ${context}` : ""}`;
   const lines = [journalLine(accountCode, description, values.net, 0)];
 
   if (values.vat > 0) {
@@ -349,7 +383,7 @@ export function createExpenseJournal(expense) {
   return finishJournal({
     id: `expense:${sourceId}`,
     date: sourceDate(expense, ["date", "expenseDate"]),
-    sourceType: "expense",
+    sourceType: "expenseClaim",
     sourceId,
     description,
     lines

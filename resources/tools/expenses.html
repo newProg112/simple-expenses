@@ -2148,12 +2148,17 @@
   <script type="module">
     import { app, auth, db, functions } from "../../firebase-config.js";
     import {
+      getJournalForSource,
+      replaceExpenseJournal
+    } from "../js/ledger-firestore.js";
+    import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
       deleteDoc,
       doc,
+      getDoc,
       getDocs,
       onSnapshot,
       orderBy,
@@ -2172,6 +2177,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
     const statuses = ["Draft", "Submitted", "Approved", "Paid"];
+    const ledgerFirestoreApi = { doc, getDoc, setDoc };
     const storage = getStorage(app);
     const maxAttachmentSize = 10 * 1024 * 1024;
     const maxReceiptScanFileSize = 10 * 1024 * 1024;
@@ -3364,6 +3370,50 @@
       return doc(db, "users", user.uid, "expenses", String(id));
     }
 
+    function isLocalExpenseDevelopment() {
+      return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    }
+
+    async function postExpenseJournalAfterSave(userId, expenseId, expense) {
+      if (expense?.type === "mileage") return "";
+
+      try {
+        await replaceExpenseJournal(
+          db,
+          userId,
+          String(expenseId),
+          expense,
+          ledgerFirestoreApi
+        );
+
+        if (isLocalExpenseDevelopment()) {
+          console.info(`Ledger journal saved for expense ${expenseId}`);
+        }
+
+        return "";
+      } catch (error) {
+        console.error("Expense ledger posting failed", {
+          expenseId: String(expenseId || ""),
+          error
+        });
+
+        return "The expense was saved, but its ledger posting could not be completed. Your expense is safe; please retry the update or contact support.";
+      }
+    }
+
+    window.getExpenseJournalFromFirestore = async function(expenseId) {
+      const user = await getCurrentUser();
+      if (!user) throw new Error("An authenticated user is required to inspect a journal.");
+
+      return getJournalForSource(
+        db,
+        user.uid,
+        "expenseClaim",
+        String(expenseId),
+        ledgerFirestoreApi
+      );
+    };
+
     async function saveExpense() {
       const isMileage = claimType === "mileage";
       const merchant = document.getElementById("merchant").value.trim();
@@ -3532,6 +3582,12 @@
         await deleteAttachment(replacedAttachmentPath);
       }
 
+      const ledgerPostingWarning = await postExpenseJournalAfterSave(
+        user.uid,
+        expenseId,
+        expense
+      );
+
       const nextExpenses = editingExpenseId
         ? expenses.map(existing => String(existing.id) === String(expenseId) ? expense : existing)
         : [expense, ...expenses.filter(existing => String(existing.id) !== String(expenseId))];
@@ -3540,8 +3596,9 @@
       clearForm();
       renderExpenses();
       saveButton.disabled = false;
-      if (scannedAttachmentWarning) {
-        showReceiptFormFeedback(scannedAttachmentWarning, true);
+      const saveWarnings = [scannedAttachmentWarning, ledgerPostingWarning].filter(Boolean);
+      if (saveWarnings.length) {
+        showReceiptFormFeedback(saveWarnings.join(" "), true);
       }
     }
 
@@ -3640,6 +3697,7 @@
     }
 
     async function deleteExpense(id) {
+      // TODO GL: post an immutable reversal before deleting an expense journal source.
       if (!confirm("Delete this expense?")) return;
 
       const expenseToDelete = expenses.find(expense => String(expense.id) === String(id));
