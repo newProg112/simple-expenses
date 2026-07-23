@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Trial Balance | Simple Books</title>
+  <script type="module" src="/auth-guard.js"></script>
+
+  <style>
+    :root{
+      --accent:#0077B6;
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --text:#1f2933;
+      --heading:#102033;
+      --muted:#64748b;
+      --border:#dbe3ec;
+    }
+
+    *,
+    *::before,
+    *::after{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    h1,
+    h2,
+    p{
+      margin-top:0;
+    }
+
+    h1,
+    h2{
+      color:var(--heading);
+    }
+
+    h1{
+      margin-bottom:0;
+      font-size:30px;
+      line-height:1.1;
+    }
+
+    h2{
+      margin-bottom:0;
+      font-size:20px;
+      line-height:1.25;
+    }
+
+    .muted{
+      color:var(--muted);
+      line-height:1.45;
+    }
+
+    .page-title-row{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin:14px 0 18px;
+    }
+
+    .page-title-icon{
+      display:grid;
+      width:42px;
+      height:42px;
+      flex:0 0 auto;
+      place-items:center;
+      border-radius:12px;
+      background:#e8f3ff;
+      color:var(--accent);
+      font-size:15px;
+      font-weight:900;
+      box-shadow:inset 0 0 0 1px rgba(0,119,182,.08);
+    }
+
+    .page-title-row p{
+      margin:5px 0 0;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:14px;
+      margin-bottom:18px;
+    }
+
+    .kpi-card{
+      position:relative;
+      min-height:132px;
+      overflow:hidden;
+      border-color:#e6edf5;
+    }
+
+    .kpi-card::before{
+      content:"";
+      position:absolute;
+      inset:0 0 auto;
+      height:4px;
+      background:var(--kpi-accent,var(--accent));
+    }
+
+    .kpi-card:nth-child(2){--kpi-accent:#16a34a;}
+    .kpi-card:nth-child(3){--kpi-accent:#f97316;}
+    .kpi-card:nth-child(4){--kpi-accent:#7c3aed;}
+
+    .kpi-label{
+      color:var(--muted);
+      font-size:13px;
+      font-weight:750;
+    }
+
+    .kpi-value{
+      margin:10px 0 6px;
+      color:var(--heading);
+      font-size:27px;
+      font-weight:900;
+      line-height:1.1;
+    }
+
+    .kpi-meta{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    .status-placeholder{
+      display:inline-flex;
+      align-items:center;
+      min-height:28px;
+      padding:4px 10px;
+      border:1px solid #cbd5e1;
+      border-radius:999px;
+      background:#f8fafc;
+      color:#475569;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .status-placeholder.balanced{
+      border-color:#bbf7d0;
+      background:#f0fdf4;
+      color:#166534;
+    }
+
+    .status-placeholder.out-of-balance,
+    .status-placeholder.error{
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#991b1b;
+    }
+
+    .page-feedback{
+      margin-bottom:18px;
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#991b1b;
+      box-shadow:none;
+    }
+
+    .table-card{
+      padding:0;
+      overflow:hidden;
+    }
+
+    .table-heading{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      padding:20px;
+      border-bottom:1px solid var(--border);
+    }
+
+    .table-heading p{
+      margin:5px 0 0;
+    }
+
+    .table-scroll{
+      width:100%;
+      overflow-x:auto;
+    }
+
+    table{
+      width:100%;
+      min-width:680px;
+      border-collapse:collapse;
+    }
+
+    th,
+    td{
+      padding:14px 18px;
+      border-bottom:1px solid #e8eef5;
+      text-align:left;
+      vertical-align:middle;
+    }
+
+    th{
+      background:#f8fafc;
+      color:#475569;
+      font-size:12px;
+      font-weight:850;
+      letter-spacing:.02em;
+      text-transform:uppercase;
+    }
+
+    th:nth-child(3),
+    th:nth-child(4),
+    td:nth-child(3),
+    td:nth-child(4){
+      text-align:right;
+    }
+
+    tbody tr:last-child td{
+      border-bottom:0;
+    }
+
+    .empty-row td{
+      padding:48px 20px;
+      text-align:center;
+    }
+
+    .empty-state{
+      display:grid;
+      justify-items:center;
+      gap:8px;
+    }
+
+    .empty-state-icon{
+      display:grid;
+      width:44px;
+      height:44px;
+      place-items:center;
+      border-radius:50%;
+      background:#e8f3ff;
+      color:var(--accent);
+      font-weight:900;
+    }
+
+    .empty-state strong{
+      color:var(--heading);
+      font-size:15px;
+    }
+
+    .empty-state p{
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    @media (max-width:900px){
+      .kpi-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+
+    @media (max-width:560px){
+      h1{
+        font-size:25px;
+      }
+
+      .page-title-row{
+        align-items:flex-start;
+      }
+
+      .kpi-grid{
+        grid-template-columns:1fr;
+      }
+
+      .kpi-card{
+        min-height:116px;
+      }
+
+      .table-heading{
+        padding:18px;
+      }
+
+      th,
+      td{
+        padding:12px 14px;
+      }
+    }
+  </style>
+
+  <link rel="stylesheet" href="/assets/app-nav.css?v=20260702-nav2">
+</head>
+
+<body>
+  <main class="wrap">
+    <header class="app-header">
+      <a class="app-brand" href="/dashboard.html">
+        <img src="/assets/logo.png" alt="Simple Books logo">
+      </a>
+
+      <nav class="app-nav" aria-label="Main navigation">
+        <a href="/dashboard.html">Dashboard</a><span></span>
+        <a href="/resources/tools/invoice-generator.html">Invoices</a><span></span>
+        <a href="/resources/tools/bills.html">Bills</a><span></span>
+        <a href="/resources/tools/client-tracker.html">Clients</a><span></span>
+        <a href="/resources/tools/projects.html">Projects</a><span></span>
+        <a href="/resources/tools/expenses.html">Expenses</a><span></span>
+        <a href="/resources/tools/budgets.html">Budgets</a><span></span>
+        <a href="/resources/tools/cashflow.html">Cashflow</a><span></span>
+        <a class="active" href="/resources/tools/trial-balance.html" aria-current="page">Trial Balance</a><span></span>
+        <a href="/resources/tools/ai-assistant.html">AI Assistant</a><span></span>
+        <a href="/exports.html">Exports</a><span></span>
+        <a href="/account.html">Account</a>
+      </nav>
+    </header>
+
+    <section class="page-title-row" aria-labelledby="pageTitle">
+      <div class="page-title-icon" aria-hidden="true">TB</div>
+      <div>
+        <h1 id="pageTitle">Trial Balance</h1>
+        <p class="muted">Review debit and credit totals across your chart of accounts.</p>
+      </div>
+    </section>
+
+    <section class="kpi-grid" aria-label="Trial Balance summary">
+      <article class="card kpi-card">
+        <div class="kpi-label">Total Debits</div>
+        <div class="kpi-value" id="totalDebitsValue">&mdash;</div>
+        <div class="kpi-meta" id="totalDebitsMeta">Loading journal data&hellip;</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Total Credits</div>
+        <div class="kpi-value" id="totalCreditsValue">&mdash;</div>
+        <div class="kpi-meta" id="totalCreditsMeta">Loading journal data&hellip;</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Difference</div>
+        <div class="kpi-value" id="differenceValue">&mdash;</div>
+        <div class="kpi-meta" id="differenceMeta">Waiting for totals</div>
+      </article>
+
+      <article class="card kpi-card">
+        <div class="kpi-label">Status</div>
+        <div class="kpi-value"><span class="status-placeholder" id="statusValue">Loading</span></div>
+        <div class="kpi-meta" id="statusMeta">Loading journal data&hellip;</div>
+      </article>
+    </section>
+
+    <div class="card page-feedback" id="pageError" role="alert" hidden>
+      We could not calculate the Trial Balance. Please try again.
+    </div>
+
+    <section class="card table-card" aria-labelledby="accountsTitle">
+      <div class="table-heading">
+        <div>
+          <h2 id="accountsTitle">Account balances</h2>
+          <p class="muted" id="tableSummary">Loading journal data&hellip;</p>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table aria-describedby="accountsTitle">
+          <thead>
+            <tr>
+              <th scope="col">Account Code</th>
+              <th scope="col">Account Name</th>
+              <th scope="col">Debit</th>
+              <th scope="col">Credit</th>
+            </tr>
+          </thead>
+          <tbody id="trialBalanceTableBody">
+            <tr class="empty-row">
+              <td colspan="4">
+                <div class="empty-state">
+                  <span class="empty-state-icon" aria-hidden="true">TB</span>
+                  <strong>Loading journal data&hellip;</strong>
+                  <p>Please wait while your Trial Balance is prepared.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth, db } from "../../firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      collection,
+      getDocs,
+      query,
+      where
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      journalFromFirestoreData,
+      requireJournalOwnerId,
+      trialBalanceViewFromJournals
+    } from "../js/trial-balance-view.js";
+
+    const totalDebitsValue = document.getElementById("totalDebitsValue");
+    const totalCreditsValue = document.getElementById("totalCreditsValue");
+    const differenceValue = document.getElementById("differenceValue");
+    const totalDebitsMeta = document.getElementById("totalDebitsMeta");
+    const totalCreditsMeta = document.getElementById("totalCreditsMeta");
+    const differenceMeta = document.getElementById("differenceMeta");
+    const statusValue = document.getElementById("statusValue");
+    const statusMeta = document.getElementById("statusMeta");
+    const tableSummary = document.getElementById("tableSummary");
+    const tableBody = document.getElementById("trialBalanceTableBody");
+    const pageError = document.getElementById("pageError");
+    let loadedUserId = "";
+    let loadSequence = 0;
+
+    function setStatus(status, className = "") {
+      statusValue.textContent = status;
+      statusValue.className = `status-placeholder${className ? ` ${className}` : ""}`;
+    }
+
+    function renderStateRow(title, message) {
+      tableBody.replaceChildren();
+      const row = document.createElement("tr");
+      row.className = "empty-row";
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      const state = document.createElement("div");
+      state.className = "empty-state";
+      const icon = document.createElement("span");
+      icon.className = "empty-state-icon";
+      icon.setAttribute("aria-hidden", "true");
+      icon.textContent = "TB";
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const copy = document.createElement("p");
+      copy.textContent = message;
+      state.append(icon, heading, copy);
+      cell.append(state);
+      row.append(cell);
+      tableBody.append(row);
+    }
+
+    function renderLoading() {
+      pageError.hidden = true;
+      totalDebitsValue.textContent = "—";
+      totalCreditsValue.textContent = "—";
+      differenceValue.textContent = "—";
+      totalDebitsMeta.textContent = "Loading journal data…";
+      totalCreditsMeta.textContent = "Loading journal data…";
+      differenceMeta.textContent = "Waiting for totals";
+      setStatus("Loading");
+      statusMeta.textContent = "Loading journal data…";
+      tableSummary.textContent = "Loading journal data…";
+      renderStateRow(
+        "Loading journal data…",
+        "Please wait while your Trial Balance is prepared."
+      );
+    }
+
+    function renderRows(rows) {
+      tableBody.replaceChildren();
+
+      rows.forEach(account => {
+        const row = document.createElement("tr");
+        [
+          account.accountCode,
+          account.accountName,
+          account.debitDisplay || "—",
+          account.creditDisplay || "—"
+        ].forEach(value => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        });
+        tableBody.append(row);
+      });
+    }
+
+    function renderView(view) {
+      pageError.hidden = view.state !== "error";
+      totalDebitsValue.textContent = view.totalDebitsDisplay;
+      totalCreditsValue.textContent = view.totalCreditsDisplay;
+      differenceValue.textContent = view.differenceDisplay;
+      totalDebitsMeta.textContent = view.state === "ready"
+        ? "Closing debit balances"
+        : "No calculated total";
+      totalCreditsMeta.textContent = view.state === "ready"
+        ? "Closing credit balances"
+        : "No calculated total";
+      differenceMeta.textContent = view.state === "ready"
+        ? "Absolute debit-credit difference"
+        : "No calculated difference";
+      statusMeta.textContent = view.statusText;
+
+      if (view.state === "ready") {
+        setStatus(
+          view.status,
+          view.status === "Balanced" ? "balanced" : "out-of-balance"
+        );
+        tableSummary.textContent =
+          `${view.rows.length} ${view.rows.length === 1 ? "account" : "accounts"} with journal activity.`;
+        renderRows(view.rows);
+        return;
+      }
+
+      if (view.state === "empty") {
+        setStatus("No data");
+        tableSummary.textContent = "No account balances to display.";
+        renderStateRow(
+          "No journal data available.",
+          "Account balances will appear here after journals have been posted."
+        );
+        return;
+      }
+
+      setStatus("Unable to calculate", "error");
+      tableSummary.textContent = "Trial Balance unavailable.";
+      renderStateRow(
+        "Trial Balance unavailable.",
+        "We could not calculate the Trial Balance. Please try again."
+      );
+    }
+
+    async function loadTrialBalance(user) {
+      const sequence = ++loadSequence;
+      renderLoading();
+
+      try {
+        const ownerId = requireJournalOwnerId(user.uid);
+        const ownerQuery = query(
+          collection(db, "journals"),
+          where("userId", "==", ownerId)
+        );
+        const snapshot = await getDocs(ownerQuery);
+        if (sequence !== loadSequence || auth.currentUser?.uid !== ownerId) return;
+        const journals = snapshot.docs.map(documentSnapshot =>
+          journalFromFirestoreData(
+            documentSnapshot.id,
+            documentSnapshot.data()
+          )
+        );
+        const view = trialBalanceViewFromJournals(journals);
+
+        if (view.state === "error") {
+          console.error("Trial Balance calculation failed", view.error);
+        }
+
+        renderView(view);
+      } catch (error) {
+        if (sequence !== loadSequence) return;
+        console.error("Trial Balance journal load failed", error);
+        renderView({
+          state: "error",
+          rows: [],
+          totalDebitsDisplay: "—",
+          totalCreditsDisplay: "—",
+          differenceDisplay: "—",
+          status: "Unable to calculate",
+          statusText: "Please try again"
+        });
+      }
+    }
+
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        loadedUserId = "";
+        loadSequence += 1;
+        return;
+      }
+      if (loadedUserId === user.uid) return;
+      loadedUserId = user.uid;
+      loadTrialBalance(user);
+    });
+  </script>
+</body>
+</html>

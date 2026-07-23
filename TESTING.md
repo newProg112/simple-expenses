@@ -85,3 +85,17 @@ npm.cmd test
 ```
 
 Stage 2D excludes historical mileage backfill, immutable reversal-and-repost history on edit, deletion reversals, reimbursement-payment journals, bank postings, a General Ledger UI, Trial Balance UI, and P&L or Balance Sheet interfaces. Mileage deletion remains unchanged and carries a source-level TODO for a future immutable reversal.
+
+## General Ledger Stage 3A.2: Trial Balance data
+
+The authenticated Trial Balance page queries the top-level `journals` collection with an equality constraint on the current user's `userId`. It performs no writes. Firestore journal documents are copied into the existing ledger-engine shape and passed to `buildTrialBalance()`; invalid journals produce an error state rather than repaired or partial totals.
+
+The table presents one closing balance per account, with debit balances shown only in Debit and credit balances shown only in Credit. KPI totals are the summed closing balances, and the status is Balanced only after journal data has loaded and the two-decimal difference is zero. Loading, no-data, and calculation-error states remain distinct.
+
+Pure view and conversion tests live in `tests/trial-balance-view.test.js` and run with:
+
+```sh
+npm.cmd test
+```
+
+This stage excludes date filters, comparative periods, exports, drill-down account ledgers, P&L and Balance Sheet pages, journal editing, and any change to posting behaviour.
