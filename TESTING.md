@@ -22,6 +22,27 @@ Phase 1 tests live in `tests/` and cover invoice totals and VAT, due-date and da
 
 This phase deliberately excludes browser automation, Firebase Emulator tests, integration and end-to-end tests, AI and Stripe tests, invoice scanning, deployment checks, and CI configuration.
 
+## Plan entitlements: Phase 1 foundation
+
+Version 1 has two plans. Starter includes 10 successful AI Assistant uses and 10 successful invoice scans per calendar month, up to 5 active projects, and no Accountant Pack, Trial Balance, General Ledger, Profit & Loss, or Balance Sheet. Pro includes 500 successful uses per calendar month for each AI feature, unlimited active projects, the Accountant Pack, and all four advanced reports.
+
+The browser definition is in `resources/js/plan-entitlements.js`, with a CommonJS equivalent for Cloud Functions in `functions/lib/plan-entitlements.js`. `tests/plan-entitlements.test.js` proves that their constants, definitions, and helper behaviour remain in parity. Unlimited active projects use the explicit JSON-compatible value `null`; unknown allowances are not unlimited.
+
+Monthly usage will be based on UTC calendar months. The shared helper produces stable `YYYY-MM` keys such as `2026-07` and `2027-01`. No usage counters are created or updated in Phase 1.
+
+Only the exact subscription states `active` and `trialing` are currently recognised by the entitlement helper as eligible Pro states. Plan and status must both qualify. Unknown or malformed plans fail safely to Starter, while `past_due`, `cancelled`, `canceled`, missing, and unknown statuses fail closed.
+
+The existing Stripe webhook remains unchanged in Phase 1 and currently collapses every Stripe subscription status except `canceled` into the stored application status `active`; `canceled` is stored as `cancelled`. This is known technical debt. The stored mapped status must not be relied upon for real paid-feature enforcement until the webhook preserves the relevant Stripe states correctly. At minimum, `past_due`, `trialing`, `canceled`, and other applicable Stripe states must be revisited before paid-feature gating goes live. Grace periods and access through `current_period_end` are also deferred.
+
+Phase 1 introduces definitions and pure helpers only. It does not restrict, hide, disable, meter, or otherwise change any live feature. Later phases are planned in this order:
+
+1. Account-page usage display.
+2. AI Assistant limits.
+3. Invoice-scanning limits.
+4. Active-project limit.
+5. Accountant Pack and advanced-report gates.
+6. Homepage pricing comparison.
+
 ## Frontend error monitoring
 
 Production frontend JavaScript errors are monitored with the Sentry Browser Loader Script on `simple-books.co.uk` and `simple-books-office.web.app`. The bootstrap automatically captures uncaught browser JavaScript exceptions and unhandled promise rejections. It does not add custom `captureException` calls to application code.

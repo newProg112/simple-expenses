@@ -256,6 +256,19 @@
     .status-dot.completed{background:#7c3aed;}
     .status-dot.on-hold{background:#f97316;}
 
+    .project-create-actions{
+      max-width:360px;
+      text-align:right;
+    }
+
+    .project-limit-message{
+      margin:8px 0 0;
+      color:#9a3412;
+      font-size:12px;
+      font-weight:750;
+      line-height:1.45;
+    }
+
     .ranking-scroll{width:100%;overflow-x:auto;}
     .ranking-list{min-width:360px;}
     .ranking-row{
@@ -889,7 +902,10 @@
         <h1 id="pageTitle">Projects</h1>
         <p class="muted">Organise client work, dates and budgets in one place.</p>
       </div>
-      <button class="btn" id="newProjectButton" type="button">New project</button>
+      <div class="project-create-actions">
+        <button class="btn" id="newProjectButton" type="button">New project</button>
+        <p class="project-limit-message" id="projectLimitMessage" role="status" hidden></p>
+      </div>
     </section>
 
     <div class="feedback" id="pageFeedback" role="status" aria-live="polite" hidden></div>
@@ -1180,6 +1196,12 @@
   <script type="module">
     import { auth, db } from "../../firebase-config.js";
     import {
+      PROJECT_STATUS,
+      activeProjectLimitMessage,
+      canSaveProjectStatus,
+      canUseAnotherActiveProject
+    } from "../js/project-access.js";
+    import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
@@ -1187,12 +1209,13 @@
       collection,
       deleteDoc,
       doc,
+      getDoc,
       getDocs,
       serverTimestamp,
       updateDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    const allowedStatuses = ["Active", "Completed", "On Hold"];
+    const allowedStatuses = Object.values(PROJECT_STATUS);
     const elements = {
       search: document.getElementById("projectSearch"),
       statusFilter: document.getElementById("projectStatusFilter"),
@@ -1204,6 +1227,9 @@
       noResultsState: document.getElementById("noResultsState"),
       resultCount: document.getElementById("projectResultCount"),
       pageFeedback: document.getElementById("pageFeedback"),
+      projectLimitMessage: document.getElementById("projectLimitMessage"),
+      newProjectButton: document.getElementById("newProjectButton"),
+      emptyNewProjectButton: document.getElementById("emptyNewProjectButton"),
       projectOverlay: document.getElementById("projectModalOverlay"),
       deleteOverlay: document.getElementById("deleteModalOverlay"),
       form: document.getElementById("projectForm"),
@@ -1233,6 +1259,7 @@
     let portfolioBills = [];
     let portfolioExpenses = [];
     let portfolioDataLoaded = false;
+    let currentPlan;
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -1737,6 +1764,16 @@
       }
     }
 
+    async function loadCurrentPlan(user) {
+      try {
+        const profile = await getDoc(doc(db, "userProfiles", user.uid));
+        currentPlan = profile.exists() ? profile.data().currentPlan : undefined;
+      } catch (error) {
+        console.error("Firestore billing profile load failed", error);
+        currentPlan = undefined;
+      }
+    }
+
     function renderKpis() {
       document.getElementById("totalProjects").textContent = projects.length;
       document.getElementById("activeProjects").textContent = projects.filter(project => project.status === "Active").length;
@@ -1797,6 +1834,19 @@
           </td>
         </tr>
       `).join("");
+      renderProjectCreationAvailability();
+    }
+
+    function renderProjectCreationAvailability() {
+      const limitReached = !canUseAnotherActiveProject(currentPlan, projects);
+      const message = limitReached ? activeProjectLimitMessage(currentPlan) : "";
+
+      [elements.newProjectButton, elements.emptyNewProjectButton].forEach(button => {
+        button.disabled = limitReached;
+        button.title = message;
+      });
+      elements.projectLimitMessage.textContent = message;
+      elements.projectLimitMessage.hidden = !message;
     }
 
     function openOverlay(overlay, focusTarget) {
@@ -1815,6 +1865,11 @@
     }
 
     function openProjectForm(project = null) {
+      if (!project && !canUseAnotherActiveProject(currentPlan, projects)) {
+        showPageFeedback(activeProjectLimitMessage(currentPlan), true);
+        return;
+      }
+
       editingProjectId = project?.id || null;
       elements.form.reset();
       clearValidation();
@@ -1848,10 +1903,6 @@
         return;
       }
 
-      isSaving = true;
-      elements.saveButton.disabled = true;
-      elements.saveButton.textContent = editingProjectId ? "Saving changes..." : "Saving project...";
-
       const customer = selectedCustomer();
       const data = {
         name: elements.name.value.trim(),
@@ -1866,7 +1917,50 @@
         updatedAt: serverTimestamp()
       };
 
+      const existingProject = projects.find(project => project.id === editingProjectId);
+      const needsActiveCapacity = data.status === PROJECT_STATUS.ACTIVE &&
+        existingProject?.status !== PROJECT_STATUS.ACTIVE;
+
+      if (!canSaveProjectStatus({
+        plan: currentPlan,
+        projects,
+        projectId: editingProjectId,
+        nextStatus: data.status
+      })) {
+        setFormFeedback(activeProjectLimitMessage(currentPlan));
+        return;
+      }
+
+      isSaving = true;
+      elements.saveButton.disabled = true;
+      elements.saveButton.textContent = editingProjectId ? "Saving changes..." : "Saving project...";
+
       try {
+        if (needsActiveCapacity) {
+          const [profileSnapshot, projectsSnapshot] = await Promise.all([
+            getDoc(doc(db, "userProfiles", user.uid)),
+            getDocs(collection(db, "users", user.uid, "projects"))
+          ]);
+          currentPlan = profileSnapshot.exists()
+            ? profileSnapshot.data().currentPlan
+            : undefined;
+          projects = projectsSnapshot.docs
+            .map(normaliseProject)
+            .sort((a, b) => projectSortValue(b) - projectSortValue(a));
+
+          if (!canSaveProjectStatus({
+            plan: currentPlan,
+            projects,
+            projectId: editingProjectId,
+            nextStatus: data.status
+          })) {
+            renderProjects();
+            renderPortfolio();
+            setFormFeedback(activeProjectLimitMessage(currentPlan));
+            return;
+          }
+        }
+
         if (editingProjectId) {
           await updateDoc(doc(db, "users", user.uid, "projects", editingProjectId), data);
           const existing = projects.find(project => project.id === editingProjectId);
@@ -1956,8 +2050,8 @@
       elements.search.focus();
     }
 
-    document.getElementById("newProjectButton").addEventListener("click", () => openProjectForm());
-    document.getElementById("emptyNewProjectButton").addEventListener("click", () => openProjectForm());
+    elements.newProjectButton.addEventListener("click", () => openProjectForm());
+    elements.emptyNewProjectButton.addEventListener("click", () => openProjectForm());
     document.getElementById("projectModalClose").addEventListener("click", closeProjectForm);
     document.getElementById("cancelProjectButton").addEventListener("click", closeProjectForm);
     document.getElementById("deleteModalClose").addEventListener("click", closeDeleteConfirmation);
@@ -1994,7 +2088,13 @@
 
     onAuthStateChanged(auth, async user => {
       if (!user) return;
-      await Promise.all([loadProjects(user), loadCustomers(user), loadPortfolioTransactions(user)]);
+      await Promise.all([
+        loadCurrentPlan(user),
+        loadProjects(user),
+        loadCustomers(user),
+        loadPortfolioTransactions(user)
+      ]);
+      renderProjects();
       renderPortfolio();
     });
   </script>
