@@ -13,6 +13,11 @@ const {defineSecret} = require("firebase-functions/params");
 const functionsV1 = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const Stripe = require("stripe");
+const {
+  isBillingPortalStatus,
+  stripeSubscriptionStatus,
+} = require("./lib/stripe-subscription-status");
+const {readMonthlyUsage} = require("./lib/monthly-usage-reader");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -139,15 +144,6 @@ function subscriptionPriceId(subscription) {
   const firstItem = items[0] || {};
   const price = firstItem.price || {};
   return price.id || "";
-}
-
-/**
- * Maps Stripe subscription status to Simple Books subscription status.
- * @param {object} subscription Stripe subscription object.
- * @return {string} Simple Books subscription status.
- */
-function subscriptionStatus(subscription) {
-  return subscription.status === "canceled" ? "cancelled" : "active";
 }
 
 /**
@@ -500,7 +496,7 @@ exports.createBillingPortalSession = onRequest(
         const profile = profileSnap.exists ? profileSnap.data() : {};
         const customerId = profile.stripeCustomerId || "";
         const hasPortalAccess = profile.currentPlan === "Pro" &&
-          profile.subscriptionStatus === "active" &&
+          isBillingPortalStatus(profile.subscriptionStatus) &&
           profile.billingOverride !== true &&
           customerId;
 
@@ -608,7 +604,7 @@ exports.stripeWebhook = onRequest(
             {};
 
           await updateSubscriptionProfile(uid, {
-            subscriptionStatus: "active",
+            subscriptionStatus: stripeSubscriptionStatus(subscription),
             stripeCustomerId: session.customer || "",
             stripeSubscriptionId: session.subscription || "",
             stripePriceId,
@@ -646,9 +642,7 @@ exports.stripeWebhook = onRequest(
           );
 
           await updateSubscriptionProfile(uid, {
-            subscriptionStatus: event.type === "customer.subscription.deleted" ?
-              "cancelled" :
-              subscriptionStatus(subscription),
+            subscriptionStatus: stripeSubscriptionStatus(subscription),
             stripeCustomerId: subscriptionCustomerId(subscription),
             stripeSubscriptionId: subscription.id,
             stripePriceId: subscriptionPriceId(subscription),
@@ -672,6 +666,7 @@ const {
   askBusinessAssistantPreview,
 } = require("./ai-assistant-preview");
 const {
+  AI_USAGE_ENFORCEMENT_ENABLED,
   askBusinessAssistant,
 } = require("./ai-assistant");
 const {
@@ -681,3 +676,53 @@ const {
 exports.askBusinessAssistantPreview = askBusinessAssistantPreview;
 exports.askBusinessAssistant = askBusinessAssistant;
 exports.scanBusinessDocument = scanBusinessDocument;
+exports.getMonthlyUsage = onRequest(
+    {
+      cors: [
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "https://simple-books.co.uk",
+      ],
+      invoker: "public",
+    },
+    async (request, response) => {
+      if (request.method !== "POST") {
+        response.status(405).json({error: "Method not allowed."});
+        return;
+      }
+
+      const authorization = request.get("Authorization") || "";
+      const match = authorization.match(/^Bearer (.+)$/);
+
+      if (!match) {
+        response.status(401).json({
+          error: "You must be signed in to view monthly usage.",
+        });
+        return;
+      }
+
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(match[1]);
+        const usage = await readMonthlyUsage(
+            admin.firestore(),
+            decodedToken.uid,
+        );
+        response.json({
+          ...usage,
+          trackingEnabled: AI_USAGE_ENFORCEMENT_ENABLED,
+        });
+      } catch (error) {
+        const errorCode = error && error.code ? String(error.code) : "";
+        const isAuthError = errorCode.startsWith("auth/");
+        console.error("getMonthlyUsage failed", {
+          code: errorCode || "unknown",
+          message: error && error.message ? String(error.message) : "Unknown",
+        });
+        response.status(isAuthError ? 401 : 500).json({
+          error: isAuthError ?
+            "You must be signed in to view monthly usage." :
+            "Monthly usage could not be loaded.",
+        });
+      }
+    },
+);

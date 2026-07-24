@@ -18,9 +18,9 @@ Run tests in watch mode while editing:
 npm run test:watch
 ```
 
-Phase 1 tests live in `tests/` and cover invoice totals and VAT, due-date and date formatting helpers, chronological month ordering, and receivables ageing boundaries. They run entirely in Node and do not need a browser, Firebase, network services, OpenAI, Stripe, or production data.
+Automated tests live in `tests/` and cover invoice totals and VAT, due-date and date formatting helpers, chronological month ordering, receivables ageing boundaries, plan entitlements, and subscription feature gates. They run entirely in Node and do not need a browser, Firebase, network services, OpenAI, Stripe, or production data.
 
-This phase deliberately excludes browser automation, Firebase Emulator tests, integration and end-to-end tests, AI and Stripe tests, invoice scanning, deployment checks, and CI configuration.
+The suite deliberately excludes browser automation, Firebase Emulator tests, integration and end-to-end tests, live OpenAI and Stripe calls, invoice scanning, deployment checks, and CI configuration.
 
 ## Plan entitlements: Phase 1 foundation
 
@@ -32,7 +32,7 @@ Monthly usage will be based on UTC calendar months. The shared helper produces s
 
 Only the exact subscription states `active` and `trialing` are currently recognised by the entitlement helper as eligible Pro states. Plan and status must both qualify. Unknown or malformed plans fail safely to Starter, while `past_due`, `cancelled`, `canceled`, missing, and unknown statuses fail closed.
 
-The existing Stripe webhook remains unchanged in Phase 1 and currently collapses every Stripe subscription status except `canceled` into the stored application status `active`; `canceled` is stored as `cancelled`. This is known technical debt. The stored mapped status must not be relied upon for real paid-feature enforcement until the webhook preserves the relevant Stripe states correctly. At minimum, `past_due`, `trialing`, `canceled`, and other applicable Stripe states must be revisited before paid-feature gating goes live. Grace periods and access through `current_period_end` are also deferred.
+Phase 1 left the existing Stripe webhook unchanged. At that point it collapsed every Stripe subscription status except `canceled` into the stored application status `active`, and stored `canceled` as `cancelled`. Phase 4A corrects that technical debt as described below.
 
 Phase 1 introduces definitions and pure helpers only. It does not restrict, hide, disable, meter, or otherwise change any live feature. Later phases are planned in this order:
 
@@ -42,6 +42,39 @@ Phase 1 introduces definitions and pure helpers only. It does not restrict, hide
 4. Active-project limit.
 5. Accountant Pack and advanced-report gates.
 6. Homepage pricing comparison.
+
+## AI monthly usage: Phase 4A backend foundation
+
+Phase 4A adds backend-controlled, transaction-safe usage infrastructure while leaving `AI_USAGE_ENFORCEMENT_ENABLED` set to `false`. The production AI Assistant therefore does not read or write usage, reject requests at an allowance boundary, or otherwise change its existing behaviour. There are no UI changes or usage meters.
+
+The eventual authoritative decision reads billing data from `userProfiles/{uid}` and uses only the Phase 1 backend entitlement helper. It does not accept plan names, subscription states, counters, or limits from the browser. The exact Pro plan with `active` or `trialing` status receives the Pro allowance; missing, malformed, unknown, `past_due`, and `canceled` billing states fail safely to Starter. An existing explicit `billingOverride: true` continues to qualify an exact Pro profile. No grace period or `current_period_end` policy has been introduced.
+
+Usage is stored in one backend-owned monthly document:
+
+```text
+userProfiles/{uid}/usage/{YYYY-MM}
+  aiAssistantSuccessfulUses: number
+  invoiceScanningSuccessfulUses: number
+  aiAssistantReservations:
+    {requestId}: {reservedAtMillis, expiresAtMillis}
+  aiAssistantCompletedRequests:
+    {requestId}: completedAtMillis
+  updatedAt: server timestamp
+```
+
+The month key comes from the shared `calendarMonthKey()` helper and is always a UTC `YYYY-MM` value. The invoice-scanning counter is reserved for a later phase and is not currently changed by any feature.
+
+One Firestore transaction owns each allowance check and reservation. Active reservations count against the available allowance, so simultaneous requests cannot both take the final slot. A usable OpenAI answer finalises the matching request UUID, increments the successful-use counter, and records the UUID in the same transaction. Repeating an in-progress or completed UUID is rejected before another provider call, so it cannot increment again or be reused for free requests. Provider failures, timeouts, and malformed or empty responses release the reservation; abandoned reservations expire after two minutes, safely beyond the Function's 60-second maximum runtime, and are removed opportunistically. The pending and completed maps are naturally bounded by the monthly plan allowance.
+
+A successful use eventually means an authenticated, valid, supported business-data question for which an OpenAI request was made and returned a usable answer. Unauthenticated or invalid calls, unsupported questions, client-side failures, pre-provider failures, provider timeouts or errors, malformed or empty provider responses, deterministic fallbacks, and internal failures do not count.
+
+Usage documents contain operational counters, timestamps, and opaque request UUIDs only. They do not contain questions, answers, business summaries, invoices, customer names, emails, tokens, request bodies, or uploaded documents. Firestore rules are unchanged; only trusted Function code has been added to write this structure.
+
+Stripe subscription writes now preserve the actual supported Stripe value: `incomplete`, `incomplete_expired`, `trialing`, `active`, `past_due`, `canceled`, `unpaid`, or `paused`. Unknown or malformed values are stored as an empty status rather than promoted to `active`. The entitlement helper continues to recognise only `active` and `trialing` as Pro-eligible. Existing comped, discounted, and test profiles are not rewritten, and explicit billing overrides remain supported by the authoritative usage resolver. Phase 4A does not add grace-period behaviour.
+
+Phase 4B adds a read-only Account-page dashboard and an authenticated backend reader for the current UTC usage document. The dashboard gets allowance values and remaining calculations from the shared entitlement helpers, shows zero for a missing usage document, and clearly states that usage tracking is not yet enabled. The reader does not create or update usage data, and `AI_USAGE_ENFORCEMENT_ENABLED` remains `false`.
+
+Before any later enforcement phase, legacy subscription profiles must be verified or reconciled against Stripe so no previously collapsed stored status is trusted. That phase must separately approve the customer-facing allowance behaviour, change the server-owned enforcement switch, and rerun the concurrency, provider-failure, idempotency, AI regression, lint, and full test suites. Neither Phase 4A nor Phase 4B migrates existing profiles or activates enforcement.
 
 ## Frontend error monitoring
 

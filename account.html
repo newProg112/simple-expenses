@@ -542,6 +542,78 @@
       display:none;
     }
 
+    .monthly-usage-section{
+      margin:18px 0;
+    }
+
+    .monthly-usage-heading{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:18px;
+      margin-bottom:16px;
+    }
+
+    .monthly-usage-heading h2{
+      margin:0 0 5px;
+    }
+
+    .monthly-usage-status{
+      margin:0;
+      border:1px solid #bae6fd;
+      border-radius:14px;
+      background:#f0f9ff;
+      color:#075985;
+      padding:10px 12px;
+      font-size:14px;
+      font-weight:800;
+    }
+
+    .monthly-usage-status:empty{
+      display:none;
+    }
+
+    .monthly-usage-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:14px;
+    }
+
+    .monthly-usage-item{
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#f9fbfd;
+      padding:16px;
+    }
+
+    .monthly-usage-item h3{
+      margin:0 0 12px;
+      font-size:17px;
+    }
+
+    .monthly-usage-details{
+      display:grid;
+      gap:9px;
+      margin:0;
+    }
+
+    .monthly-usage-details div{
+      display:flex;
+      justify-content:space-between;
+      gap:14px;
+    }
+
+    .monthly-usage-details dt{
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    .monthly-usage-details dd{
+      margin:0;
+      color:var(--primary);
+      font-weight:900;
+    }
+
     @media (max-width:800px){
       .account-summary,
       .account-summary.member-since-hidden{
@@ -572,6 +644,14 @@
     @media (max-width:640px){
       .wrap{
         padding:24px 16px 44px;
+      }
+
+      .monthly-usage-heading{
+        display:grid;
+      }
+
+      .monthly-usage-grid{
+        grid-template-columns:1fr;
       }
     }
   </style>
@@ -761,6 +841,63 @@
       </div>
     </section>
 
+    <section class="card monthly-usage-section" aria-labelledby="monthlyUsageTitle">
+      <div class="monthly-usage-heading">
+        <div>
+          <h2 id="monthlyUsageTitle">Monthly usage</h2>
+          <div class="muted">Usage resets by UTC calendar month.</div>
+        </div>
+        <p
+          class="monthly-usage-status"
+          id="monthlyUsageStatus"
+          role="status"
+          aria-live="polite"
+        >Usage tracking is not yet enabled.</p>
+      </div>
+
+      <div class="monthly-usage-grid">
+        <article class="monthly-usage-item">
+          <h3>AI Assistant</h3>
+          <dl class="monthly-usage-details">
+            <div>
+              <dt>Monthly allowance</dt>
+              <dd id="monthlyAiAllowance">â€”</dd>
+            </div>
+            <div>
+              <dt>Current usage</dt>
+              <dd id="monthlyAiCurrent">0</dd>
+            </div>
+            <div>
+              <dt>Remaining</dt>
+              <dd id="monthlyAiRemaining">â€”</dd>
+            </div>
+            <div>
+              <dt>Reset month</dt>
+              <dd id="monthlyUsageMonth">â€”</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="monthly-usage-item">
+          <h3>Invoice Scanning</h3>
+          <dl class="monthly-usage-details">
+            <div>
+              <dt>Monthly allowance</dt>
+              <dd id="monthlyScanAllowance">â€”</dd>
+            </div>
+            <div>
+              <dt>Current usage</dt>
+              <dd id="monthlyScanCurrent">0</dd>
+            </div>
+            <div>
+              <dt>Remaining</dt>
+              <dd id="monthlyScanRemaining">â€”</dd>
+            </div>
+          </dl>
+        </article>
+      </div>
+    </section>
+
     <div class="grid">
 
       <div class="card">
@@ -899,6 +1036,9 @@
 
   <script type="module">
     import { app, auth, db } from "./firebase-config.js";
+    import {
+      buildMonthlyUsageView
+    } from "./resources/js/monthly-usage.js";
 
     import {
       onAuthStateChanged,
@@ -937,6 +1077,8 @@
       "https://us-central1-simple-books-office.cloudfunctions.net/createBillingPortalSession";
     const ENSURE_PROFILE_FUNCTION_URL =
       "https://us-central1-simple-books-office.cloudfunctions.net/ensureUserProfile";
+    const MONTHLY_USAGE_FUNCTION_URL =
+      "https://us-central1-simple-books-office.cloudfunctions.net/getMonthlyUsage";
 
     let currentUser = null;
     let billingProfile = {};
@@ -954,6 +1096,7 @@
       clients: 0,
       expenses: 0
     };
+    let monthlyUsage = {};
 
     function accountStorageKey(user = currentUser){
       return user ? `simpleBooksAccount:${user.uid}` : "simpleBooksAccount";
@@ -1232,6 +1375,58 @@
       setText("usageBills", usageCounts.bills);
       setText("usageClients", usageCounts.clients);
       setText("usageExpenses", usageCounts.expenses);
+    }
+
+    function renderMonthlyUsage(account = {}){
+      const view = buildMonthlyUsageView({
+        profile: account,
+        usage: monthlyUsage,
+        monthKey: monthlyUsage.monthKey,
+        trackingEnabled: monthlyUsage.trackingEnabled
+      });
+
+      setText("monthlyUsageStatus", view.message);
+      setText("monthlyUsageMonth", view.monthKey);
+      setText("monthlyAiAllowance", view.aiAssistant.allowance);
+      setText("monthlyAiCurrent", view.aiAssistant.current);
+      setText("monthlyAiRemaining", view.aiAssistant.remaining);
+      setText("monthlyScanAllowance", view.invoiceScanning.allowance);
+      setText("monthlyScanCurrent", view.invoiceScanning.current);
+      setText("monthlyScanRemaining", view.invoiceScanning.remaining);
+    }
+
+    function resetMonthlyUsage(){
+      monthlyUsage = {};
+      renderMonthlyUsage(accountWithBilling(currentAccountSnapshot()));
+    }
+
+    async function loadMonthlyUsageFromBackend(){
+      if(!currentUser){
+        resetMonthlyUsage();
+        return;
+      }
+
+      try {
+        const idToken = await currentUser.getIdToken();
+        const response = await fetch(MONTHLY_USAGE_FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${idToken}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        if(!response.ok){
+          throw new Error("Monthly usage could not be loaded.");
+        }
+
+        monthlyUsage = await response.json();
+      } catch(error) {
+        console.error("Could not load monthly usage", error);
+        monthlyUsage = {};
+      }
+
+      renderMonthlyUsage(accountWithBilling(currentAccountSnapshot()));
     }
 
     function resetUsageStats(){
@@ -1516,6 +1711,7 @@
     function renderAccountInsightCards(account){
       renderSetupCard(account);
       renderUsageStats();
+      renderMonthlyUsage(account);
       renderSubscriptionCard(account);
     }
 
@@ -1678,7 +1874,10 @@
 
       updateVatNumberState();
       renderAccountInsightCards(renderedAccount);
-      await loadUsageStatsFromFirestore();
+      await Promise.all([
+        loadUsageStatsFromFirestore(),
+        loadMonthlyUsageFromBackend()
+      ]);
     }
 
     async function saveAccount(){

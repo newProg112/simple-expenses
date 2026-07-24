@@ -80,6 +80,25 @@ export function isUnlimited(allowance) {
   return allowance === null;
 }
 
+export function normaliseUsageCount(value) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+
+  return Math.floor(value);
+}
+
+export function remainingMonthlyAllowance(limit, usage) {
+  if (isUnlimited(limit)) {
+    return null;
+  }
+
+  return Math.max(
+    0,
+    normaliseUsageCount(limit) - normaliseUsageCount(usage)
+  );
+}
+
 export function isFeatureIncluded(plan, featureId) {
   if (!featureIds.has(featureId)) {
     return false;

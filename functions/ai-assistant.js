@@ -9,6 +9,7 @@ const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const {buildBusinessSummary} = require("./lib/business-summary");
 const {buildOpenAIRequest} = require("./lib/assistant-prompt");
+const {createAiUsageManager} = require("./lib/ai-usage");
 const {
   createPreviewResponse,
   routeQuestion,
@@ -18,6 +19,7 @@ const {
 const REGION = "us-central1";
 const MAX_AI_ANSWER_LENGTH = 1200;
 const OPENAI_TIMEOUT_MS = 20000;
+const AI_USAGE_ENFORCEMENT_ENABLED = false;
 const DISCLAIMER = "Business information only. This is not accounting, tax or legal advice.";
 const UNSUPPORTED_ANSWER = [
   "I'm the Simple Books Business Assistant, so I can help explain your invoices, bills, expenses, projects, budgets and cashflow.",
@@ -121,6 +123,43 @@ async function handleAssistantRequest(request, dependencies) {
     disclaimer: DISCLAIMER,
     dataAsOf: summary.meta.generatedAt,
   };
+  const usageEnforcementEnabled =
+    supplied.usageEnforcementEnabled === undefined ?
+      AI_USAGE_ENFORCEMENT_ENABLED :
+      supplied.usageEnforcementEnabled === true;
+  const usageManager = usageEnforcementEnabled ?
+    supplied.usageManager || createAiUsageManager({
+      firestore,
+      now: () => supplied.now || new Date(),
+      serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    }) :
+    null;
+  let usageReservation;
+
+  if (usageManager) {
+    usageReservation = await usageManager.reserve({
+      uid: request.auth.uid,
+      requestId: validated.requestId,
+    });
+    if (usageReservation.state === "limit-reached") {
+      throw new HttpsError(
+          "resource-exhausted",
+          "The monthly AI Assistant allowance has been reached.",
+      );
+    }
+    if (usageReservation.state === "in-progress") {
+      throw new HttpsError(
+          "aborted",
+          "This AI Assistant request is already in progress.",
+      );
+    }
+    if (usageReservation.state === "completed") {
+      throw new HttpsError(
+          "already-exists",
+          "This AI Assistant request has already completed.",
+      );
+    }
+  }
 
   try {
     const client = supplied.openaiClient || createOpenAIClient(
@@ -131,6 +170,13 @@ async function handleAssistantRequest(request, dependencies) {
     );
     const answer = cleanAiAnswer(providerResponse && providerResponse.output_text);
     if (!answer) throw new Error("OpenAI returned no answer.");
+    if (usageManager && usageReservation.state === "reserved") {
+      await usageManager.finalize({
+        uid: request.auth.uid,
+        monthKey: usageReservation.monthKey,
+        requestId: validated.requestId,
+      });
+    }
 
     log.info("Business assistant AI response completed", {
       requestId: validated.requestId.slice(0, 12),
@@ -143,6 +189,20 @@ async function handleAssistantRequest(request, dependencies) {
       answer,
     };
   } catch (error) {
+    if (usageManager && usageReservation &&
+      usageReservation.state === "reserved") {
+      try {
+        await usageManager.release({
+          uid: request.auth.uid,
+          monthKey: usageReservation.monthKey,
+          requestId: validated.requestId,
+        });
+      } catch (releaseError) {
+        log.error("Business assistant usage reservation release failed", {
+          requestId: validated.requestId.slice(0, 12),
+        });
+      }
+    }
     log.warn(
         "Business assistant used deterministic fallback",
         providerErrorDetails(error),
@@ -166,6 +226,7 @@ const askBusinessAssistant = onCall(
 );
 
 module.exports = {
+  AI_USAGE_ENFORCEMENT_ENABLED,
   askBusinessAssistant,
   cleanAiAnswer,
   handleAssistantRequest,

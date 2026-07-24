@@ -13,6 +13,7 @@ const {
   sanitizeBusinessSummary,
 } = require("../lib/assistant-prompt");
 const {
+  AI_USAGE_ENFORCEMENT_ENABLED,
   cleanAiAnswer,
   handleAssistantRequest,
   providerErrorDetails,
@@ -220,6 +221,8 @@ const callableRequest = {
 const silentLogger = {error() {}, info() {}, warn() {}};
 
 async function run() {
+  assert.equal(AI_USAGE_ENFORCEMENT_ENABLED, false);
+
   const expectedUnsupportedAnswer = [
     "I'm the Simple Books Business Assistant, so I can help explain your invoices, bills, expenses, projects, budgets and cashflow.",
     "",
@@ -233,6 +236,7 @@ async function run() {
   ].join("\n");
   let unsupportedSummaryCalls = 0;
   let unsupportedProviderCalls = 0;
+  let unsupportedUsageCalls = 0;
   const unrelatedQuestions = [
     "What is the capital of France?",
     "Give me a trivia question.",
@@ -258,6 +262,13 @@ async function run() {
           },
         },
       },
+      usageEnforcementEnabled: true,
+      usageManager: {
+        reserve: async () => {
+          unsupportedUsageCalls += 1;
+          throw new Error("Usage must not be called for unrelated questions.");
+        },
+      },
       logger: silentLogger,
     });
     assert.equal(unsupported.success, true);
@@ -271,8 +282,10 @@ async function run() {
   }
   assert.equal(unsupportedSummaryCalls, 0);
   assert.equal(unsupportedProviderCalls, 0);
+  assert.equal(unsupportedUsageCalls, 0);
 
   let capturedRequest = null;
+  let disabledUsageCalls = 0;
   const aiResponse = await handleAssistantRequest(callableRequest, {
     firestore: {},
     now,
@@ -283,6 +296,12 @@ async function run() {
           capturedRequest = request;
           return {output_text: "One invoice is overdue, totalling £120.00."};
         },
+      },
+    },
+    usageManager: {
+      reserve: async () => {
+        disabledUsageCalls += 1;
+        throw new Error("Disabled usage infrastructure must not run.");
       },
     },
     environment: {},
@@ -296,8 +315,134 @@ async function run() {
   assert.equal(aiResponse.sources[0].module, "Invoices");
   assert.equal(JSON.stringify(capturedRequest).includes("authenticated-uid-never-sent"), false);
   assert.equal(JSON.stringify(capturedRequest).includes("invoice-internal-id"), false);
+  assert.equal(disabledUsageCalls, 0);
+
+  const successUsageEvents = [];
+  const meteredSuccess = await handleAssistantRequest(callableRequest, {
+    firestore: {},
+    now,
+    buildBusinessSummary: async () => summary,
+    openaiClient: {
+      responses: {
+        create: async () => ({output_text: "A successful metered answer."}),
+      },
+    },
+    usageEnforcementEnabled: true,
+    usageManager: {
+      reserve: async (details) => {
+        successUsageEvents.push(["reserve", details]);
+        return {
+          state: "reserved",
+          monthKey: "2026-07",
+        };
+      },
+      finalize: async (details) => {
+        successUsageEvents.push(["finalize", details]);
+      },
+      release: async (details) => {
+        successUsageEvents.push(["release", details]);
+      },
+    },
+    environment: {},
+    logger: silentLogger,
+  });
+  assert.equal(meteredSuccess.mode, "ai");
+  assert.deepEqual(successUsageEvents.map(([event]) => event), [
+    "reserve",
+    "finalize",
+  ]);
+  assert.deepEqual(successUsageEvents[0][1], {
+    uid: callableRequest.auth.uid,
+    requestId,
+  });
+  assert.deepEqual(successUsageEvents[1][1], {
+    uid: callableRequest.auth.uid,
+    monthKey: "2026-07",
+    requestId,
+  });
+
+  let overLimitProviderCalls = 0;
+  await assert.rejects(
+      handleAssistantRequest(callableRequest, {
+        firestore: {},
+        now,
+        buildBusinessSummary: async () => summary,
+        openaiClient: {
+          responses: {
+            create: async () => {
+              overLimitProviderCalls += 1;
+              return {output_text: "Must not be called."};
+            },
+          },
+        },
+        usageEnforcementEnabled: true,
+        usageManager: {
+          reserve: async () => ({state: "limit-reached", limit: 10}),
+        },
+        logger: silentLogger,
+      }),
+      (error) => error.code === "resource-exhausted",
+  );
+  assert.equal(overLimitProviderCalls, 0);
+
+  let completedRetryProviderCalls = 0;
+  await assert.rejects(
+      handleAssistantRequest(callableRequest, {
+        firestore: {},
+        now,
+        buildBusinessSummary: async () => summary,
+        openaiClient: {
+          responses: {
+            create: async () => {
+              completedRetryProviderCalls += 1;
+              return {output_text: "Must not be called."};
+            },
+          },
+        },
+        usageEnforcementEnabled: true,
+        usageManager: {
+          reserve: async () => ({state: "completed", limit: 10}),
+        },
+        logger: silentLogger,
+      }),
+      (error) => error.code === "already-exists",
+  );
+  assert.equal(completedRetryProviderCalls, 0);
+
+  const malformedUsageEvents = [];
+  const malformedProviderFallback = await handleAssistantRequest(
+      callableRequest,
+      {
+        firestore: {},
+        now,
+        buildBusinessSummary: async () => summary,
+        openaiClient: {
+          responses: {
+            create: async () => ({output_text: "   "}),
+          },
+        },
+        usageEnforcementEnabled: true,
+        usageManager: {
+          reserve: async () => ({
+            state: "reserved",
+            monthKey: "2026-07",
+          }),
+          finalize: async () => {
+            malformedUsageEvents.push("finalize");
+          },
+          release: async () => {
+            malformedUsageEvents.push("release");
+          },
+        },
+        environment: {},
+        logger: silentLogger,
+      },
+  );
+  assert.equal(malformedProviderFallback.mode, "deterministic-fallback");
+  assert.deepEqual(malformedUsageEvents, ["release"]);
 
   let fallbackLog = null;
+  const failedUsageEvents = [];
   const fallback = await handleAssistantRequest(callableRequest, {
     firestore: {},
     now,
@@ -311,6 +456,23 @@ async function run() {
           error.response = {body: "private provider response"};
           throw error;
         },
+      },
+    },
+    usageEnforcementEnabled: true,
+    usageManager: {
+      reserve: async (details) => {
+        failedUsageEvents.push(["reserve", details]);
+        return {
+          state: "reserved",
+          monthKey: "2026-07",
+        };
+      },
+      finalize: async (details) => {
+        failedUsageEvents.push(["finalize", details]);
+      },
+      release: async (details) => {
+        failedUsageEvents.push(["release", details]);
+        return {released: true};
       },
     },
     environment: {},
@@ -331,6 +493,15 @@ async function run() {
     providerStatus: 503,
   });
   assert.equal(JSON.stringify(fallbackLog).includes("private provider response"), false);
+  assert.deepEqual(failedUsageEvents.map(([event]) => event), [
+    "reserve",
+    "release",
+  ]);
+  assert.deepEqual(failedUsageEvents[1][1], {
+    uid: callableRequest.auth.uid,
+    monthKey: "2026-07",
+    requestId,
+  });
 
   await assert.rejects(
       handleAssistantRequest({data: callableRequest.data}, {}),

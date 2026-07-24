@@ -131,6 +131,25 @@ describe.each(adapters)("%s plan entitlements", (_name, entitlements) => {
     }
   });
 
+  it("normalises usage and calculates remaining monthly allowance", () => {
+    expect(entitlements.normaliseUsageCount(4.9)).toBe(4);
+    expect(entitlements.remainingMonthlyAllowance(10, 4.9)).toBe(6);
+    expect(entitlements.remainingMonthlyAllowance(10, 11)).toBe(0);
+    expect(entitlements.remainingMonthlyAllowance(null, 500)).toBeNull();
+
+    for (const usage of [
+      undefined,
+      null,
+      -1,
+      Infinity,
+      "4",
+      {},
+      []
+    ]) {
+      expect(entitlements.normaliseUsageCount(usage)).toBe(0);
+    }
+  });
+
   it("fails closed for unknown feature and report identifiers", () => {
     expect(entitlements.isFeatureIncluded(
       "Pro",
@@ -210,6 +229,10 @@ describe("frontend and backend parity", () => {
       ["getMonthlyLimit", ["Pro", "unknownLimit"]],
       ["isUnlimited", [null]],
       ["isUnlimited", [Infinity]],
+      ["normaliseUsageCount", [4.9]],
+      ["normaliseUsageCount", ["4"]],
+      ["remainingMonthlyAllowance", [10, 4]],
+      ["remainingMonthlyAllowance", [null, 500]],
       ["isFeatureIncluded", ["Pro", "accountantPack"]],
       ["isFeatureIncluded", ["Pro", "unknownFeature"]],
       ["isReportIncluded", ["Pro", "balanceSheet"]],

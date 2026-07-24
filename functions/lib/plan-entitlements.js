@@ -102,6 +102,36 @@ function isUnlimited(allowance) {
 }
 
 /**
+ * Normalises a stored monthly usage counter.
+ * @param {*} value Stored usage value.
+ * @return {number} A non-negative integer.
+ */
+function normaliseUsageCount(value) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+
+  return Math.floor(value);
+}
+
+/**
+ * Calculates the remaining monthly allowance.
+ * @param {number|null} limit Monthly allowance.
+ * @param {*} usage Stored usage value.
+ * @return {number|null} Remaining uses, or null when unlimited.
+ */
+function remainingMonthlyAllowance(limit, usage) {
+  if (isUnlimited(limit)) {
+    return null;
+  }
+
+  return Math.max(
+      0,
+      normaliseUsageCount(limit) - normaliseUsageCount(usage),
+  );
+}
+
+/**
  * Checks whether a named feature is included in a plan.
  * @param {*} plan Stored plan value.
  * @param {string} featureId Feature identifier.
@@ -177,6 +207,8 @@ module.exports = {
   getPlanEntitlements,
   getMonthlyLimit,
   isUnlimited,
+  normaliseUsageCount,
+  remainingMonthlyAllowance,
   isFeatureIncluded,
   isReportIncluded,
   isProEligibleSubscriptionStatus,
