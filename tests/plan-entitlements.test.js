@@ -237,7 +237,6 @@ describe("Phase 1 integration boundary", () => {
       "../resources/tools/ai-assistant.html",
       "../resources/tools/bills.html",
       "../resources/tools/expenses.html",
-      "../exports.html",
       "../resources/tools/trial-balance.html",
       "../resources/tools/general-ledger.html",
       "../resources/tools/profit-loss.html",

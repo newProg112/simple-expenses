@@ -305,6 +305,31 @@
       min-height: 58px;
     }
 
+    .accountant-pack-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .accountant-pack-plan-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #075985;
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .accountant-pack-card.is-locked {
+      border-color: #bae6fd;
+      background: #f8fcff;
+    }
+
     .accountant-field {
       display: flex;
       min-width: 0;
@@ -432,7 +457,7 @@
       font-size: 10px;
     }
 
-    .accountant-pack-card .accountant-generate-btn:first-of-type {
+    .accountant-pack-card .accountant-generate-btn {
       width: 100%;
       min-height: 44px;
       align-self: stretch;
@@ -441,6 +466,26 @@
       box-sizing: border-box;
       text-align: center;
       cursor: pointer;
+    }
+
+    .accountant-pack-actions {
+      display: grid;
+      gap: 9px;
+      margin-top: 14px;
+    }
+
+    .accountant-pack-actions .accountant-generate-btn,
+    .accountant-pack-actions .accountant-upgrade-btn {
+      width: 100%;
+      min-height: 44px;
+      margin-top: 0;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    .accountant-pack-plan-badge[hidden],
+    .accountant-pack-actions .accountant-upgrade-btn[hidden] {
+      display: none;
     }
 
     .import-message.accountant-pack-message {
@@ -1047,8 +1092,11 @@
         <div class="import-message" id="excelImportMessage" aria-live="polite"></div>
       </div>
 
-      <div class="card accountant-pack-card">
-        <h2>Accountant Pack</h2>
+      <div class="card accountant-pack-card" id="accountantPackCard">
+        <div class="accountant-pack-heading">
+          <h2>Accountant Pack</h2>
+          <span class="accountant-pack-plan-badge" id="accountantPackPlanBadge" hidden></span>
+        </div>
 
         <p class="muted accountant-pack-description">
           Create an accountant-ready ZIP containing Excel reports, PDFs and supporting documents.
@@ -1104,9 +1152,17 @@
           </ul>
         </details>
 
-        <button class="btn accountant-generate-btn" id="generateAccountantPackButton" type="button">
-          Generate Accountant Pack
-        </button>
+        <div class="accountant-pack-actions">
+          <button class="btn accountant-generate-btn" id="generateAccountantPackButton" type="button" disabled>
+            Generate Accountant Pack
+          </button>
+          <a
+            class="btn btn-secondary accountant-upgrade-btn"
+            id="accountantPackUpgradeLink"
+            href="/account.html"
+            hidden
+          >Upgrade</a>
+        </div>
 
         <div
           class="import-message accountant-pack-message"
@@ -1167,6 +1223,9 @@
 
   <script type="module">
     import { app, auth, db } from "/firebase-config.js";
+    import {
+      getAccountantPackAccess
+    } from "/resources/js/accountant-pack-access.js";
 
     import {
       addDoc,
@@ -1209,6 +1268,23 @@
         resolve(user);
       });
     });
+
+    window.simpleBooksAccountantPackAccessReady =
+      window.simpleBooksBackupUserReady
+        .then(async (user) => {
+          let profilePlan;
+
+          if(user){
+            const profile = await getDoc(doc(db, "userProfiles", user.uid));
+            profilePlan = profile.exists() ? profile.data().currentPlan : undefined;
+          }
+
+          return getAccountantPackAccess(profilePlan);
+        })
+        .catch((error) => {
+          console.error("Accountant Pack access check failed", error);
+          return getAccountantPackAccess();
+        });
   </script>
 
   <script>
@@ -4913,7 +4989,26 @@
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    async function requireAccountantPackAccess(){
+        const accessReady = window.simpleBooksAccountantPackAccessReady;
+
+        if(!accessReady){
+          throw createAccountantPackError(
+            "Accountant Pack access could not be verified."
+          );
+        }
+
+        const resolvedAccess = await accessReady;
+
+        if(!resolvedAccess.allowed){
+          throw createAccountantPackError(resolvedAccess.message);
+        }
+
+        return resolvedAccess;
+    }
+
     async function generateAccountantPackZip(period, onStage){
+        await requireAccountantPackAccess();
         const generatedAt = new Date().toISOString();
         onStage?.({ stage: "data" });
         const [XLSX, JSZip, data] = await Promise.all([
@@ -5333,7 +5428,18 @@
       const customDateControls = document.getElementById("accountantCustomDateControls");
       const generateButton = document.getElementById("generateAccountantPackButton");
       const message = document.getElementById("accountantPackMessage");
+      const card = document.getElementById("accountantPackCard");
+      const planBadge = document.getElementById("accountantPackPlanBadge");
+      const upgradeLink = document.getElementById("accountantPackUpgradeLink");
       const defaultButtonText = generateButton?.textContent.trim() || "Generate Accountant Pack";
+      const accessReady = window.simpleBooksAccountantPackAccessReady ||
+        Promise.resolve({
+          allowed: false,
+          badgeLabel: "",
+          message: "Accountant Pack access could not be verified.",
+          upgradeLabel: "Upgrade"
+        });
+      let access;
       let isGenerating = false;
       let messageTimer;
 
@@ -5349,7 +5455,7 @@
         }
       }
 
-      function showMessage(text, type){
+      function showMessage(text, type, persistent = false){
         if(!message){
           return;
         }
@@ -5362,10 +5468,34 @@
           message.classList.add(type);
         }
 
-        messageTimer = window.setTimeout(() => {
-          message.textContent = "";
-          message.classList.remove("success", "error", "warning", "loading");
-        }, 6500);
+        if(!persistent){
+          messageTimer = window.setTimeout(() => {
+            message.textContent = "";
+            message.classList.remove("success", "error", "warning", "loading");
+          }, 6500);
+        }
+      }
+
+      function renderAccess(resolvedAccess){
+        access = resolvedAccess;
+        const locked = !resolvedAccess.allowed;
+
+        card?.classList.toggle("is-locked", locked);
+        generateButton.disabled = locked;
+
+        if(planBadge){
+          planBadge.textContent = resolvedAccess.badgeLabel;
+          planBadge.hidden = !locked;
+        }
+
+        if(upgradeLink){
+          upgradeLink.textContent = resolvedAccess.upgradeLabel;
+          upgradeLink.hidden = !locked;
+        }
+
+        if(locked){
+          showMessage(resolvedAccess.message, "warning", true);
+        }
       }
 
       function updateGenerationStage(progress){
@@ -5398,6 +5528,14 @@
 
       async function handleGenerate(){
         if(isGenerating || !generateButton){
+          return;
+        }
+
+        const resolvedAccess = access || await accessReady;
+
+        if(!resolvedAccess.allowed){
+          renderAccess(resolvedAccess);
+          showMessage(resolvedAccess.message, "warning", true);
           return;
         }
 
@@ -5438,7 +5576,7 @@
           );
         }finally{
           isGenerating = false;
-          generateButton.disabled = false;
+          generateButton.disabled = !access?.allowed;
           generateButton.textContent = defaultButtonText;
           generateButton.removeAttribute("aria-busy");
         }
@@ -5448,9 +5586,10 @@
       generateButton?.addEventListener("click", handleGenerate);
 
       updatePeriodControls();
+      accessReady.then(renderAccess);
     }
 
-    initialiseAccountantPackUi();
+    window.addEventListener("DOMContentLoaded", initialiseAccountantPackUi, { once: true });
     loadAccountantPackGeneratedAt();
     loadLastBackupDownloadedAt();
     loadBusinessRecordsTotal();
