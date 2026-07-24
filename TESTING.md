@@ -22,6 +22,34 @@ Phase 1 tests live in `tests/` and cover invoice totals and VAT, due-date and da
 
 This phase deliberately excludes browser automation, Firebase Emulator tests, integration and end-to-end tests, AI and Stripe tests, invoice scanning, deployment checks, and CI configuration.
 
+## Frontend error monitoring
+
+Production frontend JavaScript errors are monitored with the Sentry Browser Loader Script on `simple-books.co.uk` and `simple-books-office.web.app`. The bootstrap automatically captures uncaught browser JavaScript exceptions and unhandled promise rejections. It does not add custom `captureException` calls to application code.
+
+Only Error Monitoring is enabled. Logging, Session Replay, tracing, performance monitoring, Application Metrics, profiling, user feedback, backend Firebase Functions monitoring, and release tracking are deliberately disabled. Backend Functions monitoring and deployment-generated releases are later phases.
+
+`assets/sentry-monitoring.js` rejects every hostname except the two approved production hosts, including localhost, `127.0.0.1`, Live Server, Firebase emulators, preview channels, and lookalike domains. It sets `sendDefaultPii` to `false`, removes request bodies, headers, cookies, query strings, URL fragments, user identity, and extra event data, and retains only sanitised navigation breadcrumbs. Console, network, and UI-interaction breadcrumbs are discarded. The application does not add invoices, bills, customers, projects, AI prompts or responses, uploaded documents, Firebase data, authentication tokens, Stripe data, bank details, VAT numbers, or other user-entered content as Sentry context.
+
+Automated monitoring contracts live in `tests/sentry-monitoring.test.js`. Run them with:
+
+```sh
+npm.cmd test -- tests/sentry-monitoring.test.js
+```
+
+For a local guard check, serve the repository locally and open `/manual-tests/sentry-monitoring.html`. It must report that Sentry did not load. Its button deliberately throws one labelled local error only when selected; because localhost is rejected, that error must appear only in the local browser console and must not reach Sentry. `manual-tests/**` is excluded from Firebase Hosting.
+
+For a one-off end-to-end production verification, open an approved production page, confirm `window.Sentry` is available, and deliberately run this in that browser tab's developer console:
+
+```js
+setTimeout(() => {
+  throw new Error("Simple Books Sentry manual verification error");
+}, 0);
+```
+
+Remove nothing from production afterward because this command is not stored in application code. Confirm the labelled issue appears in Sentry with environment `production`, no query string or fragment, no user identity, no request payload, and no sensitive breadcrumbs. Do not paste sensitive information into the test message.
+
+To disable monitoring without removing files, remove the approved hostnames from `assets/sentry-monitoring.js`. To remove it completely, delete that file and remove the marked `Sentry frontend error monitoring` script block from the monitored HTML documents; `firebase.json`, this note, and the focused tests/manual helper may then be removed as well.
+
 ## General Ledger Stage 1
 
 `resources/js/ledger-engine.js` contains a pure double-entry engine with a small Chart of Accounts. It creates and validates journals for sales invoices, supplier bills, employee expenses, and mileage claims; reverses journals; detects duplicate source postings; and builds trial balances and account ledgers.

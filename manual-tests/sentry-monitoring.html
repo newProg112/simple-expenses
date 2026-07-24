@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sentry local verification | Simple Books</title>
+  <script>
+    window.__SIMPLE_BOOKS_SENTRY_TEST__ = true;
+  </script>
+  <script src="../assets/sentry-monitoring.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Sentry local verification</h1>
+    <p id="status">Checking the local production-host guard…</p>
+    <button id="throw-test-error" type="button">Throw labelled local test error</button>
+    <p>The error runs only when the button is selected. Sentry must remain disabled on localhost.</p>
+  </main>
+  <script>
+    const sentryActive = Boolean(document.getElementById("simple-books-sentry-loader"));
+    document.getElementById("status").textContent = sentryActive
+      ? "Unexpected: Sentry attempted to load on this host."
+      : "Passed: Sentry did not load on this local host.";
+
+    document.getElementById("throw-test-error").addEventListener("click", () => {
+      setTimeout(() => {
+        throw new Error("Simple Books Sentry local manual verification error");
+      }, 0);
+    });
+  </script>
+</body>
+</html>
