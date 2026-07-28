@@ -402,7 +402,7 @@
   <div data-app-navigation></div>
   <div class="app-content">
   <main class="wrap">
-<section class="page-title-row" aria-labelledby="pageTitle">
+    <section class="page-title-row" aria-labelledby="pageTitle">
       <div class="page-title-icon" aria-hidden="true">GL</div>
       <div>
         <h1 id="pageTitle">General Ledger</h1>
@@ -410,6 +410,14 @@
       </div>
     </section>
 
+    <section
+      class="card financial-report-access-gate"
+      id="financialReportAccessGate"
+      aria-live="polite"
+      hidden
+    ></section>
+
+    <div id="financialReportContent" hidden>
     <section class="kpi-grid" aria-label="General Ledger summary">
       <article class="card kpi-card">
         <div class="kpi-label">Accounts</div>
@@ -500,6 +508,7 @@
         </table>
       </div>
     </section>
+    </div>
   </main>
 
   <script type="module">
@@ -507,10 +516,17 @@
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
+      doc,
+      getDoc,
       getDocs,
       query,
       where
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { REPORT_IDS } from "../js/plan-entitlements.js";
+    import {
+      getFinancialReportAccess,
+      renderFinancialReportAccess
+    } from "../js/financial-report-access.js";
     import {
       journalFromFirestoreData,
       requireJournalOwnerId
@@ -535,6 +551,8 @@
     const closingBalance = document.getElementById("closingBalance");
     const tableBody = document.getElementById("generalLedgerTableBody");
     const pageError = document.getElementById("pageError");
+    const accessGate = document.getElementById("financialReportAccessGate");
+    const reportContent = document.getElementById("financialReportContent");
     const requestedAccount = new URLSearchParams(window.location.search).get("account") || "";
     let journals = [];
     let loadedUserId = "";
@@ -744,17 +762,51 @@
     accountSelect.addEventListener("change", applyCurrentFilters);
     refreshButton.addEventListener("click", applyCurrentFilters);
 
+    async function authoriseGeneralLedger(user) {
+      try {
+        const profile = await getDoc(doc(db, "userProfiles", user.uid));
+        if (auth.currentUser?.uid !== user.uid) {
+          return;
+        }
+        const profilePlan = profile.exists()
+          ? profile.data().currentPlan
+          : undefined;
+        const access = getFinancialReportAccess(
+          profilePlan,
+          REPORT_IDS.GENERAL_LEDGER
+        );
+        renderFinancialReportAccess(access, { gate: accessGate, reportContent });
+
+        if (!access.allowed) {
+          return;
+        }
+
+        loadGeneralLedger(user);
+      } catch (error) {
+        if (auth.currentUser?.uid !== user.uid) {
+          return;
+        }
+        console.error("General Ledger access check failed", error);
+        renderFinancialReportAccess(
+          getFinancialReportAccess(undefined, REPORT_IDS.GENERAL_LEDGER),
+          { gate: accessGate, reportContent }
+        );
+      }
+    }
+
     onAuthStateChanged(auth, user => {
       if (!user) {
         journals = [];
         journalsLoaded = false;
         loadedUserId = "";
         loadSequence += 1;
+        reportContent.hidden = true;
+        accessGate.hidden = true;
         return;
       }
       if (loadedUserId === user.uid) return;
       loadedUserId = user.uid;
-      loadGeneralLedger(user);
+      authoriseGeneralLedger(user);
     });
   </script>
   </div>

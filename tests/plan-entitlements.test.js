@@ -259,11 +259,7 @@ describe("Phase 1 integration boundary", () => {
       "../index.html",
       "../resources/tools/ai-assistant.html",
       "../resources/tools/bills.html",
-      "../resources/tools/expenses.html",
-      "../resources/tools/trial-balance.html",
-      "../resources/tools/general-ledger.html",
-      "../resources/tools/profit-loss.html",
-      "../resources/tools/balance-sheet.html"
+      "../resources/tools/expenses.html"
     ];
 
     for (const relativePath of liveEntryPoints) {

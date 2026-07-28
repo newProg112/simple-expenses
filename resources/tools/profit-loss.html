@@ -420,7 +420,7 @@
   <div data-app-navigation></div>
   <div class="app-content">
   <main class="wrap">
-<section class="page-title-row" aria-labelledby="pageTitle">
+    <section class="page-title-row" aria-labelledby="pageTitle">
       <div class="page-title-icon" aria-hidden="true">P&amp;L</div>
       <div>
         <h1 id="pageTitle">Profit &amp; Loss</h1>
@@ -428,6 +428,14 @@
       </div>
     </section>
 
+    <section
+      class="card financial-report-access-gate"
+      id="financialReportAccessGate"
+      aria-live="polite"
+      hidden
+    ></section>
+
+    <div id="financialReportContent" hidden>
     <section class="kpi-grid" aria-label="Profit and Loss summary">
       <article class="card kpi-card">
         <div class="kpi-label">Revenue</div>
@@ -523,6 +531,7 @@
         <p id="emptyStateText">Please wait while your Profit &amp; Loss report is prepared.</p>
       </div>
     </section>
+    </div>
   </main>
 
   <script type="module">
@@ -530,10 +539,17 @@
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
+      doc,
+      getDoc,
       getDocs,
       query,
       where
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { REPORT_IDS } from "../js/plan-entitlements.js";
+    import {
+      getFinancialReportAccess,
+      renderFinancialReportAccess
+    } from "../js/financial-report-access.js";
     import {
       journalFromFirestoreData,
       requireJournalOwnerId
@@ -565,6 +581,8 @@
     const emptyState = document.getElementById("emptyState");
     const emptyStateTitle = document.getElementById("emptyStateTitle");
     const emptyStateText = document.getElementById("emptyStateText");
+    const accessGate = document.getElementById("financialReportAccessGate");
+    const reportContent = document.getElementById("financialReportContent");
     let journals = [];
     let loadedUserId = "";
     let loadSequence = 0;
@@ -733,6 +751,38 @@
 
     refreshButton.addEventListener("click", applyCurrentFilters);
 
+    async function authoriseProfitLoss(user) {
+      try {
+        const profile = await getDoc(doc(db, "userProfiles", user.uid));
+        if (auth.currentUser?.uid !== user.uid) {
+          return;
+        }
+        const profilePlan = profile.exists()
+          ? profile.data().currentPlan
+          : undefined;
+        const access = getFinancialReportAccess(
+          profilePlan,
+          REPORT_IDS.PROFIT_LOSS
+        );
+        renderFinancialReportAccess(access, { gate: accessGate, reportContent });
+
+        if (!access.allowed) {
+          return;
+        }
+
+        loadProfitLoss(user);
+      } catch (error) {
+        if (auth.currentUser?.uid !== user.uid) {
+          return;
+        }
+        console.error("Profit & Loss access check failed", error);
+        renderFinancialReportAccess(
+          getFinancialReportAccess(undefined, REPORT_IDS.PROFIT_LOSS),
+          { gate: accessGate, reportContent }
+        );
+      }
+    }
+
     onAuthStateChanged(auth, user => {
       if (!user) {
         journals = [];
@@ -740,12 +790,13 @@
         loadedUserId = "";
         loadSequence += 1;
         refreshButton.disabled = true;
-        renderLoading();
+        reportContent.hidden = true;
+        accessGate.hidden = true;
         return;
       }
       if (loadedUserId === user.uid) return;
       loadedUserId = user.uid;
-      loadProfitLoss(user);
+      authoriseProfitLoss(user);
     });
   </script>
   </div>

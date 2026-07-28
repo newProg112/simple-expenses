@@ -25,6 +25,44 @@ body[data-sidebar-state="collapsed"]{
   transition:margin-left .2s ease;
 }
 
+.financial-report-access-gate{
+  padding:28px;
+  text-align:center;
+}
+
+.financial-report-plan-badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:4px 10px;
+  border:1px solid #bae6fd;
+  border-radius:999px;
+  background:#e0f2fe;
+  color:#075985;
+  font-size:13px;
+  font-weight:800;
+}
+
+.financial-report-upgrade-message{
+  margin:14px 0 18px;
+  color:#475569;
+  font-weight:700;
+}
+
+.financial-report-access-gate .btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:42px;
+  padding:10px 16px;
+  border:1px solid var(--accent);
+  border-radius:10px;
+  background:var(--accent);
+  color:#fff;
+  font-weight:800;
+  text-decoration:none;
+}
+
 .sb-shell-sidebar{
   position:fixed;
   z-index:1000;
