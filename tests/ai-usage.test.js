@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const {
   RESERVATION_TTL_MS,
+  USAGE_TYPES,
   createAiUsageManager,
   getAuthoritativeAiLimit,
+  getAuthoritativeInvoiceScanningLimit,
   normalizeUsageCount,
   remainingAllowance,
   resolveAuthoritativePlan,
@@ -144,6 +146,14 @@ describe("authoritative AI allowances", () => {
     expect(getAuthoritativeAiLimit({
       currentPlan: "Pro",
       subscriptionStatus: "trialing"
+    })).toBe(500);
+    expect(getAuthoritativeInvoiceScanningLimit({
+      currentPlan: "Starter",
+      subscriptionStatus: "active"
+    })).toBe(10);
+    expect(getAuthoritativeInvoiceScanningLimit({
+      currentPlan: "Pro",
+      subscriptionStatus: "active"
     })).toBe(500);
   });
 
@@ -286,8 +296,61 @@ describe("transaction-safe reservations", () => {
       aiAssistantCompletedRequests: {
         [requestIds[0]]: now.getTime()
       },
+      invoiceScanningReservations: {},
+      invoiceScanningCompletedRequests: {},
       updatedAt: "server-timestamp"
     });
+  });
+
+  it("finalises a successful invoice scan exactly once", async () => {
+    const { firestore, manager } = createFixture();
+    const reservation = await manager.reserve({
+      uid,
+      requestId: requestIds[0],
+      enforceLimit: false,
+      usageType: USAGE_TYPES.INVOICE_SCANNING
+    });
+
+    const first = await manager.finalize({
+      uid,
+      requestId: requestIds[0],
+      usageType: USAGE_TYPES.INVOICE_SCANNING,
+      ...reservation
+    });
+    const retry = await manager.finalize({
+      uid,
+      requestId: requestIds[0],
+      usageType: USAGE_TYPES.INVOICE_SCANNING,
+      ...reservation
+    });
+    const stored = firestore.read(usagePath);
+
+    expect(first).toEqual({ counted: true, successfulUses: 1 });
+    expect(retry).toEqual({ counted: false, successfulUses: 1 });
+    expect(stored.aiAssistantSuccessfulUses).toBe(0);
+    expect(stored.invoiceScanningSuccessfulUses).toBe(1);
+    expect(stored.invoiceScanningReservations).toEqual({});
+    expect(stored.invoiceScanningCompletedRequests).toEqual({
+      [requestIds[0]]: now.getTime()
+    });
+  });
+
+  it("releases a failed invoice scan without counting it", async () => {
+    const { firestore, manager } = createFixture();
+    const reservation = await manager.reserve({
+      uid,
+      requestId: requestIds[0],
+      enforceLimit: false,
+      usageType: USAGE_TYPES.INVOICE_SCANNING
+    });
+    await manager.release({
+      uid,
+      requestId: requestIds[0],
+      usageType: USAGE_TYPES.INVOICE_SCANNING,
+      ...reservation
+    });
+
+    expect(firestore.read(usagePath).invoiceScanningSuccessfulUses).toBe(0);
   });
 
   it("releases a failed request without consuming its allowance", async () => {
@@ -378,6 +441,8 @@ describe("transaction-safe reservations", () => {
       "aiAssistantCompletedRequests",
       "aiAssistantReservations",
       "aiAssistantSuccessfulUses",
+      "invoiceScanningCompletedRequests",
+      "invoiceScanningReservations",
       "invoiceScanningSuccessfulUses",
       "updatedAt"
     ]);

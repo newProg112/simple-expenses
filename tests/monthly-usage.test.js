@@ -114,7 +114,7 @@ describe("monthly usage presentation", () => {
     expect(counting.enforcementEnabled).toBe(false);
     expect(counting.message).toBe(USAGE_ENFORCEMENT_DISABLED_MESSAGE);
     expect(counting.message).toBe(
-      "AI Assistant usage is being counted. Monthly limits are not enforced yet."
+      "AI Assistant and Invoice Scanning usage are being counted. Monthly limits are not enforced yet."
     );
     expect(enforced.message).toBe("");
   });
@@ -248,13 +248,13 @@ describe("Account page monthly usage integration", () => {
       expect(accountHtml).toContain(`id="${id}"`);
     }
     expect(accountHtml).toContain(
-      "AI Assistant usage is being counted. Monthly limits are not enforced yet."
+      "AI Assistant and Invoice Scanning usage are being counted. Monthly limits are not enforced yet."
     );
   });
 
   it("uses the entitlement-backed presentation helper", () => {
     expect(accountHtml).toContain(
-      'from "./resources/js/monthly-usage.js?v=20260728-phase4c"'
+      'from "./resources/js/monthly-usage.js?v=20260728-phase4d"'
     );
     expect(accountHtml).toContain("buildMonthlyUsageView({");
     expect(accountHtml).toContain("MONTHLY_USAGE_FUNCTION_URL");
@@ -272,7 +272,7 @@ describe("Account page monthly usage integration", () => {
       expect(assistantHtml).toContain(`id="${id}"`);
     }
     expect(assistantHtml).toContain(
-      'import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260728-phase4c"'
+      'import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260728-phase4d"'
     );
     expect(assistantHtml).toContain(
       "cloudfunctions.net/getMonthlyUsage"

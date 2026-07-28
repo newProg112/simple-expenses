@@ -11,7 +11,7 @@ import {
 export const USAGE_TRACKING_DISABLED_MESSAGE =
   "AI Assistant usage status is unavailable.";
 export const USAGE_ENFORCEMENT_DISABLED_MESSAGE =
-  "AI Assistant usage is being counted. Monthly limits are not enforced yet.";
+  "AI Assistant and Invoice Scanning usage are being counted. Monthly limits are not enforced yet.";
 
 export function buildUsageMetric(allowance, usage) {
   const current = normaliseUsageCount(usage);

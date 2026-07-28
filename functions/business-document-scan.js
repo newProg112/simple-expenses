@@ -6,11 +6,20 @@ const OpenAI = require("openai");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
+const admin = require("firebase-admin");
+const {
+  USAGE_TYPES,
+  createMonthlyUsageManager,
+} = require("./lib/ai-usage");
 
 const REGION = "us-central1";
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const OPENAI_TIMEOUT_MS = 45000;
 const DEFAULT_DOCUMENT_MODEL = "gpt-5.6-sol";
+const INVOICE_SCANNING_USAGE_COUNTING_ENABLED = true;
+const INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED = false;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_CONTEXTS = new Set(["bill", "expense"]);
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -57,6 +66,17 @@ const NUMBER_RESULT_FIELDS = new Set([
   "totalAmount",
   "confidence",
 ]);
+const USABLE_RESULT_FIELDS = [
+  "supplier",
+  "merchant",
+  "invoiceNumber",
+  "invoiceDate",
+  "dueDate",
+  "netAmount",
+  "vatAmount",
+  "totalAmount",
+  "description",
+];
 const DOCUMENT_SCHEMA = {
   type: "object",
   properties: {
@@ -153,8 +173,11 @@ function validateCallableData(data) {
   }
 
   const keys = Object.keys(data);
-  if (keys.some((key) => !["context", "file"].includes(key))) {
+  if (keys.some((key) => !["requestId", "context", "file"].includes(key))) {
     throw new HttpsError("invalid-argument", "Request data contains unsupported fields.");
+  }
+  if (!UUID_PATTERN.test(String(data.requestId || ""))) {
+    throw new HttpsError("invalid-argument", "requestId must be a valid UUID.");
   }
   if (!ALLOWED_CONTEXTS.has(data.context)) {
     throw new HttpsError("invalid-argument", "Document context must be bill or expense.");
@@ -195,7 +218,13 @@ function validateCallableData(data) {
     throw new HttpsError("invalid-argument", "The document size does not match the uploaded data.");
   }
 
-  return {context: data.context, name, mimeType, buffer};
+  return {
+    requestId: data.requestId,
+    context: data.context,
+    name,
+    mimeType,
+    buffer,
+  };
 }
 
 function buildOpenAIRequest(validated, environment) {
@@ -259,6 +288,18 @@ function validateExtraction(value) {
   if (String(value.documentType || "").toLowerCase() === "unsupported") {
     throw new HttpsError("failed-precondition", "This does not appear to be a supported bill, invoice or receipt.");
   }
+  const hasUsableData = USABLE_RESULT_FIELDS.some((field) => {
+    const fieldValue = value[field];
+    return typeof fieldValue === "string" ?
+      Boolean(fieldValue.trim()) :
+      fieldValue !== null;
+  });
+  if (!hasUsableData) {
+    throw new HttpsError(
+        "failed-precondition",
+        "No usable invoice or receipt details could be extracted.",
+    );
+  }
   return value;
 }
 
@@ -283,6 +324,51 @@ async function handleBusinessDocumentScan(request, dependencies) {
   const validated = validateCallableData(request.data);
   const supplied = dependencies || {};
   const log = supplied.logger || logger;
+  const firestore = supplied.firestore || admin.firestore();
+  const usageCountingEnabled =
+    supplied.usageCountingEnabled === undefined ?
+      INVOICE_SCANNING_USAGE_COUNTING_ENABLED :
+      supplied.usageCountingEnabled === true;
+  const usageEnforcementEnabled =
+    supplied.usageEnforcementEnabled === undefined ?
+      INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED :
+      supplied.usageEnforcementEnabled === true;
+  const usageManager = usageCountingEnabled ?
+    supplied.usageManager || createMonthlyUsageManager({
+      firestore,
+      now: () => supplied.now || new Date(),
+      serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    }) :
+    null;
+  let usageReservation;
+
+  if (usageManager) {
+    usageReservation = await usageManager.reserve({
+      uid: request.auth.uid,
+      requestId: validated.requestId,
+      enforceLimit: usageEnforcementEnabled,
+      usageType: USAGE_TYPES.INVOICE_SCANNING,
+    });
+    if (usageEnforcementEnabled &&
+      usageReservation.state === "limit-reached") {
+      throw new HttpsError(
+          "resource-exhausted",
+          "The monthly Invoice Scanning allowance has been reached.",
+      );
+    }
+    if (usageReservation.state === "in-progress") {
+      throw new HttpsError(
+          "aborted",
+          "This document scan is already in progress.",
+      );
+    }
+    if (usageReservation.state === "completed") {
+      throw new HttpsError(
+          "already-exists",
+          "This document scan has already completed.",
+      );
+    }
+  }
 
   try {
     const client = supplied.openaiClient || createOpenAIClient(
@@ -304,12 +390,35 @@ async function handleBusinessDocumentScan(request, dependencies) {
     }
 
     const extraction = validateExtraction(parsed);
+    if (usageManager && usageReservation.state === "reserved") {
+      await usageManager.finalize({
+        uid: request.auth.uid,
+        monthKey: usageReservation.monthKey,
+        requestId: validated.requestId,
+        usageType: USAGE_TYPES.INVOICE_SCANNING,
+      });
+    }
     log.info("Business document scan completed", {
       context: validated.context,
       mimeType: validated.mimeType,
     });
     return {success: true, extraction};
   } catch (error) {
+    if (usageManager && usageReservation &&
+      usageReservation.state === "reserved") {
+      try {
+        await usageManager.release({
+          uid: request.auth.uid,
+          monthKey: usageReservation.monthKey,
+          requestId: validated.requestId,
+          usageType: USAGE_TYPES.INVOICE_SCANNING,
+        });
+      } catch (releaseError) {
+        log.error("Invoice scanning usage reservation release failed", {
+          requestId: validated.requestId.slice(0, 12),
+        });
+      }
+    }
     if (error instanceof HttpsError) throw error;
     log.warn("Business document scan provider failed", {
       errorName: String(error && error.name || "Error").slice(0, 80),
@@ -340,6 +449,8 @@ module.exports = {
   DEFAULT_DOCUMENT_MODEL,
   DOCUMENT_SCHEMA,
   EXTRACTION_INSTRUCTIONS,
+  INVOICE_SCANNING_USAGE_COUNTING_ENABLED,
+  INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED,
   MAX_FILE_SIZE,
   buildOpenAIRequest,
   configuredDocumentModel,

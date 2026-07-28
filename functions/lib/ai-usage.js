@@ -17,6 +17,32 @@ const {
 const RESERVATION_TTL_MS = 2 * 60 * 1000;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const USAGE_TYPES = Object.freeze({
+  AI_ASSISTANT: "aiAssistant",
+  INVOICE_SCANNING: "invoiceScanning",
+});
+const USAGE_CONFIGURATIONS = Object.freeze({
+  [USAGE_TYPES.AI_ASSISTANT]: Object.freeze({
+    limitId: MONTHLY_LIMIT_IDS.AI_ASSISTANT,
+    successfulUses: "successfulUses",
+    reservations: "reservations",
+    completedRequests: "completedRequests",
+  }),
+  [USAGE_TYPES.INVOICE_SCANNING]: Object.freeze({
+    limitId: MONTHLY_LIMIT_IDS.INVOICE_SCANNING,
+    successfulUses: "invoiceScanningSuccessfulUses",
+    reservations: "invoiceScanningReservations",
+    completedRequests: "invoiceScanningCompletedRequests",
+  }),
+});
+
+function usageConfiguration(usageType) {
+  const configuration = USAGE_CONFIGURATIONS[usageType];
+  if (!configuration) {
+    throw new TypeError("A supported usage type is required.");
+  }
+  return configuration;
+}
 
 /**
  * Normalises a stored usage counter.
@@ -70,6 +96,18 @@ function getAuthoritativeAiLimit(profile) {
   return getMonthlyLimit(
       resolveAuthoritativePlan(profile),
       MONTHLY_LIMIT_IDS.AI_ASSISTANT,
+  );
+}
+
+/**
+ * Returns the authoritative Invoice Scanning monthly limit.
+ * @param {*} profile Billing profile data.
+ * @return {number|null} Monthly limit.
+ */
+function getAuthoritativeInvoiceScanningLimit(profile) {
+  return getMonthlyLimit(
+      resolveAuthoritativePlan(profile),
+      MONTHLY_LIMIT_IDS.INVOICE_SCANNING,
   );
 }
 
@@ -140,6 +178,10 @@ function usageState(data, nowMillis) {
       normalizeReservations(source.aiAssistantReservations, nowMillis),
     completedRequests:
       normalizeCompletedRequests(source.aiAssistantCompletedRequests),
+    invoiceScanningReservations:
+      normalizeReservations(source.invoiceScanningReservations, nowMillis),
+    invoiceScanningCompletedRequests:
+      normalizeCompletedRequests(source.invoiceScanningCompletedRequests),
   };
 }
 
@@ -149,6 +191,8 @@ function usageWrite(state, serverTimestamp) {
     invoiceScanningSuccessfulUses: state.invoiceScanningSuccessfulUses,
     aiAssistantReservations: state.reservations,
     aiAssistantCompletedRequests: state.completedRequests,
+    invoiceScanningReservations: state.invoiceScanningReservations,
+    invoiceScanningCompletedRequests: state.invoiceScanningCompletedRequests,
     updatedAt: serverTimestamp(),
   };
 }
@@ -162,7 +206,7 @@ function documentReferences(firestore, uid, monthKey) {
 }
 
 /**
- * Creates the transactional AI usage service.
+ * Creates the transactional monthly usage service.
  * @param {object} options Service dependencies.
  * @return {object} Reservation, finalisation, and release methods.
  */
@@ -174,7 +218,12 @@ function createAiUsageManager(options) {
   const nowProvider = options.now || (() => new Date());
   const serverTimestamp = options.serverTimestamp || (() => new Date());
 
-  async function reserve({uid, requestId, enforceLimit = true}) {
+  async function reserve({
+    uid,
+    requestId,
+    enforceLimit = true,
+    usageType = USAGE_TYPES.AI_ASSISTANT,
+  }) {
     if (!UUID_PATTERN.test(String(requestId || ""))) {
       throw new TypeError("A valid request UUID is required.");
     }
@@ -182,6 +231,7 @@ function createAiUsageManager(options) {
     const nowMillis = now.getTime();
     const monthKey = calendarMonthKey(now);
     const refs = documentReferences(firestore, uid, monthKey);
+    const configuration = usageConfiguration(usageType);
 
     return firestore.runTransaction(async (transaction) => {
       const [profileSnapshot, usageSnapshot] = await Promise.all([
@@ -189,13 +239,16 @@ function createAiUsageManager(options) {
         transaction.get(refs.usage),
       ]);
       const profile = profileSnapshot.exists ? profileSnapshot.data() : {};
-      const limit = getAuthoritativeAiLimit(profile);
+      const limit = getMonthlyLimit(
+          resolveAuthoritativePlan(profile),
+          configuration.limitId,
+      );
       const state = usageState(
           usageSnapshot.exists ? usageSnapshot.data() : {},
           nowMillis,
       );
 
-      if (Object.hasOwn(state.completedRequests, requestId)) {
+      if (Object.hasOwn(state[configuration.completedRequests], requestId)) {
         transaction.set(
             refs.usage,
             usageWrite(state, serverTimestamp),
@@ -204,7 +257,7 @@ function createAiUsageManager(options) {
         return {state: "completed", monthKey, limit};
       }
 
-      if (Object.hasOwn(state.reservations, requestId)) {
+      if (Object.hasOwn(state[configuration.reservations], requestId)) {
         transaction.set(
             refs.usage,
             usageWrite(state, serverTimestamp),
@@ -215,8 +268,8 @@ function createAiUsageManager(options) {
 
       const remaining = remainingAllowance(
           limit,
-          state.successfulUses,
-          Object.keys(state.reservations).length,
+          state[configuration.successfulUses],
+          Object.keys(state[configuration.reservations]).length,
       );
       if (enforceLimit && remaining !== null && remaining <= 0) {
         transaction.set(
@@ -227,7 +280,7 @@ function createAiUsageManager(options) {
         return {state: "limit-reached", monthKey, limit};
       }
 
-      state.reservations[requestId] = {
+      state[configuration.reservations][requestId] = {
         reservedAtMillis: nowMillis,
         expiresAtMillis: nowMillis + RESERVATION_TTL_MS,
       };
@@ -240,9 +293,15 @@ function createAiUsageManager(options) {
     });
   }
 
-  async function finalize({uid, monthKey, requestId}) {
+  async function finalize({
+    uid,
+    monthKey,
+    requestId,
+    usageType = USAGE_TYPES.AI_ASSISTANT,
+  }) {
     const refs = documentReferences(firestore, uid, monthKey);
     const nowMillis = new Date(nowProvider()).getTime();
+    const configuration = usageConfiguration(usageType);
 
     return firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(refs.usage);
@@ -251,30 +310,42 @@ function createAiUsageManager(options) {
           nowMillis,
       );
 
-      if (Object.hasOwn(state.completedRequests, requestId)) {
-        return {counted: false, successfulUses: state.successfulUses};
+      if (Object.hasOwn(state[configuration.completedRequests], requestId)) {
+        return {
+          counted: false,
+          successfulUses: state[configuration.successfulUses],
+        };
       }
 
-      const reservation = state.reservations[requestId];
+      const reservation = state[configuration.reservations][requestId];
       if (!reservation) {
         throw new Error("AI usage reservation is unavailable.");
       }
 
-      delete state.reservations[requestId];
-      state.successfulUses += 1;
-      state.completedRequests[requestId] = nowMillis;
+      delete state[configuration.reservations][requestId];
+      state[configuration.successfulUses] += 1;
+      state[configuration.completedRequests][requestId] = nowMillis;
       transaction.set(
           refs.usage,
           usageWrite(state, serverTimestamp),
           {merge: true},
       );
-      return {counted: true, successfulUses: state.successfulUses};
+      return {
+        counted: true,
+        successfulUses: state[configuration.successfulUses],
+      };
     });
   }
 
-  async function release({uid, monthKey, requestId}) {
+  async function release({
+    uid,
+    monthKey,
+    requestId,
+    usageType = USAGE_TYPES.AI_ASSISTANT,
+  }) {
     const refs = documentReferences(firestore, uid, monthKey);
     const nowMillis = new Date(nowProvider()).getTime();
+    const configuration = usageConfiguration(usageType);
 
     return firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(refs.usage);
@@ -282,9 +353,9 @@ function createAiUsageManager(options) {
           snapshot.exists ? snapshot.data() : {},
           nowMillis,
       );
-      const reservation = state.reservations[requestId];
+      const reservation = state[configuration.reservations][requestId];
       const released = Boolean(reservation);
-      if (released) delete state.reservations[requestId];
+      if (released) delete state[configuration.reservations][requestId];
       transaction.set(
           refs.usage,
           usageWrite(state, serverTimestamp),
@@ -299,8 +370,11 @@ function createAiUsageManager(options) {
 
 module.exports = {
   RESERVATION_TTL_MS,
+  USAGE_TYPES,
   createAiUsageManager,
+  createMonthlyUsageManager: createAiUsageManager,
   getAuthoritativeAiLimit,
+  getAuthoritativeInvoiceScanningLimit,
   normalizeUsageCount,
   remainingAllowance,
   resolveAuthoritativePlan,

@@ -2065,6 +2065,7 @@
       replaceExpenseJournal,
       replaceMileageJournal
     } from "../js/ledger-firestore.js";
+    import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -2598,6 +2599,7 @@
         const base64 = await readReceiptScanFileAsBase64(file);
         if (requestToken !== receiptScanRequestToken) return;
         const response = await scanReceiptDocument({
+          requestId: createRequestId(),
           context: "expense",
           file: { name: file.name, mimeType: receiptScanFileType(file), size: file.size, base64 }
         });

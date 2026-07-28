@@ -6,6 +6,8 @@ const assert = require("node:assert/strict");
 const {
   DEFAULT_DOCUMENT_MODEL,
   DOCUMENT_SCHEMA,
+  INVOICE_SCANNING_USAGE_COUNTING_ENABLED,
+  INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED,
   MAX_FILE_SIZE,
   buildOpenAIRequest,
   configuredDocumentModel,
@@ -16,6 +18,7 @@ const {
   validateExtraction,
 } = require("../business-document-scan");
 
+const requestId = "123e4567-e89b-42d3-a456-426614174000";
 const pdfBuffer = Buffer.from("%PDF-1.7\n% test document");
 const jpegBuffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 const pngBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -38,6 +41,7 @@ const extraction = {
 
 function fileData(name, mimeType, buffer) {
   return {
+    requestId,
     context: "bill",
     file: {
       name,
@@ -49,6 +53,8 @@ function fileData(name, mimeType, buffer) {
 }
 
 assert.equal(configuredDocumentModel({}), DEFAULT_DOCUMENT_MODEL);
+assert.equal(INVOICE_SCANNING_USAGE_COUNTING_ENABLED, true);
+assert.equal(INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED, false);
 assert.equal(
     configuredDocumentModel({OPENAI_DOCUMENT_MODEL: "gpt-document-test"}),
     "gpt-document-test",
@@ -99,6 +105,7 @@ assert.throws(
 );
 assert.throws(
     () => validateCallableData({
+      requestId,
       context: "bill",
       file: {
         name: "too-large.pdf",
@@ -121,6 +128,15 @@ assert.throws(
     () => validateExtraction({...extraction, documentType: "unsupported"}),
     (error) => error.code === "failed-precondition",
 );
+assert.throws(
+    () => validateExtraction(Object.fromEntries(
+        Object.keys(extraction).map((field) => [
+          field,
+          field === "documentType" ? "supplier_invoice" : null,
+        ]),
+    )),
+    (error) => error.code === "failed-precondition",
+);
 
 async function run() {
   await assert.rejects(
@@ -129,10 +145,12 @@ async function run() {
   );
 
   let capturedRequest = null;
+  const successfulUsageEvents = [];
   const result = await handleBusinessDocumentScan({
     auth: {uid: "authenticated-user"},
     data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
   }, {
+    firestore: {},
     logger: {info() {}, warn() {}},
     openaiClient: {
       responses: {
@@ -142,37 +160,99 @@ async function run() {
         },
       },
     },
+    usageManager: {
+      reserve: async (details) => {
+        successfulUsageEvents.push(["reserve", details]);
+        return {state: "reserved", monthKey: "2026-07"};
+      },
+      finalize: async (details) => {
+        successfulUsageEvents.push(["finalize", details]);
+      },
+      release: async (details) => {
+        successfulUsageEvents.push(["release", details]);
+      },
+    },
   });
   assert.deepEqual(result, {success: true, extraction});
   assert.equal(capturedRequest.store, false);
   assert.equal(JSON.stringify(capturedRequest).includes("authenticated-user"), false);
+  assert.deepEqual(successfulUsageEvents, [
+    ["reserve", {
+      uid: "authenticated-user",
+      requestId,
+      enforceLimit: false,
+      usageType: "invoiceScanning",
+    }],
+    ["finalize", {
+      uid: "authenticated-user",
+      monthKey: "2026-07",
+      requestId,
+      usageType: "invoiceScanning",
+    }],
+  ]);
 
+  const malformedUsageEvents = [];
   await assert.rejects(
       handleBusinessDocumentScan({
         auth: {uid: "authenticated-user"},
         data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
       }, {
+        firestore: {},
         logger: {info() {}, warn() {}},
         openaiClient: {responses: {create: async () => ({output_text: "not json"})}},
+        usageManager: {
+          reserve: async () => ({state: "reserved", monthKey: "2026-07"}),
+          finalize: async () => malformedUsageEvents.push("finalize"),
+          release: async () => malformedUsageEvents.push("release"),
+        },
       }),
       (error) => error.code === "data-loss",
   );
+  assert.deepEqual(malformedUsageEvents, ["release"]);
 
+  const failedUsageEvents = [];
   await assert.rejects(
       handleBusinessDocumentScan({
         auth: {uid: "authenticated-user"},
         data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
       }, {
-        logger: {info() {}, warn() {}},
+        firestore: {},
+        logger: {error() {}, info() {}, warn() {}},
         openaiClient: {responses: {create: async () => {
           const error = new Error("private provider details");
           error.name = "APIConnectionTimeoutError";
           throw error;
         }}},
+        usageManager: {
+          reserve: async () => ({state: "reserved", monthKey: "2026-07"}),
+          finalize: async () => failedUsageEvents.push("finalize"),
+          release: async () => failedUsageEvents.push("release"),
+        },
       }),
       (error) => error.code === "deadline-exceeded" &&
         !String(error.message).includes("private provider details"),
   );
+  assert.deepEqual(failedUsageEvents, ["release"]);
+
+  let duplicateProviderCalls = 0;
+  await assert.rejects(
+      handleBusinessDocumentScan({
+        auth: {uid: "authenticated-user"},
+        data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
+      }, {
+        firestore: {},
+        logger: {info() {}, warn() {}},
+        openaiClient: {responses: {create: async () => {
+          duplicateProviderCalls += 1;
+          return {output_text: JSON.stringify(extraction)};
+        }}},
+        usageManager: {
+          reserve: async () => ({state: "completed", monthKey: "2026-07"}),
+        },
+      }),
+      (error) => error.code === "already-exists",
+  );
+  assert.equal(duplicateProviderCalls, 0);
 
   console.log("Business document scan tests passed");
 }
