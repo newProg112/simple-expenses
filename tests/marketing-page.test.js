@@ -61,24 +61,43 @@ describe("marketing landing page", () => {
     }
   });
 
-  it("offers only Starter Free and Pro at £15 per month", () => {
+  it("shows the current Starter and Pro prices, allowances, and feature access", () => {
     const pricing = section("pricing");
     const planNames = [...pricing.matchAll(/<h3>(.*?)<\/h3>/g)].map(match => match[1]);
     const amounts = [...pricing.matchAll(/<div class="amount">(.*?)<\/div>/g)].map(match => match[1]);
 
     expect(planNames).toEqual(["Starter", "Pro"]);
-    expect(amounts).toEqual(["Free", "£15"]);
-    expect(pricing).toContain("<li>Core business features</li>");
-    expect(pricing).toContain("<li>Limited AI usage</li>");
-    expect(pricing).toContain("<li>Limited invoice scanning</li>");
-    expect(pricing).toContain("<li>Limited live projects</li>");
-    expect(pricing).toContain("<li>Everything in Starter</li>");
-    expect(pricing).toContain("<li>Unlimited AI</li>");
-    expect(pricing).toContain("<li>Unlimited invoice scanning</li>");
-    expect(pricing).toContain("<li>Unlimited live projects</li>");
-    expect(pricing).toContain("<li>Accountant Pack</li>");
-    expect(pricing).toContain("<li>Advanced reporting</li>");
-    expect(pricing.match(/£\d+/g)).toEqual(["£15"]);
+    expect(amounts).toEqual(["Free", "&pound;15"]);
+    expect(pricing).toContain("10 questions/month");
+    expect(pricing).toContain("500 questions/month");
+    expect(pricing).toContain("10 scans/month");
+    expect(pricing).toContain("500 scans/month");
+    expect(pricing).toContain("Up to 5");
+    expect(pricing).toContain("Unlimited");
+
+    for(const feature of [
+      "Invoices",
+      "Bills",
+      "Expenses",
+      "Mileage",
+      "Budgets",
+      "Cashflow",
+      "Accountant Pack",
+      "Trial Balance",
+      "General Ledger",
+      "Profit &amp; Loss",
+      "Balance Sheet"
+    ]){
+      expect(pricing).toContain(`<th scope="row">${feature}</th>`);
+    }
+
+    expect(pricing).toContain('href="/signup.html">Get Started Free</a>');
+    expect(pricing).toContain('href="/signup.html">Upgrade to Pro</a>');
+    expect(pricing).not.toMatch(/Unlimited AI|Unlimited invoice scanning|Limited AI usage|Limited invoice scanning|Limited live projects/i);
+  });
+
+  it("places the plan comparison before the longer feature catalogue", () => {
+    expect(html.indexOf('<section id="pricing">')).toBeLessThan(html.indexOf('<section id="features">'));
   });
 
   it("removes legacy service and product wording", () => {
