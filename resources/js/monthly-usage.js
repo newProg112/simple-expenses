@@ -9,7 +9,9 @@ import {
 } from "./plan-entitlements.js";
 
 export const USAGE_TRACKING_DISABLED_MESSAGE =
-  "Usage tracking is not yet enabled.";
+  "AI Assistant usage status is unavailable.";
+export const USAGE_ENFORCEMENT_DISABLED_MESSAGE =
+  "AI Assistant usage is being counted. Monthly limits are not enforced yet.";
 
 export function buildUsageMetric(allowance, usage) {
   const current = normaliseUsageCount(usage);
@@ -26,16 +28,24 @@ export function buildMonthlyUsageView({
   profile,
   usage,
   monthKey,
-  trackingEnabled = false
+  trackingEnabled = false,
+  enforcementEnabled = false
 } = {}) {
   const plan = normalisePlan(profile?.currentPlan);
   const source = usage && typeof usage === "object" ? usage : {};
+  const isTrackingEnabled = trackingEnabled === true;
+  const isEnforcementEnabled = enforcementEnabled === true;
 
   return Object.freeze({
     plan,
     monthKey: monthKey || calendarMonthKey(),
-    trackingEnabled: trackingEnabled === true,
-    message: trackingEnabled === true ? "" : USAGE_TRACKING_DISABLED_MESSAGE,
+    trackingEnabled: isTrackingEnabled,
+    enforcementEnabled: isEnforcementEnabled,
+    message: !isTrackingEnabled
+      ? USAGE_TRACKING_DISABLED_MESSAGE
+      : isEnforcementEnabled
+        ? ""
+        : USAGE_ENFORCEMENT_DISABLED_MESSAGE,
     aiAssistant: buildUsageMetric(
       getMonthlyLimit(plan, MONTHLY_LIMIT_IDS.AI_ASSISTANT),
       source.aiAssistantSuccessfulUses

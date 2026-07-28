@@ -45,7 +45,7 @@ Phase 1 introduces definitions and pure helpers only. It does not restrict, hide
 
 ## AI monthly usage: Phase 4A backend foundation
 
-Phase 4A adds backend-controlled, transaction-safe usage infrastructure while leaving `AI_USAGE_ENFORCEMENT_ENABLED` set to `false`. The production AI Assistant therefore does not read or write usage, reject requests at an allowance boundary, or otherwise change its existing behaviour. There are no UI changes or usage meters.
+Phase 4A added backend-controlled, transaction-safe usage infrastructure while leaving both counting and enforcement inactive at that phase. It introduced no UI changes or usage meters.
 
 The eventual authoritative decision reads billing data from `userProfiles/{uid}` and uses only the Phase 1 backend entitlement helper. It does not accept plan names, subscription states, counters, or limits from the browser. The exact Pro plan with `active` or `trialing` status receives the Pro allowance; missing, malformed, unknown, `past_due`, and `canceled` billing states fail safely to Starter. An existing explicit `billingOverride: true` continues to qualify an exact Pro profile. No grace period or `current_period_end` policy has been introduced.
 
@@ -72,9 +72,11 @@ Usage documents contain operational counters, timestamps, and opaque request UUI
 
 Stripe subscription writes now preserve the actual supported Stripe value: `incomplete`, `incomplete_expired`, `trialing`, `active`, `past_due`, `canceled`, `unpaid`, or `paused`. Unknown or malformed values are stored as an empty status rather than promoted to `active`. The entitlement helper continues to recognise only `active` and `trialing` as Pro-eligible. Existing comped, discounted, and test profiles are not rewritten, and explicit billing overrides remain supported by the authoritative usage resolver. Phase 4A does not add grace-period behaviour.
 
-Phase 4B adds a read-only Account-page dashboard and an authenticated backend reader for the current UTC usage document. The dashboard gets allowance values and remaining calculations from the shared entitlement helpers, shows zero for a missing usage document, and clearly states that usage tracking is not yet enabled. The reader does not create or update usage data, and `AI_USAGE_ENFORCEMENT_ENABLED` remains `false`.
+Phase 4B added a read-only Account-page dashboard and an authenticated backend reader for the current UTC usage document. The dashboard gets allowance values and remaining calculations from the shared entitlement helpers and shows zero for a missing usage document. The reader does not create or update usage data.
 
-Before any later enforcement phase, legacy subscription profiles must be verified or reconciled against Stripe so no previously collapsed stored status is trusted. That phase must separately approve the customer-facing allowance behaviour, change the server-owned enforcement switch, and rerun the concurrency, provider-failure, idempotency, AI regression, lint, and full test suites. Neither Phase 4A nor Phase 4B migrates existing profiles or activates enforcement.
+Phase 4C enables `AI_USAGE_COUNTING_ENABLED` for supported AI Assistant requests only. The callable reserves transactionally before the provider call, finalises only after a usable provider answer, and releases on provider failure, timeout, or empty output. Request UUIDs make finalisation idempotent. Reservations bypass the allowance boundary while `AI_USAGE_ENFORCEMENT_ENABLED` remains `false`, so Starter and Pro users continue beyond 10 and 500 uses respectively. Invoice-scanning usage remains unchanged. The Account and AI Assistant pages reload the authenticated UTC usage document and state that counting is active while enforcement is not.
+
+Before any later enforcement phase, legacy subscription profiles must be verified or reconciled against Stripe so no previously collapsed stored status is trusted. That phase must separately approve the customer-facing allowance behaviour, change the server-owned enforcement switch, and rerun the concurrency, provider-failure, idempotency, AI regression, lint, and full test suites. Phases 4A through 4C do not migrate existing profiles or activate enforcement.
 
 ## Frontend error monitoring
 

@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  USAGE_ENFORCEMENT_DISABLED_MESSAGE,
   USAGE_TRACKING_DISABLED_MESSAGE,
   buildMonthlyUsageView,
   buildUsageMetric
@@ -95,17 +96,27 @@ describe("monthly usage presentation", () => {
     expect(view.invoiceScanning.allowance).toBe(10);
   });
 
-  it("shows the enforcement-disabled message", () => {
+  it("distinguishes counting from enforcement", () => {
     const disabled = buildMonthlyUsageView({ monthKey: fixedMonth });
-    const enabled = buildMonthlyUsageView({
+    const counting = buildMonthlyUsageView({
       monthKey: fixedMonth,
       trackingEnabled: true
+    });
+    const enforced = buildMonthlyUsageView({
+      monthKey: fixedMonth,
+      trackingEnabled: true,
+      enforcementEnabled: true
     });
 
     expect(disabled.trackingEnabled).toBe(false);
     expect(disabled.message).toBe(USAGE_TRACKING_DISABLED_MESSAGE);
-    expect(disabled.message).toBe("Usage tracking is not yet enabled.");
-    expect(enabled.message).toBe("");
+    expect(disabled.message).toBe("AI Assistant usage status is unavailable.");
+    expect(counting.enforcementEnabled).toBe(false);
+    expect(counting.message).toBe(USAGE_ENFORCEMENT_DISABLED_MESSAGE);
+    expect(counting.message).toBe(
+      "AI Assistant usage is being counted. Monthly limits are not enforced yet."
+    );
+    expect(enforced.message).toBe("");
   });
 
   it("normalises malformed usage values and never shows negative remaining", () => {
@@ -163,6 +174,17 @@ describe("read-only monthly usage source", () => {
       aiAssistantSuccessfulUses: 4,
       invoiceScanningSuccessfulUses: 0
     });
+    expect(buildMonthlyUsageView({
+      profile: { currentPlan: "Starter" },
+      usage,
+      monthKey: usage.monthKey,
+      trackingEnabled: true,
+      enforcementEnabled: false
+    }).aiAssistant).toEqual({
+      allowance: 10,
+      current: 4,
+      remaining: 6
+    });
   });
 
   it("returns zero when the monthly usage document is missing", async () => {
@@ -195,6 +217,10 @@ describe("Account page monthly usage integration", () => {
     new URL("../account.html", import.meta.url),
     "utf8"
   );
+  const assistantHtml = readFileSync(
+    new URL("../resources/tools/ai-assistant.html", import.meta.url),
+    "utf8"
+  );
   const functionsIndex = readFileSync(
     new URL("../functions/index.js", import.meta.url),
     "utf8"
@@ -208,7 +234,7 @@ describe("Account page monthly usage integration", () => {
     "utf8"
   );
 
-  it("renders both usage categories and the disabled message", () => {
+  it("renders both usage categories and the counting-only message", () => {
     for (const id of [
       "monthlyUsageStatus",
       "monthlyUsageMonth",
@@ -221,15 +247,42 @@ describe("Account page monthly usage integration", () => {
     ]) {
       expect(accountHtml).toContain(`id="${id}"`);
     }
-    expect(accountHtml).toContain("Usage tracking is not yet enabled.");
+    expect(accountHtml).toContain(
+      "AI Assistant usage is being counted. Monthly limits are not enforced yet."
+    );
   });
 
   it("uses the entitlement-backed presentation helper", () => {
     expect(accountHtml).toContain(
-      'from "./resources/js/monthly-usage.js"'
+      'from "./resources/js/monthly-usage.js?v=20260728-phase4c"'
     );
     expect(accountHtml).toContain("buildMonthlyUsageView({");
     expect(accountHtml).toContain("MONTHLY_USAGE_FUNCTION_URL");
+  });
+
+  it("reloads live usage on the AI Assistant page", () => {
+    for (const id of [
+      "usageProgress",
+      "usagePlan",
+      "usageUsed",
+      "usageRemaining",
+      "usageReset",
+      "usageDescription"
+    ]) {
+      expect(assistantHtml).toContain(`id="${id}"`);
+    }
+    expect(assistantHtml).toContain(
+      'import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260728-phase4c"'
+    );
+    expect(assistantHtml).toContain(
+      "cloudfunctions.net/getMonthlyUsage"
+    );
+    expect(assistantHtml).toContain("loadMonthlyUsage(user)");
+    expect(assistantHtml).toContain(
+      'if(result.data?.mode === "ai" && currentUsageUser)'
+    );
+    expect(assistantHtml).not.toContain("Preview data");
+    expect(assistantHtml).not.toContain("Usage tracking is not yet enabled.");
   });
 
   it("keeps the backend endpoint authenticated and read-only", () => {
@@ -240,13 +293,19 @@ describe("Account page monthly usage integration", () => {
       "readMonthlyUsage("
     );
     expect(functionsIndex).toContain(
-      "trackingEnabled: AI_USAGE_ENFORCEMENT_ENABLED"
+      "trackingEnabled: AI_USAGE_COUNTING_ENABLED"
+    );
+    expect(functionsIndex).toContain(
+      "enforcementEnabled: AI_USAGE_ENFORCEMENT_ENABLED"
     );
     expect(usageReader).toContain(".get()");
     expect(usageReader).not.toMatch(/\.(set|create|update|delete)\(/);
   });
 
   it("keeps AI enforcement disabled", () => {
+    expect(aiHandler).toContain(
+      "const AI_USAGE_COUNTING_ENABLED = true;"
+    );
     expect(aiHandler).toContain(
       "const AI_USAGE_ENFORCEMENT_ENABLED = false;"
     );

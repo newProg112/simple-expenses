@@ -19,6 +19,7 @@ const {
 const REGION = "us-central1";
 const MAX_AI_ANSWER_LENGTH = 1200;
 const OPENAI_TIMEOUT_MS = 20000;
+const AI_USAGE_COUNTING_ENABLED = true;
 const AI_USAGE_ENFORCEMENT_ENABLED = false;
 const DISCLAIMER = "Business information only. This is not accounting, tax or legal advice.";
 const UNSUPPORTED_ANSWER = [
@@ -127,7 +128,11 @@ async function handleAssistantRequest(request, dependencies) {
     supplied.usageEnforcementEnabled === undefined ?
       AI_USAGE_ENFORCEMENT_ENABLED :
       supplied.usageEnforcementEnabled === true;
-  const usageManager = usageEnforcementEnabled ?
+  const usageCountingEnabled =
+    supplied.usageCountingEnabled === undefined ?
+      AI_USAGE_COUNTING_ENABLED :
+      supplied.usageCountingEnabled === true;
+  const usageManager = usageCountingEnabled ?
     supplied.usageManager || createAiUsageManager({
       firestore,
       now: () => supplied.now || new Date(),
@@ -140,8 +145,10 @@ async function handleAssistantRequest(request, dependencies) {
     usageReservation = await usageManager.reserve({
       uid: request.auth.uid,
       requestId: validated.requestId,
+      enforceLimit: usageEnforcementEnabled,
     });
-    if (usageReservation.state === "limit-reached") {
+    if (usageEnforcementEnabled &&
+      usageReservation.state === "limit-reached") {
       throw new HttpsError(
           "resource-exhausted",
           "The monthly AI Assistant allowance has been reached.",
@@ -226,6 +233,7 @@ const askBusinessAssistant = onCall(
 );
 
 module.exports = {
+  AI_USAGE_COUNTING_ENABLED,
   AI_USAGE_ENFORCEMENT_ENABLED,
   askBusinessAssistant,
   cleanAiAnswer,

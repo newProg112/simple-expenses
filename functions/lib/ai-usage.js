@@ -174,7 +174,7 @@ function createAiUsageManager(options) {
   const nowProvider = options.now || (() => new Date());
   const serverTimestamp = options.serverTimestamp || (() => new Date());
 
-  async function reserve({uid, requestId}) {
+  async function reserve({uid, requestId, enforceLimit = true}) {
     if (!UUID_PATTERN.test(String(requestId || ""))) {
       throw new TypeError("A valid request UUID is required.");
     }
@@ -218,7 +218,7 @@ function createAiUsageManager(options) {
           state.successfulUses,
           Object.keys(state.reservations).length,
       );
-      if (remaining !== null && remaining <= 0) {
+      if (enforceLimit && remaining !== null && remaining <= 0) {
         transaction.set(
             refs.usage,
             usageWrite(state, serverTimestamp),

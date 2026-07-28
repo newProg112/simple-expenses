@@ -13,6 +13,7 @@ const {
   sanitizeBusinessSummary,
 } = require("../lib/assistant-prompt");
 const {
+  AI_USAGE_COUNTING_ENABLED,
   AI_USAGE_ENFORCEMENT_ENABLED,
   cleanAiAnswer,
   handleAssistantRequest,
@@ -221,6 +222,7 @@ const callableRequest = {
 const silentLogger = {error() {}, info() {}, warn() {}};
 
 async function run() {
+  assert.equal(AI_USAGE_COUNTING_ENABLED, true);
   assert.equal(AI_USAGE_ENFORCEMENT_ENABLED, false);
 
   const expectedUnsupportedAnswer = [
@@ -304,6 +306,7 @@ async function run() {
         throw new Error("Disabled usage infrastructure must not run.");
       },
     },
+    usageCountingEnabled: false,
     environment: {},
     logger: silentLogger,
   });
@@ -327,7 +330,7 @@ async function run() {
         create: async () => ({output_text: "A successful metered answer."}),
       },
     },
-    usageEnforcementEnabled: true,
+    usageEnforcementEnabled: false,
     usageManager: {
       reserve: async (details) => {
         successUsageEvents.push(["reserve", details]);
@@ -354,6 +357,7 @@ async function run() {
   assert.deepEqual(successUsageEvents[0][1], {
     uid: callableRequest.auth.uid,
     requestId,
+    enforceLimit: false,
   });
   assert.deepEqual(successUsageEvents[1][1], {
     uid: callableRequest.auth.uid,

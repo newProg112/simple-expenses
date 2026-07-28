@@ -852,7 +852,7 @@
           id="monthlyUsageStatus"
           role="status"
           aria-live="polite"
-        >Usage tracking is not yet enabled.</p>
+        >AI Assistant usage is being counted. Monthly limits are not enforced yet.</p>
       </div>
 
       <div class="monthly-usage-grid">
@@ -1038,7 +1038,7 @@
     import { app, auth, db } from "./firebase-config.js";
     import {
       buildMonthlyUsageView
-    } from "./resources/js/monthly-usage.js";
+    } from "./resources/js/monthly-usage.js?v=20260728-phase4c";
 
     import {
       onAuthStateChanged,
@@ -1382,7 +1382,8 @@
         profile: account,
         usage: monthlyUsage,
         monthKey: monthlyUsage.monthKey,
-        trackingEnabled: monthlyUsage.trackingEnabled
+        trackingEnabled: monthlyUsage.trackingEnabled,
+        enforcementEnabled: monthlyUsage.enforcementEnabled
       });
 
       setText("monthlyUsageStatus", view.message);

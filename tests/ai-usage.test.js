@@ -233,6 +233,26 @@ describe("transaction-safe reservations", () => {
       .toEqual(["limit-reached", "reserved"]);
   });
 
+  it("continues reserving above the allowance while enforcement is disabled", async () => {
+    const { firestore, manager } = createFixture({
+      usage: { aiAssistantSuccessfulUses: 10 }
+    });
+
+    const reservation = await manager.reserve({
+      uid,
+      requestId: requestIds[0],
+      enforceLimit: false
+    });
+    await manager.finalize({
+      uid,
+      requestId: requestIds[0],
+      ...reservation
+    });
+
+    expect(reservation.state).toBe("reserved");
+    expect(firestore.read(usagePath).aiAssistantSuccessfulUses).toBe(11);
+  });
+
   it("finalises a successful request exactly once across retries", async () => {
     const { firestore, manager } = createFixture();
     const reservation = await manager.reserve({
@@ -258,7 +278,16 @@ describe("transaction-safe reservations", () => {
     expect(first).toEqual({ counted: true, successfulUses: 1 });
     expect(retry).toEqual({ counted: false, successfulUses: 1 });
     expect(repeatedRequest.state).toBe("completed");
-    expect(firestore.read(usagePath).aiAssistantSuccessfulUses).toBe(1);
+    expect(usageDocumentPath(uid, reservation.monthKey)).toBe(usagePath);
+    expect(firestore.read(usagePath)).toEqual({
+      aiAssistantSuccessfulUses: 1,
+      invoiceScanningSuccessfulUses: 0,
+      aiAssistantReservations: {},
+      aiAssistantCompletedRequests: {
+        [requestIds[0]]: now.getTime()
+      },
+      updatedAt: "server-timestamp"
+    });
   });
 
   it("releases a failed request without consuming its allowance", async () => {

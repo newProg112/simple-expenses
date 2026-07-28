@@ -666,6 +666,7 @@ const {
   askBusinessAssistantPreview,
 } = require("./ai-assistant-preview");
 const {
+  AI_USAGE_COUNTING_ENABLED,
   AI_USAGE_ENFORCEMENT_ENABLED,
   askBusinessAssistant,
 } = require("./ai-assistant");
@@ -709,7 +710,8 @@ exports.getMonthlyUsage = onRequest(
         );
         response.json({
           ...usage,
-          trackingEnabled: AI_USAGE_ENFORCEMENT_ENABLED,
+          trackingEnabled: AI_USAGE_COUNTING_ENABLED,
+          enforcementEnabled: AI_USAGE_ENFORCEMENT_ENABLED,
         });
       } catch (error) {
         const errorCode = error && error.code ? String(error.code) : "";

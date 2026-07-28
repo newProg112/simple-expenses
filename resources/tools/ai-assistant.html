@@ -771,7 +771,7 @@
               <button class="capability-chip" type="button" data-question="Are any budgets close to being exceeded?"><span class="chip-icon" aria-hidden="true">›</span>Budget progress</button>
               <button class="capability-chip" type="button" data-question="What could affect my cashflow?"><span class="chip-icon" aria-hidden="true">›</span>Cashflow outlook</button>
             </div>
-            <p class="later-note" id="assistantModeNote">This preview uses secure, rule-based Simple Books calculations. Monthly usage tracking is not yet enabled.</p>
+            <p class="later-note" id="assistantModeNote">This preview uses secure, rule-based Simple Books calculations. Preview questions are not counted as AI usage.</p>
           </section>
           <div class="message-list" id="messageList"></div>
         </div>
@@ -809,16 +809,16 @@
           <h2 id="usageTitle">Usage preview</h2>
           <div class="usage-heading">
             <span>AI questions this month</span>
-            <span class="preview-label">Preview data</span>
+            <span class="preview-label" id="usageDataLabel">Loading</span>
           </div>
-          <progress value="0" max="10" aria-label="Preview AI question usage: 0 of 10 used" aria-describedby="usageDescription">0 of 10</progress>
+          <progress id="usageProgress" value="0" max="10" aria-label="AI question usage: loading" aria-describedby="usageDescription">0 of 10</progress>
           <dl class="usage-details">
-            <dt>Plan</dt><dd>Starter</dd>
-            <dt>Questions used</dt><dd>0 of 10</dd>
-            <dt>Questions remaining</dt><dd>10</dd>
-            <dt>Reset</dt><dd>Preview only</dd>
+            <dt>Plan</dt><dd id="usagePlan">â€”</dd>
+            <dt>Questions used</dt><dd id="usageUsed">â€”</dd>
+            <dt>Questions remaining</dt><dd id="usageRemaining">â€”</dd>
+            <dt>Reset</dt><dd id="usageReset">â€”</dd>
           </dl>
-          <p class="usage-note" id="usageDescription">Usage tracking will begin when monthly usage limits are enabled.</p>
+          <p class="usage-note" id="usageDescription">Loading monthly usageâ€¦</p>
         </section>
 
         <section class="card sidebar-card" aria-labelledby="aboutTitle">
@@ -835,8 +835,19 @@
   </main>
 
   <script type="module">
-    import { businessAssistantMode, functions } from "../../firebase-config.js";
+    import {
+      auth,
+      businessAssistantMode,
+      db,
+      functions
+    } from "../../firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      doc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+    import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260728-phase4c";
 
     (() => {
       const mode = businessAssistantMode === "ai" ? "ai" : "preview";
@@ -858,6 +869,15 @@
       const characterCount = document.getElementById("characterCount");
       const suggestions = document.getElementById("suggestions");
       const capabilityChips = document.getElementById("capabilityChips");
+      const usageDataLabel = document.getElementById("usageDataLabel");
+      const usageProgress = document.getElementById("usageProgress");
+      const usagePlan = document.getElementById("usagePlan");
+      const usageUsed = document.getElementById("usageUsed");
+      const usageRemaining = document.getElementById("usageRemaining");
+      const usageReset = document.getElementById("usageReset");
+      const usageDescription = document.getElementById("usageDescription");
+      const monthlyUsageFunctionUrl =
+        "https://us-central1-simple-books-office.cloudfunctions.net/getMonthlyUsage";
       const maxCharacters = 2000;
       const allowedSources = new Map([
         ["Invoices|/resources/tools/invoice-generator.html", "/resources/tools/invoice-generator.html"],
@@ -868,7 +888,68 @@
         ["Cashflow|/resources/tools/cashflow.html", "/resources/tools/cashflow.html"]
       ]);
       let isResponding = false;
+      let currentUsageUser = null;
       let activeRequestToken = 0;
+
+      function renderMonthlyUsage(view){
+        const allowance = view.aiAssistant.allowance;
+        const current = view.aiAssistant.current;
+        usageDataLabel.textContent = view.trackingEnabled ? "Live data" : "Unavailable";
+        usageProgress.max = allowance;
+        usageProgress.value = current;
+        usageProgress.textContent = `${current} of ${allowance}`;
+        usageProgress.setAttribute(
+          "aria-label",
+          `AI question usage: ${current} of ${allowance} used`
+        );
+        usagePlan.textContent = view.plan;
+        usageUsed.textContent = `${current} of ${allowance}`;
+        usageRemaining.textContent = String(view.aiAssistant.remaining);
+        usageReset.textContent = view.monthKey;
+        usageDescription.textContent = view.message ||
+          "Monthly AI Assistant usage is active.";
+      }
+
+      async function loadMonthlyUsage(user){
+        try{
+          const [idToken, profile] = await Promise.all([
+            user.getIdToken(),
+            getDoc(doc(db, "userProfiles", user.uid))
+          ]);
+          const response = await fetch(monthlyUsageFunctionUrl, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${idToken}`,
+              "Content-Type": "application/json"
+            }
+          });
+          if(!response.ok){
+            throw new Error("Monthly usage could not be loaded.");
+          }
+          const usage = await response.json();
+          if(auth.currentUser?.uid !== user.uid) return;
+          renderMonthlyUsage(buildMonthlyUsageView({
+            profile: profile.exists() ? profile.data() : {},
+            usage,
+            monthKey: usage.monthKey,
+            trackingEnabled: usage.trackingEnabled,
+            enforcementEnabled: usage.enforcementEnabled
+          }));
+        }catch(error){
+          if(auth.currentUser?.uid !== user.uid) return;
+          console.error("Could not load AI Assistant monthly usage", error);
+          usageDataLabel.textContent = "Unavailable";
+          usageDescription.textContent =
+            "Monthly usage could not be loaded. Refresh to try again.";
+        }
+      }
+
+      onAuthStateChanged(auth, user => {
+        currentUsageUser = user;
+        if(user){
+          loadMonthlyUsage(user);
+        }
+      });
 
       if(mode === "ai"){
         document.getElementById("assistantModeTitle").textContent = "AI mode";
@@ -1082,6 +1163,9 @@
           if(requestToken !== activeRequestToken) return;
           document.getElementById("typingIndicator")?.remove();
           renderPreviewResponse(result.data || {});
+          if(result.data?.mode === "ai" && currentUsageUser){
+            loadMonthlyUsage(currentUsageUser);
+          }
         }catch(error){
           if(requestToken !== activeRequestToken) return;
           document.getElementById("typingIndicator")?.remove();
