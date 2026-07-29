@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "generate:guides": "node scripts/generate-guides.mjs",
     "test": "vitest run",
+    "test:guides:hosting": "firebase emulators:exec --only hosting:main \"node scripts/smoke-guides-hosting.mjs\"",
     "test:watch": "vitest"
   },
   "devDependencies": {

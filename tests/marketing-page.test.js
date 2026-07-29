@@ -23,13 +23,14 @@ describe("marketing landing page", () => {
     expect(html).toContain("<h1>Simple business software, all in one place.</h1>");
   });
 
-  it("keeps the requested desktop and mobile navigation without a Tools link", () => {
+  it("keeps the public navigation, including Guides, without a Tools link", () => {
     const desktopNavigation = html.match(/<nav aria-label="Primary navigation">([\s\S]*?)<\/nav>/)?.[1] || "";
     const mobileNavigation = html.match(/<div class="mobile" id="mobileNav"[\s\S]*?>([\s\S]*?)<\/div>/)?.[1] || "";
 
-    expect(textContent(desktopNavigation)).toBe("Features Pricing Contact");
-    expect(textContent(mobileNavigation)).toBe("Features Pricing Contact Login Sign Up");
+    expect(textContent(desktopNavigation)).toBe("Features Pricing Guides Contact");
+    expect(textContent(mobileNavigation)).toBe("Features Pricing Guides Contact Login Sign Up");
     expect(`${desktopNavigation}${mobileNavigation}`).not.toContain("/resources/tools/");
+    expect(`${desktopNavigation}${mobileNavigation}`).toContain('href="/guides"');
     expect(html).toContain('href="/login.html"');
     expect(html).toContain('href="/signup.html"');
   });

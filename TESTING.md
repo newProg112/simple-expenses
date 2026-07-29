@@ -20,6 +20,36 @@ npm run test:watch
 
 Automated tests live in `tests/` and cover invoice totals and VAT, due-date and date formatting helpers, chronological month ordering, receivables ageing boundaries, plan entitlements, and subscription feature gates. They run entirely in Node and do not need a browser, Firebase, network services, OpenAI, Stripe, or production data.
 
+## Public Guides
+
+Guide metadata lives in `assets/guides/guide-data.js`. After changing it or the shared page template, regenerate the static index and guide pages:
+
+```sh
+npm.cmd run generate:guides
+```
+
+The contracts in `tests/guides.test.js` check all 20 guide records, generated crawlable content, SEO metadata, related and sequential navigation, filtering hooks, table-of-contents generation, Firebase clean-URL rewrites, and the guide-aware 404 state.
+
+Run the focused tests with:
+
+```sh
+npm.cmd test -- tests/guides.test.js tests/marketing-page.test.js
+```
+
+For local browser testing with Firebase Hosting rewrites, run:
+
+```sh
+firebase.cmd emulators:start --only hosting:main
+```
+
+Open the Hosting emulator URL printed in the terminal, then test `/guides`, several individual clean guide URLs, and an invalid path such as `/guides/not-a-real-guide`.
+
+The same direct-route check can be automated when the Firebase CLI and Java are available:
+
+```sh
+npm.cmd run test:guides:hosting
+```
+
 The suite deliberately excludes browser automation, Firebase Emulator tests, integration and end-to-end tests, live OpenAI and Stripe calls, invoice scanning, deployment checks, and CI configuration.
 
 ## Plan entitlements: Phase 1 foundation
@@ -355,8 +385,8 @@ npm.cmd test -- tests/marketing-page.test.js
 Manual verification:
 
 1. Open `/` at desktop, tablet, and mobile widths and confirm the existing layout and styling remain intact.
-2. Confirm the desktop navigation shows Features, Pricing, Contact, Login, and Sign Up with no Tools item.
-3. Open the mobile menu and confirm it shows Features, Pricing, Contact, Login, and Sign Up, updates `aria-expanded`, closes after selecting a link, and retains its existing animation.
+2. Confirm the desktop navigation shows Features, Pricing, Guides, Contact, Login, and Sign Up with no Tools item.
+3. Open the mobile menu and confirm it shows Features, Pricing, Guides, Contact, Login, and Sign Up, updates `aria-expanded`, closes after selecting a link, and retains its existing animation.
 4. Confirm every landing-page anchor still scrolls to the correct section and Login, Sign Up, Try Demo, dashboard, and email routes remain unchanged.
 5. Confirm the hero presents Simple Books as one connected business platform.
 6. Confirm the feature grid remains responsive and accurately describes the current application.

@@ -19,6 +19,92 @@
             }
           ]
         }
+      ],
+      "rewrites": [
+        {
+          "source": "/guides",
+          "destination": "/guide-pages/index.html"
+        },
+        {
+          "source": "/guides/welcome-to-simple-books",
+          "destination": "/guide-pages/welcome-to-simple-books.html"
+        },
+        {
+          "source": "/guides/setting-up-your-business",
+          "destination": "/guide-pages/setting-up-your-business.html"
+        },
+        {
+          "source": "/guides/understanding-the-dashboard",
+          "destination": "/guide-pages/understanding-the-dashboard.html"
+        },
+        {
+          "source": "/guides/how-to-create-an-invoice",
+          "destination": "/guide-pages/how-to-create-an-invoice.html"
+        },
+        {
+          "source": "/guides/how-to-mark-an-invoice-as-paid",
+          "destination": "/guide-pages/how-to-mark-an-invoice-as-paid.html"
+        },
+        {
+          "source": "/guides/understanding-overdue-invoices",
+          "destination": "/guide-pages/understanding-overdue-invoices.html"
+        },
+        {
+          "source": "/guides/recording-supplier-bills",
+          "destination": "/guide-pages/recording-supplier-bills.html"
+        },
+        {
+          "source": "/guides/managing-unpaid-bills",
+          "destination": "/guide-pages/managing-unpaid-bills.html"
+        },
+        {
+          "source": "/guides/recording-business-expenses",
+          "destination": "/guide-pages/recording-business-expenses.html"
+        },
+        {
+          "source": "/guides/claiming-business-mileage",
+          "destination": "/guide-pages/claiming-business-mileage.html"
+        },
+        {
+          "source": "/guides/uploading-receipts",
+          "destination": "/guide-pages/uploading-receipts.html"
+        },
+        {
+          "source": "/guides/using-ai-invoice-scanning",
+          "destination": "/guide-pages/using-ai-invoice-scanning.html"
+        },
+        {
+          "source": "/guides/tracking-project-profitability",
+          "destination": "/guide-pages/tracking-project-profitability.html"
+        },
+        {
+          "source": "/guides/what-is-double-entry-bookkeeping",
+          "destination": "/guide-pages/what-is-double-entry-bookkeeping.html"
+        },
+        {
+          "source": "/guides/understanding-the-trial-balance",
+          "destination": "/guide-pages/understanding-the-trial-balance.html"
+        },
+        {
+          "source": "/guides/understanding-the-general-ledger",
+          "destination": "/guide-pages/understanding-the-general-ledger.html"
+        },
+        {
+          "source": "/guides/understanding-profit-and-loss",
+          "destination": "/guide-pages/understanding-profit-and-loss.html"
+        },
+        {
+          "source": "/guides/understanding-the-balance-sheet",
+          "destination": "/guide-pages/understanding-the-balance-sheet.html"
+        },
+        {
+          "source": "/guides/what-is-vat",
+          "destination": "/guide-pages/what-is-vat.html"
+        },
+        {
+          "source": "/guides/input-vat-and-output-vat",
+          "destination": "/guide-pages/input-vat-and-output-vat.html"
+        }
       ]
     },
     {
