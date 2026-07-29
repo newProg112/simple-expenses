@@ -21,6 +21,10 @@ const recordBillGuide = readFileSync(
   projectFile("guide-pages/how-to-record-a-bill.html"),
   "utf8"
 );
+const recordBusinessExpenseGuide = readFileSync(
+  projectFile("guide-pages/how-to-record-a-business-expense.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -30,9 +34,9 @@ function occurrences(source, pattern) {
 }
 
 describe("public Guides data and index", () => {
-  it("keeps all 21 unique guides in the seven requested categories", () => {
-    expect(GUIDES).toHaveLength(21);
-    expect(new Set(GUIDES.map((guide) => guide.slug)).size).toBe(21);
+  it("keeps all 22 unique guides in the seven requested categories", () => {
+    expect(GUIDES).toHaveLength(22);
+    expect(new Set(GUIDES.map((guide) => guide.slug)).size).toBe(22);
     expect(new Set(GUIDES.map((guide) => guide.category))).toEqual(new Set(GUIDE_CATEGORIES));
     expect(GUIDES.filter((guide) => guide.featured).map((guide) => guide.title)).toEqual([
       "How to create an invoice",
@@ -55,7 +59,7 @@ describe("public Guides data and index", () => {
     expect(guidesIndex).toContain('aria-label="Filter guides by category"');
     expect(guidesIndex).toContain('id="empty-state" hidden');
     expect(guidesIndex).toContain('id="clear-filters"');
-    expect(occurrences(guidesIndex, / data-guide-card/g)).toBe(21);
+    expect(occurrences(guidesIndex, / data-guide-card/g)).toBe(22);
 
     for (const category of ["All guides", ...GUIDE_CATEGORIES]) {
       expect(guidesIndex).toContain(`data-category-filter="${category.replace(/&/g, "&amp;")}"`);
@@ -300,6 +304,77 @@ describe("generated guide pages", () => {
       "select <strong>Mark unpaid</strong>"
     );
   });
+
+  it("publishes the complete business-expense article with current product behaviour", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "When should you record an expense?",
+      "Bills vs Expenses",
+      "Open the Expenses page",
+      "Enter the expense details",
+      "Add VAT and totals",
+      "Attach receipts",
+      "Add notes and project allocation",
+      "Save the expense",
+      "AI Scan Expense",
+      "How expenses affect the Dashboard, Profit & Loss, Balance Sheet and General Ledger",
+      "Edit or delete an expense",
+      "Worked example",
+      "Common mistakes",
+      "Summary"
+    ];
+
+    expect(recordBusinessExpenseGuide).toContain(
+      "<title>How to record a business expense | Simple Books Guides</title>"
+    );
+    expect(recordBusinessExpenseGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/how-to-record-a-business-expense">'
+    );
+    expect(recordBusinessExpenseGuide).toContain("<span>11 minute read</span>");
+    expect(recordBusinessExpenseGuide).toContain(
+      '<time datetime="2026-07-29">29 July 2026</time>'
+    );
+    expect(recordBusinessExpenseGuide).toContain(
+      '"articleSection":"Expenses & Mileage"'
+    );
+    expect(recordBusinessExpenseGuide).toContain(
+      '"keywords":"how to record a business expense'
+    );
+    expect(recordBusinessExpenseGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(recordBusinessExpenseGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(recordBusinessExpenseGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(recordBusinessExpenseGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "how-to-record-a-bill",
+      "uploading-receipts",
+      "using-ai-invoice-scanning",
+      "input-vat-and-output-vat",
+      "understanding-profit-and-loss",
+      "understanding-the-balance-sheet",
+      "understanding-the-general-ledger"
+    ]) {
+      expect(recordBusinessExpenseGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "Manual expense attachments currently accept PDF files up to 10 MB.",
+      "Mark paid updates the expense’s status only",
+      "credits Employee Reimbursements Payable",
+      "deleting an expense does not create an accounting reversal"
+    ]) {
+      expect(recordBusinessExpenseGuide).toContain(currentBehaviour);
+    }
+  });
 });
 
 describe("Firebase Hosting guide routes", () => {
@@ -315,7 +390,7 @@ describe("Firebase Hosting guide routes", () => {
     ];
 
     expect(guideRewrites).toEqual(expectedRoutes);
-    expect(guideRewrites).toHaveLength(22);
+    expect(guideRewrites).toHaveLength(23);
     expect(guideRewrites.some((rewrite) => rewrite.source.includes("**"))).toBe(false);
   });
 

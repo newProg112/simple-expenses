@@ -62,6 +62,10 @@
           "destination": "/guide-pages/managing-unpaid-bills.html"
         },
         {
+          "source": "/guides/how-to-record-a-business-expense",
+          "destination": "/guide-pages/how-to-record-a-business-expense.html"
+        },
+        {
           "source": "/guides/recording-business-expenses",
           "destination": "/guide-pages/recording-business-expenses.html"
         },

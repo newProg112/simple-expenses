@@ -96,6 +96,16 @@ export const GUIDES = [
     format: "article"
   },
   {
+    slug: "how-to-record-a-business-expense",
+    title: "How to record a business expense",
+    category: "Expenses & Mileage",
+    description: "Learn how to record a business expense in Simple Books, add VAT and receipts, use AI scanning and understand the accounting entries.",
+    keywords: ["how to record a business expense", "business expenses", "expense claim", "receipt", "input VAT", "Simple Books"],
+    readTime: 11,
+    lastUpdated: "2026-07-29",
+    format: "how-to"
+  },
+  {
     slug: "recording-business-expenses",
     title: "Recording business expenses",
     category: "Expenses & Mileage",

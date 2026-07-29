@@ -362,5 +362,149 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>To record a bill in Simple Books, open <strong>Bills</strong>, enter the supplier and bill references, check the bill and due dates, choose a category, add the net amount and correct VAT rate, and leave the status as <strong>Unpaid</strong> while money is still owed. Select <strong>Save bill</strong> to store the record and create its accounting journal.</p>
           <p>After the supplier has been paid, select <strong>Mark paid</strong> to update unpaid, overdue and paid status totals. Use <strong>Mark unpaid</strong> if that status was applied by mistake. These actions organise the bill’s status; they do not create a bank payment or alter the bill’s Profit &amp; Loss, Balance Sheet or General Ledger posting.</p>
+        </section>`,
+  "how-to-record-a-business-expense": `<section>
+          <h2>Introduction</h2>
+          <p>A business expense is a cost incurred for the work your business carries out. Recording it in Simple Books keeps the merchant, date, category, VAT, receipt and approval status together and creates the accounting journal used by your reports.</p>
+          <p>The Expenses page handles both expenses and mileage claims. This guide covers the <strong>Expense</strong> option: purchases from a merchant or supplier rather than business journeys. For journeys, see <a href="/guides/claiming-business-mileage">claiming business mileage</a>.</p>
+          <p>Saving an expense and paying or reimbursing it are different events. Saving records the expense and its journal. The status shows where the claim sits in the workflow, but changing that status does not automatically record money moving through a bank account. This is general product guidance, not accounting or tax advice.</p>
+        </section>
+
+        <section>
+          <h2>When should you record an expense?</h2>
+          <p>Record an expense when the business has incurred a day-to-day cost or an expense claim needs to be tracked. Typical examples include office supplies, software, professional fees, meals or business travel that is not being entered as a mileage claim.</p>
+          <p>Enter the expense promptly using the date on the receipt or purchase document. This helps place the cost in the correct reporting period and keeps the supporting receipt close to the saved record. Use the appropriate status—<strong>Draft</strong>, <strong>Submitted</strong>, <strong>Approved</strong> or <strong>Paid</strong>—for the stage the expense has reached.</p>
+          <p>Record a genuine business cost only once. Entering the same purchase as both an expense and a supplier bill creates two records and can duplicate the cost, VAT and liability in your financial reports.</p>
+        </section>
+
+        <section>
+          <h2>Bills vs Expenses</h2>
+          <p>Both workflows record purchase-side costs, but they serve different records in Simple Books:</p>
+          <ul class="remember-list">
+            <li><strong>Use Bills</strong> when a supplier has issued a bill that your business owes and you need to track its bill number, bill date, due date and Paid or Unpaid status. The bill journal credits Trade Payables. See <a href="/guides/how-to-record-a-bill">how to record a bill</a>.</li>
+            <li><strong>Use Expenses</strong> for a day-to-day purchase or expense claim that you want to track through Draft, Submitted, Approved and Paid statuses. The expense journal credits Employee Reimbursements Payable.</li>
+          </ul>
+          <p>The Expenses form does not contain a supplier bill number or due date. The Bills form does not use the expense approval statuses. Choose the workflow that matches the source document and how the cost needs to be tracked, and do not enter the same transaction in both.</p>
+        </section>
+
+        <section>
+          <h2>Open the Expenses page</h2>
+          <ol class="remember-list">
+            <li>Sign in to Simple Books.</li>
+            <li>Open <strong>Expenses</strong> from the app navigation.</li>
+            <li>In the <strong>Add expense</strong> form, make sure <strong>Expense</strong> is selected rather than <strong>Mileage</strong>.</li>
+          </ol>
+          <p>The page also contains summary cards, status and category charts, and <strong>Recent expenses</strong>. These update after an expense is saved. The <strong>Scan Receipt</strong> button opens the document-scanning workflow described later in this guide.</p>
+        </section>
+
+        <section>
+          <h2>Enter the expense details</h2>
+          <p>Complete the purchase and claim fields with the information from the receipt or other supporting document:</p>
+          <ul class="remember-list">
+            <li><strong>Date:</strong> use the purchase or expense date. The journal uses this date for financial reporting.</li>
+            <li><strong>Merchant / Supplier:</strong> enter the business that supplied the goods or services. This field is required before saving.</li>
+            <li><strong>Category:</strong> choose <strong>General</strong>, <strong>Travel</strong>, <strong>Meals</strong>, <strong>Office</strong>, <strong>Software</strong>, <strong>Utilities</strong>, <strong>Professional fees</strong> or <strong>Other</strong>.</li>
+            <li><strong>Status:</strong> choose <strong>Draft</strong>, <strong>Submitted</strong>, <strong>Approved</strong> or <strong>Paid</strong>. New forms start at Draft.</li>
+            <li><strong>Description:</strong> briefly explain what the purchase was for.</li>
+          </ul>
+          <p>The category determines which expense account receives the net cost. Travel, Utilities, Professional fees and Software have matching accounts; categories without a dedicated account currently post to General Expenses. Review the choice rather than relying on the default <strong>General</strong> category.</p>
+        </section>
+
+        <section>
+          <h2>Add VAT and totals</h2>
+          <p>Enter the amount before VAT in <strong>Net amount (£)</strong>. Choose <strong>20%</strong>, <strong>5%</strong> or <strong>0%</strong> from <strong>VAT rate</strong>. Simple Books calculates <strong>VAT amount (£)</strong> from the net amount and rate, then adds the two figures to the read-only <strong>Gross amount (£)</strong>.</p>
+          <p>The VAT amount is editable. This is useful where the document’s VAT differs from the simple rate calculation, but the gross amount will always be recalculated as net plus the VAT amount entered. Changing the VAT rate recalculates VAT from the net amount again. Check all three figures against the receipt before saving.</p>
+          <p>The form starts with a 20% rate, so do not leave it unchanged without checking. A VAT rate being available does not mean the VAT is recoverable. Use the correct treatment for the purchase and your VAT position. For the terminology behind purchase VAT, see <a href="/guides/input-vat-and-output-vat">understanding input VAT and output VAT</a>.</p>
+          <p>The current expense form records one net amount and one VAT amount for the whole expense. It does not provide separate item rows or different VAT rates for individual lines.</p>
+        </section>
+
+        <section>
+          <h2>Attach receipts</h2>
+          <p>A receipt supports the amount, merchant, date and VAT you have recorded. Under <strong>Attachment</strong>, select <strong>Attach PDF receipt</strong> and choose the document from your device. Manual expense attachments currently accept PDF files up to 10 MB.</p>
+          <p>The file is uploaded when you select <strong>Save expense</strong>. After saving, <strong>Recent expenses</strong> provides a <strong>View PDF</strong> link. When you edit an expense, the current attachment is retained unless you select a replacement.</p>
+          <p>The separate receipt scanner accepts additional image formats and can keep the scanned document as the attachment. That route is explained under <strong>AI Scan Expense</strong>. For more general document-handling guidance, see <a href="/guides/uploading-receipts">uploading receipts</a>.</p>
+        </section>
+
+        <section>
+          <h2>Add notes and project allocation</h2>
+          <p>Use <strong>Notes</strong> for optional supporting context that does not fit the short description. For example, explain the business reason for an unusual purchase or add an internal reference. Avoid including unnecessary sensitive information.</p>
+          <p>If the expense belongs to a saved project, choose it from <strong>Project</strong>. Otherwise leave <strong>No project</strong> selected. Simple Books saves the project name and reference with the expense, displays the allocation under <strong>Recent expenses</strong>, and includes allocated expense costs in project views. See <a href="/guides/tracking-project-profitability">tracking project profitability</a> for wider context.</p>
+        </section>
+
+        <section>
+          <h2>Save the expense</h2>
+          <p>Review the date, merchant, category, project, net amount, VAT, gross amount, status, description, notes and attachment. Then select <strong>Save expense</strong>. The record appears under <strong>Recent expenses</strong> and contributes to the Expenses page totals and charts.</p>
+          <p>Saving a non-mileage expense creates an accounting journal using the expense date. Simple Books debits the selected expense account for the net amount, debits VAT Input for any VAT amount, and credits Employee Reimbursements Payable for the gross amount. This posting is created whether the saved status is Draft, Submitted, Approved or Paid.</p>
+          <p>If the expense saves but the related journal cannot be completed, Simple Books keeps the expense and shows a warning. Retry the update or contact support rather than assuming the cost appears in financial reports.</p>
+          <p>For an expense that is not yet Paid, <strong>Recent expenses</strong> shows <strong>Mark paid</strong>. Selecting it stores a Paid status and the time of the update. Mark paid updates the expense’s status only: it does not create, replace or reverse the accounting journal, record a bank payment or reconcile a bank transaction. There is no <strong>Mark unpaid</strong> action for expenses; use <strong>Edit</strong> and choose the correct status if you need to fix a mistake.</p>
+        </section>
+
+        <section>
+          <h2>AI Scan Expense</h2>
+          <p>Select <strong>Scan Receipt</strong> to upload a JPG, JPEG, PNG, WEBP or PDF document up to 10 MB. Choose the file, select <strong>Scan receipt</strong>, and wait while Simple Books reads it. The scanner then displays the details it extracted for you to review.</p>
+          <p>Select <strong>Use these details</strong> to add safe extracted values to the expense form. Depending on the document, Simple Books can draft the merchant, date, category, net amount and VAT rate. Extracted descriptive text is added to <strong>Notes</strong>. It calculates the form totals and warns when a category, VAT rate or total needs manual review.</p>
+          <p>The scan does not save the expense. Check every highlighted value against the original document, complete any missing fields, choose the status and project yourself, then select <strong>Save expense</strong>. If no manual attachment is already selected, the scanned document is kept as a pending attachment and uploaded during the save.</p>
+          <p>You cannot apply scanned details while editing an existing expense. If a manual attachment is already selected, Simple Books keeps that manual file and warns that it cannot also use the scanned document as the attachment. For an overview of document scanning across purchase records, see <a href="/guides/using-ai-invoice-scanning">using AI invoice scanning</a>.</p>
+        </section>
+
+        <section>
+          <h2>How expenses affect the Dashboard, Profit &amp; Loss, Balance Sheet and General Ledger</h2>
+          <p>A saved expense affects operational views and accounting reports in different ways:</p>
+          <ul class="remember-list">
+            <li><strong>Expenses page:</strong> the gross amount contributes to total expenses and the chosen status total. The VAT amount contributes to <strong>VAT reclaimable</strong>. Paid and non-Paid records feed the paid and outstanding expense summaries.</li>
+            <li><strong>Dashboard:</strong> saved expenses can appear in recent activity with their merchant or description, gross amount, status and activity date. The main dashboard’s invoice-and-bill chart does not add expense records to its bills figure.</li>
+            <li><strong>Profit &amp; Loss:</strong> the net amount appears in the relevant expense account for the expense date and reduces profit. See <a href="/guides/understanding-profit-and-loss">understanding Profit &amp; Loss</a>.</li>
+            <li><strong>Balance Sheet:</strong> VAT is debited to VAT Input and the gross amount is credited to Employee Reimbursements Payable. See <a href="/guides/understanding-the-balance-sheet">understanding the Balance Sheet</a>.</li>
+            <li><strong>General Ledger:</strong> the detailed journal shows the expense debit, any VAT Input debit and the Employee Reimbursements Payable credit. See <a href="/guides/understanding-the-general-ledger">understanding the General Ledger</a>.</li>
+          </ul>
+          <p>The financial statements and General Ledger use the journal created when the expense is saved. Changing the status, including selecting <strong>Mark paid</strong>, does not clear Employee Reimbursements Payable or create a Bank entry under the current behaviour.</p>
+        </section>
+
+        <section>
+          <h2>Edit or delete an expense</h2>
+          <p>Find the record under <strong>Recent expenses</strong> and select <strong>Edit</strong>. The saved values return to the form and the action changes to <strong>Update expense</strong>. Make the correction, check the VAT and gross amount again, then select <strong>Update expense</strong>. Updating replaces the expense journal with one based on the revised values.</p>
+          <p>Select <strong>Cancel edit</strong> if you do not want to save the changes. Starting an edit also removes any separate scanned receipt that was waiting to be applied or uploaded.</p>
+          <p>Use <strong>Delete</strong> only after checking the record. Simple Books asks for confirmation, removes the expense record and attempts to remove its stored attachment. Under the current behaviour, deleting an expense does not create an accounting reversal, so do not assume that Delete also removes or reverses the existing journal. A correction to accounting records may need separate review.</p>
+        </section>
+
+        <section>
+          <h2>Worked example</h2>
+          <p>A design studio buys stationery from Parkside Office Supplies for a client project. The receipt shows:</p>
+          <ul class="remember-list">
+            <li>Date: 8 July 2026</li>
+            <li>Merchant / Supplier: Parkside Office Supplies</li>
+            <li>Category: Office</li>
+            <li>Net amount: £85.00</li>
+            <li>VAT at 20%: £17.00</li>
+            <li>Gross amount: £102.00</li>
+            <li>Status: Draft</li>
+            <li>Project: Website refresh</li>
+          </ul>
+          <p>The studio enters £85.00 as the net amount and chooses 20%. Simple Books calculates £17.00 VAT and a £102.00 gross amount. The user adds “Sketchbooks and presentation materials” as the description, selects the project, attaches the PDF receipt and selects <strong>Save expense</strong>.</p>
+          <p>Because Office currently uses the General Expenses account, the journal debits General Expenses by £85.00, debits VAT Input by £17.00 and credits Employee Reimbursements Payable by £102.00. Profit &amp; Loss includes the £85.00 cost. The Balance Sheet includes the £17.00 VAT Input asset and £102.00 payable liability, while the General Ledger shows all three lines.</p>
+          <p>The expense appears in the Expenses page’s Draft and outstanding totals and can appear in Dashboard recent activity. If the user later selects <strong>Mark paid</strong>, the status changes to Paid, but the three accounting lines remain unchanged and no bank transaction is created.</p>
+        </section>
+
+        <section>
+          <h2>Common mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Using Expenses for a supplier bill with a due date.</strong> Use Bills when you need bill references, due dates and Trade Payables.</li>
+            <li><strong>Recording the same purchase twice.</strong> Check Bills and Expenses before adding another record.</li>
+            <li><strong>Leaving the default category unchanged.</strong> The category controls the expense account used by the journal.</li>
+            <li><strong>Entering the gross amount as Net amount.</strong> Enter the before-VAT figure and check the calculated gross total.</li>
+            <li><strong>Assuming the default 20% VAT applies.</strong> Match the receipt and the correct VAT treatment.</li>
+            <li><strong>Overwriting a correct VAT amount.</strong> The VAT field is editable, so compare it with the document after any change.</li>
+            <li><strong>Trying to attach an image manually.</strong> Manual expense attachments currently require a PDF; use <strong>Scan Receipt</strong> for supported receipt images.</li>
+            <li><strong>Trusting AI-extracted details without review.</strong> Check the merchant, date, category and all amounts before saving.</li>
+            <li><strong>Assuming Save expense records payment.</strong> Saving creates the expense and journal, not a bank transaction.</li>
+            <li><strong>Expecting Mark paid to update the ledger.</strong> It changes status only and does not clear Employee Reimbursements Payable.</li>
+            <li><strong>Deleting an expense to reverse its journal.</strong> Delete does not currently create an accounting reversal.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>To record a business expense in Simple Books, open <strong>Expenses</strong>, select <strong>Expense</strong>, enter the date and merchant, choose the appropriate category and status, add the net amount and correct VAT, and include a clear description. Attach a PDF receipt manually or use <strong>Scan Receipt</strong> to draft details from a supported document, then review everything and select <strong>Save expense</strong>.</p>
+          <p>Saving creates the expense journal used by Profit &amp; Loss, the Balance Sheet and the General Ledger. Status changes help organise Draft, Submitted, Approved and Paid expenses, but they do not record or reconcile bank payments. Keep the source document, category, VAT and project allocation accurate so the expense remains useful in both operational views and accounting reports.</p>
         </section>`
 };
