@@ -68,6 +68,16 @@ export const GUIDES = [
     format: "article"
   },
   {
+    slug: "how-to-record-a-bill",
+    title: "How to record a bill",
+    category: "Bills",
+    description: "Learn how to record a supplier bill in Simple Books, add VAT, save it before payment and understand how it affects your accounts.",
+    keywords: ["how to record a bill", "supplier bill", "accounts payable", "input VAT", "pay a bill", "Simple Books"],
+    readTime: 10,
+    lastUpdated: "2026-07-29",
+    format: "how-to"
+  },
+  {
     slug: "recording-supplier-bills",
     title: "Recording supplier bills",
     category: "Bills",

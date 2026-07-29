@@ -17,6 +17,10 @@ const markInvoicePaidGuide = readFileSync(
   projectFile("guide-pages/how-to-mark-an-invoice-as-paid.html"),
   "utf8"
 );
+const recordBillGuide = readFileSync(
+  projectFile("guide-pages/how-to-record-a-bill.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -26,9 +30,9 @@ function occurrences(source, pattern) {
 }
 
 describe("public Guides data and index", () => {
-  it("keeps all 20 unique guides in the seven requested categories", () => {
-    expect(GUIDES).toHaveLength(20);
-    expect(new Set(GUIDES.map((guide) => guide.slug)).size).toBe(20);
+  it("keeps all 21 unique guides in the seven requested categories", () => {
+    expect(GUIDES).toHaveLength(21);
+    expect(new Set(GUIDES.map((guide) => guide.slug)).size).toBe(21);
     expect(new Set(GUIDES.map((guide) => guide.category))).toEqual(new Set(GUIDE_CATEGORIES));
     expect(GUIDES.filter((guide) => guide.featured).map((guide) => guide.title)).toEqual([
       "How to create an invoice",
@@ -51,7 +55,7 @@ describe("public Guides data and index", () => {
     expect(guidesIndex).toContain('aria-label="Filter guides by category"');
     expect(guidesIndex).toContain('id="empty-state" hidden');
     expect(guidesIndex).toContain('id="clear-filters"');
-    expect(occurrences(guidesIndex, / data-guide-card/g)).toBe(20);
+    expect(occurrences(guidesIndex, / data-guide-card/g)).toBe(21);
 
     for (const category of ["All guides", ...GUIDE_CATEGORIES]) {
       expect(guidesIndex).toContain(`data-category-filter="${category.replace(/&/g, "&amp;")}"`);
@@ -238,6 +242,64 @@ describe("generated guide pages", () => {
       "Marking it Paid changes only its status and does not create, replace or reverse that posting."
     );
   });
+
+  it("publishes the complete record-bill article with accurate accounting and status guidance", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "When should you record a bill?",
+      "Open the Bills page",
+      "Enter the supplier details",
+      "Add bill items, VAT and totals",
+      "Save the bill",
+      "Mark a bill as paid",
+      "How bills affect the dashboard, reports and financial statements",
+      "Edit or delete a bill",
+      "Worked example",
+      "Common mistakes",
+      "Summary"
+    ];
+
+    expect(recordBillGuide).toContain(
+      "<title>How to record a bill | Simple Books Guides</title>"
+    );
+    expect(recordBillGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/how-to-record-a-bill">'
+    );
+    expect(recordBillGuide).toContain("<span>10 minute read</span>");
+    expect(recordBillGuide).toContain(
+      '<time datetime="2026-07-29">29 July 2026</time>'
+    );
+    expect(recordBillGuide).toContain('"articleSection":"Bills"');
+    expect(recordBillGuide).toContain('"keywords":"how to record a bill');
+    expect(recordBillGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(recordBillGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(recordBillGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(recordBillGuide).toContain(`<h2>${heading}</h2>`);
+    }
+
+    for (const slug of [
+      "how-to-create-an-invoice",
+      "understanding-profit-and-loss",
+      "understanding-the-balance-sheet",
+      "input-vat-and-output-vat",
+      "understanding-the-general-ledger"
+    ]) {
+      expect(recordBillGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    expect(recordBillGuide).toContain(
+      "Marking a bill as paid changes its status only. It does not create, replace or reverse the accounting journal"
+    );
+    expect(recordBillGuide).toContain(
+      "select <strong>Mark unpaid</strong>"
+    );
+  });
 });
 
 describe("Firebase Hosting guide routes", () => {
@@ -253,7 +315,7 @@ describe("Firebase Hosting guide routes", () => {
     ];
 
     expect(guideRewrites).toEqual(expectedRoutes);
-    expect(guideRewrites).toHaveLength(21);
+    expect(guideRewrites).toHaveLength(22);
     expect(guideRewrites.some((rewrite) => rewrite.source.includes("**"))).toBe(false);
   });
 

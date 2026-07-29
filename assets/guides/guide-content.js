@@ -238,5 +238,129 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>To record invoice payment accurately in Simple Books, first confirm independently that the customer has paid the full amount. Find the invoice under <strong>Recent invoices</strong> and select <strong>Mark Paid</strong>. The invoice leaves outstanding, overdue and due-soon calculations, its badge changes to Paid, and customer statements and the status chart reflect the update.</p>
           <p>Use <strong>Mark Unpaid</strong> if the status needs correcting. Remember that these buttons update status only: they do not verify payment, store payment details, support partial payments, match a bank transaction or change the invoice’s ledger posting.</p>
+        </section>`,
+  "how-to-record-a-bill": `<section>
+          <h2>Introduction</h2>
+          <p>A bill records money your business owes to a supplier for goods or services it has received. It is the purchase-side counterpart to a customer invoice: a customer invoice records money owed to you, while a supplier bill records money you owe. If you also sell to customers, see <a href="/guides/how-to-create-an-invoice">how to create an invoice</a>.</p>
+          <p>You can save a bill before you pay it. Recording the bill and paying the bill are separate events:</p>
+          <ul class="remember-list">
+            <li><strong>Recording a bill</strong> captures the supplier, dates, net amount, VAT, total and amount owed. Saving also creates or updates the bill’s accounting journal.</li>
+            <li><strong>Paying a bill</strong> means money actually leaves your bank or other payment account.</li>
+            <li><strong>Marking a bill as paid</strong> changes how Simple Books classifies the saved bill. It does not itself move money or create a bank transaction.</li>
+          </ul>
+          <p>This guide explains the current Bills workflow in Simple Books and the accounting records it creates. It is general product guidance, not accounting or tax advice.</p>
+        </section>
+
+        <section>
+          <h2>When should you record a bill?</h2>
+          <p>Record a bill when a supplier has issued a document showing an amount your business must pay, even if its due date is later. Saving it promptly keeps upcoming payments visible and records the cost in the period dated on the bill.</p>
+          <p>For example, if your accountant sends a £600 bill on 10 July with payment due on 9 August, record it using the 10 July bill date. Leave its status as <strong>Unpaid</strong> until you have actually paid it. You do not need to wait until 9 August to enter it.</p>
+          <p>A bill is normally appropriate where the business owes the supplier. A cost already paid may instead belong in the Expenses workflow, depending on how you keep your records. Avoid recording the same purchase as both a bill and an expense because that can duplicate the cost and VAT in your reports.</p>
+        </section>
+
+        <section>
+          <h2>Open the Bills page</h2>
+          <ol class="remember-list">
+            <li>Sign in to Simple Books.</li>
+            <li>Open <strong>Bills</strong> from the app navigation.</li>
+            <li>Find the <strong>Add bill</strong> form.</li>
+          </ol>
+          <p>The page also shows bill summary cards, charts and <strong>Recent bills</strong>. Those areas update after a bill is saved. You can use <strong>Scan Bill</strong> to draft details from a supported document, but always review the extracted fields against the supplier’s original bill before saving.</p>
+        </section>
+
+        <section>
+          <h2>Enter the supplier details</h2>
+          <p>Start with the information that identifies the bill:</p>
+          <ul class="remember-list">
+            <li><strong>Supplier:</strong> enter the supplier’s name. This is required.</li>
+            <li><strong>Bill number:</strong> enter the reference printed on the supplier’s bill so you can find and check it later.</li>
+            <li><strong>Bill date:</strong> use the date shown on the bill. This date determines the accounting date of the journal.</li>
+            <li><strong>Due date:</strong> enter the agreed payment deadline. Simple Books uses this to identify unpaid bills that are overdue or due soon.</li>
+            <li><strong>Category:</strong> choose the option that best describes the cost, such as <strong>Utilities</strong>, <strong>Professional fees</strong> or <strong>Software/subscriptions</strong>.</li>
+            <li><strong>Status:</strong> choose <strong>Unpaid</strong> when the supplier is still owed money. A bill can be recorded and saved with this status before it is paid.</li>
+          </ul>
+          <p>If the cost belongs to a saved project, choose it from <strong>Project</strong>; otherwise leave <strong>No project</strong> selected. You can also add <strong>Notes</strong> and attach a PDF receipt or bill where useful. These details support the record, but they do not replace checking the supplier, dates and figures.</p>
+        </section>
+
+        <section>
+          <h2>Add bill items, VAT and totals</h2>
+          <p>The current Bills form records one <strong>Net amount (£)</strong> for the bill rather than separate item rows. Add together the bill’s relevant lines and enter the total before VAT. Keep the supplier’s document attached or otherwise available if you need the individual line detail.</p>
+          <p>Choose <strong>20%</strong>, <strong>5%</strong> or <strong>0%</strong> from <strong>VAT rate</strong>. The selected rate applies to the whole net amount; Simple Books does not currently apply different VAT rates to separate bill lines. It calculates the VAT amount from the net amount and adds the two figures to produce the gross total.</p>
+          <p>For example, a £500.00 net bill at 20% produces £100.00 VAT and a £600.00 total. Where VAT is recoverable, the bill journal records it as VAT Input separately from the expense. Choosing a rate in the form does not establish that VAT is recoverable, so use the supplier document and the correct treatment for your circumstances. Read <a href="/guides/input-vat-and-output-vat">understanding input VAT and output VAT</a> for the distinction.</p>
+          <p>Check that the calculated VAT and total agree with the supplier’s bill before saving. If one supplier bill contains mixed VAT rates, the single-rate form cannot reproduce those lines exactly; do not force the figures to fit.</p>
+        </section>
+
+        <section>
+          <h2>Save the bill</h2>
+          <p>Review the supplier, bill number, bill date, due date, category, net amount, VAT rate, status and project. Then select <strong>Save bill</strong>. The bill appears under <strong>Recent bills</strong> and begins contributing to the Bills page and dashboard totals.</p>
+          <p>Saving the bill is not the same as paying it. If <strong>Unpaid</strong> is selected, Simple Books records the full gross amount as money owed to the supplier. The save action also creates an accounting journal dated with the bill date: the net amount is posted to the category’s expense account, recoverable VAT is posted to VAT Input where present, and the gross total is credited to Trade Payables.</p>
+          <p>If the bill saves but its ledger posting cannot be completed, Simple Books keeps the bill and displays a warning. Retry the update or contact support rather than assuming the reports contain the posting.</p>
+        </section>
+
+        <section>
+          <h2>Mark a bill as paid</h2>
+          <p>Marking a bill as paid tells Simple Books that the supplier has now been paid. It updates the bill’s status and dashboard totals, but it does not record the bank payment automatically. Pay the supplier through your normal bank or payment process and independently confirm that the full amount has left your account. Then find the bill under <strong>Recent bills</strong> and select <strong>Mark paid</strong>. The bill’s status changes to Paid, the action changes to <strong>Mark unpaid</strong>, and the Bills page refreshes its status totals.</p>
+          <p>After the status changes, the bill’s total moves out of the unpaid and overdue calculations and into paid totals. It no longer contributes to unpaid-bill or bill-due reminders on the dashboard. Simple Books stores the time of this status update, but the action does not ask for a payment amount, payment method or bank account and does not reconcile a bank transaction.</p>
+          <p><strong>Marking a bill as paid changes its status only. It does not create, replace or reverse the accounting journal</strong> created when the bill was saved. In particular, the current action does not post a debit to Trade Payables and a credit to Bank. It therefore does not, by itself, record the accounting movement for settlement.</p>
+          <p>If you update the wrong bill or mark it paid too early, select <strong>Mark unpaid</strong>. This reverses the status change: the amount returns to unpaid and, where its due date has passed, overdue totals. It does not reverse or recreate an accounting journal.</p>
+        </section>
+
+        <section>
+          <h2>How bills affect the dashboard, reports and financial statements</h2>
+          <p>A saved bill affects operational totals and accounting reports in different ways:</p>
+          <ul class="remember-list">
+            <li><strong>Dashboard:</strong> an Unpaid bill contributes its gross total to <strong>Unpaid bills</strong>, reduces the dashboard’s net-position calculation and can appear in overdue or due-soon actions. Bill charts and monthly bill totals use saved bills whether they are Paid or Unpaid.</li>
+            <li><strong>Profit &amp; Loss:</strong> the net cost appears in the relevant expense account for the bill date. The VAT amount and gross payable do not form part of that expense figure. See <a href="/guides/understanding-profit-and-loss">understanding Profit &amp; Loss</a>.</li>
+            <li><strong>Balance Sheet:</strong> the gross amount owed is credited to Trade Payables, a liability. Recoverable VAT is debited to VAT Input, an asset. See <a href="/guides/understanding-the-balance-sheet">understanding the Balance Sheet</a>.</li>
+            <li><strong>General Ledger:</strong> the journal shows the individual debit and credit lines behind the bill, including the expense, VAT Input where applicable and Trade Payables. See <a href="/guides/understanding-the-general-ledger">understanding the General Ledger</a>.</li>
+          </ul>
+          <p>The Profit &amp; Loss, Balance Sheet and General Ledger use the journal created when the bill is saved, not the Paid or Unpaid label. Selecting <strong>Mark paid</strong> changes the dashboard’s unpaid and status-based figures, but it does not change those accounting postings. This means Trade Payables is not cleared by that button alone under the current Simple Books behaviour.</p>
+        </section>
+
+        <section>
+          <h2>Edit or delete a bill</h2>
+          <p>To correct a saved record, find it under <strong>Recent bills</strong> and select <strong>Edit</strong>. The details return to the form. Make the changes, review the recalculated VAT and total, then select <strong>Update bill</strong>. Updating replaces the bill’s accounting journal with one based on the revised values.</p>
+          <p>Use <strong>Delete</strong> only after checking that you have selected the right bill and understanding the reporting effect. Simple Books asks you to confirm before removing the bill record. Under the current behaviour, deleting a bill does not create an accounting reversal, so do not assume that Delete also removes or reverses its existing ledger posting. Correcting a genuine accounting record may require separate review.</p>
+          <p>Keep the original supplier document and an audit trail appropriate for your business. Editing or deleting a record purely to make a report look different can make the books harder to explain.</p>
+        </section>
+
+        <section>
+          <h2>Worked example</h2>
+          <p>A VAT-registered web designer receives a monthly cloud-software bill from Northstar Hosting with these details:</p>
+          <ul class="remember-list">
+            <li>Bill number: NSH-4821</li>
+            <li>Bill date: 3 July 2026</li>
+            <li>Due date: 17 July 2026</li>
+            <li>Category: Software/subscriptions</li>
+            <li>Net amount: £240.00</li>
+            <li>VAT at 20%: £48.00</li>
+            <li>Total owed: £288.00</li>
+          </ul>
+          <p>The designer enters £240.00 as the net amount, chooses <strong>20%</strong>, leaves the status as <strong>Unpaid</strong> and selects <strong>Save bill</strong>. Simple Books calculates £48.00 VAT and a £288.00 total.</p>
+          <p>The saved journal debits Software &amp; Subscriptions by £240.00, debits VAT Input by £48.00 and credits Trade Payables by £288.00. The Profit &amp; Loss therefore includes a £240.00 software cost, while the Balance Sheet includes £48.00 VAT Input and £288.00 Trade Payables. The General Ledger shows all three lines.</p>
+          <p>Until payment, the dashboard includes £288.00 in <strong>Unpaid bills</strong>. On 15 July the designer pays Northstar Hosting and confirms the payment with the bank. They select <strong>Mark paid</strong>, so £288.00 leaves the unpaid and due calculations and moves into paid status totals. The original three-line journal remains unchanged because Mark paid is only a status update; it does not record the bank payment or clear Trade Payables.</p>
+        </section>
+
+        <section>
+          <h2>Common mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Waiting until payment to record the bill.</strong> Save an Unpaid bill when the supplier issues it so the amount owed and due date stay visible.</li>
+            <li><strong>Treating Save bill as a payment.</strong> Saving records the bill and its accounting journal; it does not send money.</li>
+            <li><strong>Entering the gross amount as Net amount.</strong> Use the amount before VAT or the calculated total will be too high.</li>
+            <li><strong>Leaving the default VAT rate unchecked.</strong> Match the rate and VAT amount to the supplier document and your VAT treatment.</li>
+            <li><strong>Forcing a mixed-rate bill into one VAT rate.</strong> The current form applies one rate to the whole net amount.</li>
+            <li><strong>Using the wrong category or date.</strong> These choices affect the expense account and reporting period.</li>
+            <li><strong>Recording the same purchase twice.</strong> Check that it has not already been entered as a bill or expense.</li>
+            <li><strong>Marking a bill paid before confirming payment.</strong> The button does not check your bank.</li>
+            <li><strong>Expecting Mark paid to clear Trade Payables.</strong> It changes status only and does not post settlement entries.</li>
+            <li><strong>Ignoring a mistaken status.</strong> Select <strong>Mark unpaid</strong> to return the bill to unpaid and overdue calculations where applicable.</li>
+            <li><strong>Deleting a bill to correct its accounting.</strong> Delete does not currently create a reversal of the existing journal.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>To record a bill in Simple Books, open <strong>Bills</strong>, enter the supplier and bill references, check the bill and due dates, choose a category, add the net amount and correct VAT rate, and leave the status as <strong>Unpaid</strong> while money is still owed. Select <strong>Save bill</strong> to store the record and create its accounting journal.</p>
+          <p>After the supplier has been paid, select <strong>Mark paid</strong> to update unpaid, overdue and paid status totals. Use <strong>Mark unpaid</strong> if that status was applied by mistake. These actions organise the bill’s status; they do not create a bank payment or alter the bill’s Profit &amp; Loss, Balance Sheet or General Ledger posting.</p>
         </section>`
 };

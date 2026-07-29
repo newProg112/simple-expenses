@@ -90,8 +90,7 @@ function guideCard(guide, { compact = false } = {}) {
 
   return `<a class="${classes}" href="${guideUrl(guide)}"${compact ? "" : ` data-guide-card data-category="${escapeHtml(guide.category)}" data-search="${escapeHtml(searchText)}"`}>
   <div class="card-badges">
-    <span class="category-badge">${escapeHtml(guide.category)}</span>
-    ${guide.featured ? '<span class="featured-badge">Featured</span>' : ""}
+    <span class="category-badge">${escapeHtml(guide.category)}</span>${guide.featured ? '\n    <span class="featured-badge">Featured</span>' : ""}
   </div>
   <h3>${escapeHtml(guide.title)}</h3>
   <p>${escapeHtml(guide.description)}</p>

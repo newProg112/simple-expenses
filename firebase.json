@@ -50,6 +50,10 @@
           "destination": "/guide-pages/understanding-overdue-invoices.html"
         },
         {
+          "source": "/guides/how-to-record-a-bill",
+          "destination": "/guide-pages/how-to-record-a-bill.html"
+        },
+        {
           "source": "/guides/recording-supplier-bills",
           "destination": "/guide-pages/recording-supplier-bills.html"
         },
