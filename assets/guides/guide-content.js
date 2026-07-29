@@ -506,5 +506,129 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>To record a business expense in Simple Books, open <strong>Expenses</strong>, select <strong>Expense</strong>, enter the date and merchant, choose the appropriate category and status, add the net amount and correct VAT, and include a clear description. Attach a PDF receipt manually or use <strong>Scan Receipt</strong> to draft details from a supported document, then review everything and select <strong>Save expense</strong>.</p>
           <p>Saving creates the expense journal used by Profit &amp; Loss, the Balance Sheet and the General Ledger. Status changes help organise Draft, Submitted, Approved and Paid expenses, but they do not record or reconcile bank payments. Keep the source document, category, VAT and project allocation accurate so the expense remains useful in both operational views and accounting reports.</p>
+        </section>`,
+  "how-to-claim-business-mileage": `<section>
+          <h2>Introduction</h2>
+          <p>A business mileage claim records a journey made for work and calculates a claim amount from the miles travelled and the rate per mile. In Simple Books, mileage claims share the <strong>Expenses</strong> page with ordinary business expenses, but they use a separate Mileage form and create their own accounting journal.</p>
+          <p>This guide explains how to enter a mileage claim, attach supporting evidence, save it and understand how it affects the current Simple Books totals and reports. It covers the software’s present behaviour only and is general product guidance, not tax or accounting advice.</p>
+        </section>
+
+        <section>
+          <h2>When should you claim business mileage?</h2>
+          <p>Record mileage when you have made a journey for a business purpose and want to calculate a claim from the distance travelled. Examples might include travelling to a client site, attending a business meeting or visiting a supplier.</p>
+          <p>Keep enough information to explain the journey: the date, start and end locations, business purpose, miles travelled and rate used. Do not use Mileage for train fares, parking, fuel receipts or other purchases that need a merchant, VAT and gross amount. Those belong in the Expense form; see <a href="/guides/how-to-record-a-business-expense">how to record a business expense</a>.</p>
+          <p>Simple Books calculates the amount you enter but does not decide whether a journey is allowable, choose the correct rate for your circumstances or track annual mileage thresholds. Confirm the appropriate treatment separately.</p>
+        </section>
+
+        <section>
+          <h2>Open the Expenses page and switch to Mileage</h2>
+          <ol class="remember-list">
+            <li>Sign in to Simple Books.</li>
+            <li>Open <strong>Expenses</strong> from the app navigation.</li>
+            <li>In the claim-type control above the form, select <strong>Mileage</strong>.</li>
+          </ol>
+          <p>The heading changes from <strong>Add expense</strong> to <strong>Add mileage</strong>. The purchase and VAT fields are replaced by <strong>Journey details</strong> and <strong>Mileage calculation</strong>.</p>
+          <p>Switch before entering the claim so you are working in the correct form. If a scanned receipt is waiting to be attached to an expense, selecting Mileage removes that pending scanned receipt. Receipt scanning does not populate mileage journeys.</p>
+        </section>
+
+        <section>
+          <h2>Enter the journey details</h2>
+          <p>Complete the fields that identify why and where you travelled:</p>
+          <ul class="remember-list">
+            <li><strong>Date:</strong> enter the date of the journey. The accounting journal uses this date.</li>
+            <li><strong>From:</strong> enter the start location. A start location is required before saving.</li>
+            <li><strong>To:</strong> enter the end location. An end location is also required.</li>
+            <li><strong>Project:</strong> choose a saved project if the journey relates to one, or leave <strong>No project</strong> selected.</li>
+            <li><strong>Description / business purpose:</strong> explain why the journey was necessary, for example “Client planning meeting”.</li>
+            <li><strong>Notes:</strong> add any optional supporting context or internal reference.</li>
+          </ul>
+          <p>Project allocation is saved with the claim, shown in the recent list and included in the selected project’s mileage costs and project totals. See <a href="/guides/tracking-project-profitability">tracking project profitability</a> for more about allocated costs.</p>
+        </section>
+
+        <section>
+          <h2>Mileage calculation</h2>
+          <p>Enter the total distance in <strong>Miles</strong>. The value must be greater than zero before the claim can be saved. Decimal distances are supported, so a journey can be entered as 24.6 miles where appropriate.</p>
+          <p><strong>Rate per mile (£)</strong> starts at £0.55 per mile and can be edited. Simple Books does not look up or validate the rate. Enter the rate that applies to the claim you are recording.</p>
+          <p>The read-only <strong>Amount (£)</strong> is calculated automatically as miles multiplied by the rate per mile. It updates when either field changes and is rounded to two decimal places. For example, 40 miles at £0.55 per mile produces a £22.00 claim.</p>
+          <p>Mileage claims do not contain net, VAT or gross purchase fields. The calculated mileage amount becomes the claim value, and the saved mileage journal does not create a VAT journal line.</p>
+        </section>
+
+        <section>
+          <h2>Attach supporting evidence</h2>
+          <p>Use <strong>Attach mileage file</strong> if you want to keep supporting evidence with the claim. The current Mileage form accepts PDF, JPG and PNG files up to 10 MB. A PDF journey log, route record or other suitable evidence can therefore be attached directly.</p>
+          <p>The file uploads when the mileage claim is saved. Once available, the row under <strong>Recent expenses</strong> provides a <strong>View attachment</strong> link. If no file is needed, the claim can be saved without one.</p>
+          <p>Choose supporting material that helps explain the saved journey without adding unnecessary sensitive information. For more general attachment guidance, see <a href="/guides/uploading-receipts">uploading receipts</a>.</p>
+        </section>
+
+        <section>
+          <h2>Save the mileage claim</h2>
+          <p>Choose the current <strong>Status</strong>: <strong>Draft</strong>, <strong>Submitted</strong>, <strong>Approved</strong> or <strong>Paid</strong>. A new Mileage form starts at Draft. These labels organise claims by their current stage; they do not change the mileage calculation.</p>
+          <p>Review the journey date, route, purpose, project, miles, rate, amount, status, notes and attachment. Then select <strong>Save mileage</strong>. The saved record appears in the shared <strong>Recent expenses</strong> list. Select the <strong>Mileage</strong> filter to show mileage claims only; search and the project, status and date filters can narrow the list further.</p>
+          <p>Saving creates an accounting journal using the journey date. Simple Books debits Travel &amp; Mileage for the calculated amount and credits Employee Reimbursements Payable for the same amount. This journal is created regardless of whether the saved status is Draft, Submitted, Approved or Paid.</p>
+          <p>If the claim saves but the ledger posting cannot be completed, Simple Books keeps the mileage claim and shows a warning. Retry the update or contact support rather than assuming it appears in financial reports.</p>
+          <p>A claim that is not Paid has a <strong>Mark paid</strong> action in the recent list. Selecting it changes the status to Paid and stores the time of the update. It does not create, replace or reverse the mileage journal, record a bank payment or reconcile a bank transaction. There is no <strong>Mark unpaid</strong> action; use <strong>Edit</strong> to choose the correct status if you make a mistake.</p>
+        </section>
+
+        <section>
+          <h2>How mileage affects the Dashboard, Profit &amp; Loss, Balance Sheet and General Ledger</h2>
+          <p>A saved mileage claim affects operational summaries and accounting reports in different ways:</p>
+          <ul class="remember-list">
+            <li><strong>Expenses page totals:</strong> the claim contributes to <strong>Total mileage</strong>, the total miles recorded, the combined claims value and the mileage portion of <strong>Claims by type</strong>.</li>
+            <li><strong>Expenses page charts and statuses:</strong> its amount contributes to the chosen Draft, Submitted, Approved or Paid total and to paid or outstanding claim values. Mileage is not included in the expense-category or monthly-expense charts, which use non-mileage expenses.</li>
+            <li><strong>Dashboard:</strong> the saved claim can appear in recent activity as an Expense with its claim amount, status and activity date. The main Dashboard does not have a separate mileage total or mileage chart.</li>
+            <li><strong>Profit &amp; Loss:</strong> the full calculated claim amount is posted to Travel &amp; Mileage for the journey date and reduces profit. See <a href="/guides/understanding-profit-and-loss">understanding Profit &amp; Loss</a>.</li>
+            <li><strong>Balance Sheet:</strong> the same amount is credited to Employee Reimbursements Payable, which is shown as a liability. See <a href="/guides/understanding-the-balance-sheet">understanding the Balance Sheet</a>.</li>
+            <li><strong>General Ledger:</strong> the journal contains a Travel &amp; Mileage debit and an equal Employee Reimbursements Payable credit, with the route, purpose, miles and rate in its description. See <a href="/guides/understanding-the-general-ledger">understanding the General Ledger</a>.</li>
+          </ul>
+          <p>Changing a claim’s status does not change these financial-report postings. In particular, <strong>Mark paid</strong> does not clear Employee Reimbursements Payable or create a Bank entry under the current behaviour.</p>
+        </section>
+
+        <section>
+          <h2>Edit or delete a mileage claim</h2>
+          <p>Find the claim under <strong>Recent expenses</strong> and select <strong>Edit</strong>. Simple Books switches the form to Mileage and restores the journey, calculation, status, notes and project values. Make the changes, check the recalculated amount, then select <strong>Update mileage</strong>. Updating replaces the mileage journal with one based on the revised claim.</p>
+          <p>Select <strong>Cancel edit</strong> to leave edit mode without saving changes. If you choose a new attachment while editing, it replaces the previous stored file when the update succeeds.</p>
+          <p>Select <strong>Delete</strong> only after checking the claim. The current confirmation prompt asks whether to delete the expense, then removes the mileage record and attempts to remove its stored attachment. Under the current behaviour, deleting a mileage claim does not create an accounting reversal, so do not assume that Delete also removes or reverses its existing journal.</p>
+        </section>
+
+        <section>
+          <h2>Worked example</h2>
+          <p>A UK marketing consultant drives from their Leeds office to a client meeting in Sheffield and returns the same day. The total business distance is 80.0 miles. They record:</p>
+          <ul class="remember-list">
+            <li>Date: 14 July 2026</li>
+            <li>From: Leeds office</li>
+            <li>To: Sheffield client site</li>
+            <li>Description / business purpose: Quarterly campaign meeting</li>
+            <li>Miles: 80.0</li>
+            <li>Rate per mile: £0.55</li>
+            <li>Calculated amount: £44.00</li>
+            <li>Status: Draft</li>
+            <li>Project: Sheffield campaign</li>
+          </ul>
+          <p>Simple Books calculates £44.00 because 80.0 miles × £0.55 equals £44.00. The consultant adds a PDF route record, checks the project and selects <strong>Save mileage</strong>.</p>
+          <p>The journal debits Travel &amp; Mileage by £44.00 and credits Employee Reimbursements Payable by £44.00. Profit &amp; Loss includes the £44.00 travel cost, the Balance Sheet includes the £44.00 liability, and the General Ledger shows both lines. No VAT line is created.</p>
+          <p>The claim contributes 80.0 miles and £44.00 to the Mileage summaries on the Expenses page. If it is later marked Paid, the status totals change, but the two journal lines remain unchanged and Simple Books does not create a bank transaction.</p>
+        </section>
+
+        <section>
+          <h2>Common mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Entering the journey in Expense mode.</strong> Select <strong>Mileage</strong> before completing the route and distance.</li>
+            <li><strong>Using Mileage for a travel purchase.</strong> Record train fares, parking and similar merchant costs as expenses rather than mileage distance.</li>
+            <li><strong>Leaving the route unclear.</strong> Enter recognisable start and end locations.</li>
+            <li><strong>Omitting the business purpose.</strong> Add a concise explanation of why the journey was made.</li>
+            <li><strong>Entering one-way miles for a return journey.</strong> Record the actual total business distance represented by the claim.</li>
+            <li><strong>Assuming £0.55 is automatically the correct rate.</strong> It is the form’s editable starting value, not a rate decision made by Simple Books.</li>
+            <li><strong>Typing a claim total instead of the distance.</strong> Enter miles and the rate; Simple Books calculates Amount.</li>
+            <li><strong>Expecting VAT to be calculated.</strong> Mileage claims create no VAT journal line.</li>
+            <li><strong>Assuming Save mileage records payment.</strong> Saving creates the claim and its journal, not a bank transaction.</li>
+            <li><strong>Expecting Mark paid to clear the liability.</strong> It changes status only.</li>
+            <li><strong>Deleting a claim to reverse its journal.</strong> Delete does not currently create an accounting reversal.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>To claim business mileage in Simple Books, open <strong>Expenses</strong>, switch to <strong>Mileage</strong>, enter the journey date, start and end locations, project and business purpose, then add the miles travelled and check the editable rate. Simple Books calculates the amount automatically. Add notes or a PDF, JPG or PNG attachment where useful, choose the status and select <strong>Save mileage</strong>.</p>
+          <p>The saved claim contributes to Mileage and status summaries and creates a two-line accounting journal: a debit to Travel &amp; Mileage and a credit to Employee Reimbursements Payable. Status changes organise the claim but do not record payment, alter the journal or reconcile a bank transaction.</p>
         </section>`
 };

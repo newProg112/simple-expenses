@@ -116,6 +116,16 @@ export const GUIDES = [
     format: "how-to"
   },
   {
+    slug: "how-to-claim-business-mileage",
+    title: "How to claim business mileage",
+    category: "Expenses & Mileage",
+    description: "Learn how to record a business mileage claim in Simple Books, calculate the amount, attach evidence and understand the accounting entries.",
+    keywords: ["how to claim business mileage", "business mileage claim", "mileage rate", "miles travelled", "travel expenses", "Simple Books"],
+    readTime: 9,
+    lastUpdated: "2026-07-29",
+    format: "how-to"
+  },
+  {
     slug: "claiming-business-mileage",
     title: "Claiming business mileage",
     category: "Expenses & Mileage",

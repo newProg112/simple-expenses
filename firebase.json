@@ -70,6 +70,10 @@
           "destination": "/guide-pages/recording-business-expenses.html"
         },
         {
+          "source": "/guides/how-to-claim-business-mileage",
+          "destination": "/guide-pages/how-to-claim-business-mileage.html"
+        },
+        {
           "source": "/guides/claiming-business-mileage",
           "destination": "/guide-pages/claiming-business-mileage.html"
         },

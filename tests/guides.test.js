@@ -25,6 +25,10 @@ const recordBusinessExpenseGuide = readFileSync(
   projectFile("guide-pages/how-to-record-a-business-expense.html"),
   "utf8"
 );
+const claimBusinessMileageGuide = readFileSync(
+  projectFile("guide-pages/how-to-claim-business-mileage.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -34,9 +38,9 @@ function occurrences(source, pattern) {
 }
 
 describe("public Guides data and index", () => {
-  it("keeps all 22 unique guides in the seven requested categories", () => {
-    expect(GUIDES).toHaveLength(22);
-    expect(new Set(GUIDES.map((guide) => guide.slug)).size).toBe(22);
+  it("keeps all 23 unique guides in the seven requested categories", () => {
+    expect(GUIDES).toHaveLength(23);
+    expect(new Set(GUIDES.map((guide) => guide.slug)).size).toBe(23);
     expect(new Set(GUIDES.map((guide) => guide.category))).toEqual(new Set(GUIDE_CATEGORIES));
     expect(GUIDES.filter((guide) => guide.featured).map((guide) => guide.title)).toEqual([
       "How to create an invoice",
@@ -59,7 +63,7 @@ describe("public Guides data and index", () => {
     expect(guidesIndex).toContain('aria-label="Filter guides by category"');
     expect(guidesIndex).toContain('id="empty-state" hidden');
     expect(guidesIndex).toContain('id="clear-filters"');
-    expect(occurrences(guidesIndex, / data-guide-card/g)).toBe(22);
+    expect(occurrences(guidesIndex, / data-guide-card/g)).toBe(23);
 
     for (const category of ["All guides", ...GUIDE_CATEGORIES]) {
       expect(guidesIndex).toContain(`data-category-filter="${category.replace(/&/g, "&amp;")}"`);
@@ -375,6 +379,74 @@ describe("generated guide pages", () => {
       expect(recordBusinessExpenseGuide).toContain(currentBehaviour);
     }
   });
+
+  it("publishes the complete business-mileage article with current product behaviour", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "When should you claim business mileage?",
+      "Open the Expenses page and switch to Mileage",
+      "Enter the journey details",
+      "Mileage calculation",
+      "Attach supporting evidence",
+      "Save the mileage claim",
+      "How mileage affects the Dashboard, Profit & Loss, Balance Sheet and General Ledger",
+      "Edit or delete a mileage claim",
+      "Worked example",
+      "Common mistakes",
+      "Summary"
+    ];
+
+    expect(claimBusinessMileageGuide).toContain(
+      "<title>How to claim business mileage | Simple Books Guides</title>"
+    );
+    expect(claimBusinessMileageGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/how-to-claim-business-mileage">'
+    );
+    expect(claimBusinessMileageGuide).toContain("<span>9 minute read</span>");
+    expect(claimBusinessMileageGuide).toContain(
+      '<time datetime="2026-07-29">29 July 2026</time>'
+    );
+    expect(claimBusinessMileageGuide).toContain(
+      '"articleSection":"Expenses & Mileage"'
+    );
+    expect(claimBusinessMileageGuide).toContain(
+      '"keywords":"how to claim business mileage'
+    );
+    expect(claimBusinessMileageGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(claimBusinessMileageGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(claimBusinessMileageGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(claimBusinessMileageGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "how-to-record-a-business-expense",
+      "uploading-receipts",
+      "tracking-project-profitability",
+      "understanding-profit-and-loss",
+      "understanding-the-balance-sheet",
+      "understanding-the-general-ledger"
+    ]) {
+      expect(claimBusinessMileageGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "starts at £0.55 per mile",
+      "debits Travel &amp; Mileage",
+      "credits Employee Reimbursements Payable",
+      "does not create a VAT journal line",
+      "deleting a mileage claim does not create an accounting reversal"
+    ]) {
+      expect(claimBusinessMileageGuide).toContain(currentBehaviour);
+    }
+  });
 });
 
 describe("Firebase Hosting guide routes", () => {
@@ -390,7 +462,7 @@ describe("Firebase Hosting guide routes", () => {
     ];
 
     expect(guideRewrites).toEqual(expectedRoutes);
-    expect(guideRewrites).toHaveLength(23);
+    expect(guideRewrites).toHaveLength(24);
     expect(guideRewrites.some((rewrite) => rewrite.source.includes("**"))).toBe(false);
   });
 
