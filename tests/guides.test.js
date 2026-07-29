@@ -13,6 +13,10 @@ const createInvoiceGuide = readFileSync(
   projectFile("guide-pages/how-to-create-an-invoice.html"),
   "utf8"
 );
+const markInvoicePaidGuide = readFileSync(
+  projectFile("guide-pages/how-to-mark-an-invoice-as-paid.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -168,6 +172,71 @@ describe("generated guide pages", () => {
     ]) {
       expect(createInvoiceGuide).toContain(`href="/guides/${slug}"`);
     }
+  });
+
+  it("publishes the complete mark-invoice-paid article without unsupported payment claims", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "When should you mark an invoice as paid?",
+      "Find the invoice in Simple Books",
+      "Mark the invoice as paid",
+      "What changes after you mark it paid?",
+      "How paid invoices affect totals, statements and reports",
+      "Correct a mistake with Mark Unpaid",
+      "What Simple Books does not record",
+      "Worked example",
+      "Common mistakes",
+      "Summary"
+    ];
+
+    expect(markInvoicePaidGuide).toContain(
+      "<title>How to mark an invoice as paid | Simple Books Guides</title>"
+    );
+    expect(markInvoicePaidGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/how-to-mark-an-invoice-as-paid">'
+    );
+    expect(markInvoicePaidGuide).toContain("<span>7 minute read</span>");
+    expect(markInvoicePaidGuide).toContain(
+      '<time datetime="2026-07-29">29 July 2026</time>'
+    );
+    expect(markInvoicePaidGuide).toContain('"articleSection":"Invoicing"');
+    expect(markInvoicePaidGuide).toContain(
+      '"keywords":"how to mark an invoice as paid'
+    );
+    expect(markInvoicePaidGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(markInvoicePaidGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(markInvoicePaidGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(markInvoicePaidGuide).toContain(`<h2>${heading}</h2>`);
+    }
+
+    for (const slug of [
+      "how-to-create-an-invoice",
+      "understanding-overdue-invoices",
+      "understanding-the-dashboard",
+      "understanding-profit-and-loss"
+    ]) {
+      expect(markInvoicePaidGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const unsupportedFeature of [
+      "A separate paid date",
+      "The payment amount",
+      "The payment method",
+      "Partial payments are therefore not supported",
+      "There is no automatic bank matching or reconciliation"
+    ]) {
+      expect(markInvoicePaidGuide).toContain(unsupportedFeature);
+    }
+
+    expect(markInvoicePaidGuide).toContain(
+      "Marking it Paid changes only its status and does not create, replace or reverse that posting."
+    );
   });
 });
 

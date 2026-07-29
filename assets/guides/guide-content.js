@@ -131,5 +131,112 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>To create a clear small business invoice in Simple Books, choose or enter the customer, check the number and dates, add up to three products or services, apply the correct VAT rate and review the payment terms and bank details. Select <strong>Generate Invoice</strong> to save it as Unpaid and build the preview, then use <strong>Save / Print PDF</strong> or <strong>Create Email Draft</strong> to deliver it.</p>
           <p>After the customer pays, confirm the money has arrived and select <strong>Mark Paid</strong>. Keeping the invoice status accurate makes your outstanding, overdue and paid figures—and your customer statements—more useful.</p>
+        </section>`,
+  "how-to-mark-an-invoice-as-paid": `<section>
+          <h2>Introduction</h2>
+          <p>Creating an invoice records that a customer owes your business money. Sending it asks for payment. Neither action means the money has arrived.</p>
+          <p>In Simple Books, <strong>Paid</strong> is a status you apply after independently confirming that the customer has paid the invoice in full. Simple Books does not check your bank or payment provider for you. This guide explains how to mark an invoice as paid, what changes afterwards and what the status does not record. This guide provides general product guidance and is not accounting, legal or tax advice.</p>
+        </section>
+
+        <section>
+          <h2>When should you mark an invoice as paid?</h2>
+          <p>Mark an invoice as paid only when you have confirmed that the full amount has reached you. Check the transaction in your bank account, card processor or other payment provider rather than relying only on a customer’s message or remittance advice.</p>
+          <p>It helps to keep three ideas separate:</p>
+          <ul class="remember-list">
+            <li><strong>Money owed:</strong> the invoice total the customer is expected to pay.</li>
+            <li><strong>Money received:</strong> funds that have actually arrived through your bank or payment provider.</li>
+            <li><strong>Invoice status:</strong> the Paid, Unpaid or calculated Overdue label used by Simple Books to organise invoices.</li>
+          </ul>
+          <p>A newly generated invoice starts as <strong>Unpaid</strong>, even if you create and send it immediately. For the earlier steps, see <a href="/guides/how-to-create-an-invoice">how to create an invoice in Simple Books</a>.</p>
+        </section>
+
+        <section>
+          <h2>Find the invoice in Simple Books</h2>
+          <ol class="remember-list">
+            <li>Open <strong>Invoices</strong>.</li>
+            <li>Go to <strong>Recent invoices</strong>.</li>
+            <li>Use the search box to search by customer, invoice number or project if needed.</li>
+            <li>Use the status filter to show <strong>Unpaid</strong> or <strong>Overdue</strong> invoices when that helps narrow the list.</li>
+            <li>Check the invoice number, customer, due date and total so that you update the correct record.</li>
+          </ol>
+          <p>An invoice whose due date has passed is displayed as Overdue while its stored status remains Unpaid. Read <a href="/guides/understanding-overdue-invoices">Understanding overdue invoices</a> for more about due dates and overdue figures.</p>
+        </section>
+
+        <section>
+          <h2>Mark the invoice as paid</h2>
+          <p>On the correct row under <strong>Recent invoices</strong>, select <strong>Mark Paid</strong>. Simple Books changes the stored status from Unpaid to Paid and refreshes the invoice list and its dashboard figures.</p>
+          <p>The invoice’s status badge then reads <strong>Paid</strong>, its ageing text reads Paid, and the action changes to <strong>Mark Unpaid</strong>. There is no separate confirmation screen and Simple Books does not verify the bank transaction, so check the invoice carefully before selecting the button.</p>
+        </section>
+
+        <section>
+          <h2>What changes after you mark it paid?</h2>
+          <p>A paid invoice is no longer treated as outstanding, overdue or due soon. This means:</p>
+          <ul class="remember-list">
+            <li>Its full total is removed from the <strong>Outstanding</strong> card.</li>
+            <li>If it was overdue, its full total is removed from the <strong>Overdue</strong> card and the overdue ageing chart.</li>
+            <li>If it was due within seven days, it is no longer included in the <strong>Due Soon</strong> count.</li>
+            <li>The <strong>Invoice Status</strong> chart moves one invoice from unpaid to paid.</li>
+            <li>The invoice can be found with the <strong>Paid</strong> status filter.</li>
+          </ul>
+          <p>The change is based on the whole invoice total. It is a status update, not a bank transaction or payment record.</p>
+        </section>
+
+        <section>
+          <h2>How paid invoices affect totals, statements and reports</h2>
+          <p>When you generate a customer statement again, a paid invoice is included in the statement’s <strong>Paid</strong> amount instead of <strong>Outstanding</strong>. If <strong>Unpaid only</strong> is selected, the paid invoice is left out. The statement still includes the invoice in <strong>Total Raised</strong> when all statuses are shown.</p>
+          <p>The invoice dashboard’s <strong>Revenue Trend</strong>, <strong>Invoiced This Month</strong> and top-customer figures use invoices whether they are paid or unpaid, so marking an invoice paid does not change those values. The dashboard does not currently display a separate paid money card; the <strong>Invoice Status</strong> chart compares counts of paid and unpaid invoices.</p>
+          <p>Creating or updating an invoice produces the sales and VAT ledger posting used by financial reports. Marking it Paid changes only its status and does not create, replace or reverse that posting. Therefore reports such as <a href="/guides/understanding-profit-and-loss">Profit &amp; Loss</a> do not change merely because you select Mark Paid. For more context on the cards and charts, see <a href="/guides/understanding-the-dashboard">Understanding the dashboard</a>.</p>
+        </section>
+
+        <section>
+          <h2>Correct a mistake with Mark Unpaid</h2>
+          <p>If you marked the wrong invoice as paid, or the payment was later reversed, find the invoice under <strong>Recent invoices</strong> and select <strong>Mark Unpaid</strong>. Its stored status returns to Unpaid and the dashboard and statement calculations refresh accordingly.</p>
+          <p>The invoice returns to Outstanding. If its due date is earlier than today, Simple Books displays it as Overdue again; if it falls within the next seven days, it can return to Due Soon. The status chart also moves one invoice back from paid to unpaid.</p>
+          <p>Mark Unpaid is a correction to the invoice status only. Like Mark Paid, it does not alter the invoice’s accounting journal.</p>
+        </section>
+
+        <section>
+          <h2>What Simple Books does not record</h2>
+          <p>The Mark Paid action records only whether the invoice status is Paid or Unpaid. It does not store:</p>
+          <ul class="remember-list">
+            <li>A separate paid date.</li>
+            <li>The payment amount.</li>
+            <li>The payment method, such as bank transfer, card or cash.</li>
+            <li>Several payments against one invoice or a remaining balance.</li>
+            <li>A match between the invoice and a bank transaction.</li>
+          </ul>
+          <p>Partial payments are therefore not supported. If a customer pays only part of an invoice, do not mark the invoice as paid: Simple Books would treat the full total as paid. Keep appropriate evidence outside this status action and leave the invoice Unpaid until the full amount arrives, or seek advice on the correct way to handle the situation.</p>
+          <p>There is no automatic bank matching or reconciliation in this workflow. Retain bank statements, payment-provider records and other supporting information suitable for your business.</p>
+        </section>
+
+        <section>
+          <h2>Worked example</h2>
+          <p>A freelance designer has sent invoice INV-014 for <strong>£960.00</strong>. Until payment arrives, Simple Books shows the invoice as Unpaid—or Overdue if its due date has passed—and includes £960.00 in Outstanding.</p>
+          <ol class="remember-list">
+            <li>The customer pays the full £960.00.</li>
+            <li>The designer checks their bank and confirms that £960.00 has arrived.</li>
+            <li>They find INV-014 under <strong>Recent invoices</strong> and select <strong>Mark Paid</strong>.</li>
+            <li>The badge changes to Paid and the action changes to <strong>Mark Unpaid</strong>.</li>
+          </ol>
+          <p>The £960.00 leaves Outstanding and, if applicable, Overdue. A newly generated customer statement includes it in Paid. No paid date, payment method or bank match is created, and the original invoice ledger posting remains unchanged.</p>
+        </section>
+
+        <section>
+          <h2>Common mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Marking an invoice as paid when it is created or sent.</strong> Wait until the money actually arrives.</li>
+            <li><strong>Relying only on the customer’s message.</strong> Confirm the transaction with your bank or payment provider.</li>
+            <li><strong>Updating the wrong invoice.</strong> Check the invoice number, customer and total first.</li>
+            <li><strong>Marking a partial payment as paid.</strong> The status applies to the full invoice; partial balances are not supported.</li>
+            <li><strong>Expecting a paid date or payment method to be saved.</strong> Keep those details in suitable supporting records.</li>
+            <li><strong>Expecting Profit &amp; Loss to change.</strong> Mark Paid does not alter the invoice’s accounting posting.</li>
+            <li><strong>Forgetting to correct a mistake.</strong> Use Mark Unpaid to restore the invoice to the unpaid calculations.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>To record invoice payment accurately in Simple Books, first confirm independently that the customer has paid the full amount. Find the invoice under <strong>Recent invoices</strong> and select <strong>Mark Paid</strong>. The invoice leaves outstanding, overdue and due-soon calculations, its badge changes to Paid, and customer statements and the status chart reflect the update.</p>
+          <p>Use <strong>Mark Unpaid</strong> if the status needs correcting. Remember that these buttons update status only: they do not verify payment, store payment details, support partial payments, match a bank transaction or change the invoice’s ledger posting.</p>
         </section>`
 };

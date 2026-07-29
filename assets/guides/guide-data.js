@@ -52,9 +52,10 @@ export const GUIDES = [
     slug: "how-to-mark-an-invoice-as-paid",
     title: "How to mark an invoice as paid",
     category: "Invoicing",
-    description: "Keep invoice status and outstanding customer balances up to date.",
-    keywords: ["payment", "paid status", "customer balance", "receivables"],
-    readTime: 4,
+    description: "Learn how to mark an invoice as paid in Simple Books, confirm payment, update invoice status and understand which totals and reports change.",
+    keywords: ["how to mark an invoice as paid", "mark invoice paid", "record invoice payment", "paid invoice in Simple Books"],
+    readTime: 7,
+    lastUpdated: "2026-07-29",
     format: "how-to"
   },
   {
