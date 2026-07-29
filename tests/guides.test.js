@@ -9,6 +9,10 @@ import {
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const guidesIndex = readFileSync(projectFile("guide-pages/index.html"), "utf8");
+const createInvoiceGuide = readFileSync(
+  projectFile("guide-pages/how-to-create-an-invoice.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -114,6 +118,56 @@ describe("generated guide pages", () => {
     expect(guideScript).toContain('document.querySelectorAll(".guide-article h2")');
     expect(guideScript).toContain("heading.id = heading.id || stableAnchorId");
     expect(guideScript).toContain('link.href = `#${heading.id}`');
+  });
+
+  it("publishes the complete create-invoice article and its guide-specific metadata", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "Before you create an invoice",
+      "Create a new invoice in Simple Books",
+      "Choose or enter the customer",
+      "Check the invoice number and date",
+      "Add products or services",
+      "Add VAT where applicable",
+      "Set payment terms and the due date",
+      "Add payment details and any agreed wording",
+      "Review and save the invoice",
+      "Download, print or send the invoice",
+      "Mark the invoice as paid",
+      "Worked example",
+      "Common invoice mistakes",
+      "Summary"
+    ];
+
+    expect(createInvoiceGuide).toContain(
+      "<title>How to create an invoice | Simple Books Guides</title>"
+    );
+    expect(createInvoiceGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/how-to-create-an-invoice">'
+    );
+    expect(createInvoiceGuide).toContain("<span>10 minute read</span>");
+    expect(createInvoiceGuide).toContain(
+      '<time datetime="2026-07-29">29 July 2026</time>'
+    );
+    expect(createInvoiceGuide).toContain('"articleSection":"Invoicing"');
+    expect(createInvoiceGuide).toContain('"keywords":"how to create an invoice');
+    expect(createInvoiceGuide).not.toMatch(/Coming soon|currently being prepared|placeholder/i);
+    expect(occurrences(createInvoiceGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(createInvoiceGuide, /<h2>/g)).toBe(expectedHeadings.length);
+
+    for (const heading of expectedHeadings) {
+      expect(createInvoiceGuide).toContain(`<h2>${heading}</h2>`);
+    }
+
+    for (const slug of [
+      "setting-up-your-business",
+      "how-to-mark-an-invoice-as-paid",
+      "understanding-overdue-invoices",
+      "what-is-vat",
+      "input-vat-and-output-vat"
+    ]) {
+      expect(createInvoiceGuide).toContain(`href="/guides/${slug}"`);
+    }
   });
 });
 

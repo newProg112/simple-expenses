@@ -41,9 +41,10 @@ export const GUIDES = [
     slug: "how-to-create-an-invoice",
     title: "How to create an invoice",
     category: "Invoicing",
-    description: "Follow the core steps for preparing and saving a clear customer invoice.",
-    keywords: ["sales", "customer", "invoice number", "due date"],
-    readTime: 6,
+    description: "Learn how to create an invoice for a customer in Simple Books, add VAT and payment terms, save it, make a PDF and record payment.",
+    keywords: ["how to create an invoice", "small business invoice", "customer invoice", "Simple Books", "VAT", "payment terms"],
+    readTime: 10,
+    lastUpdated: "2026-07-29",
     featured: true,
     format: "how-to"
   },

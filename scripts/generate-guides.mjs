@@ -7,6 +7,7 @@ import {
   guideUrl,
   relatedGuides
 } from "../assets/guides/guide-data.js";
+import { GUIDE_CONTENT } from "../assets/guides/guide-content.js";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 // Generated HTML lives outside /guides so Firebase does not add a trailing slash
@@ -218,14 +219,19 @@ ${publicFooter()}
 
 function guideStructuredData(guide) {
   const canonicalUrl = `${productionDomain}${guideUrl(guide)}`;
+  const lastUpdated = guide.lastUpdated || GUIDE_LAST_UPDATED;
   return {
     "@context": "https://schema.org",
     "@type": guide.format === "how-to" ? "TechArticle" : "Article",
     headline: guide.title,
     description: guide.description,
-    dateModified: GUIDE_LAST_UPDATED,
-    datePublished: GUIDE_LAST_UPDATED,
+    dateModified: lastUpdated,
+    datePublished: lastUpdated,
     inLanguage: "en-GB",
+    ...(GUIDE_CONTENT[guide.slug] ? {
+      articleSection: guide.category,
+      keywords: guide.keywords.join(", ")
+    } : {}),
     mainEntityOfPage: canonicalUrl,
     author: {
       "@type": "Organization",
@@ -255,6 +261,7 @@ function guideBreadcrumbData(guide) {
 
 function guidePageHtml(guide, index) {
   const canonicalUrl = `${productionDomain}${guideUrl(guide)}`;
+  const lastUpdated = guide.lastUpdated || GUIDE_LAST_UPDATED;
   const previousGuide = GUIDES[index - 1];
   const nextGuide = GUIDES[index + 1];
   const related = relatedGuides(guide);
@@ -263,7 +270,39 @@ function guidePageHtml(guide, index) {
     month: "long",
     year: "numeric",
     timeZone: "UTC"
-  }).format(new Date(`${GUIDE_LAST_UPDATED}T00:00:00Z`));
+  }).format(new Date(`${lastUpdated}T00:00:00Z`));
+  const articleContent = GUIDE_CONTENT[guide.slug] || `<section>
+          <h2>Introduction</h2>
+          <p>This guide is currently being prepared. It will soon contain clear, practical guidance on ${escapeHtml(guide.title)}.</p>
+          <div class="placeholder-note">
+            <strong>Coming soon</strong>
+            Detailed step-by-step guidance and practical examples will be added here.
+          </div>
+        </section>
+        <section>
+          <h2>What this guide will cover</h2>
+          <p>The completed guide will explain the key ideas, the information to have ready and where this topic fits within Simple Books.</p>
+        </section>
+        <section>
+          <h2>Step-by-step guidance</h2>
+          <p>A concise sequence of product steps or learning points will appear here, with clear outcomes and supporting screenshots where they add value.</p>
+        </section>
+        <section>
+          <h2>Example</h2>
+          <p>A realistic small-business example will show how the topic works in practice without using personal or customer data.</p>
+        </section>
+        <section>
+          <h2>Things to remember</h2>
+          <ul class="remember-list">
+            <li>Review the completed record before relying on it for reporting.</li>
+            <li>Keep supporting information organised and easy to find.</li>
+            <li>Ask a qualified professional when you need advice specific to your circumstances.</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Summary</h2>
+          <p>The finished summary will recap the important points and direct you to the most useful next guide.</p>
+        </section>`;
   const relatedCards = related.map((item) => `<a class="related-card" href="${guideUrl(item)}">
   <span class="related-card-meta">${escapeHtml(item.category)} · ${item.readTime} min read</span>
   <span class="related-card-title"><strong>${escapeHtml(item.title)}</strong><span class="card-arrow" aria-hidden="true">&rarr;</span></span>
@@ -304,44 +343,13 @@ ${publicHeader({ guidesCurrent: true })}
       <p class="guide-intro">${escapeHtml(guide.description)}</p>
       <p class="guide-meta">
         <span>${guide.readTime} minute read</span>
-        <span>Last updated <time datetime="${GUIDE_LAST_UPDATED}">${updatedDisplay}</time></span>
+        <span>Last updated <time datetime="${lastUpdated}">${updatedDisplay}</time></span>
       </p>
     </header>
 
     <div class="guide-layout">
       <article class="guide-article">
-        <section>
-          <h2>Introduction</h2>
-          <p>This guide is currently being prepared. It will soon contain clear, practical guidance on ${escapeHtml(guide.title)}.</p>
-          <div class="placeholder-note">
-            <strong>Coming soon</strong>
-            Detailed step-by-step guidance and practical examples will be added here.
-          </div>
-        </section>
-        <section>
-          <h2>What this guide will cover</h2>
-          <p>The completed guide will explain the key ideas, the information to have ready and where this topic fits within Simple Books.</p>
-        </section>
-        <section>
-          <h2>Step-by-step guidance</h2>
-          <p>A concise sequence of product steps or learning points will appear here, with clear outcomes and supporting screenshots where they add value.</p>
-        </section>
-        <section>
-          <h2>Example</h2>
-          <p>A realistic small-business example will show how the topic works in practice without using personal or customer data.</p>
-        </section>
-        <section>
-          <h2>Things to remember</h2>
-          <ul class="remember-list">
-            <li>Review the completed record before relying on it for reporting.</li>
-            <li>Keep supporting information organised and easy to find.</li>
-            <li>Ask a qualified professional when you need advice specific to your circumstances.</li>
-          </ul>
-        </section>
-        <section>
-          <h2>Summary</h2>
-          <p>The finished summary will recap the important points and direct you to the most useful next guide.</p>
-        </section>
+        ${articleContent}
       </article>
 
       <aside class="table-of-contents" aria-labelledby="contents-heading">
