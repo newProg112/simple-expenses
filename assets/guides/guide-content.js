@@ -1,5 +1,160 @@
 // Long-form guide articles live here so generated HTML remains disposable.
 export const GUIDE_CONTENT = {
+  "understanding-the-dashboard": `<section>
+          <h2>Introduction</h2>
+          <p>The Dashboard is the operational overview shown when you open Simple Books. It brings together selected invoice, bill, client, customer, expense and mileage data so you can see amounts still outstanding, items needing attention, recent records and broad monthly patterns.</p>
+          <p>This guide explains the Dashboard exactly as it is currently implemented. Its figures are management prompts based on saved transaction records. They are not accounting balances and should not be treated as a replacement for the Trial Balance, General Ledger, Profit &amp; Loss or Balance Sheet.</p>
+        </section>
+
+        <section>
+          <h2>What the Dashboard is for</h2>
+          <p>Use the Dashboard to answer practical questions such as: how much do customers currently owe, how much is still owed on supplier bills, are any invoices or bills past their due dates, and which records were most recently active?</p>
+          <p>The page contains a Getting Started checklist, four calculated KPI cards, two accounting-report shortcuts, two charts, a Next Actions area and Recent Activity. Selecting the Outstanding invoices or Overdue items cards opens Invoices. Selecting Unpaid bills or Net position opens Bills. The Trial Balance and Balance Sheet cards are shortcuts to those reports rather than calculated Dashboard KPIs.</p>
+          <p>The Dashboard has no date-range, customer, supplier, project or status filters. It loads its figures once when the page opens.</p>
+        </section>
+
+        <section>
+          <h2>Dashboard KPIs</h2>
+          <h3>Outstanding invoices</h3>
+          <p><strong>Outstanding invoices</strong> adds the full <strong>Total</strong> of every saved invoice whose status is not exactly <strong>Paid</strong>. In normal use this means Unpaid invoices, including those whose due dates have passed. The figure includes VAT where VAT forms part of the invoice total. It is not restricted to the current month.</p>
+
+          <h3>Paid invoices</h3>
+          <p>The current Dashboard does not display a separate <strong>Paid invoices</strong> KPI. Paid invoices are excluded from Outstanding invoices, overdue checks and the receivables ageing chart. They remain included in the Income vs Bills chart because that chart adds all saved invoice totals regardless of status.</p>
+
+          <h3>Overdue invoices and Overdue items</h3>
+          <p>The current card is labelled <strong>Overdue items</strong>, not Overdue invoices. It shows a count, not a money value, and combines overdue invoices with overdue supplier bills. An invoice or bill is overdue when its status is not exactly Paid, it has a valid due date, and that date is earlier than today. A due date of today is not overdue.</p>
+          <p>There is no separate Overdue invoices KPI. The overdue-invoice count and value are shown in Next Actions when at least one invoice needs chasing.</p>
+
+          <h3>Unpaid bills</h3>
+          <p>The current bills KPI is labelled <strong>Unpaid bills</strong>. It adds the full <strong>Total</strong> of every saved bill whose status is not exactly Paid, including overdue bills. The value includes VAT where VAT forms part of the bill total and covers all dates.</p>
+
+          <h3>Net position</h3>
+          <p><strong>Net position</strong> is Outstanding invoices minus Unpaid bills. It compares gross operational totals. A positive amount means the outstanding invoice total is greater than the unpaid bill total; a negative amount means unpaid bills are greater. It is not a bank balance, cash forecast, profit figure or accounting Balance Sheet position.</p>
+
+          <h3>Expenses this month and Mileage this month</h3>
+          <p>The current Dashboard does not display separate <strong>Expenses this month</strong> or <strong>Mileage this month</strong> KPIs. Expenses and mileage claims do not contribute to Outstanding invoices, Unpaid bills, Net position, Overdue items or either chart. They can appear in Recent Activity using the saved expense gross amount or mileage amount.</p>
+
+          <h3>Income vs Bills Difference</h3>
+          <p>The current page does not show Income vs Bills Difference as a KPI card. <strong>Difference</strong> is the third series in the Income vs Bills chart. For each month it is all invoice totals minus all bill totals for that month. It includes Paid and Unpaid records and excludes expenses and mileage.</p>
+        </section>
+
+        <section>
+          <h2>Dashboard charts</h2>
+          <h3>Income vs Bills</h3>
+          <p>The <strong>Income vs Bills</strong> line chart groups records by month and plots three series:</p>
+          <ul class="remember-list">
+            <li><strong>Invoices:</strong> the full totals of all saved invoices in the month, regardless of Paid or Unpaid status.</li>
+            <li><strong>Bills:</strong> the full totals of all saved bills in the month, regardless of Paid or Unpaid status.</li>
+            <li><strong>Difference:</strong> Invoices minus Bills for that month.</li>
+          </ul>
+          <p>Invoices are grouped using invoice date, falling back to created date. Bills use bill date, falling back to due date and then created date. Months with activity are shown in chronological order. The chart uses gross totals, including VAT where present. It does not include expenses, mileage, projects or payment dates, and its Difference line is not accounting profit.</p>
+
+          <h3>Outstanding Receivables Ageing</h3>
+          <p>The <strong>Outstanding Receivables Ageing</strong> bar chart groups outstanding invoice value into <strong>Not yet due</strong>, <strong>0–30 days</strong>, <strong>31–60 days</strong> and <strong>61+ days</strong>. It includes invoice statuses Unpaid, Outstanding and Overdue without regard to capitalisation; a missing status is treated as Unpaid. Paid invoices and unsupported status values are excluded.</p>
+          <p>Age is measured from the due date to today. A due date after today goes into Not yet due. An invoice due today and invoices up to 30 days overdue go into 0–30 days. If no due date exists, the ageing calculation falls back to invoice date. Invalid dates are ignored. Each bucket uses the invoice’s full total, including VAT.</p>
+          <p>Both charts are rebuilt from the records loaded when the Dashboard opens. They do not update live while the page remains open in another tab.</p>
+        </section>
+
+        <section>
+          <h2>Recent activity</h2>
+          <p>Recent Activity combines invoices, bills, clients or customers, and the shared expense/mileage collection. It sorts them by the date chosen for each record and displays the five most recent items.</p>
+          <ul class="remember-list">
+            <li><strong>Invoices:</strong> show invoice number or client, gross total, status and invoice date, falling back to created date and then due date.</li>
+            <li><strong>Bills:</strong> show bill number or supplier, gross total, status and bill date, falling back to due date and then created date.</li>
+            <li><strong>Clients or customers:</strong> show the name and status but no amount. If at least one client record exists, the customer collection is not added separately.</li>
+            <li><strong>Expenses and mileage:</strong> are both labelled <strong>Expense</strong>. The amount uses gross expense value first, then the mileage amount. Their ordering date uses updated date before transaction date or created date, so editing one can move it up the list.</li>
+          </ul>
+          <p>Recent Activity is a display list, not an audit log. It shows at most five current records and does not preserve a history of every edit or status change.</p>
+        </section>
+
+        <section>
+          <h2>Dashboard reminders and alerts</h2>
+          <p>The <strong>Getting Started</strong> checklist tracks five setup conditions: a profile with full name, business name and email; default payment terms; at least one client or customer; at least one invoice; and a first backup recorded as downloaded in the browser. Completed items are hidden. When all five are complete, the card shows <strong>Setup complete</strong>.</p>
+          <p><strong>Next Actions</strong> currently creates up to two reminders:</p>
+          <ul class="remember-list">
+            <li><strong>Overdue invoices to chase:</strong> appears when one or more non-Paid invoices have due dates earlier than today. It shows their count and combined gross total, with a link to Invoices.</li>
+            <li><strong>Bills need attention:</strong> combines non-Paid bills already overdue with non-Paid bills due from today through seven days from today. It shows the relevant counts and combined gross total, with a link to Bills.</li>
+          </ul>
+          <p>If neither reminder applies, the page says <strong>You’re all caught up.</strong> These are fixed date-and-status checks. They do not judge whether an invoice should be disputed, whether a bill has been scheduled for payment or whether a transaction’s accounting treatment is correct.</p>
+        </section>
+
+        <section>
+          <h2>How dashboard figures are calculated</h2>
+          <ul class="remember-list">
+            <li><strong>Outstanding invoices</strong> = sum of invoice Total where status is not exactly Paid.</li>
+            <li><strong>Unpaid bills</strong> = sum of bill Total where status is not exactly Paid.</li>
+            <li><strong>Net position</strong> = Outstanding invoices − Unpaid bills.</li>
+            <li><strong>Overdue items</strong> = count of overdue non-Paid invoices + count of overdue non-Paid bills.</li>
+            <li><strong>Monthly chart Difference</strong> = all invoice totals in the month − all bill totals in the month.</li>
+          </ul>
+          <p>The four calculated cards also show trend badges. These compare the current month with the previous month, not the all-time card total. Outstanding uses non-Paid invoices grouped by invoice activity date; Unpaid bills uses non-Paid bills grouped by bill activity date; Net position subtracts those two monthly values; and Overdue items compares records by the month of their due dates.</p>
+          <p>If the current and previous values are equal, the badge says <strong>No change</strong>. If the previous value is zero and the current value differs, the change is shown as 100%. The arrow shows whether the numeric value increased or decreased; it is not an accounting assessment of whether that movement is favourable.</p>
+          <p>When signed in, the Dashboard attempts to load invoices, bills, clients, customers and expenses from the user’s Firestore collections. If an individual load fails, the error is written to the browser console and that collection retains its locally loaded fallback. The current Dashboard does not show a visible incomplete-data warning, so refresh or check the underlying page if a figure looks unexpected.</p>
+        </section>
+
+        <section>
+          <h2>When dashboard values update</h2>
+          <p>Saving, editing, deleting or changing the status of a source record can change the next Dashboard calculation. However, the Dashboard loads data once rather than listening for live changes. If it is already open, refresh it; otherwise open it again after saving the source record.</p>
+          <ul class="remember-list">
+            <li>Saving or editing an invoice can change Outstanding invoices, Net position, Overdue items, both charts, alerts and Recent Activity.</li>
+            <li>Saving or editing a bill can change Unpaid bills, Net position, Overdue items, the Income vs Bills chart, alerts and Recent Activity.</li>
+            <li>Saving or editing an expense or mileage claim can change Recent Activity only on the current Dashboard.</li>
+            <li>Marking an invoice or bill Paid removes it from outstanding or unpaid calculations, overdue checks and related alerts on the next load, but it remains in the Income vs Bills chart.</li>
+          </ul>
+          <p>Charts are therefore updated from saved records on the next Dashboard load, not immediately in an already open page. Project allocation does not change any Dashboard calculation because the Dashboard has no project filter.</p>
+        </section>
+
+        <section>
+          <h2>Why dashboard totals may differ from accounting reports</h2>
+          <p>The Dashboard reads operational source records. Its monetary cards and charts use invoice and bill <strong>Totals</strong>, which are gross values including VAT where present. Payment status and due dates control several Dashboard figures. Expenses and mileage are omitted from its KPI and chart calculations.</p>
+          <p>The <a href="/guides/understanding-the-trial-balance">Trial Balance</a>, <a href="/guides/understanding-the-general-ledger">General Ledger</a>, <a href="/guides/understanding-profit-and-loss">Profit &amp; Loss</a> and <a href="/guides/understanding-the-balance-sheet">Balance Sheet</a> read accounting journals. Profit &amp; Loss uses net Sales Revenue and expense account postings, separates VAT into balance-sheet accounts, and includes posted bills, expenses and mileage for the selected period. The Balance Sheet shows receivables, payables, VAT accounts and current-year result from those journals.</p>
+          <p>Current payment-status actions do not post Bank entries or clear the journal balances. This creates another important difference: marking an invoice Paid removes it from the Dashboard’s Outstanding invoices figure, but the existing sales journal still debits Trade Receivables. Similarly, marking a bill Paid removes it from Unpaid bills while its journal still credits Trade Payables. Read <a href="/guides/what-is-double-entry-bookkeeping">What is double-entry bookkeeping?</a> for the exact current postings.</p>
+          <p>A saved operational record can also remain on the Dashboard if its ledger posting failed, while it is absent from accounting reports. Conversely, current delete workflows can remove a source record from the Dashboard without reversing its existing journal. Always investigate differences at source-record and journal level.</p>
+        </section>
+
+        <section>
+          <h2>Worked examples</h2>
+          <h3>Operational overview with invoices and bills</h3>
+          <p>A design business has three invoices: £120 Unpaid and not yet due, £240 Paid, and £60 Unpaid and overdue. It also has a £90 Unpaid bill due in five days, a £30 Paid bill and a £50 Unpaid overdue bill.</p>
+          <ul class="remember-list">
+            <li>Outstanding invoices: £120 + £60 = <strong>£180</strong>.</li>
+            <li>Unpaid bills: £90 + £50 = <strong>£140</strong>.</li>
+            <li>Net position: £180 − £140 = <strong>£40</strong>.</li>
+            <li>Overdue items: one overdue invoice + one overdue bill = <strong>2</strong>.</li>
+            <li>Overdue invoice reminder value: <strong>£60</strong>.</li>
+            <li>Bills needing attention: £90 due soon + £50 overdue = <strong>£140</strong>.</li>
+          </ul>
+          <p>If all six records have transaction dates in the same month, the Income vs Bills chart shows Invoices of £420, Bills of £170 and Difference of £250. Paid records remain in this chart. A £36 expense and a £22 mileage claim do not change those figures, although either may appear in Recent Activity.</p>
+
+          <h3>Gross Difference versus accounting profit</h3>
+          <p>A VAT-registered consultant raises one £120 invoice made up of £100 net plus £20 VAT and enters one £60 supplier bill made up of £50 net plus £10 VAT. The chart Difference is £120 − £60 = <strong>£60</strong> because it uses gross totals. Ignoring other entries, Profit &amp; Loss uses £100 Sales Revenue less £50 expense, giving <strong>£50</strong>. The £10 difference comes from the separate VAT postings, not an error in either calculation.</p>
+
+          <h3>Marking an invoice Paid</h3>
+          <p>An overdue £300 invoice is marked Paid. After the Dashboard is refreshed, Outstanding invoices falls by £300, Net position falls by £300, Overdue items falls by one, the chase reminder no longer includes it and the ageing chart excludes it. The Income vs Bills chart is unchanged because it includes invoices of every status. The current accounting journal is also unchanged because the status action does not post a receipt to Bank.</p>
+        </section>
+
+        <section>
+          <h2>Common mistakes and misunderstandings</h2>
+          <ul class="remember-list">
+            <li><strong>Treating Net position as cash or profit.</strong> It is gross non-Paid invoice totals minus gross non-Paid bill totals.</li>
+            <li><strong>Reading Overdue items as overdue invoices only.</strong> The card combines invoice and bill counts.</li>
+            <li><strong>Expecting separate Paid invoices, Expenses this month or Mileage this month KPIs.</strong> The current Dashboard does not display them.</li>
+            <li><strong>Calling chart Difference profit.</strong> It includes VAT, includes every payment status and omits expenses and mileage.</li>
+            <li><strong>Expecting a Paid invoice or bill to disappear from the monthly chart.</strong> Status does not filter that chart.</li>
+            <li><strong>Assuming due today means overdue.</strong> Overdue checks require the due date to be earlier than today.</li>
+            <li><strong>Expecting charts to change live in an open tab.</strong> Reopen or refresh the Dashboard after saving or editing records.</li>
+            <li><strong>Assuming Recent Activity is a full history.</strong> It contains at most five current records and is not an audit log.</li>
+            <li><strong>Looking for separate mileage activity.</strong> Mileage records are currently labelled Expense in Recent Activity.</li>
+            <li><strong>Comparing gross Dashboard totals directly with net Profit &amp; Loss figures.</strong> The data sources, VAT treatment and included transaction types differ.</li>
+            <li><strong>Ignoring possible load gaps.</strong> Collection failures are logged to the console without a visible incomplete-data warning.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>The current Simple Books Dashboard provides four calculated KPIs: gross Outstanding invoices, gross Unpaid bills, their Net position and a combined count of Overdue items. Its Income vs Bills chart compares all gross invoice and bill totals by month, while Outstanding Receivables Ageing groups supported outstanding invoice values by due-date age.</p>
+          <p>Use Next Actions for overdue invoices and bills due or overdue, and Recent Activity for the latest five invoice, bill, client/customer and expense/mileage records. Refresh the page after changing source records. For accounting balances and performance, use the journal-based reports and investigate any difference rather than treating Dashboard Difference or Net position as profit.</p>
+        </section>`,
   "how-to-create-an-invoice": `<section>
           <h2>Introduction</h2>
           <p>An invoice is a document asking a customer to pay for products or services you have supplied. It records the amount the customer owes your business, but it is not proof that you have received the money. The invoice remains unpaid until the payment reaches you and you update its status.</p>

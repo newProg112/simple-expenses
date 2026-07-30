@@ -9,6 +9,10 @@ import {
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const guidesIndex = readFileSync(projectFile("guide-pages/index.html"), "utf8");
+const dashboardGuide = readFileSync(
+  projectFile("guide-pages/understanding-the-dashboard.html"),
+  "utf8"
+);
 const createInvoiceGuide = readFileSync(
   projectFile("guide-pages/how-to-create-an-invoice.html"),
   "utf8"
@@ -150,6 +154,91 @@ describe("generated guide pages", () => {
     expect(guideScript).toContain('document.querySelectorAll(".guide-article h2")');
     expect(guideScript).toContain("heading.id = heading.id || stableAnchorId");
     expect(guideScript).toContain('link.href = `#${heading.id}`');
+  });
+
+  it("publishes the complete Dashboard article with current operational calculations", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "What the Dashboard is for",
+      "Dashboard KPIs",
+      "Dashboard charts",
+      "Recent activity",
+      "Dashboard reminders and alerts",
+      "How dashboard figures are calculated",
+      "When dashboard values update",
+      "Why dashboard totals may differ from accounting reports",
+      "Worked examples",
+      "Common mistakes and misunderstandings",
+      "Summary"
+    ];
+
+    expect(dashboardGuide).toContain(
+      "<title>Understanding the Dashboard in Simple Books | Simple Books Guides</title>"
+    );
+    expect(dashboardGuide).toContain(
+      '<meta name="description" content="Learn how the Simple Books Dashboard calculates invoice, bill and overdue figures, charts, alerts and recent activity, and how they differ from accounting reports.">'
+    );
+    expect(dashboardGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/understanding-the-dashboard">'
+    );
+    expect(dashboardGuide).toContain(
+      '<meta property="og:url" content="https://simple-books.co.uk/guides/understanding-the-dashboard">'
+    );
+    expect(dashboardGuide).toContain("<span>12 minute read</span>");
+    expect(dashboardGuide).toContain(
+      '<time datetime="2026-07-30">30 July 2026</time>'
+    );
+    expect(dashboardGuide).toContain('"@type":"BreadcrumbList"');
+    expect(dashboardGuide).toContain('"@type":"TechArticle"');
+    expect(dashboardGuide).toContain('"articleSection":"Getting Started"');
+    expect(dashboardGuide).toContain(
+      '"keywords":"Simple Books Dashboard, outstanding invoices'
+    );
+    expect(dashboardGuide).toContain('id="table-of-contents-list"');
+    expect(dashboardGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(dashboardGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(dashboardGuide, /<h2>/g)).toBe(expectedHeadings.length);
+
+    for (const heading of expectedHeadings) {
+      expect(dashboardGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "understanding-the-trial-balance",
+      "understanding-the-general-ledger",
+      "understanding-profit-and-loss",
+      "understanding-the-balance-sheet",
+      "what-is-double-entry-bookkeeping"
+    ]) {
+      expect(dashboardGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "The current Dashboard does not display a separate <strong>Paid invoices</strong> KPI.",
+      "The current card is labelled <strong>Overdue items</strong>, not Overdue invoices.",
+      "The current Dashboard does not display separate <strong>Expenses this month</strong> or <strong>Mileage this month</strong> KPIs.",
+      "<strong>Net position</strong> is Outstanding invoices minus Unpaid bills.",
+      "For each month it is all invoice totals minus all bill totals for that month.",
+      "Expenses and mileage claims do not contribute to Outstanding invoices, Unpaid bills, Net position, Overdue items or either chart.",
+      "They do not update live while the page remains open in another tab.",
+      "marking an invoice Paid removes it from the Dashboard’s Outstanding invoices figure, but the existing sales journal still debits Trade Receivables."
+    ]) {
+      expect(dashboardGuide).toContain(currentBehaviour);
+    }
+
+    expect(dashboardGuide).toContain(
+      '<span>Previous guide</span><strong>Setting up your business</strong>'
+    );
+    expect(dashboardGuide).toContain(
+      '<span>Next guide</span><strong>How to create an invoice</strong>'
+    );
+    expect(guidesIndex).toContain(
+      'data-search="Understanding the Dashboard in Simple Books'
+    );
   });
 
   it("publishes the complete create-invoice article and its guide-specific metadata", () => {

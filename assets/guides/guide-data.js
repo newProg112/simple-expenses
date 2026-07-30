@@ -30,12 +30,13 @@ export const GUIDES = [
   },
   {
     slug: "understanding-the-dashboard",
-    title: "Understanding the dashboard",
+    title: "Understanding the Dashboard in Simple Books",
     category: "Getting Started",
-    description: "Understand the dashboard totals, shortcuts and recent business activity.",
-    keywords: ["overview", "totals", "activity", "navigation"],
-    readTime: 5,
-    format: "article"
+    description: "Learn how the Simple Books Dashboard calculates invoice, bill and overdue figures, charts, alerts and recent activity, and how they differ from accounting reports.",
+    keywords: ["Simple Books Dashboard", "outstanding invoices", "unpaid bills", "receivables ageing", "business dashboard"],
+    readTime: 12,
+    format: "how-to",
+    lastUpdated: "2026-07-30"
   },
   {
     slug: "how-to-create-an-invoice",
