@@ -769,21 +769,26 @@ describe("generated guide pages", () => {
   it("publishes the complete double-entry bookkeeping article with current journals and reports", () => {
     const expectedHeadings = [
       "Introduction",
-      "What double-entry bookkeeping means",
-      "Debits, credits and the accounting equation",
+      "What double-entry bookkeeping is",
+      "The accounting equation",
+      "Assets, liabilities and equity explained",
+      "Debits and credits in simple language",
+      "Why every transaction has two equal entries",
       "How Simple Books creates journals",
       "How invoices create journal entries",
       "How bills create journal entries",
       "How expenses create journal entries",
       "How mileage creates journal entries",
-      "What changes, status updates and deletion do",
+      "VAT journals",
+      "Trade Receivables and Trade Payables",
+      "Why marking an invoice or bill as Paid changes operational status only",
       "How the Trial Balance is produced",
       "How the General Ledger is produced",
       "How Profit & Loss is produced",
       "How the Balance Sheet is produced",
       "Operational pages and accounting reports",
       "Worked examples",
-      "Common mistakes and misconceptions",
+      "Common mistakes and misunderstandings",
       "Summary"
     ];
 
@@ -799,7 +804,7 @@ describe("generated guide pages", () => {
     expect(doubleEntryBookkeepingGuide).toContain(
       '<meta property="og:url" content="https://simple-books.co.uk/guides/what-is-double-entry-bookkeeping">'
     );
-    expect(doubleEntryBookkeepingGuide).toContain("<span>13 minute read</span>");
+    expect(doubleEntryBookkeepingGuide).toContain("<span>15 minute read</span>");
     expect(doubleEntryBookkeepingGuide).toContain(
       '<time datetime="2026-07-30">30 July 2026</time>'
     );
@@ -828,6 +833,7 @@ describe("generated guide pages", () => {
       "understanding-the-general-ledger",
       "understanding-profit-and-loss",
       "understanding-the-balance-sheet",
+      "understanding-the-dashboard",
       "tracking-project-profitability"
     ]) {
       expect(doubleEntryBookkeepingGuide).toContain(`href="/guides/${slug}"`);
@@ -838,9 +844,12 @@ describe("generated guide pages", () => {
       "credits <strong>2000 Trade Payables</strong> for the gross total",
       "credits <strong>2200 Employee Reimbursements Payable</strong> for the gross amount",
       "There is no VAT Input line in the current mileage journal.",
+      "VAT Input is an Asset account and VAT Output is a Liability account",
       "The current Trial Balance does not provide a date filter",
-      "marking an invoice or bill Paid, or marking an expense Paid, does not record movement through Bank",
+      "marking an invoice or bill Paid does not record movement through Bank and does not reverse the original journal",
       "do not create a reversal or delete its existing journal",
+      "No debit to Bank or credit clearing Trade Receivables is created.",
+      "No credit to Bank or debit clearing Trade Payables is created.",
       "Project allocation supports operational project reporting; it does not add a project journal line."
     ]) {
       expect(doubleEntryBookkeepingGuide).toContain(currentBehaviour);

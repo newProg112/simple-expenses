@@ -171,7 +171,7 @@ export const GUIDES = [
     category: "Accounting",
     description: "Learn how double-entry bookkeeping works in Simple Books, including debits, credits, journals and the reports built from accounting entries.",
     keywords: ["double-entry bookkeeping", "debits and credits", "accounting journals", "accounting equation", "Simple Books"],
-    readTime: 13,
+    readTime: 15,
     format: "how-to",
     lastUpdated: "2026-07-30"
   },

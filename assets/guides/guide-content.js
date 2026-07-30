@@ -1302,21 +1302,44 @@ export const GUIDE_CONTENT = {
         </section>
 
         <section>
-          <h2>What double-entry bookkeeping means</h2>
+          <h2>What double-entry bookkeeping is</h2>
           <p>A <strong>journal</strong> is one balanced accounting entry made up of two or more lines. Each line names an account and puts an amount on either its debit side or its credit side. Every Simple Books journal must have at least two non-zero lines, and the combined debit amount must exactly equal the combined credit amount.</p>
           <p>Double entry does not mean entering the same transaction twice on an operational page. You save one invoice, bill, expense or mileage claim; Simple Books builds the matching journal behind it. One gross transaction can produce three journal lines when VAT needs its own account.</p>
           <p>A balanced journal proves that its debits equal its credits. It does not prove that the date, value, VAT treatment, category, customer, supplier or business purpose is correct.</p>
         </section>
 
         <section>
-          <h2>Debits, credits and the accounting equation</h2>
+          <h2>The accounting equation</h2>
+          <p>The accounting equation used by the current Simple Books reports is <strong>Assets = Liabilities + Equity</strong>. The Balance Sheet calculates the asset side and compares it with liabilities plus equity. Income increases the current-year result that the report adds to equity; expenses reduce it.</p>
+          <p>An unpaid £120 sales invoice containing £100 net income and £20 VAT illustrates the equation. The journal creates a £120 receivable asset, a £20 VAT liability and £100 of income. That income becomes £100 of current-year profit within the Balance Sheet equity total, so £120 of assets equals £20 of liabilities plus £100 of equity.</p>
+        </section>
+
+        <section>
+          <h2>Assets, liabilities and equity explained</h2>
+          <ul class="remember-list">
+            <li><strong>Assets</strong> are resources or amounts due to the business. The current chart includes Bank, Trade Receivables and VAT Input.</li>
+            <li><strong>Liabilities</strong> are amounts the business owes. The current chart includes Trade Payables, VAT Output and Employee Reimbursements Payable.</li>
+            <li><strong>Equity</strong> is the residual interest after liabilities are deducted from assets. The chart includes Owner’s Equity, and the Balance Sheet adds the calculated current-year profit or loss to the displayed equity total.</li>
+          </ul>
+          <p>Sales Revenue is an Income account, while General Expenses, Travel &amp; Mileage, Utilities, Professional Fees and Software &amp; Subscriptions are Expense accounts. Income and expenses feed the current-year result rather than appearing as asset, liability or equity rows themselves.</p>
+          <p>The invoice, bill, expense and mileage journal builders described below do not currently post to Bank or directly to Owner’s Equity.</p>
+        </section>
+
+        <section>
+          <h2>Debits and credits in simple language</h2>
           <p>Debit and credit mean the left and right sides of an account. They do not mean good and bad, money in and money out, or paid and unpaid. In the chart of accounts currently used by Simple Books:</p>
           <ul class="remember-list">
             <li><strong>Assets</strong> and <strong>expenses</strong> normally increase with a debit and decrease with a credit.</li>
             <li><strong>Liabilities</strong>, <strong>equity</strong> and <strong>income</strong> normally increase with a credit and decrease with a debit.</li>
           </ul>
-          <p>The accounting equation is <strong>Assets = Liabilities + Equity</strong>. Income increases the current-year result that Simple Books adds to equity on the Balance Sheet; expenses reduce it. This is why an unpaid £120 sales invoice containing £100 net income and £20 VAT can balance as a £120 receivable asset against a £20 VAT liability and £100 current-year profit.</p>
-          <p>The current chart includes Bank, Trade Receivables, VAT Input, Trade Payables, VAT Output, Employee Reimbursements Payable, Owner’s Equity, Sales Revenue and five expense accounts. The invoice, bill, expense and mileage journal builders described below do not currently post to Bank or directly to Owner’s Equity.</p>
+          <p>For example, debiting Trade Receivables increases the amount shown as due from customers. Crediting Sales Revenue increases income. Crediting Trade Payables increases the amount owed to suppliers.</p>
+        </section>
+
+        <section>
+          <h2>Why every transaction has two equal entries</h2>
+          <p>Every journal must balance because each accounting event affects more than one part of the records. An invoice records both what the customer owes and the income and VAT created by the sale. A supplier bill records both the cost and VAT and the amount owed to the supplier.</p>
+          <p>Simple Books requires at least two non-zero journal lines and checks that total debits exactly equal total credits. One line cannot contain both a debit and a credit. Amounts must be non-negative and use no more than two decimal places.</p>
+          <p>Equal totals provide mathematical control, but they do not prove that the user selected the right category, VAT treatment, date or source amount.</p>
         </section>
 
         <section>
@@ -1354,9 +1377,25 @@ export const GUIDE_CONTENT = {
         </section>
 
         <section>
-          <h2>What changes, status updates and deletion do</h2>
+          <h2>VAT journals</h2>
+          <p>For a sales invoice, Simple Books credits <strong>2100 VAT Output</strong> when VAT is greater than zero. Sales Revenue receives only the net amount, while Trade Receivables receives the net amount plus VAT as the gross total owed by the customer.</p>
+          <p>For a supplier bill or business expense, Simple Books debits <strong>1200 VAT Input</strong> when VAT is greater than zero. The expense account receives the net amount, while Trade Payables or Employee Reimbursements Payable receives the gross total.</p>
+          <p>If VAT is zero, the journal omits the VAT line. Mileage journals never create a VAT Input line. VAT Input is an Asset account and VAT Output is a Liability account in the current chart, so neither appears as an expense or income row in Profit &amp; Loss.</p>
+          <p>Simple Books checks that net plus VAT equals the supplied gross total. You remain responsible for entering the correct VAT amount and treatment for the transaction.</p>
+        </section>
+
+        <section>
+          <h2>Trade Receivables and Trade Payables</h2>
+          <p><strong>Trade Receivables</strong> is the Asset account used for the full amount customers owe on sales invoices. Every saved invoice journal debits it for the gross invoice total, whether the operational invoice status is Unpaid or Paid.</p>
+          <p><strong>Trade Payables</strong> is the Liability account used for the full amount owed on supplier bills. Every saved bill journal credits it for the gross bill total, whether the operational bill status is Unpaid or Paid.</p>
+          <p>Business expenses and mileage claims do not use Trade Payables. Their gross or full claim amount credits Employee Reimbursements Payable instead.</p>
+        </section>
+
+        <section>
+          <h2>Why marking an invoice or bill as Paid changes operational status only</h2>
           <p>Editing and saving an invoice, bill, expense or mileage claim replaces its linked journal. Changing an amount alters the relevant debit and credit values; changing a supported bill or expense category can move the net debit to a different expense account; changing the source date changes the journal date. Changing a Project allocation does not add a project account or journal line.</p>
-          <p>Status actions do not replace the journal or post settlement entries. In the current implementation, marking an invoice or bill Paid, or marking an expense Paid, does not record movement through Bank. The reports therefore continue to show the original Trade Receivables, Trade Payables or Employee Reimbursements Payable balance.</p>
+          <p>Status actions do not replace the journal or post settlement entries. In the current implementation, marking an invoice or bill Paid does not record movement through Bank and does not reverse the original journal. Marking an expense Paid behaves in the same way. The reports therefore continue to show the original Trade Receivables, Trade Payables or Employee Reimbursements Payable balance.</p>
+          <p>The operational <a href="/guides/understanding-the-dashboard">Dashboard</a> does react to invoice and bill status. Marking an invoice Paid removes its gross total from Outstanding invoices; marking a bill Paid removes its gross total from Unpaid bills. The Dashboard reads source records, while the accounting reports read journals, so those operational and accounting figures can then differ.</p>
           <p>Deletion needs particular care. The current invoice, bill and expense/mileage delete workflows remove the source record but do not create a reversal or delete its existing journal. That journal can continue to affect the accounting reports. A reversal builder exists in the ledger engine, but these operational delete workflows do not currently use it.</p>
         </section>
 
@@ -1409,12 +1448,18 @@ export const GUIDE_CONTENT = {
           <h3>Mileage claim</h3>
           <p>A sole trader records 80 business miles at £0.55 per mile, producing a £44 claim. Simple Books debits Travel &amp; Mileage £44 and credits Employee Reimbursements Payable £44. There is no VAT posting. Profit &amp; Loss includes £44 of travel and mileage expense, and the Balance Sheet includes a £44 reimbursement liability.</p>
 
+          <h3>Invoice marked Paid</h3>
+          <p>The consultant receives the £120 owed for INV-104 and selects <strong>Mark Paid</strong>. The invoice’s operational status changes to Paid, so after the Dashboard reloads its £120 gross total is removed from Outstanding invoices and overdue checks. The sales journal remains a £120 debit to Trade Receivables, a £100 credit to Sales Revenue and a £20 credit to VAT Output. No debit to Bank or credit clearing Trade Receivables is created.</p>
+
+          <h3>Bill marked Paid</h3>
+          <p>The business pays the £240 software bill and selects <strong>Mark paid</strong>. The bill’s operational status changes to Paid, so after the Dashboard reloads it is removed from Unpaid bills and bill alerts. Its journal remains a £200 debit to Software &amp; Subscriptions, a £40 debit to VAT Input and a £240 credit to Trade Payables. No credit to Bank or debit clearing Trade Payables is created.</p>
+
           <h3>Editing an amount and category</h3>
           <p>A £120 gross expense was saved as General Expenses with £100 net and £20 VAT. The user edits it, changes the category to Professional Fees and changes the values to £150 net, £30 VAT and £180 gross. Saving the update replaces the linked journal: Professional Fees is debited £150, VAT Input is debited £30 and Employee Reimbursements Payable is credited £180. The old General Expenses debit is no longer part of that replaced journal.</p>
         </section>
 
         <section>
-          <h2>Common mistakes and misconceptions</h2>
+          <h2>Common mistakes and misunderstandings</h2>
           <ul class="remember-list">
             <li><strong>Thinking debit means money out and credit means money in.</strong> Their effect depends on the account type.</li>
             <li><strong>Assuming balanced means correct.</strong> Equal debits and credits do not verify the category, date, amount, VAT treatment or business purpose.</li>
