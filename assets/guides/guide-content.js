@@ -1139,5 +1139,145 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>To track project profitability in Simple Books, create a project and select it when saving relevant invoices, bills, expenses and mileage claims. The project’s full invoice totals become Total invoiced; bill totals, expense gross amounts and mileage amounts become Total costs. Simple Books subtracts costs from invoiced income for gross profit and divides that result by invoiced income for margin.</p>
           <p>Use Portfolio overview for project-wide totals, rankings, charts and attention flags, then open Project Details for one project’s profitability, budget health and recent allocated records. Review the Project selection whenever you create or edit a transaction, and remember that these gross-value operational figures are separate from ledger-based Profit &amp; Loss reporting.</p>
+        </section>`,
+  "what-is-double-entry-bookkeeping": `<section>
+          <h2>Introduction</h2>
+          <p>Double-entry bookkeeping records every accounting event in at least two places. The total debits in a journal must equal its total credits, so the accounts remain mathematically connected. For a small business owner, this means a sale can record both the income earned and the amount a customer owes, while a supplier bill can record both the cost incurred and the amount owed to the supplier.</p>
+          <p>Simple Books currently creates accounting journals when you save or update invoices, bills, expenses and mileage claims. Its accounting reports then read those journals. This guide explains that implementation in plain English, including what the current workflows do not post. It is general product guidance, not accounting or tax advice.</p>
+        </section>
+
+        <section>
+          <h2>What double-entry bookkeeping means</h2>
+          <p>A <strong>journal</strong> is one balanced accounting entry made up of two or more lines. Each line names an account and puts an amount on either its debit side or its credit side. Every Simple Books journal must have at least two non-zero lines, and the combined debit amount must exactly equal the combined credit amount.</p>
+          <p>Double entry does not mean entering the same transaction twice on an operational page. You save one invoice, bill, expense or mileage claim; Simple Books builds the matching journal behind it. One gross transaction can produce three journal lines when VAT needs its own account.</p>
+          <p>A balanced journal proves that its debits equal its credits. It does not prove that the date, value, VAT treatment, category, customer, supplier or business purpose is correct.</p>
+        </section>
+
+        <section>
+          <h2>Debits, credits and the accounting equation</h2>
+          <p>Debit and credit mean the left and right sides of an account. They do not mean good and bad, money in and money out, or paid and unpaid. In the chart of accounts currently used by Simple Books:</p>
+          <ul class="remember-list">
+            <li><strong>Assets</strong> and <strong>expenses</strong> normally increase with a debit and decrease with a credit.</li>
+            <li><strong>Liabilities</strong>, <strong>equity</strong> and <strong>income</strong> normally increase with a credit and decrease with a debit.</li>
+          </ul>
+          <p>The accounting equation is <strong>Assets = Liabilities + Equity</strong>. Income increases the current-year result that Simple Books adds to equity on the Balance Sheet; expenses reduce it. This is why an unpaid £120 sales invoice containing £100 net income and £20 VAT can balance as a £120 receivable asset against a £20 VAT liability and £100 current-year profit.</p>
+          <p>The current chart includes Bank, Trade Receivables, VAT Input, Trade Payables, VAT Output, Employee Reimbursements Payable, Owner’s Equity, Sales Revenue and five expense accounts. The invoice, bill, expense and mileage journal builders described below do not currently post to Bank or directly to Owner’s Equity.</p>
+        </section>
+
+        <section>
+          <h2>How Simple Books creates journals</h2>
+          <p>When a new supported source record is saved, Simple Books validates its accounting values and writes one journal linked to that record. When the same record is edited and saved, its existing linked journal is replaced using the updated date, amounts and accounting category. The journal is dated from the source transaction: invoice date, bill date, expense date or mileage date.</p>
+          <p>Simple Books checks that the journal uses known account codes, has a valid calendar date, contains at least two lines, uses non-negative values with no more than two decimal places, has only a debit or a credit on each line, and balances in total. It also checks source arithmetic such as net plus VAT equalling the total and mileage amount matching miles multiplied by rate where those values are supplied.</p>
+          <p>If ledger posting fails after the source record has been saved, the operational page keeps the saved record and shows a warning that its ledger posting could not be completed. The accounting reports read journals rather than rebuilding them from source records, so the transaction may be absent from those reports until the journal is successfully written by retrying the update or support resolves the problem.</p>
+        </section>
+
+        <section>
+          <h2>How invoices create journal entries</h2>
+          <p>Saving a sales invoice debits <strong>1100 Trade Receivables</strong> for the gross total, credits <strong>4000 Sales Revenue</strong> for the net amount and, when VAT is greater than zero, credits <strong>2100 VAT Output</strong> for VAT.</p>
+          <p>If the invoice contains active line items, Simple Books creates a separate Sales Revenue credit for each item amount. Those item credits must add up to the invoice net amount. If there are no active items, it creates one Sales Revenue credit for the net amount.</p>
+          <p>The journal represents the sale and the amount owed by the customer. Its structure is the same whether the invoice status is Paid or Unpaid. Selecting <strong>Mark Paid</strong> or <strong>Mark Unpaid</strong> changes the operational status only; it does not create a Bank entry or clear Trade Receivables.</p>
+        </section>
+
+        <section>
+          <h2>How bills create journal entries</h2>
+          <p>Saving a supplier bill debits an expense account for its net amount, debits <strong>1200 VAT Input</strong> when VAT is greater than zero, and credits <strong>2000 Trade Payables</strong> for the gross total. This records the cost, recoverable input VAT in the current account model, and the amount owed to the supplier.</p>
+          <p>The selected category decides the expense account. Travel or Mileage maps to <strong>5200 Travel &amp; Mileage</strong>; Utilities maps to <strong>5300 Utilities</strong>; Professional Fees, Professional, Accounting or Legal maps to <strong>5400 Professional Fees</strong>; Software or Software/Subscriptions maps to <strong>5500 Software &amp; Subscriptions</strong>. Any other category maps to <strong>5000 General Expenses</strong>.</p>
+          <p>Paid and Unpaid bills create the same journal. Marking a bill paid or unpaid changes its status but does not post Bank or clear Trade Payables.</p>
+        </section>
+
+        <section>
+          <h2>How expenses create journal entries</h2>
+          <p>Saving a business expense debits the category-mapped expense account for the net amount, debits <strong>1200 VAT Input</strong> when VAT is greater than zero, and credits <strong>2200 Employee Reimbursements Payable</strong> for the gross amount.</p>
+          <p>The expense category uses the same mapping as a supplier bill. For example, Software posts net cost to Software &amp; Subscriptions, Utilities posts to Utilities and an unmatched category posts to General Expenses.</p>
+          <p>Draft, Submitted, Approved and Paid expenses use the same journal structure. Selecting <strong>Mark paid</strong> changes the expense status only. It does not post a payment to Bank or clear Employee Reimbursements Payable.</p>
+        </section>
+
+        <section>
+          <h2>How mileage creates journal entries</h2>
+          <p>Saving a mileage claim debits <strong>5200 Travel &amp; Mileage</strong> for the full calculated claim amount and credits <strong>2200 Employee Reimbursements Payable</strong> for the same amount. There is no VAT Input line in the current mileage journal.</p>
+          <p>Where miles and rate are both supplied, Simple Books checks that the saved amount equals miles multiplied by the rate. Project selection, vehicle details, route and status add operational context but do not change the accounts used by this journal.</p>
+        </section>
+
+        <section>
+          <h2>What changes, status updates and deletion do</h2>
+          <p>Editing and saving an invoice, bill, expense or mileage claim replaces its linked journal. Changing an amount alters the relevant debit and credit values; changing a supported bill or expense category can move the net debit to a different expense account; changing the source date changes the journal date. Changing a Project allocation does not add a project account or journal line.</p>
+          <p>Status actions do not replace the journal or post settlement entries. In the current implementation, marking an invoice or bill Paid, or marking an expense Paid, does not record movement through Bank. The reports therefore continue to show the original Trade Receivables, Trade Payables or Employee Reimbursements Payable balance.</p>
+          <p>Deletion needs particular care. The current invoice, bill and expense/mileage delete workflows remove the source record but do not create a reversal or delete its existing journal. That journal can continue to affect the accounting reports. A reversal builder exists in the ledger engine, but these operational delete workflows do not currently use it.</p>
+        </section>
+
+        <section>
+          <h2>How the Trial Balance is produced</h2>
+          <p>The <a href="/guides/understanding-the-trial-balance">Trial Balance</a> reads the saved journals and totals the debit and credit lines for each active account. For each account, Simple Books calculates debits minus credits: a positive closing balance appears in the Debit column and a negative closing balance appears as a positive amount in the Credit column.</p>
+          <p>The report then totals all debit closing balances and all credit closing balances. They should be equal because every underlying journal is balanced. The current Trial Balance does not provide a date filter; it uses all loaded journals.</p>
+          <p>Before showing results, the report validates every journal. If a journal is malformed, the page shows an error rather than presenting partial totals. A balanced Trial Balance still cannot tell you whether a valid journal used the correct account, date or tax treatment.</p>
+        </section>
+
+        <section>
+          <h2>How the General Ledger is produced</h2>
+          <p>The <a href="/guides/understanding-the-general-ledger">General Ledger</a> starts from the same journal set and offers accounts that have debit or credit activity. Choose an account to see its entries in chronological order with the journal date, reference, description, debit, credit and running balance.</p>
+          <p>The running balance adds debits and subtracts credits. Optional <strong>Date From</strong> and <strong>Date To</strong> filters are inclusive. They limit the selected account’s displayed entries but do not change the saved journals. The page validates the loaded journal set and rejects invalid date ranges or malformed journals instead of silently showing misleading activity.</p>
+          <p>Use the General Ledger to trace a report balance back to its source postings. For example, the Trade Receivables ledger shows invoice debits created by the current invoice journal workflow; marking an invoice Paid does not add a clearing credit.</p>
+        </section>
+
+        <section>
+          <h2>How Profit &amp; Loss is produced</h2>
+          <p>The <a href="/guides/understanding-profit-and-loss">Profit &amp; Loss report</a> filters journals by an optional inclusive date range, builds account totals and includes only Income and Expense accounts. Income is calculated as credits minus debits. Expenses are calculated as debits minus credits. Total income minus total expenses is the net profit or loss.</p>
+          <p>Sales invoice net values feed Sales Revenue. The net portions of bills and expenses feed their mapped expense accounts, and the full mileage claim feeds Travel &amp; Mileage. Trade Receivables, Trade Payables, Employee Reimbursements Payable, VAT Input and VAT Output do not appear as Profit &amp; Loss rows.</p>
+          <p>Simple Books validates all loaded journals before applying the selected period, so an invalid journal outside the chosen dates cannot be hidden to produce partial figures.</p>
+        </section>
+
+        <section>
+          <h2>How the Balance Sheet is produced</h2>
+          <p>The <a href="/guides/understanding-the-balance-sheet">Balance Sheet</a> includes journals up to an optional inclusive <strong>As at</strong> date. Assets use debit-oriented balances; liabilities and equity use credit-oriented balances. Income and expense accounts are not listed directly. Instead, Simple Books calculates the Profit &amp; Loss result for the same journal set and adds it to the displayed equity total as <strong>Current Year Profit</strong> or <strong>Current Year Loss</strong>.</p>
+          <p>The report compares total assets with total liabilities plus total equity and shows whether they balance. Invoice journals can increase Trade Receivables and VAT Output; bills can increase VAT Input and Trade Payables; expenses and mileage can increase Employee Reimbursements Payable. Because current status actions do not post settlement entries, these balances are not cleared merely by marking a record Paid.</p>
+          <p>As with Profit &amp; Loss, all loaded journals are validated before date filtering. An invalid journal produces an error instead of partial Balance Sheet totals.</p>
+        </section>
+
+        <section>
+          <h2>Operational pages and accounting reports</h2>
+          <p><strong>Invoices, Bills and Expenses</strong> are operational pages. They are where you create and manage customer invoices, supplier bills, expenses and mileage claims, supporting documents, due dates, projects and workflow statuses. <strong>Projects</strong> is also operational: it matches records by Project ID and calculates project totals from saved transaction values, including gross amounts where implemented.</p>
+          <p><strong>Trial Balance, General Ledger, Profit &amp; Loss and Balance Sheet</strong> are accounting reports. They read the separate journal records and apply account rules. They do not calculate their figures from the Projects page, and a Project selection does not create a project-specific ledger account.</p>
+          <p>This distinction explains why project profitability can differ from Profit &amp; Loss. Project views use allocated invoice totals and gross costs, regardless of status, while Profit &amp; Loss uses net income and expense journal lines within its selected period. See <a href="/guides/tracking-project-profitability">tracking project profitability</a> for the current project calculation.</p>
+        </section>
+
+        <section>
+          <h2>Worked examples</h2>
+          <h3>VAT sales invoice</h3>
+          <p>A UK consultant saves invoice INV-104 for £100 net plus £20 VAT, total £120. Simple Books debits Trade Receivables £120, credits Sales Revenue £100 and credits VAT Output £20. The journal balances at £120 on each side. Profit &amp; Loss shows £100 income. The Balance Sheet shows the £120 receivable, £20 VAT Output liability and £100 current-year profit within equity.</p>
+
+          <h3>Software supplier bill</h3>
+          <p>The business saves a £240 supplier bill categorised as Software, made up of £200 net and £40 VAT. Simple Books debits Software &amp; Subscriptions £200, debits VAT Input £40 and credits Trade Payables £240. Profit &amp; Loss includes a £200 expense; the Balance Sheet includes a £40 VAT Input asset and £240 payable, while the expense reduces the current-year result by £200.</p>
+
+          <h3>Utilities expense claim</h3>
+          <p>A director records a £60 utilities expense containing £50 net and £10 VAT. Simple Books debits Utilities £50, debits VAT Input £10 and credits Employee Reimbursements Payable £60. Marking the expense Paid changes its operational status but leaves this journal unchanged; no Bank credit or reimbursement clearing debit is created.</p>
+
+          <h3>Mileage claim</h3>
+          <p>A sole trader records 80 business miles at £0.55 per mile, producing a £44 claim. Simple Books debits Travel &amp; Mileage £44 and credits Employee Reimbursements Payable £44. There is no VAT posting. Profit &amp; Loss includes £44 of travel and mileage expense, and the Balance Sheet includes a £44 reimbursement liability.</p>
+
+          <h3>Editing an amount and category</h3>
+          <p>A £120 gross expense was saved as General Expenses with £100 net and £20 VAT. The user edits it, changes the category to Professional Fees and changes the values to £150 net, £30 VAT and £180 gross. Saving the update replaces the linked journal: Professional Fees is debited £150, VAT Input is debited £30 and Employee Reimbursements Payable is credited £180. The old General Expenses debit is no longer part of that replaced journal.</p>
+        </section>
+
+        <section>
+          <h2>Common mistakes and misconceptions</h2>
+          <ul class="remember-list">
+            <li><strong>Thinking debit means money out and credit means money in.</strong> Their effect depends on the account type.</li>
+            <li><strong>Assuming balanced means correct.</strong> Equal debits and credits do not verify the category, date, amount, VAT treatment or business purpose.</li>
+            <li><strong>Recording the same cost as both a bill and an expense.</strong> Each source creates its own journal, so the cost and liability can be duplicated.</li>
+            <li><strong>Expecting Paid status to post a payment.</strong> Current status actions do not post Bank or clear receivables, payables or reimbursements.</li>
+            <li><strong>Assuming a project changes the accounts.</strong> Project allocation supports operational project reporting; it does not add a project journal line.</li>
+            <li><strong>Comparing gross project totals directly with Profit &amp; Loss.</strong> They use different data and calculations.</li>
+            <li><strong>Choosing the wrong bill or expense category.</strong> The category controls the expense account, with unmatched categories falling back to General Expenses.</li>
+            <li><strong>Ignoring a ledger-posting warning.</strong> The source may be safely saved while its journal is missing from accounting reports.</li>
+            <li><strong>Deleting a source and assuming its journal is reversed.</strong> Current delete workflows do not remove or reverse the linked journal.</li>
+            <li><strong>Expecting VAT accounts in Profit &amp; Loss.</strong> VAT Input and VAT Output are Balance Sheet accounts in the current chart.</li>
+            <li><strong>Treating reports as bookkeeping judgement.</strong> You remain responsible for checking source records, VAT, categories and accounting treatment.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>Double-entry bookkeeping keeps each accounting journal balanced by recording equal debits and credits. In Simple Books, saved invoices debit Trade Receivables and credit revenue and VAT Output; bills debit an expense and VAT Input and credit Trade Payables; expenses debit an expense and VAT Input and credit Employee Reimbursements Payable; mileage debits Travel &amp; Mileage and credits that reimbursement liability.</p>
+          <p>The Trial Balance aggregates those entries, the General Ledger shows one account’s detail, Profit &amp; Loss uses income and expense accounts, and the Balance Sheet uses assets, liabilities, equity and the calculated current-year result. Review the current limitations carefully: status changes do not post payments, deletion does not reverse journals, and a failed ledger write can leave a saved operational record absent from the accounting reports.</p>
         </section>`
 };

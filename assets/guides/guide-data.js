@@ -168,10 +168,11 @@ export const GUIDES = [
     slug: "what-is-double-entry-bookkeeping",
     title: "What is double-entry bookkeeping?",
     category: "Accounting",
-    description: "Understand why every accounting transaction has equal debit and credit entries.",
-    keywords: ["debit", "credit", "journal", "accounts"],
-    readTime: 7,
-    format: "article"
+    description: "Learn how double-entry bookkeeping works in Simple Books, including debits, credits, journals and the reports built from accounting entries.",
+    keywords: ["double-entry bookkeeping", "debits and credits", "accounting journals", "accounting equation", "Simple Books"],
+    readTime: 13,
+    format: "how-to",
+    lastUpdated: "2026-07-30"
   },
   {
     slug: "understanding-the-trial-balance",

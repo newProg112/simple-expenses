@@ -41,6 +41,10 @@ const trackingProjectProfitabilityGuide = readFileSync(
   projectFile("guide-pages/tracking-project-profitability.html"),
   "utf8"
 );
+const doubleEntryBookkeepingGuide = readFileSync(
+  projectFile("guide-pages/what-is-double-entry-bookkeeping.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -670,6 +674,87 @@ describe("generated guide pages", () => {
       "The current delete workflow does not reassign or delete invoices, bills, expenses or mileage records"
     ]) {
       expect(trackingProjectProfitabilityGuide).toContain(currentBehaviour);
+    }
+  });
+
+  it("publishes the complete double-entry bookkeeping article with current journals and reports", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "What double-entry bookkeeping means",
+      "Debits, credits and the accounting equation",
+      "How Simple Books creates journals",
+      "How invoices create journal entries",
+      "How bills create journal entries",
+      "How expenses create journal entries",
+      "How mileage creates journal entries",
+      "What changes, status updates and deletion do",
+      "How the Trial Balance is produced",
+      "How the General Ledger is produced",
+      "How Profit & Loss is produced",
+      "How the Balance Sheet is produced",
+      "Operational pages and accounting reports",
+      "Worked examples",
+      "Common mistakes and misconceptions",
+      "Summary"
+    ];
+
+    expect(doubleEntryBookkeepingGuide).toContain(
+      "<title>What is double-entry bookkeeping? | Simple Books Guides</title>"
+    );
+    expect(doubleEntryBookkeepingGuide).toContain(
+      '<meta name="description" content="Learn how double-entry bookkeeping works in Simple Books, including debits, credits, journals and the reports built from accounting entries.">'
+    );
+    expect(doubleEntryBookkeepingGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/what-is-double-entry-bookkeeping">'
+    );
+    expect(doubleEntryBookkeepingGuide).toContain(
+      '<meta property="og:url" content="https://simple-books.co.uk/guides/what-is-double-entry-bookkeeping">'
+    );
+    expect(doubleEntryBookkeepingGuide).toContain("<span>13 minute read</span>");
+    expect(doubleEntryBookkeepingGuide).toContain(
+      '<time datetime="2026-07-30">30 July 2026</time>'
+    );
+    expect(doubleEntryBookkeepingGuide).toContain('"@type":"BreadcrumbList"');
+    expect(doubleEntryBookkeepingGuide).toContain('"@type":"TechArticle"');
+    expect(doubleEntryBookkeepingGuide).toContain('"articleSection":"Accounting"');
+    expect(doubleEntryBookkeepingGuide).toContain(
+      '"keywords":"double-entry bookkeeping, debits and credits'
+    );
+    expect(doubleEntryBookkeepingGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(doubleEntryBookkeepingGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(doubleEntryBookkeepingGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(doubleEntryBookkeepingGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "understanding-the-trial-balance",
+      "understanding-the-general-ledger",
+      "understanding-profit-and-loss",
+      "understanding-the-balance-sheet",
+      "tracking-project-profitability"
+    ]) {
+      expect(doubleEntryBookkeepingGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "debits <strong>1100 Trade Receivables</strong> for the gross total",
+      "credits <strong>2000 Trade Payables</strong> for the gross total",
+      "credits <strong>2200 Employee Reimbursements Payable</strong> for the gross amount",
+      "There is no VAT Input line in the current mileage journal.",
+      "The current Trial Balance does not provide a date filter",
+      "marking an invoice or bill Paid, or marking an expense Paid, does not record movement through Bank",
+      "do not create a reversal or delete its existing journal",
+      "Project allocation supports operational project reporting; it does not add a project journal line."
+    ]) {
+      expect(doubleEntryBookkeepingGuide).toContain(currentBehaviour);
     }
   });
 });
