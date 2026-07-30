@@ -33,6 +33,10 @@ const uploadingReceiptsGuide = readFileSync(
   projectFile("guide-pages/uploading-receipts.html"),
   "utf8"
 );
+const usingAiInvoiceScanningGuide = readFileSync(
+  projectFile("guide-pages/using-ai-invoice-scanning.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -518,6 +522,75 @@ describe("generated guide pages", () => {
       "does not restore or block deletion of the underlying record"
     ]) {
       expect(uploadingReceiptsGuide).toContain(currentBehaviour);
+    }
+  });
+
+  it("publishes the complete AI invoice-scanning article with bill and expense differences", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "What AI invoice scanning does",
+      "Supported file types and size limits",
+      "Open AI invoice scanning",
+      "Upload a document",
+      "How extracted information is reviewed",
+      "Using the extracted details",
+      "What information AI can populate",
+      "Manual review before saving",
+      "What happens to the scanned document",
+      "Limitations of the current implementation",
+      "Worked examples",
+      "Common scanning mistakes",
+      "Summary"
+    ];
+
+    expect(usingAiInvoiceScanningGuide).toContain(
+      "<title>Using AI invoice scanning in Simple Books | Simple Books Guides</title>"
+    );
+    expect(usingAiInvoiceScanningGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/using-ai-invoice-scanning">'
+    );
+    expect(usingAiInvoiceScanningGuide).toContain("<span>11 minute read</span>");
+    expect(usingAiInvoiceScanningGuide).toContain(
+      '<time datetime="2026-07-30">30 July 2026</time>'
+    );
+    expect(usingAiInvoiceScanningGuide).toContain(
+      '"articleSection":"Expenses & Mileage"'
+    );
+    expect(usingAiInvoiceScanningGuide).toContain(
+      '"keywords":"AI invoice scanning, scan invoices'
+    );
+    expect(usingAiInvoiceScanningGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(usingAiInvoiceScanningGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(usingAiInvoiceScanningGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(usingAiInvoiceScanningGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "how-to-record-a-bill",
+      "how-to-record-a-business-expense",
+      "uploading-receipts"
+    ]) {
+      expect(usingAiInvoiceScanningGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "JPG or JPEG image",
+      "The maximum size is 10 MB",
+      "Scan Bill does not use Merchant as a fallback for Supplier.",
+      "Merchant / Supplier</strong> from Merchant, or from Supplier when Merchant is empty.",
+      "Currency, Total, Document Type and Confidence are displayed for review but are not copied into form fields.",
+      "You cannot apply scanned details while editing an existing bill or expense.",
+      "enforcement of a monthly scanning allowance is disabled"
+    ]) {
+      expect(usingAiInvoiceScanningGuide).toContain(currentBehaviour);
     }
   });
 });

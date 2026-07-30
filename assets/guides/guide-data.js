@@ -146,12 +146,13 @@ export const GUIDES = [
   },
   {
     slug: "using-ai-invoice-scanning",
-    title: "Using AI invoice scanning",
+    title: "Using AI invoice scanning in Simple Books",
     category: "Expenses & Mileage",
-    description: "Learn how document scanning can help draft bill and expense details for your review.",
-    keywords: ["AI", "scan", "document", "receipt", "automation"],
-    readTime: 5,
-    format: "how-to"
+    description: "Learn how to scan supplier bills and expense receipts with AI in Simple Books, review extracted details and save the supporting document.",
+    keywords: ["AI invoice scanning", "scan invoices", "scan receipts", "invoice data extraction", "Simple Books"],
+    readTime: 11,
+    format: "how-to",
+    lastUpdated: "2026-07-30"
   },
   {
     slug: "tracking-project-profitability",

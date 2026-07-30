@@ -765,5 +765,190 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>To upload a receipt in Simple Books, choose the attachment control for the record, select a supported file and save the bill, expense or mileage claim. Manual Bills and Expenses are PDF-only; Mileage also accepts JPG, JPEG and PNG. AI scanning accepts PDF, JPG, JPEG, PNG and WEBP and can hold the scanned document as a pending attachment for a new bill or expense.</p>
           <p>Attachments upload when the record is saved and can then be opened from the recent-record list. Existing attachments normally remain during editing unless you choose a replacement. Remember that Expense and Mileage deletion attempts storage cleanup, while Bills currently leave stored files untouched. Always check the saved figures and avoid keeping sensitive information that the business record does not need.</p>
+        </section>`,
+  "using-ai-invoice-scanning": `<section>
+          <h2>Introduction</h2>
+          <p>AI invoice scanning in Simple Books reads a supplier bill, invoice, receipt or expense document and prepares selected details for you to review. It can reduce retyping, but it does not decide whether an entry is correct, allowable or suitable for a particular accounting treatment.</p>
+          <p>This guide covers the current <strong>Scan Bill</strong> and <strong>Scan Receipt</strong> workflows for UK freelancers, sole traders and small businesses. It explains exactly what the software displays and can add to each form. It is product guidance, not legal, tax or accounting advice.</p>
+        </section>
+
+        <section>
+          <h2>What AI invoice scanning does</h2>
+          <p>Document scanning is available on the <strong>Bills</strong> page and in the ordinary <strong>Expense</strong> workflow on the Expenses page. It is not available for invoices you send to customers, Mileage claims or other records.</p>
+          <p>Both pages send one selected document to the same protected scanning service. The service checks the file, reads it and returns a structured set of possible accounting details. Simple Books then shows every returned field under <strong>Extracted details</strong>. Nothing is added to the form until you select <strong>Use these details</strong>, and scanning by itself does not create or save a bill or expense.</p>
+          <p>The two workflows use different contexts:</p>
+          <ul class="remember-list">
+            <li><strong>Scan Bill</strong> is intended for a supplier invoice or bill and applies bill-related fields.</li>
+            <li><strong>Scan Receipt</strong> is intended for a receipt or other expense document and applies expense-related fields. It switches the shared Expenses form to <strong>Expense</strong>, not Mileage.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Supported file types and size limits</h2>
+          <p>Both scanners accept one file in any of these formats:</p>
+          <ul class="remember-list">
+            <li>JPG or JPEG image</li>
+            <li>PNG image</li>
+            <li>WEBP image</li>
+            <li>PDF document</li>
+          </ul>
+          <p>The maximum size is 10 MB, calculated as 10 × 1,024 × 1,024 bytes. The page rejects a larger file before scanning. The server checks the declared type, filename extension, file size and actual file signature, so renaming an unsupported file to “.pdf” or “.jpg” does not make it valid.</p>
+        </section>
+
+        <section>
+          <h2>Open AI invoice scanning</h2>
+          <p>You must be signed in to scan a document.</p>
+          <ol class="remember-list">
+            <li>For a supplier bill, open <strong>Bills</strong> and select <strong>Scan Bill</strong>. The dialog is headed <strong>Scan a supplier bill</strong>.</li>
+            <li>For a purchase already treated as an expense, open <strong>Expenses</strong> and select <strong>Scan Receipt</strong>. The dialog is headed <strong>Scan a receipt</strong>.</li>
+          </ol>
+          <p>The bill dialog asks for a supplier invoice or bill. The expense dialog asks for a receipt or expense document. If you are unsure whether to use a bill or an expense, see <a href="/guides/how-to-record-a-bill">how to record a bill</a> and <a href="/guides/how-to-record-a-business-expense">how to record a business expense</a>.</p>
+        </section>
+
+        <section>
+          <h2>Upload a document</h2>
+          <ol class="remember-list">
+            <li>Select <strong>Choose file</strong>.</li>
+            <li>Choose one supported file from your device.</li>
+            <li>Check the displayed filename, format and size. An image is shown as a preview; a PDF is represented by a PDF panel with its filename.</li>
+            <li>If necessary, select <strong>Choose another file</strong>.</li>
+            <li>Select <strong>Scan bill</strong> or <strong>Scan receipt</strong> to start the scan.</li>
+          </ol>
+          <p>While the request is running, Simple Books shows <strong>Reading document...</strong> and disables the scan and file-change controls. Selecting or previewing the file is not the scan itself; the document is sent for extraction only after you select the relevant scan button.</p>
+          <p>A clear, upright image with the complete document in frame is more likely to produce useful results. Avoid blur, heavy shadows, glare, cropped totals and text that is too small to read.</p>
+          <p>Errors appear inside the scanner. Simple Books identifies unsupported or oversized files before scanning and the server rejects files whose contents, extension, declared type and size do not agree. It also reports documents that do not appear to be a supported bill, invoice or receipt, scans with no usable details, unreadable results, sign-in problems and timeouts. Temporary service failures ask you to try again; the fallback message advises checking your connection and retrying.</p>
+        </section>
+
+        <section>
+          <h2>How extracted information is reviewed</h2>
+          <p>After a successful scan, the dialog displays <strong>Extracted details</strong> as a labelled list:</p>
+          <ul class="remember-list">
+            <li><strong>Document Type</strong></li>
+            <li><strong>Supplier</strong></li>
+            <li><strong>Merchant</strong></li>
+            <li><strong>Invoice Number</strong></li>
+            <li><strong>Invoice Date</strong></li>
+            <li><strong>Due Date</strong></li>
+            <li><strong>Currency</strong></li>
+            <li><strong>Net</strong></li>
+            <li><strong>VAT</strong></li>
+            <li><strong>Total</strong></li>
+            <li><strong>Description</strong></li>
+            <li><strong>Category Suggestion</strong></li>
+            <li><strong>Confidence</strong></li>
+          </ul>
+          <p>Dates are displayed in a readable UK format, monetary values use the extracted three-letter currency when valid and confidence is shown as a percentage. A missing or unreadable value appears as <strong>Not found</strong>. The confidence percentage is for review only: the current page does not apply a minimum confidence threshold before enabling <strong>Use these details</strong>.</p>
+        </section>
+
+        <section>
+          <h2>Using the extracted details</h2>
+          <p>Select <strong>Use these details</strong> only after looking through the results. Simple Books closes the scanner, moves back to the form, highlights the fields it changed and shows a message asking you to check them. The highlight clears after a short period or when you edit the field.</p>
+          <p>Values that are missing, empty, negative where an amount must be non-negative, or not in a valid date format are not added. The page shows warnings for invalid extracted amounts or dates, an unmatched VAT rate, an unmatched expense category, or a total that differs from net plus VAT by more than two pence.</p>
+          <p>If no extracted values can safely be added, the dialog remains open and reports either <strong>No extracted values could be safely added to the bill form.</strong> or <strong>No extracted values could be safely added to the expense form.</strong></p>
+        </section>
+
+        <section>
+          <h2>What information AI can populate</h2>
+          <h3>Scan Bill</h3>
+          <p>The Bills workflow can add:</p>
+          <ul class="remember-list">
+            <li><strong>Supplier</strong> from the extracted Supplier value.</li>
+            <li><strong>Bill number</strong> from Invoice Number.</li>
+            <li><strong>Bill date</strong> from Invoice Date.</li>
+            <li><strong>Due date</strong> from Due Date.</li>
+            <li><strong>Net amount</strong> from Net.</li>
+            <li><strong>VAT rate</strong> when the ratio of extracted VAT to net closely matches one of the form’s available rates.</li>
+            <li><strong>Notes</strong> from Description.</li>
+          </ul>
+          <p>Scan Bill does not use Merchant as a fallback for Supplier. It does not populate the bill’s category, project or status. Category Suggestion is displayed in the results but is not applied to a bill.</p>
+
+          <h3>Scan Receipt</h3>
+          <p>The Expenses workflow can add:</p>
+          <ul class="remember-list">
+            <li><strong>Merchant / Supplier</strong> from Merchant, or from Supplier when Merchant is empty.</li>
+            <li><strong>Date</strong> from Invoice Date.</li>
+            <li><strong>Category</strong> when Category Suggestion exactly matches an available category or one of the current safe aliases, such as stationery to Office or software subscription to Software.</li>
+            <li><strong>Net amount</strong> from Net.</li>
+            <li><strong>VAT rate</strong> when extracted VAT divided by net closely matches an available rate.</li>
+            <li><strong>Notes</strong> from Description.</li>
+          </ul>
+          <p>Scan Receipt does not populate the expense’s <strong>Description</strong> field, project or status. It does not apply Invoice Number or Due Date to an expense.</p>
+
+          <h3>Displayed but not directly populated</h3>
+          <p>In both workflows, Currency, Total, Document Type and Confidence are displayed for review but are not copied into form fields. The extracted total is used only for a consistency warning when net and VAT are also available. Form totals are calculated from the net amount and selected VAT rate rather than copied from the extracted Total.</p>
+        </section>
+
+        <section>
+          <h2>Manual review before saving</h2>
+          <p>AI extraction is a draft. Before saving, compare every populated field with the original document and check:</p>
+          <ul class="remember-list">
+            <li>The correct supplier or merchant has been identified.</li>
+            <li>The invoice, bill, expense and due dates are correct for the chosen workflow.</li>
+            <li>The net amount, VAT rate, VAT amount and gross total match the document.</li>
+            <li>The currency shown in the scan is consistent with the amounts you intend to record.</li>
+            <li>The category and accounting treatment are appropriate for the purchase.</li>
+            <li>The description, notes, project and business purpose are complete.</li>
+            <li>The bill number, payment status and due date are correct where relevant.</li>
+          </ul>
+          <p>You remain responsible for checking the supplier, dates, VAT, totals, category and accounting treatment. Simple Books does not determine whether VAT is recoverable, whether a cost is allowable or whether a document belongs in Bills rather than Expenses.</p>
+          <p>When everything is correct, select <strong>Save bill</strong> or <strong>Save expense</strong>. Scanning and selecting <strong>Use these details</strong> do not save the record.</p>
+        </section>
+
+        <section>
+          <h2>What happens to the scanned document</h2>
+          <p>For a new bill or expense, selecting <strong>Use these details</strong> makes the scanned file a pending attachment when no manual attachment is already selected. The form reports that it will be attached when you save, and the Attachment area provides <strong>Remove scanned attachment</strong>.</p>
+          <p>The pending document is uploaded during <strong>Save bill</strong> or <strong>Save expense</strong>. The record is saved first, then Simple Books uploads the scanned file and updates the record with its attachment. If that later upload fails, the record remains saved and a warning tells you to edit the record and attach the file manually. See <a href="/guides/uploading-receipts">uploading receipts in Simple Books</a> for the wider attachment behaviour.</p>
+          <p>If a manual attachment is already selected when you use scanned details, the form fields can still be populated, but the scanned file does not become the attachment. Simple Books keeps the manual file and warns: <strong>A manual attachment is already selected. Remove it first to use the scanned document as the attachment.</strong></p>
+          <p>If a scanned file is pending and you later choose a manual attachment, the manual file replaces the pending scan. Switching the Expenses form to Mileage also removes a pending scanned receipt.</p>
+        </section>
+
+        <section>
+          <h2>Limitations of the current implementation</h2>
+          <ul class="remember-list">
+            <li>Scanning supports Bills and ordinary Expenses only; it does not populate Mileage or sales invoices.</li>
+            <li>Only one document can be scanned at a time. There is no batch or multi-page-record workflow beyond pages already contained within one PDF.</li>
+            <li>You cannot apply scanned details while editing an existing bill or expense. The dialog reports that you must finish or cancel editing first.</li>
+            <li>Starting an edit removes any separate scanned document that was waiting to be applied or uploaded.</li>
+            <li>The confidence score is displayed but does not automatically prevent low-confidence results from being applied.</li>
+            <li>Not every extracted result maps to a form field, and Bills and Expenses deliberately use different subsets.</li>
+            <li>Category matching is available only for Expenses and only for exact options or a small set of safe aliases.</li>
+            <li>VAT is applied only when the VAT-to-net ratio closely matches an available form rate.</li>
+            <li>Scanning does not save the record, record payment, choose a project or status, or make bookkeeping decisions.</li>
+          </ul>
+          <p>The current service records monthly invoice-scanning usage, but enforcement of a monthly scanning allowance is disabled. The interface does not promise a particular result: extraction depends on the document being readable and containing usable information.</p>
+        </section>
+
+        <section>
+          <h2>Worked examples</h2>
+          <h3>PDF supplier bill</h3>
+          <p>A VAT-registered design studio receives a PDF bill from North Street Print Ltd for £240 net plus £48 VAT, due in 30 days. The user opens Bills, selects <strong>Scan Bill</strong>, chooses the PDF and selects <strong>Scan bill</strong>. The results show the supplier, invoice number, invoice and due dates, GBP currency, net, VAT, total and description.</p>
+          <p>After selecting <strong>Use these details</strong>, the studio checks the populated supplier, bill number, dates, net amount, VAT rate and notes. It chooses the correct bill category, project and status manually, verifies the £288 total and selects <strong>Save bill</strong>. Because no manual attachment was selected, the PDF is uploaded as the saved bill attachment.</p>
+
+          <h3>Photographed expense receipt</h3>
+          <p>A self-employed consultant photographs a clear JPG receipt for £24 of stationery, including £4 VAT. They open Expenses, select <strong>Scan Receipt</strong>, choose the photograph and select <strong>Scan receipt</strong>. The scanner finds the merchant, date, net, VAT, total and suggests “stationery”.</p>
+          <p>When the user selects <strong>Use these details</strong>, Simple Books maps stationery to <strong>Office</strong>, adds the merchant and date, puts extracted descriptive text in Notes, enters £20 net and matches the VAT rate. The consultant checks the original receipt, completes the Description, project and status, confirms the £24 gross amount and selects <strong>Save expense</strong>.</p>
+        </section>
+
+        <section>
+          <h2>Common scanning mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Trusting AI without checking.</strong> Compare every populated value with the original document.</li>
+            <li><strong>Uploading a poor-quality image.</strong> Retake blurred, dark, reflective, distant or cropped photographs before scanning.</li>
+            <li><strong>Using an unsupported file type.</strong> Upload a genuine JPG, JPEG, PNG, WEBP or PDF no larger than 10 MB.</li>
+            <li><strong>Choosing the wrong workflow.</strong> Use Scan Bill for supplier bills you owe and Scan Receipt for ordinary business expenses.</li>
+            <li><strong>Forgetting to select Use these details.</strong> A completed result remains in the dialog until you apply it or close the scanner.</li>
+            <li><strong>Forgetting to save after scanning.</strong> Applied values and a pending document are not a saved record.</li>
+            <li><strong>Expecting the extracted total to be copied into the form.</strong> Simple Books recalculates form totals from net and VAT.</li>
+            <li><strong>Expecting every result to populate a field.</strong> Currency, confidence, document type and total are review information; some other mappings depend on the workflow.</li>
+            <li><strong>Trying to apply a scan while editing.</strong> Finish or cancel the edit and start from a new form.</li>
+            <li><strong>Expecting two attachments.</strong> A manually selected attachment takes priority over the scanned document.</li>
+            <li><strong>Expecting AI to replace bookkeeping judgement.</strong> Decide the category, VAT treatment and accounting treatment yourself or seek appropriate professional advice.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>To use AI invoice scanning in Simple Books, open Bills and select <strong>Scan Bill</strong>, or open Expenses and select <strong>Scan Receipt</strong>. Choose one JPG, JPEG, PNG, WEBP or PDF up to 10 MB, select the scan button and review every item under <strong>Extracted details</strong>. Select <strong>Use these details</strong> to add supported values to a new form.</p>
+          <p>Check the supplier or merchant, dates, net, VAT, total, category and accounting treatment against the original document, complete the fields AI does not populate, then save the record. If no manual attachment is selected, the scanned document waits as a pending attachment and uploads when the new bill or expense is saved.</p>
         </section>`
 };
