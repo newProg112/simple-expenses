@@ -53,6 +53,10 @@ const trialBalanceGuide = readFileSync(
   projectFile("guide-pages/understanding-the-trial-balance.html"),
   "utf8"
 );
+const generalLedgerGuide = readFileSync(
+  projectFile("guide-pages/understanding-the-general-ledger.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -945,10 +949,103 @@ describe("generated guide pages", () => {
       '<span>Previous guide</span><strong>What is double-entry bookkeeping?</strong>'
     );
     expect(trialBalanceGuide).toContain(
-      '<span>Next guide</span><strong>Understanding the General Ledger</strong>'
+      '<span>Next guide</span><strong>Understanding the General Ledger in Simple Books</strong>'
     );
     expect(guidesIndex).toContain(
       'data-search="Understanding the Trial Balance in Simple Books Learn how the Simple Books Trial Balance turns invoice, bill, expense and mileage journals into debit and credit account balances. Accounting trial balance debit and credit balances general ledger account balances Simple Books"'
+    );
+  });
+
+  it("publishes the complete General Ledger guide from the current journal implementation", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "What is a General Ledger?",
+      "Why businesses use a General Ledger",
+      "How Simple Books creates ledger entries",
+      "How journal entries are stored and loaded",
+      "Journal entries shown in the ledger",
+      "Debit and credit postings explained",
+      "Running account balances",
+      "Filtering by account and date",
+      "Relationship to the Trial Balance",
+      "Relationship to the Profit & Loss Statement",
+      "Relationship to the Balance Sheet",
+      "Worked examples",
+      "Common mistakes",
+      "Current implementation limitations",
+      "Summary"
+    ];
+
+    expect(generalLedgerGuide).toContain(
+      "<title>Understanding the General Ledger in Simple Books | Simple Books Guides</title>"
+    );
+    expect(generalLedgerGuide).toContain(
+      '<meta name="description" content="Learn how the Simple Books General Ledger displays journal postings, account activity, debit and credit entries, and running balances.">'
+    );
+    expect(generalLedgerGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/understanding-the-general-ledger">'
+    );
+    expect(generalLedgerGuide).toContain(
+      '<meta property="og:url" content="https://simple-books.co.uk/guides/understanding-the-general-ledger">'
+    );
+    expect(generalLedgerGuide).toContain("<span>15 minute read</span>");
+    expect(generalLedgerGuide).toContain(
+      '<time datetime="2026-07-30">30 July 2026</time>'
+    );
+    expect(generalLedgerGuide).toContain('"@type":"BreadcrumbList"');
+    expect(generalLedgerGuide).toContain('"@type":"TechArticle"');
+    expect(generalLedgerGuide).toContain('"articleSection":"Accounting"');
+    expect(generalLedgerGuide).toContain(
+      '"keywords":"general ledger, ledger entries, journal postings'
+    );
+    expect(generalLedgerGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(generalLedgerGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(generalLedgerGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(generalLedgerGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "what-is-double-entry-bookkeeping",
+      "understanding-the-trial-balance",
+      "understanding-profit-and-loss",
+      "understanding-the-balance-sheet"
+    ]) {
+      expect(generalLedgerGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "debit <strong>1100 Trade Receivables</strong> for the gross total",
+      "credit <strong>2000 Trade Payables</strong> for the gross total",
+      "credit <strong>2200 Employee Reimbursements Payable</strong> for the gross amount",
+      "The current mileage journal has no VAT line.",
+      "stored journal includes the owning user ID, journal ID, journal date, source type, source ID",
+      "keeps only lines whose account code exactly matches the selection",
+      "New running balance = previous running balance + debit − credit.",
+      "Date From</strong> and <strong>Date To</strong> are optional and inclusive",
+      "The filtered running balance therefore starts at zero",
+      "Every Trial Balance account code links to the General Ledger",
+      "Current delete workflows do not reverse or delete the linked journal.",
+      "one invalid loaded journal or invalid journal date makes the General Ledger unavailable"
+    ]) {
+      expect(generalLedgerGuide).toContain(currentBehaviour);
+    }
+
+    expect(generalLedgerGuide).toContain(
+      '<span>Previous guide</span><strong>Understanding the Trial Balance in Simple Books</strong>'
+    );
+    expect(generalLedgerGuide).toContain(
+      '<span>Next guide</span><strong>Understanding Profit &amp; Loss</strong>'
+    );
+    expect(guidesIndex).toContain(
+      'data-search="Understanding the General Ledger in Simple Books Learn how the Simple Books General Ledger displays journal postings, account activity, debit and credit entries, and running balances. Accounting general ledger ledger entries journal postings running balance account codes Simple Books"'
     );
   });
 });

@@ -187,12 +187,13 @@ export const GUIDES = [
   },
   {
     slug: "understanding-the-general-ledger",
-    title: "Understanding the General Ledger",
+    title: "Understanding the General Ledger in Simple Books",
     category: "Accounting",
-    description: "Explore the detailed account activity behind your financial reports.",
-    keywords: ["account", "journal", "transactions", "running balance"],
-    readTime: 7,
-    format: "article"
+    description: "Learn how the Simple Books General Ledger displays journal postings, account activity, debit and credit entries, and running balances.",
+    keywords: ["general ledger", "ledger entries", "journal postings", "running balance", "account codes", "Simple Books"],
+    readTime: 15,
+    format: "how-to",
+    lastUpdated: "2026-07-30"
   },
   {
     slug: "understanding-profit-and-loss",
