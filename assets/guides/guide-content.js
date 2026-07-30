@@ -950,5 +950,194 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>To use AI invoice scanning in Simple Books, open Bills and select <strong>Scan Bill</strong>, or open Expenses and select <strong>Scan Receipt</strong>. Choose one JPG, JPEG, PNG, WEBP or PDF up to 10 MB, select the scan button and review every item under <strong>Extracted details</strong>. Select <strong>Use these details</strong> to add supported values to a new form.</p>
           <p>Check the supplier or merchant, dates, net, VAT, total, category and accounting treatment against the original document, complete the fields AI does not populate, then save the record. If no manual attachment is selected, the scanned document waits as a pending attachment and uploads when the new bill or expense is saved.</p>
+        </section>`,
+  "tracking-project-profitability": `<section>
+          <h2>Introduction</h2>
+          <p>Tracking project profitability in Simple Books brings together the invoices, supplier bills, business expenses and mileage claims allocated to a saved project. The Projects page then compares invoiced income with recorded project costs to show gross profit, margin and budget usage.</p>
+          <p>This guide explains the current project calculations and screens exactly as implemented. The figures are operational project summaries based on saved transaction totals; they are not a substitute for your Profit &amp; Loss report or professional accounting advice.</p>
+        </section>
+
+        <section>
+          <h2>What project profitability means in Simple Books</h2>
+          <p>Simple Books uses four values for each current project:</p>
+          <ul class="remember-list">
+            <li><strong>Total invoiced:</strong> the full <strong>Total</strong> of every invoice whose Project ID matches the project.</li>
+            <li><strong>Total costs:</strong> allocated bill totals, expense gross amounts and mileage claim amounts added together.</li>
+            <li><strong>Gross profit:</strong> Total invoiced minus Total costs.</li>
+            <li><strong>Profit margin:</strong> Gross profit divided by Total invoiced, multiplied by 100.</li>
+          </ul>
+          <p>If a project has no invoiced income, its margin is shown as 0.0%, even when recorded costs make gross profit negative. Negative gross profit and negative budget remaining are highlighted.</p>
+          <p>These calculations use transaction values including VAT where the saved total or gross value includes VAT. They are therefore different from accounting Profit &amp; Loss calculations, which normally use net income and net costs posted to ledger accounts. Simple Books labels the project result <strong>Gross profit</strong>, but it should be read as the current project-page calculation rather than a statutory accounting measure.</p>
+        </section>
+
+        <section>
+          <h2>Create and open a project</h2>
+          <p>Open <strong>Projects</strong> from the app navigation. The page begins with counts for <strong>Total projects</strong>, <strong>Active projects</strong>, <strong>Completed projects</strong> and <strong>On Hold projects</strong>, plus <strong>Total project budgets</strong>.</p>
+          <p>Select <strong>New project</strong> and complete the available fields:</p>
+          <ul class="remember-list">
+            <li><strong>Project name</strong>, which is required.</li>
+            <li><strong>Project reference</strong>; Simple Books suggests the next PRJ-number when creating a project.</li>
+            <li><strong>Customer / client</strong>, or <strong>No customer / client</strong>.</li>
+            <li><strong>Description</strong>.</li>
+            <li><strong>Status:</strong> Active, Completed or On Hold.</li>
+            <li><strong>Budget (£)</strong>, which must be zero or more.</li>
+            <li><strong>Start date</strong> and <strong>End date</strong>; the end date cannot be before the start date.</li>
+          </ul>
+          <p>Select <strong>Save project</strong>. The project becomes available in transaction Project selectors. From the <strong>Project list</strong>, select its name or <strong>View</strong> to open the individual Project Details page.</p>
+        </section>
+
+        <section>
+          <h2>Allocate invoice income to a project</h2>
+          <p>When creating an invoice, use the <strong>Project</strong> selector and choose the saved project instead of <strong>No project</strong>. The selected Project ID, name and reference are stored with the invoice when you select <strong>Generate Invoice</strong>. See <a href="/guides/how-to-create-an-invoice">how to create an invoice</a>.</p>
+          <p>The project calculation uses the invoice’s full <strong>Total</strong>. Paid, Unpaid and overdue invoices all contribute to <strong>Total invoiced</strong>; status does not determine whether revenue is included. The individual Project Details page separately divides that same invoice total into <strong>Paid invoices</strong>, <strong>Outstanding invoices</strong> and <strong>Overdue invoices</strong>.</p>
+          <p>Invoice dates do not restrict the project total. Every currently saved invoice with the matching Project ID is included, regardless of the project’s start date, end date or status.</p>
+        </section>
+
+        <section>
+          <h2>Allocate bills to a project</h2>
+          <p>On the Bills page, choose the project from <strong>Project</strong> before selecting <strong>Save bill</strong>. The bill’s Project ID, name and reference are saved with it. See <a href="/guides/how-to-record-a-bill">how to record a bill</a>.</p>
+          <p>Project costs use the bill’s full <strong>Total</strong>, including VAT where VAT forms part of that total. Paid, Unpaid and overdue bills all count towards project costs. Project Details shows a separate Paid and Unpaid bill breakdown, but changing the bill’s payment status does not alter <strong>Total costs</strong>, gross profit, margin or budget usage.</p>
+        </section>
+
+        <section>
+          <h2>Allocate expenses and mileage</h2>
+          <p>Expenses and Mileage share the Expenses page and the same saved collection, but Project views separate them by record type.</p>
+          <ul class="remember-list">
+            <li><strong>Expense:</strong> choose a project in the Expense form. Project costs use the expense’s saved <strong>Gross amount</strong>.</li>
+            <li><strong>Mileage:</strong> switch to Mileage, choose a project and save the claim. Project costs use the calculated mileage <strong>Amount</strong>, falling back to its gross value for older compatible records.</li>
+          </ul>
+          <p>Draft, Submitted, Approved and Paid expenses or mileage claims are all included. Status is displayed in the recent transaction tables but does not change the project calculation. For the underlying workflows, see <a href="/guides/how-to-record-a-business-expense">how to record a business expense</a> and <a href="/guides/how-to-claim-business-mileage">how to claim business mileage</a>.</p>
+        </section>
+
+        <section>
+          <h2>How project income, costs and margin are calculated</h2>
+          <p>For one project, Simple Books applies these formulas:</p>
+          <ul class="remember-list">
+            <li><strong>Invoiced income</strong> = sum of allocated invoice totals.</li>
+            <li><strong>Bill costs</strong> = sum of allocated bill totals.</li>
+            <li><strong>Expense costs</strong> = sum of allocated expense gross amounts.</li>
+            <li><strong>Mileage costs</strong> = sum of allocated mileage amounts.</li>
+            <li><strong>Total costs</strong> = Bills + Expenses + Mileage.</li>
+            <li><strong>Gross profit</strong> = Total invoiced − Total costs.</li>
+            <li><strong>Profit margin</strong> = Gross profit ÷ Total invoiced × 100, or 0% when Total invoiced is zero.</li>
+          </ul>
+          <p>Transactions are matched by their saved Project ID, not by a similar project name or reference. A transaction left as <strong>No project</strong> does not appear in project totals. Changing a project’s name does not break ID-based matching, although older transaction rows may retain the project name and reference that were stored when they were last saved.</p>
+        </section>
+
+        <section>
+          <h2>Use the Projects portfolio overview</h2>
+          <p>The <strong>Portfolio overview</strong> is the project-specific dashboard. It calculates across all current saved projects and transactions whose Project IDs match them.</p>
+          <ul class="remember-list">
+            <li><strong>Total invoiced:</strong> allocated invoice totals and the number of allocated invoices.</li>
+            <li><strong>Total costs:</strong> combined Bills, Expenses and Mileage, with each type shown separately.</li>
+            <li><strong>Overall gross profit:</strong> portfolio invoiced total minus portfolio costs.</li>
+            <li><strong>Overall margin:</strong> portfolio gross profit divided by portfolio invoiced total.</li>
+            <li><strong>Budget usage:</strong> total costs compared with the sum of all current project budgets.</li>
+          </ul>
+          <p>The combined Budget usage includes costs from current projects even when an individual project has no budget, while the budget side is only the sum of budgets greater than or equal to zero. Read the individual project detail when you need to understand which project is driving the portfolio result.</p>
+          <p><strong>Highest value projects</strong> ranks up to five projects by invoiced total. <strong>Most profitable projects</strong> ranks up to five by gross profit and shows the calculated margin. These lists include current projects regardless of Active, Completed or On Hold status.</p>
+        </section>
+
+        <section>
+          <h2>Understand project charts and attention flags</h2>
+          <p>The Projects page provides three portfolio charts:</p>
+          <ul class="remember-list">
+            <li><strong>Projects by status:</strong> a doughnut chart of Active, Completed and On Hold counts.</li>
+            <li><strong>Budget utilisation:</strong> a bar chart comparing the total of current project budgets with all recorded costs allocated to current projects.</li>
+            <li><strong>Top five project revenue:</strong> a horizontal bar chart using invoice totals for the five highest-invoiced projects.</li>
+          </ul>
+          <p>The <strong>Needs attention</strong> section flags a project when it has no budget, has used 100% or more of its budget, is Active with an end date that has passed, or has recorded costs but no allocated invoices. These are fixed software checks, not accounting conclusions.</p>
+          <p>At exactly 100% budget usage, Needs attention says <strong>Budget fully used</strong>; above 100% it shows <strong>Over budget</strong> with the percentage.</p>
+        </section>
+
+        <section>
+          <h2>Review an individual project</h2>
+          <p>The Project Details page loads the chosen project and queries invoices, bills and the combined Expenses/Mileage records whose Project ID exactly matches it. It shows:</p>
+          <ul class="remember-list">
+            <li>Project reference, customer, status, dates, budget and description.</li>
+            <li><strong>Total invoiced</strong>, invoice count, <strong>Total costs</strong>, <strong>Gross profit</strong>, <strong>Profit margin</strong> and <strong>Budget remaining</strong>.</li>
+            <li>Paid, Outstanding and Overdue invoice totals.</li>
+            <li>Bill, Expense and Mileage cost totals.</li>
+            <li>Income, cost and budget breakdowns.</li>
+            <li>The most recent five allocated Invoices, Bills, Expenses and Mileage claims in separate tables.</li>
+          </ul>
+          <p>If one of the invoice, bill or expense/mileage queries fails, the page still renders available data and warns that some financial records could not be loaded and the figures may be incomplete.</p>
+        </section>
+
+        <section>
+          <h2>Understand budgets and project progress</h2>
+          <p>A project budget is compared with the same gross project costs used in profitability:</p>
+          <ul class="remember-list">
+            <li><strong>Budget remaining</strong> = Project budget − Total costs.</li>
+            <li><strong>Budget used</strong> = Total costs ÷ Project budget × 100.</li>
+            <li>Below 75% is labelled <strong>Within budget</strong>.</li>
+            <li>From 75% to below 100% is labelled <strong>Approaching budget</strong>.</li>
+            <li>At 100% or more is labelled <strong>Over budget</strong> on Project Details.</li>
+          </ul>
+          <p>If the budget is zero or blank, the page shows <strong>No budget set</strong> and does not display a budget progress bar. Budget is not a profitability target and does not limit saving transactions.</p>
+          <p><strong>Project progress</strong> is date-based. When both dates exist, Simple Books calculates inclusive project days, elapsed days, remaining days and percentage of duration elapsed. This is informational: passing the end date does not change the project’s status automatically.</p>
+        </section>
+
+        <section>
+          <h2>How transaction changes affect profitability</h2>
+          <p>Project totals are recalculated from the currently saved records whenever the Projects or Project Details page loads. Changes therefore have these effects:</p>
+          <ul class="remember-list">
+            <li><strong>Edit an amount:</strong> updating an allocated invoice total changes project income; updating a bill total, expense gross amount, mileage distance or mileage rate changes project costs.</li>
+            <li><strong>Change the Project selection:</strong> the transaction stops contributing to the old Project ID and contributes to the new one after it is saved.</li>
+            <li><strong>Select No project:</strong> the transaction is removed from project calculations but remains a transaction in its own module.</li>
+            <li><strong>Delete a transaction:</strong> after the record is deleted, it no longer contributes when project data is reloaded.</li>
+            <li><strong>Change payment or claim status:</strong> Paid, Unpaid, Draft, Submitted and Approved labels alter status breakdowns where shown, but not total income, total costs, gross profit, margin or budget usage.</li>
+            <li><strong>Edit the project budget:</strong> budget remaining, percentage used and health labels change, but income, costs and gross profit do not.</li>
+            <li><strong>Edit project status or dates:</strong> status counts, progress and attention flags can change; the financial calculation does not.</li>
+          </ul>
+          <p>Deleting a project deletes the project record only. The current delete workflow does not reassign or delete invoices, bills, expenses or mileage records that stored its Project ID. Because the project no longer exists, those records no longer match a current project in Portfolio overview and its Project Details page is unavailable.</p>
+        </section>
+
+        <section>
+          <h2>How the main Dashboard relates to projects</h2>
+          <p>The main Dashboard has no project filter, project profit card or project profitability chart. Allocated transactions still appear in its general business figures because they remain ordinary invoices, bills, expenses and mileage claims, but the Dashboard does not separate them by Project ID.</p>
+          <p>In particular, the Dashboard’s <strong>Income vs Bills</strong> chart groups all invoice totals and bill totals by month and shows their difference. It excludes expenses and mileage and is not filtered to a project, so its <strong>Difference</strong> line is not the same as project gross profit. Recent activity can include allocated transactions, but it does not show their project allocation.</p>
+          <p>For project-specific figures and charts, use <strong>Portfolio overview</strong> and the individual Project Details page. For ledger-based business performance, use <a href="/guides/understanding-profit-and-loss">Understanding Profit &amp; Loss</a>.</p>
+        </section>
+
+        <section>
+          <h2>Worked examples</h2>
+          <h3>Website project with income and costs</h3>
+          <p>A freelance designer creates “Harbour Website” with a £4,000 budget. They allocate an invoice with a £3,600 total, a supplier bill totalling £720, an expense with a £120 gross amount and a £44 mileage claim.</p>
+          <ul class="remember-list">
+            <li>Total invoiced: £3,600</li>
+            <li>Total costs: £720 + £120 + £44 = £884</li>
+            <li>Gross profit: £3,600 − £884 = £2,716</li>
+            <li>Profit margin: £2,716 ÷ £3,600 × 100 = 75.4%</li>
+            <li>Budget used: £884 ÷ £4,000 × 100 = 22.1%</li>
+            <li>Budget remaining: £4,000 − £884 = £3,116</li>
+          </ul>
+          <p>Marking the invoice Paid changes Paid and Outstanding invoice totals but leaves Total invoiced and the 75.4% project margin unchanged.</p>
+
+          <h3>Reallocating a cost</h3>
+          <p>A £240 gross software expense was accidentally allocated to “Harbour Website” instead of “Retail Campaign”. The user edits the expense, changes <strong>Project</strong> and selects <strong>Update expense</strong>. On reload, Harbour Website costs fall by £240 and its gross profit rises by £240. Retail Campaign costs rise by £240 and its gross profit falls by the same amount.</p>
+        </section>
+
+        <section>
+          <h2>Common project profitability mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Leaving transactions as No project.</strong> They remain valid records but do not contribute to any project totals.</li>
+            <li><strong>Expecting only Paid or Approved records to count.</strong> Project calculations include every matching saved record regardless of status.</li>
+            <li><strong>Comparing project gross profit directly with Profit &amp; Loss.</strong> Project views use gross transaction totals, while accounting reports use ledger postings and net account values.</li>
+            <li><strong>Assuming the Dashboard Difference line is project profit.</strong> It includes all invoices and bills and omits expenses and mileage.</li>
+            <li><strong>Recording the same cost as both a bill and an expense.</strong> If both are allocated, project costs are duplicated.</li>
+            <li><strong>Using a similar name instead of selecting the project.</strong> Matching uses the saved Project ID.</li>
+            <li><strong>Assuming a budget limits costs.</strong> It is a comparison value and does not prevent transactions from being saved.</li>
+            <li><strong>Expecting project dates to filter transactions.</strong> Matching records count regardless of transaction date.</li>
+            <li><strong>Expecting project status to update automatically.</strong> Date progress is informational; update Active, Completed or On Hold yourself.</li>
+            <li><strong>Deleting a project to delete its transactions.</strong> The project is removed, but allocated source records are not reassigned or deleted.</li>
+            <li><strong>Ignoring load warnings.</strong> If a collection could not be loaded, displayed portfolio or project figures may be incomplete.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>To track project profitability in Simple Books, create a project and select it when saving relevant invoices, bills, expenses and mileage claims. The project’s full invoice totals become Total invoiced; bill totals, expense gross amounts and mileage amounts become Total costs. Simple Books subtracts costs from invoiced income for gross profit and divides that result by invoiced income for margin.</p>
+          <p>Use Portfolio overview for project-wide totals, rankings, charts and attention flags, then open Project Details for one project’s profitability, budget health and recent allocated records. Review the Project selection whenever you create or edit a transaction, and remember that these gross-value operational figures are separate from ledger-based Profit &amp; Loss reporting.</p>
         </section>`
 };

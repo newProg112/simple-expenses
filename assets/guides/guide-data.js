@@ -156,12 +156,13 @@ export const GUIDES = [
   },
   {
     slug: "tracking-project-profitability",
-    title: "Tracking project profitability",
+    title: "Tracking project profitability in Simple Books",
     category: "Projects",
-    description: "Connect project income and costs to understand how work is performing.",
-    keywords: ["project", "income", "costs", "margin", "profit"],
-    readTime: 7,
-    format: "article"
+    description: "Learn how Simple Books calculates project income, costs, gross profit, margin and budget usage from allocated invoices, bills, expenses and mileage.",
+    keywords: ["project profitability", "track project costs", "project income", "project profit margin", "Simple Books projects"],
+    readTime: 12,
+    format: "how-to",
+    lastUpdated: "2026-07-30"
   },
   {
     slug: "what-is-double-entry-bookkeeping",

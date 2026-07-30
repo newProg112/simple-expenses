@@ -37,6 +37,10 @@ const usingAiInvoiceScanningGuide = readFileSync(
   projectFile("guide-pages/using-ai-invoice-scanning.html"),
   "utf8"
 );
+const trackingProjectProfitabilityGuide = readFileSync(
+  projectFile("guide-pages/tracking-project-profitability.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -591,6 +595,81 @@ describe("generated guide pages", () => {
       "enforcement of a monthly scanning allowance is disabled"
     ]) {
       expect(usingAiInvoiceScanningGuide).toContain(currentBehaviour);
+    }
+  });
+
+  it("publishes the complete project-profitability article with current calculations", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "What project profitability means in Simple Books",
+      "Create and open a project",
+      "Allocate invoice income to a project",
+      "Allocate bills to a project",
+      "Allocate expenses and mileage",
+      "How project income, costs and margin are calculated",
+      "Use the Projects portfolio overview",
+      "Understand project charts and attention flags",
+      "Review an individual project",
+      "Understand budgets and project progress",
+      "How transaction changes affect profitability",
+      "How the main Dashboard relates to projects",
+      "Worked examples",
+      "Common project profitability mistakes",
+      "Summary"
+    ];
+
+    expect(trackingProjectProfitabilityGuide).toContain(
+      "<title>Tracking project profitability in Simple Books | Simple Books Guides</title>"
+    );
+    expect(trackingProjectProfitabilityGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/tracking-project-profitability">'
+    );
+    expect(trackingProjectProfitabilityGuide).toContain("<span>12 minute read</span>");
+    expect(trackingProjectProfitabilityGuide).toContain(
+      '<time datetime="2026-07-30">30 July 2026</time>'
+    );
+    expect(trackingProjectProfitabilityGuide).toContain(
+      '"@type":"TechArticle"'
+    );
+    expect(trackingProjectProfitabilityGuide).toContain(
+      '"articleSection":"Projects"'
+    );
+    expect(trackingProjectProfitabilityGuide).toContain(
+      '"keywords":"project profitability, track project costs'
+    );
+    expect(trackingProjectProfitabilityGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(trackingProjectProfitabilityGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(trackingProjectProfitabilityGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(trackingProjectProfitabilityGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "how-to-create-an-invoice",
+      "how-to-record-a-bill",
+      "how-to-record-a-business-expense",
+      "how-to-claim-business-mileage",
+      "understanding-profit-and-loss"
+    ]) {
+      expect(trackingProjectProfitabilityGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "Total invoiced minus Total costs.",
+      "the expense’s saved <strong>Gross amount</strong>",
+      "Paid, Unpaid, Draft, Submitted and Approved labels alter status breakdowns where shown, but not total income",
+      "Below 75% is labelled <strong>Within budget</strong>.",
+      "The main Dashboard has no project filter, project profit card or project profitability chart.",
+      "The current delete workflow does not reassign or delete invoices, bills, expenses or mileage records"
+    ]) {
+      expect(trackingProjectProfitabilityGuide).toContain(currentBehaviour);
     }
   });
 });
