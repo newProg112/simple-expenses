@@ -49,6 +49,10 @@ const doubleEntryBookkeepingGuide = readFileSync(
   projectFile("guide-pages/what-is-double-entry-bookkeeping.html"),
   "utf8"
 );
+const trialBalanceGuide = readFileSync(
+  projectFile("guide-pages/understanding-the-trial-balance.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -854,6 +858,98 @@ describe("generated guide pages", () => {
     ]) {
       expect(doubleEntryBookkeepingGuide).toContain(currentBehaviour);
     }
+  });
+
+  it("publishes the complete Trial Balance guide from the current journal implementation", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "What is a Trial Balance?",
+      "Why businesses use a Trial Balance",
+      "How Simple Books creates the Trial Balance",
+      "How source records generate ledger entries",
+      "Accounts included in the report",
+      "Debit and credit balances explained",
+      "Why the Trial Balance should balance",
+      "Common reasons a Trial Balance does not balance",
+      "Relationship to the General Ledger",
+      "Relationship to the Profit & Loss Statement",
+      "Relationship to the Balance Sheet",
+      "Worked examples",
+      "Current implementation limitations",
+      "Common mistakes",
+      "Summary"
+    ];
+
+    expect(trialBalanceGuide).toContain(
+      "<title>Understanding the Trial Balance in Simple Books | Simple Books Guides</title>"
+    );
+    expect(trialBalanceGuide).toContain(
+      '<meta name="description" content="Learn how the Simple Books Trial Balance turns invoice, bill, expense and mileage journals into debit and credit account balances.">'
+    );
+    expect(trialBalanceGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/understanding-the-trial-balance">'
+    );
+    expect(trialBalanceGuide).toContain(
+      '<meta property="og:url" content="https://simple-books.co.uk/guides/understanding-the-trial-balance">'
+    );
+    expect(trialBalanceGuide).toContain("<span>14 minute read</span>");
+    expect(trialBalanceGuide).toContain(
+      '<time datetime="2026-07-30">30 July 2026</time>'
+    );
+    expect(trialBalanceGuide).toContain('"@type":"BreadcrumbList"');
+    expect(trialBalanceGuide).toContain('"@type":"TechArticle"');
+    expect(trialBalanceGuide).toContain('"articleSection":"Accounting"');
+    expect(trialBalanceGuide).toContain(
+      '"keywords":"trial balance, debit and credit balances'
+    );
+    expect(trialBalanceGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(trialBalanceGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(trialBalanceGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(trialBalanceGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "what-is-double-entry-bookkeeping",
+      "understanding-the-general-ledger",
+      "understanding-profit-and-loss",
+      "understanding-the-balance-sheet"
+    ]) {
+      expect(trialBalanceGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "The Trial Balance is generated from General Ledger postings",
+      "Account balance</strong> = accumulated debits minus accumulated credits.",
+      "debit <strong>1100 Trade Receivables</strong> for the gross total",
+      "credit <strong>2000 Trade Payables</strong> for the gross total",
+      "credit <strong>2200 Employee Reimbursements Payable</strong> for the gross amount",
+      "The current mileage journal has no VAT line.",
+      "The current product has no user-facing manual-journal workflow.",
+      "the current Trial Balance has no date filter",
+      "deleting an invoice, bill, expense or mileage source does not currently create a reversal",
+      "the operational record can remain while its journal is absent",
+      "one malformed loaded journal makes the Trial Balance unavailable"
+    ]) {
+      expect(trialBalanceGuide).toContain(currentBehaviour);
+    }
+
+    expect(trialBalanceGuide).toContain(
+      '<span>Previous guide</span><strong>What is double-entry bookkeeping?</strong>'
+    );
+    expect(trialBalanceGuide).toContain(
+      '<span>Next guide</span><strong>Understanding the General Ledger</strong>'
+    );
+    expect(guidesIndex).toContain(
+      'data-search="Understanding the Trial Balance in Simple Books Learn how the Simple Books Trial Balance turns invoice, bill, expense and mileage journals into debit and credit account balances. Accounting trial balance debit and credit balances general ledger account balances Simple Books"'
+    );
   });
 });
 

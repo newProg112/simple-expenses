@@ -1479,5 +1479,164 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>Double-entry bookkeeping keeps each accounting journal balanced by recording equal debits and credits. In Simple Books, saved invoices debit Trade Receivables and credit revenue and VAT Output; bills debit an expense and VAT Input and credit Trade Payables; expenses debit an expense and VAT Input and credit Employee Reimbursements Payable; mileage debits Travel &amp; Mileage and credits that reimbursement liability.</p>
           <p>The Trial Balance aggregates those entries, the General Ledger shows one account’s detail, Profit &amp; Loss uses income and expense accounts, and the Balance Sheet uses assets, liabilities, equity and the calculated current-year result. Review the current limitations carefully: status changes do not post payments, deletion does not reverse journals, and a failed ledger write can leave a saved operational record absent from the accounting reports.</p>
+        </section>`,
+  "understanding-the-trial-balance": `<section>
+          <h2>Introduction</h2>
+          <p>A Trial Balance brings every active account balance into one report, placing debit balances in one column and credit balances in another. In Simple Books, it is a journal-based accounting report: it reads the postings created from saved invoices, bills, expenses and mileage claims rather than adding up the cards or statuses on operational pages.</p>
+          <p>This guide explains the Trial Balance exactly as it is currently implemented, including how account balances and report totals are calculated, how to trace them through the General Ledger, and which present limitations can make a balanced report incomplete or unsuitable as evidence that every record is correct. It is general product guidance, not accounting or tax advice.</p>
+        </section>
+
+        <section>
+          <h2>What is a Trial Balance?</h2>
+          <p>A Trial Balance is a list of ledger accounts and their closing debit or credit balances. Its main arithmetic check is that the total of the debit-balance column equals the total of the credit-balance column.</p>
+          <p>The Simple Books report displays <strong>Account Code</strong>, <strong>Account Name</strong>, <strong>Debit</strong> and <strong>Credit</strong>. Above the table it shows <strong>Total Debits</strong>, <strong>Total Credits</strong>, their absolute <strong>Difference</strong>, and a status. When the difference is zero, the status is <strong>Balanced</strong>. With no journals, the page says <strong>No data</strong> rather than presenting an empty report as a meaningful balanced result.</p>
+          <p>A balanced Trial Balance is an arithmetic check, not proof that the bookkeeping is correct. Equal totals cannot confirm that a transaction has the right date, amount, account, category, VAT treatment or business purpose. For the principles behind the postings, read <a href="/guides/what-is-double-entry-bookkeeping">What is double-entry bookkeeping?</a>.</p>
+        </section>
+
+        <section>
+          <h2>Why businesses use a Trial Balance</h2>
+          <p>A Trial Balance gives a compact view of the closing balances produced by the ledger. It can help a business:</p>
+          <ul class="remember-list">
+            <li>check that debit and credit closing balances agree overall;</li>
+            <li>review which accounts have journal activity;</li>
+            <li>spot an unexpected debit or credit balance before relying on other reports;</li>
+            <li>open the detailed General Ledger for an account that needs investigation; and</li>
+            <li>understand the account totals that feed Profit &amp; Loss and the Balance Sheet.</li>
+          </ul>
+          <p>It is not a list of outstanding operational tasks. Paid, Unpaid, Draft, Submitted and Approved statuses can affect workflow pages without changing the journals used by this report.</p>
+        </section>
+
+        <section>
+          <h2>How Simple Books creates the Trial Balance</h2>
+          <p>Simple Books first creates or replaces a separate journal when an invoice, bill, expense or mileage claim is saved or updated. Each journal has a date, source type, source identifier, description and at least two account lines. Every line contains one account code and a non-zero debit or credit amount. The journal validator requires recognised account codes, finite non-negative values with no more than two decimal places, and exactly equal total debits and credits.</p>
+          <p>The Trial Balance loads the authenticated user’s saved journal documents. It validates every loaded journal before calculating anything. It then visits every journal line and, for each account code, accumulates two values:</p>
+          <ul class="remember-list">
+            <li><strong>Account debits</strong> = all debit postings to that account added together.</li>
+            <li><strong>Account credits</strong> = all credit postings to that account added together.</li>
+            <li><strong>Account balance</strong> = accumulated debits minus accumulated credits.</li>
+          </ul>
+          <p>If the account balance is positive, its absolute amount appears in the Debit column. If it is negative, the absolute amount appears in the Credit column. A zero closing balance appears in neither money column, although the account can remain listed because it had journal activity. Rows are ordered by account code.</p>
+          <p>Finally, Simple Books adds the displayed debit closing balances to produce Total Debits and adds the displayed credit closing balances to produce Total Credits. Difference is the absolute value of Total Debits minus Total Credits. Values are rounded to two decimal places during journal creation and accumulation and displayed as GBP.</p>
+        </section>
+
+        <section>
+          <h2>How source records generate ledger entries</h2>
+          <p>The Trial Balance is generated from General Ledger postings, not directly from invoice, bill, expense or mileage collections. The current source-to-journal rules are:</p>
+          <ul class="remember-list">
+            <li><strong>Sales invoice:</strong> debit <strong>1100 Trade Receivables</strong> for the gross total, credit <strong>4000 Sales Revenue</strong> for the net amount, and credit <strong>2100 VAT Output</strong> when VAT is greater than zero. An invoice with active line items can create separate Sales Revenue lines, but they all use account 4000.</li>
+            <li><strong>Supplier bill:</strong> debit the category-mapped expense account for the net amount, debit <strong>1200 VAT Input</strong> when VAT is greater than zero, and credit <strong>2000 Trade Payables</strong> for the gross total.</li>
+            <li><strong>Business expense:</strong> debit the category-mapped expense account for the net amount, debit <strong>1200 VAT Input</strong> when VAT is greater than zero, and credit <strong>2200 Employee Reimbursements Payable</strong> for the gross amount.</li>
+            <li><strong>Mileage claim:</strong> debit <strong>5200 Travel &amp; Mileage</strong> and credit <strong>2200 Employee Reimbursements Payable</strong> for the claim amount. The amount must agree with miles multiplied by the rate when both are supplied. The current mileage journal has no VAT line.</li>
+          </ul>
+          <p>Supported bill and expense categories map to Travel &amp; Mileage, Utilities, Professional Fees, or Software &amp; Subscriptions. An unmatched category falls back to General Expenses. Editing and saving a source replaces its deterministic linked journal with values based on the update.</p>
+        </section>
+
+        <section>
+          <h2>Accounts included in the report</h2>
+          <p>The current chart of accounts contains:</p>
+          <ul class="remember-list">
+            <li><strong>Assets:</strong> 1000 Bank, 1100 Trade Receivables and 1200 VAT Input.</li>
+            <li><strong>Liabilities:</strong> 2000 Trade Payables, 2100 VAT Output and 2200 Employee Reimbursements Payable.</li>
+            <li><strong>Equity:</strong> 3000 Owner’s Equity.</li>
+            <li><strong>Income:</strong> 4000 Sales Revenue.</li>
+            <li><strong>Expenses:</strong> 5000 General Expenses, 5200 Travel &amp; Mileage, 5300 Utilities, 5400 Professional Fees and 5500 Software &amp; Subscriptions.</li>
+          </ul>
+          <p>The Trial Balance lists only accounts encountered in the loaded journal lines; it does not print every unused chart account with £0.00. The invoice, bill, expense and mileage builders do not currently post to Bank or directly to Owner’s Equity, so those accounts will not appear unless a stored journal from another implemented posting path contains activity. The current product has no user-facing manual-journal workflow.</p>
+        </section>
+
+        <section>
+          <h2>Debit and credit balances explained</h2>
+          <p>Debit does not simply mean money leaving the business, and credit does not simply mean money arriving. They are the two sides of an account. Under the current postings, assets and expenses commonly build debit balances, while liabilities, equity and income commonly build credit balances.</p>
+          <p>For example, saving a £120 invoice can give Trade Receivables a £120 debit balance, while its £100 net value gives Sales Revenue a £100 credit balance and its £20 VAT gives VAT Output a £20 credit balance. If an account received both debits and credits, the Trial Balance shows only the net closing side: £500 of debits and £125 of credits becomes a £375 debit balance.</p>
+          <p>This netting is why Total Debits and Total Credits are totals of <em>closing account balances</em>, not totals of every debit and every credit line posted during the period.</p>
+        </section>
+
+        <section>
+          <h2>Why the Trial Balance should balance</h2>
+          <p>Every valid journal contributes the same amount to debit postings as it contributes to credit postings. When all account balances are netted and separated into debit and credit columns, those equal journal sides should still produce equal closing-balance totals.</p>
+          <p>Simple Books also validates each journal before aggregation. A journal must contain at least two valid non-zero lines, no line can contain both a debit and a credit, and the journal’s total debits must equal its total credits. This makes an out-of-balance result unlikely for journals created by the current builders.</p>
+          <p>Balance is necessary but not sufficient. A £100 debit to the wrong expense account and a £100 credit to a payable still balance. A duplicated journal can balance. A missing journal leaves both sides out and can also leave the remaining Trial Balance balanced.</p>
+        </section>
+
+        <section>
+          <h2>Common reasons a Trial Balance does not balance</h2>
+          <p>Under the current implementation, malformed or unbalanced stored journal data is rejected before a Trial Balance is shown. The page displays <strong>Unable to calculate</strong> and does not display partial account totals. A journal can fail validation because it has an unknown account code, a missing date, fewer than two lines, a zero-only line, negative or non-finite values, more than two decimal places, both a debit and credit on one line, or unequal journal totals.</p>
+          <p>The report view supports an <strong>Out of balance</strong> status if calculated closing totals differ, but the normal calculation validates journals first. Therefore, seeing an error is the more likely current result of invalid stored journal data; seeing Out of balance would indicate an unexpected inconsistency in the calculated report data and should be investigated.</p>
+          <p>Other problems can make the report wrong or incomplete without making its two columns unequal:</p>
+          <ul class="remember-list">
+            <li>a source record was saved but its ledger posting failed, leaving no journal in the report;</li>
+            <li>the same business event was recorded more than once, creating multiple balanced journals;</li>
+            <li>a valid journal used the wrong date, value, VAT treatment or expense category; or</li>
+            <li>a source was deleted while its existing journal remained, because current delete workflows do not post a reversal or remove that journal.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Relationship to the General Ledger</h2>
+          <p>The <a href="/guides/understanding-the-general-ledger">General Ledger</a> and Trial Balance use the same saved journals and the same account rules. The Trial Balance summarises each account’s net closing balance. The General Ledger expands one account into its individual journal postings, ordered by date, and calculates a running balance by adding debits and subtracting credits.</p>
+          <p>Each Trial Balance account code is a link to that account in the General Ledger. Use it to explain a balance: for example, open 1100 Trade Receivables to see the invoice debits behind the closing amount. The General Ledger has optional inclusive Date From and Date To filters; the current Trial Balance has no date filter and uses all journals loaded for the user. A filtered General Ledger closing balance may therefore differ from the unfiltered Trial Balance row.</p>
+        </section>
+
+        <section>
+          <h2>Relationship to the Profit &amp; Loss Statement</h2>
+          <p>The <a href="/guides/understanding-profit-and-loss">Profit &amp; Loss Statement</a> builds account totals from journals for its optional date range and selects only Income and Expense accounts. It calculates income as credits minus debits, expenses as debits minus credits, and net profit or loss as total income minus total expenses.</p>
+          <p>In the Trial Balance, Sales Revenue normally appears as a credit balance and expense accounts normally appear as debit balances. Profit &amp; Loss turns those balances into its income and expense rows. Trade Receivables, Trade Payables, Employee Reimbursements Payable, VAT Input and VAT Output are excluded from Profit &amp; Loss because they are asset or liability accounts.</p>
+          <p>The current Profit &amp; Loss page can be date-filtered, while the Trial Balance cannot. Compare them only when the underlying journal scope is equivalent.</p>
+        </section>
+
+        <section>
+          <h2>Relationship to the Balance Sheet</h2>
+          <p>The <a href="/guides/understanding-the-balance-sheet">Balance Sheet</a> also starts from the journals and can include them up to an optional inclusive <strong>As at</strong> date. It presents asset balances on a debit-oriented basis and liability and equity balances on a credit-oriented basis.</p>
+          <p>Income and expense Trial Balance accounts are not printed directly on the Balance Sheet. Simple Books calculates their Profit &amp; Loss result for the same set of journals and adds that result to displayed equity as Current Year Profit or Current Year Loss. The Balance Sheet then checks whether total assets equal total liabilities plus total equity.</p>
+          <p>Because its As at filter can restrict the journal set, a dated Balance Sheet need not match an unfiltered Trial Balance account-for-account.</p>
+        </section>
+
+        <section>
+          <h2>Worked examples</h2>
+          <h3>Invoice and supplier bill</h3>
+          <p>A consultant saves a £120 sales invoice made up of £100 net and £20 VAT. Simple Books debits Trade Receivables £120, credits Sales Revenue £100 and credits VAT Output £20. The consultant also saves a £60 Utilities bill made up of £50 net and £10 VAT. That journal debits Utilities £50, debits VAT Input £10 and credits Trade Payables £60.</p>
+          <p>The Trial Balance now shows debit balances of £120 Trade Receivables, £10 VAT Input and £50 Utilities: Total Debits £180. It shows credit balances of £60 Trade Payables, £20 VAT Output and £100 Sales Revenue: Total Credits £180. Difference is £0.00 and the report is Balanced.</p>
+
+          <h3>Expense and mileage accumulated in one payable</h3>
+          <p>The business records a £30 expense made up of £25 net General Expenses and £5 VAT, then records 10 business miles at £0.55, a £5.50 claim. The expense debits General Expenses £25 and VAT Input £5 and credits Employee Reimbursements Payable £30. Mileage debits Travel &amp; Mileage £5.50 and credits the same payable £5.50.</p>
+          <p>The Trial Balance accumulates the two credits to 2200 Employee Reimbursements Payable and shows one £35.50 credit balance. It does not create separate reimbursement accounts for the two records.</p>
+
+          <h3>Opposing postings net within an account</h3>
+          <p>If an account has £500 of debit postings and £125 of credit postings across valid journals, its closing balance is £375 debit. The Trial Balance shows £375 in that account’s Debit column, not £500 debit and £125 credit. The General Ledger remains the place to see both sides and the running balance.</p>
+        </section>
+
+        <section>
+          <h2>Current implementation limitations</h2>
+          <ul class="remember-list">
+            <li><strong>No Trial Balance date filter:</strong> the report uses all journals loaded for the authenticated user. Profit &amp; Loss, the General Ledger and the Balance Sheet have their own date controls.</li>
+            <li><strong>Status does not post settlement:</strong> marking an invoice, bill or expense Paid changes operational status only. It does not post Bank or clear Trade Receivables, Trade Payables or Employee Reimbursements Payable.</li>
+            <li><strong>Bank and Owner’s Equity are not used by the four current source builders:</strong> the chart contains them, but saving invoices, bills, expenses and mileage does not post to them.</li>
+            <li><strong>No manual journals:</strong> there is no current user-facing workflow for posting a manual journal or an opening balance.</li>
+            <li><strong>Deletion does not reverse:</strong> deleting an invoice, bill, expense or mileage source does not currently create a reversal or delete its existing journal, so the accounting reports can retain that posting.</li>
+            <li><strong>Ledger writes can fail after a source is saved:</strong> the operational record can remain while its journal is absent, leaving reports incomplete even though the displayed Trial Balance balances.</li>
+            <li><strong>No partial result on invalid data:</strong> one malformed loaded journal makes the Trial Balance unavailable rather than being silently omitted.</li>
+            <li><strong>Only active accounts are shown:</strong> unused chart accounts are not listed with zero balances.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Common mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Assuming balanced means correct.</strong> Review dates, values, accounts, categories and VAT treatment as well as the two totals.</li>
+            <li><strong>Reading debit as money out and credit as money in.</strong> The meaning depends on the account type and transaction.</li>
+            <li><strong>Adding journal movements instead of closing balances.</strong> The report nets debits and credits within each account before totalling its two columns.</li>
+            <li><strong>Expecting every chart account to appear.</strong> Only accounts encountered in loaded journal lines are listed.</li>
+            <li><strong>Comparing a dated report with the unfiltered Trial Balance.</strong> Align the journal scope before investigating a difference.</li>
+            <li><strong>Expecting Paid status to clear a balance.</strong> Current status actions do not create settlement journals.</li>
+            <li><strong>Deleting a source to correct the ledger.</strong> Current deletion does not reverse or remove the existing journal.</li>
+            <li><strong>Ignoring a posting warning.</strong> A saved source without its journal will not appear in the Trial Balance.</li>
+            <li><strong>Recording the same cost as both a bill and an expense.</strong> Both records can create their own balanced journal and duplicate the accounting effect.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>The Simple Books Trial Balance is a summary of General Ledger postings. It validates every loaded journal, accumulates debits and credits by account, calculates each balance as debits minus credits, places the net balance in one column, and totals the debit and credit closing balances. Equal totals are expected because every accepted journal is balanced.</p>
+          <p>Use the linked General Ledger to investigate the postings behind a balance, Profit &amp; Loss to review income and expenses for a chosen period, and the Balance Sheet to review assets, liabilities and equity as at a date. Remember the present boundaries: the Trial Balance has no date filter, status actions do not post payments, current source deletion does not reverse journals, and a missing but balanced-out ledger posting can leave the report incomplete without creating a difference.</p>
         </section>`
 };

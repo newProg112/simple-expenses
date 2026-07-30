@@ -177,12 +177,13 @@ export const GUIDES = [
   },
   {
     slug: "understanding-the-trial-balance",
-    title: "Understanding the Trial Balance",
+    title: "Understanding the Trial Balance in Simple Books",
     category: "Accounting",
-    description: "Learn what a Trial Balance shows and why balanced totals matter.",
-    keywords: ["debits", "credits", "accounts", "report"],
-    readTime: 6,
-    format: "article"
+    description: "Learn how the Simple Books Trial Balance turns invoice, bill, expense and mileage journals into debit and credit account balances.",
+    keywords: ["trial balance", "debit and credit balances", "general ledger", "account balances", "Simple Books"],
+    readTime: 14,
+    format: "how-to",
+    lastUpdated: "2026-07-30"
   },
   {
     slug: "understanding-the-general-ledger",
