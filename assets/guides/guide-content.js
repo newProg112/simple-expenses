@@ -630,5 +630,140 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>To claim business mileage in Simple Books, open <strong>Expenses</strong>, switch to <strong>Mileage</strong>, enter the journey date, start and end locations, project and business purpose, then add the miles travelled and check the editable rate. Simple Books calculates the amount automatically. Add notes or a PDF, JPG or PNG attachment where useful, choose the status and select <strong>Save mileage</strong>.</p>
           <p>The saved claim contributes to Mileage and status summaries and creates a two-line accounting journal: a debit to Travel &amp; Mileage and a credit to Employee Reimbursements Payable. Status changes organise the claim but do not record payment, alter the journal or reconcile a bank transaction.</p>
+        </section>`,
+  "uploading-receipts": `<section>
+          <h2>Introduction</h2>
+          <p>Uploading receipts and other supporting documents keeps the evidence close to the bill, expense or mileage claim it relates to. In Simple Books, the available file types and what happens to a file depend on the record and whether you attach it manually or use document scanning.</p>
+          <p>The same workflows let you attach receipts to expenses and save receipt documents alongside the records you review in Simple Books.</p>
+          <p>This guide explains the current attachment behaviour for Bills, Expenses, Mileage, AI scanning and recent records. It is practical product guidance for UK freelancers, sole traders and small businesses, not legal, tax or accounting advice.</p>
+        </section>
+
+        <section>
+          <h2>Why attach receipts and supporting documents?</h2>
+          <p>A receipt, supplier bill or route record can help you understand what a saved entry represents and check it later. Keeping the document with the record can also make routine review and handover easier.</p>
+          <p>An attachment is supporting evidence, not a substitute for checking the record. Before saving, compare the document with the <strong>merchant or supplier</strong>, <strong>date</strong>, <strong>amount</strong>, <strong>VAT</strong>, <strong>category</strong> and <strong>business purpose</strong> you entered. Keep only information that is useful to the business record, and avoid uploading unnecessary personal, payment or other sensitive information.</p>
+        </section>
+
+        <section>
+          <h2>Where attachments are available in Simple Books</h2>
+          <p>Attachments are available in three record workflows:</p>
+          <ul class="remember-list">
+            <li><strong>Bills:</strong> the <strong>Attachment</strong> area uses <strong>Attach PDF receipt/bill</strong>. See <a href="/guides/how-to-record-a-bill">how to record a bill</a>.</li>
+            <li><strong>Expenses:</strong> the <strong>Attachment</strong> area uses <strong>Attach PDF receipt</strong>. See <a href="/guides/how-to-record-a-business-expense">how to record a business expense</a>.</li>
+            <li><strong>Mileage:</strong> switch the Expenses page to <strong>Mileage</strong>; the attachment control changes to <strong>Attach mileage file</strong>. See <a href="/guides/how-to-claim-business-mileage">how to claim business mileage</a>.</li>
+          </ul>
+          <p>Bills and ordinary expenses also have a separate AI document-scanning workflow. Scanning can draft form values and, for a new record, hold the scanned document as a pending attachment. It does not save the record automatically.</p>
+        </section>
+
+        <section>
+          <h2>Attach a receipt to a bill</h2>
+          <ol class="remember-list">
+            <li>Open <strong>Bills</strong> and complete the bill details.</li>
+            <li>Under <strong>Attachment</strong>, select <strong>Attach PDF receipt/bill</strong>.</li>
+            <li>Choose a PDF from your device. The file name appears with the message <strong>Manual attachment selected. It will be uploaded when you save.</strong></li>
+            <li>Check the supplier, bill dates, amounts, VAT, category and notes, then select <strong>Save bill</strong>.</li>
+          </ol>
+          <p>The manual bill control accepts PDF files only. The current bill code checks that the file is a PDF, but it does not apply an app-level file-size limit to this manual route. Do not assume the 10 MB scanning limit also applies here.</p>
+        </section>
+
+        <section>
+          <h2>Attach a receipt to an expense</h2>
+          <ol class="remember-list">
+            <li>Open <strong>Expenses</strong> and keep <strong>Expense</strong> selected.</li>
+            <li>Complete the expense details, including the merchant, date, category, amounts, VAT and description.</li>
+            <li>Under <strong>Attachment</strong>, select <strong>Attach PDF receipt</strong>.</li>
+            <li>Choose a PDF no larger than 10 MB, then select <strong>Save expense</strong>.</li>
+          </ol>
+          <p>Although the underlying file picker lists some image extensions for the shared Expense and Mileage control, the current Expense validation accepts PDF only. A JPG, JPEG or PNG selected in Expense mode is rejected with <strong>Please choose a PDF file.</strong> Use <strong>Scan Receipt</strong> when you want to use a supported receipt image.</p>
+        </section>
+
+        <section>
+          <h2>Attach evidence to a mileage claim</h2>
+          <ol class="remember-list">
+            <li>Open <strong>Expenses</strong> and select <strong>Mileage</strong>.</li>
+            <li>Enter the journey date, route, business purpose, miles and rate.</li>
+            <li>Select <strong>Attach mileage file</strong> and choose a PDF, JPG, JPEG or PNG file no larger than 10 MB.</li>
+            <li>Review the calculated claim and select <strong>Save mileage</strong>.</li>
+          </ol>
+          <p>A route record, journey log or suitable image can support the claim. Receipt scanning does not fill mileage fields. Switching from Expense to Mileage also removes any scanned receipt that was waiting to be attached.</p>
+        </section>
+
+        <section>
+          <h2>Upload a document with AI scanning</h2>
+          <p>On Bills, select <strong>Scan Bill</strong>. On Expenses, select <strong>Scan Receipt</strong>. Both scanners accept JPG, JPEG, PNG, WEBP and PDF files up to 10 MB. After choosing a file, select <strong>Scan bill</strong> or <strong>Scan receipt</strong>, review the extracted results, then select <strong>Use these details</strong>.</p>
+          <p>Simple Books applies only values it can safely place in the form and highlights them for review. You must still check the supplier or merchant, dates, amounts, VAT, category and description or business purpose. For more detail about the extracted fields and limitations, see <a href="/guides/using-ai-invoice-scanning">using AI invoice scanning</a>.</p>
+          <p>For a new bill or expense, the scanned file becomes a pending attachment if no manual attachment is already selected. It is uploaded only when you save the record. If a manual file is already selected, Simple Books keeps the manual file and warns that you must remove it first to use the scanned document as the attachment. Selecting a manual attachment after a scan uses the manual file instead and removes the pending scanned file.</p>
+          <p>Scanned details cannot be applied while you are editing an existing bill or expense. Starting an edit also removes any separate scanned document that was waiting to be applied or uploaded.</p>
+        </section>
+
+        <section>
+          <h2>Save and view an attachment</h2>
+          <p>Choosing a file does not upload it immediately. A manual file uploads when you select <strong>Save bill</strong>, <strong>Save expense</strong> or <strong>Save mileage</strong>. A pending AI-scanned document is also uploaded during the save, after the new record itself has first been saved.</p>
+          <p>If a scanned-document upload fails at that later stage, the bill or expense remains saved and Simple Books warns that you can edit the record and attach the file manually.</p>
+          <p>After a successful save, use the relevant recent-record list:</p>
+          <ul class="remember-list">
+            <li><strong>Recent bills:</strong> the attachment name is a link and a <strong>View PDF</strong> action appears.</li>
+            <li><strong>Recent expenses:</strong> an attached expense has a <strong>View PDF</strong> link.</li>
+            <li><strong>Recent expenses</strong> for Mileage: an attached claim has a <strong>View attachment</strong> link.</li>
+          </ul>
+          <p>These links open the stored file in a new browser tab. A record without a stored attachment shows <strong>No attachment</strong>.</p>
+        </section>
+
+        <section>
+          <h2>Replace an attachment while editing</h2>
+          <p>Select <strong>Edit</strong> beside the saved record. Bills show the existing file name and <strong>Existing PDF will be kept.</strong> Expenses show the current file name and <strong>Current attachment will be kept unless replaced.</strong> A mileage attachment is retained when you update the claim without choosing a new file, although the Mileage edit form does not currently display the existing file name or a “kept” message.</p>
+          <p>Choose a new permitted file and select <strong>Update bill</strong>, <strong>Update expense</strong> or <strong>Update mileage</strong> to replace the attachment reference on the record. There is no control that removes an existing stored attachment while keeping the record attachment-free.</p>
+          <p>Expense and mileage replacements attempt to delete the previous stored file after the updated record saves. Bill replacements update the bill to the new attachment, but the current Bills implementation does not track a storage path or delete the previous stored file. If the replacement uses a different filename, the earlier bill file can therefore remain in storage even though it is no longer linked from the bill.</p>
+        </section>
+
+        <section>
+          <h2>Delete a record and its attachment</h2>
+          <p>Use <strong>Delete</strong> only after checking the record and confirming the prompt. The attachment behaviour differs by workflow:</p>
+          <ul class="remember-list">
+            <li><strong>Bills:</strong> deleting a bill removes the record, but the current Bills implementation does not attempt to delete its stored attachment.</li>
+            <li><strong>Expenses and Mileage:</strong> deleting the record also attempts to delete the stored file when an attachment storage path is available.</li>
+          </ul>
+          <p>If an Expense or Mileage storage deletion fails, Simple Books logs the failure but does not restore or block deletion of the underlying record. The file may therefore remain in storage without a record linking to it.</p>
+        </section>
+
+        <section>
+          <h2>Supported file types and size limits</h2>
+          <ul class="remember-list">
+            <li><strong>Manual bill attachment:</strong> PDF only. No app-level maximum file size is currently enforced.</li>
+            <li><strong>Manual expense attachment:</strong> PDF only, up to 10 MB.</li>
+            <li><strong>Manual mileage attachment:</strong> PDF, JPG, JPEG or PNG, up to 10 MB.</li>
+            <li><strong>AI Scan Bill and Scan Receipt:</strong> PDF, JPG, JPEG, PNG or WEBP, up to 10 MB.</li>
+          </ul>
+          <p>The 10 MB limit means 10 × 1,024 × 1,024 bytes. A file above that limit is rejected before upload in the relevant workflow. Renaming an unsupported file does not reliably make it a supported document; use a genuine file in one of the listed formats.</p>
+        </section>
+
+        <section>
+          <h2>Worked examples</h2>
+          <h3>Attach a PDF supplier bill</h3>
+          <p>A freelance designer receives a PDF bill from a printer. They open Bills, enter the supplier, dates, category, net amount and VAT, select <strong>Attach PDF receipt/bill</strong>, choose the PDF and select <strong>Save bill</strong>. The saved row in <strong>Recent bills</strong> then provides <strong>View PDF</strong>.</p>
+          <h3>Scan a photographed expense receipt</h3>
+          <p>A consultant photographs a café receipt as a JPG. They select <strong>Scan Receipt</strong>, choose the photo, select <strong>Scan receipt</strong> and then <strong>Use these details</strong>. The photo becomes a pending attachment because no manual PDF is selected. They check the merchant, date, category, net, VAT and gross figures before selecting <strong>Save expense</strong>.</p>
+          <h3>Attach a route record to mileage</h3>
+          <p>A sole trader records a client journey in Mileage and selects <strong>Attach mileage file</strong> to add a PNG route image under 10 MB. After selecting <strong>Save mileage</strong>, the claim appears in <strong>Recent expenses</strong> with <strong>View attachment</strong>.</p>
+        </section>
+
+        <section>
+          <h2>Common attachment mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Uploading an image through the manual Expense control.</strong> Ordinary expenses accept only PDF manually; use <strong>Scan Receipt</strong> for JPG, JPEG, PNG or WEBP.</li>
+            <li><strong>Assuming every upload has the same limit.</strong> The 10 MB check applies to manual Expenses, manual Mileage and both scanners, but not to the current manual Bill attachment code.</li>
+            <li><strong>Expecting a chosen file to upload immediately.</strong> It remains selected or pending until the record is saved.</li>
+            <li><strong>Applying a scan during an edit.</strong> Scanned details can be applied only to a new bill or expense.</li>
+            <li><strong>Expecting two attachments.</strong> Each record stores one attachment reference; a manual file takes priority over a pending scanned document.</li>
+            <li><strong>Assuming a replacement or deletion always removes the old bill file.</strong> Bills do not currently clean up stored attachments.</li>
+            <li><strong>Relying on the document without checking the form.</strong> Confirm the merchant or supplier, date, amount, VAT, category and business purpose yourself.</li>
+            <li><strong>Uploading unnecessary sensitive information.</strong> Keep the supporting evidence relevant and proportionate.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>To upload a receipt in Simple Books, choose the attachment control for the record, select a supported file and save the bill, expense or mileage claim. Manual Bills and Expenses are PDF-only; Mileage also accepts JPG, JPEG and PNG. AI scanning accepts PDF, JPG, JPEG, PNG and WEBP and can hold the scanned document as a pending attachment for a new bill or expense.</p>
+          <p>Attachments upload when the record is saved and can then be opened from the recent-record list. Existing attachments normally remain during editing unless you choose a replacement. Remember that Expense and Mileage deletion attempts storage cleanup, while Bills currently leave stored files untouched. Always check the saved figures and avoid keeping sensitive information that the business record does not need.</p>
         </section>`
 };

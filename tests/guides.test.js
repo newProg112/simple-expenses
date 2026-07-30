@@ -29,6 +29,10 @@ const claimBusinessMileageGuide = readFileSync(
   projectFile("guide-pages/how-to-claim-business-mileage.html"),
   "utf8"
 );
+const uploadingReceiptsGuide = readFileSync(
+  projectFile("guide-pages/uploading-receipts.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -445,6 +449,75 @@ describe("generated guide pages", () => {
       "deleting a mileage claim does not create an accounting reversal"
     ]) {
       expect(claimBusinessMileageGuide).toContain(currentBehaviour);
+    }
+  });
+
+  it("publishes the complete uploading-receipts article with workflow-specific behaviour", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "Why attach receipts and supporting documents?",
+      "Where attachments are available in Simple Books",
+      "Attach a receipt to a bill",
+      "Attach a receipt to an expense",
+      "Attach evidence to a mileage claim",
+      "Upload a document with AI scanning",
+      "Save and view an attachment",
+      "Replace an attachment while editing",
+      "Delete a record and its attachment",
+      "Supported file types and size limits",
+      "Worked examples",
+      "Common attachment mistakes",
+      "Summary"
+    ];
+
+    expect(uploadingReceiptsGuide).toContain(
+      "<title>Uploading receipts in Simple Books | Simple Books Guides</title>"
+    );
+    expect(uploadingReceiptsGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/uploading-receipts">'
+    );
+    expect(uploadingReceiptsGuide).toContain("<span>10 minute read</span>");
+    expect(uploadingReceiptsGuide).toContain(
+      '<time datetime="2026-07-30">30 July 2026</time>'
+    );
+    expect(uploadingReceiptsGuide).toContain(
+      '"articleSection":"Expenses & Mileage"'
+    );
+    expect(uploadingReceiptsGuide).toContain(
+      '"keywords":"upload receipts, attach receipts to expenses'
+    );
+    expect(uploadingReceiptsGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(uploadingReceiptsGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(uploadingReceiptsGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(uploadingReceiptsGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "how-to-record-a-bill",
+      "how-to-record-a-business-expense",
+      "how-to-claim-business-mileage",
+      "using-ai-invoice-scanning"
+    ]) {
+      expect(uploadingReceiptsGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "Manual bill attachment:</strong> PDF only. No app-level maximum file size is currently enforced.",
+      "Manual expense attachment:</strong> PDF only, up to 10 MB.",
+      "Manual mileage attachment:</strong> PDF, JPG, JPEG or PNG, up to 10 MB.",
+      "AI Scan Bill and Scan Receipt:</strong> PDF, JPG, JPEG, PNG or WEBP, up to 10 MB.",
+      "the current Bills implementation does not attempt to delete its stored attachment",
+      "does not restore or block deletion of the underlying record"
+    ]) {
+      expect(uploadingReceiptsGuide).toContain(currentBehaviour);
     }
   });
 });

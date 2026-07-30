@@ -136,12 +136,13 @@ export const GUIDES = [
   },
   {
     slug: "uploading-receipts",
-    title: "Uploading receipts",
+    title: "Uploading receipts in Simple Books",
     category: "Expenses & Mileage",
-    description: "Attach supporting receipts to keep expense records complete and easy to review.",
-    keywords: ["attachment", "image", "evidence", "document"],
-    readTime: 4,
-    format: "how-to"
+    description: "Learn how to upload receipts, attach supporting documents and manage saved files on bills, expenses and mileage claims in Simple Books.",
+    keywords: ["upload receipts", "attach receipts to expenses", "save receipt documents", "upload a receipt in Simple Books", "attachment"],
+    readTime: 10,
+    format: "how-to",
+    lastUpdated: "2026-07-30"
   },
   {
     slug: "using-ai-invoice-scanning",
