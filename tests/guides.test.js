@@ -57,6 +57,10 @@ const generalLedgerGuide = readFileSync(
   projectFile("guide-pages/understanding-the-general-ledger.html"),
   "utf8"
 );
+const profitLossGuide = readFileSync(
+  projectFile("guide-pages/understanding-profit-and-loss.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -73,7 +77,7 @@ describe("public Guides data and index", () => {
     expect(GUIDES.filter((guide) => guide.featured).map((guide) => guide.title)).toEqual([
       "How to create an invoice",
       "Recording business expenses",
-      "Understanding Profit & Loss",
+      "Understanding the Profit & Loss Statement in Simple Books",
       "What is VAT?"
     ]);
 
@@ -1042,10 +1046,109 @@ describe("generated guide pages", () => {
       '<span>Previous guide</span><strong>Understanding the Trial Balance in Simple Books</strong>'
     );
     expect(generalLedgerGuide).toContain(
-      '<span>Next guide</span><strong>Understanding Profit &amp; Loss</strong>'
+      '<span>Next guide</span><strong>Understanding the Profit &amp; Loss Statement in Simple Books</strong>'
     );
     expect(guidesIndex).toContain(
       'data-search="Understanding the General Ledger in Simple Books Learn how the Simple Books General Ledger displays journal postings, account activity, debit and credit entries, and running balances. Accounting general ledger ledger entries journal postings running balance account codes Simple Books"'
+    );
+  });
+
+  it("publishes the complete Profit & Loss guide from the current report calculation", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "What a Profit & Loss Statement is",
+      "Why businesses use a Profit & Loss Statement",
+      "How Simple Books calculates Profit & Loss",
+      "Income accounts currently included",
+      "Expense accounts currently included",
+      "Gross profit and net profit calculations",
+      "Date filtering and reporting period behaviour",
+      "Relationship to the General Ledger",
+      "Relationship to the Trial Balance",
+      "Relationship to the Balance Sheet",
+      "Why Profit & Loss and Dashboard figures differ",
+      "Worked examples",
+      "Common mistakes",
+      "Current implementation limitations",
+      "Summary"
+    ];
+
+    expect(profitLossGuide).toContain(
+      "<title>Understanding the Profit &amp; Loss Statement in Simple Books | Simple Books Guides</title>"
+    );
+    expect(profitLossGuide).toContain(
+      '<meta name="description" content="Learn how Simple Books calculates Profit &amp; Loss from invoice, bill, expense and mileage journals for a selected reporting period.">'
+    );
+    expect(profitLossGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/understanding-profit-and-loss">'
+    );
+    expect(profitLossGuide).toContain(
+      '<meta property="og:url" content="https://simple-books.co.uk/guides/understanding-profit-and-loss">'
+    );
+    expect(profitLossGuide).toContain("<span>14 minute read</span>");
+    expect(profitLossGuide).toContain(
+      '<time datetime="2026-07-30">30 July 2026</time>'
+    );
+    expect(profitLossGuide).toContain('"@type":"BreadcrumbList"');
+    expect(profitLossGuide).toContain('"@type":"TechArticle"');
+    expect(profitLossGuide).toContain('"articleSection":"Accounting"');
+    expect(profitLossGuide).toContain(
+      '"keywords":"profit and loss statement, P&L report, net profit'
+    );
+    expect(profitLossGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(profitLossGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(profitLossGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(profitLossGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "what-is-double-entry-bookkeeping",
+      "understanding-the-trial-balance",
+      "understanding-the-general-ledger",
+      "understanding-the-balance-sheet"
+    ]) {
+      expect(profitLossGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "Income account amount</strong> = account credits − account debits.",
+      "Expense account amount</strong> = account debits − account credits.",
+      "Net result</strong> = Total Income − Total Expenses.",
+      "current chart of accounts contains one Income account: <strong>4000 Sales Revenue</strong>",
+      "The gross invoice total is not reported as revenue.",
+      "Mileage claims debit Travel &amp; Mileage for the full calculated claim amount",
+      "does <strong>not</strong> calculate or display a separate Gross Profit subtotal",
+      "Date From</strong> and <strong>Date To</strong> are optional, inclusive journal-date filters.",
+      "A malformed journal outside the selected period still makes the report unavailable.",
+      "The current P&amp;L statement displays account names and amounts as plain text.",
+      "accumulation is the calculation foundation for Profit &amp; Loss.",
+      "current Trial Balance has no date filter",
+      "Dashboard Difference and P&amp;L Net Profit should not be expected to match.",
+      "deleting an invoice, bill, expense or mileage source does not currently create a reversal",
+      "operational record can exist while being absent from journal-based P&amp;L"
+    ]) {
+      expect(profitLossGuide).toContain(currentBehaviour);
+    }
+
+    expect(profitLossGuide).toContain(
+      '<span>Previous guide</span><strong>Understanding the General Ledger in Simple Books</strong>'
+    );
+    expect(profitLossGuide).toContain(
+      '<span>Next guide</span><strong>Understanding the Balance Sheet</strong>'
+    );
+    expect(guidesIndex).toContain(
+      'data-category="Accounting" data-search="Understanding the Profit &amp; Loss Statement in Simple Books'
+    );
+    expect(guidesIndex).toContain(
+      "profit and loss statement P&amp;L report net profit business expenses sales revenue Simple Books"
     );
   });
 });

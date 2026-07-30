@@ -1793,5 +1793,171 @@ export const GUIDE_CONTENT = {
           <h2>Summary</h2>
           <p>The Simple Books General Ledger reads the authenticated user’s stored journals, validates them, builds a list of active chart accounts and displays the matching lines for one selected account. Rows show the journal date, best available reference, description, debit, credit and a running balance calculated by adding debits and subtracting credits.</p>
           <p>Use exact account-code selection and optional inclusive Date From and Date To filters to investigate account activity. Follow account links from the Trial Balance, match reporting dates when comparing Profit &amp; Loss or the Balance Sheet, and remember that Date From does not bring forward earlier balances. Current payment statuses, deletion workflows, missing journal writes and the absence of manual journals or settlement postings can all affect what the ledger represents.</p>
+        </section>`,
+  "understanding-profit-and-loss": `<section>
+          <h2>Introduction</h2>
+          <p>The Profit &amp; Loss Statement in Simple Books summarises income and expenses from accounting journals for a chosen reporting period. It uses the net Sales Revenue posted by invoices and the expense-account postings created by supplier bills, business expenses and mileage claims, then subtracts total expenses from total income.</p>
+          <p>This guide documents that calculation exactly as it is currently implemented. It focuses on the accounts included, the debit and credit treatment, date filtering, report states and present limitations. For the detailed mechanics of individual postings, use the linked <a href="/guides/what-is-double-entry-bookkeeping">double-entry bookkeeping guide</a> rather than treating this summary report as a source-entry page. This is general product guidance, not accounting or tax advice.</p>
+        </section>
+
+        <section>
+          <h2>What a Profit &amp; Loss Statement is</h2>
+          <p>A Profit &amp; Loss Statement, often shortened to P&amp;L, reports income and expenses over a period and shows the resulting profit or loss. It is a performance report rather than a list of assets and liabilities at one point in time.</p>
+          <p>The current Simple Books page presents four summary cards—Revenue, Expenses, Net Profit or Net Loss, and Status—followed by a financial statement containing Income rows, Total Income, Expense rows, Total Expenses and the net result. A positive result is labelled <strong>Net Profit</strong>, a negative result <strong>Net Loss</strong>, and a zero result with financial activity <strong>Break-even</strong>.</p>
+          <p>If the selected journal set contains no Income or Expense account activity, the page shows <strong>No data</strong>. It does not treat balance-sheet-only activity as a zero-profit statement.</p>
+        </section>
+
+        <section>
+          <h2>Why businesses use a Profit &amp; Loss Statement</h2>
+          <p>A P&amp;L helps a business review financial performance for a period. In the current report, it can help you:</p>
+          <ul class="remember-list">
+            <li>see the net Sales Revenue recorded through invoice journals;</li>
+            <li>review costs grouped into the available expense accounts;</li>
+            <li>compare total income with total expenses;</li>
+            <li>identify whether the selected journal period produced a profit, loss or break-even result; and</li>
+            <li>choose an account for deeper investigation in the General Ledger.</li>
+          </ul>
+          <p>A P&amp;L reports what the journals contain. A calculated profit does not confirm that every transaction, category, date or VAT treatment is complete and correct.</p>
+        </section>
+
+        <section>
+          <h2>How Simple Books calculates Profit &amp; Loss</h2>
+          <p>Simple Books loads the authenticated user’s saved journals, validates the complete journal set, applies the optional reporting dates, and builds Trial Balance-style account totals from the journals inside the selected period. It then selects only accounts whose chart type is <strong>Income</strong> or <strong>Expense</strong>.</p>
+          <p>For each included account, the current formulas are:</p>
+          <ul class="remember-list">
+            <li><strong>Income account amount</strong> = account credits − account debits.</li>
+            <li><strong>Expense account amount</strong> = account debits − account credits.</li>
+            <li><strong>Total Income</strong> = sum of all included Income account amounts.</li>
+            <li><strong>Total Expenses</strong> = sum of all included Expense account amounts.</li>
+            <li><strong>Net result</strong> = Total Income − Total Expenses.</li>
+          </ul>
+          <p>Amounts are rounded to two decimal places. Contra or reversal activity is respected: a debit to an Income account reduces its reported income, while a credit to an Expense account reduces its reported expense. An abnormal negative account amount is displayed in accounting parentheses.</p>
+        </section>
+
+        <section>
+          <h2>Income accounts currently included</h2>
+          <p>The current chart of accounts contains one Income account: <strong>4000 Sales Revenue</strong>. Sales invoice journals credit this account for the invoice’s net amount. Where an invoice contains active line items, Simple Books can create separate Sales Revenue journal lines for those item descriptions, but they all accumulate into account 4000 for Profit &amp; Loss.</p>
+          <p>The gross invoice total is not reported as revenue. The gross amount is debited to Trade Receivables, while VAT greater than zero is credited separately to VAT Output. Trade Receivables is an Asset and VAT Output is a Liability, so neither is selected for the P&amp;L.</p>
+          <p>Invoice Paid or Unpaid status does not control inclusion. The report reads the saved sales journal and its journal date; current payment-status actions do not replace that journal or add a receipt entry.</p>
+        </section>
+
+        <section>
+          <h2>Expense accounts currently included</h2>
+          <p>The current Expense accounts are:</p>
+          <ul class="remember-list">
+            <li><strong>5000 General Expenses</strong> for unmatched bill and expense categories;</li>
+            <li><strong>5200 Travel &amp; Mileage</strong> for travel, mileage and related mapped categories;</li>
+            <li><strong>5300 Utilities</strong>;</li>
+            <li><strong>5400 Professional Fees</strong>; and</li>
+            <li><strong>5500 Software &amp; Subscriptions</strong>.</li>
+          </ul>
+          <p>Supplier bills debit the mapped Expense account for their net amount. Ordinary expenses do the same. Mileage claims debit Travel &amp; Mileage for the full calculated claim amount and have no VAT journal line.</p>
+          <p>Where a bill or expense contains VAT, VAT Input is debited separately and is excluded from P&amp;L because it is an Asset account. Trade Payables and Employee Reimbursements Payable are also excluded because they are Liabilities. The report therefore uses net bill and ordinary-expense costs, but the full mileage claim.</p>
+        </section>
+
+        <section>
+          <h2>Gross profit and net profit calculations</h2>
+          <p>The current Simple Books Profit &amp; Loss report does <strong>not</strong> calculate or display a separate Gross Profit subtotal. The chart has no Cost of Sales account type or cost-of-sales section, and the statement does not classify some expenses as direct costs before other operating expenses.</p>
+          <p>The implemented result is:</p>
+          <p><strong>Net Profit or Loss = Total Income − Total Expenses.</strong></p>
+          <p>If the result is greater than zero, the page labels it Net Profit and shows status <strong>Profit</strong>. If it is below zero, the absolute amount is displayed under Net Loss and the status is <strong>Loss</strong>. Exactly zero with Income or Expense activity is labelled Break-even.</p>
+          <p>Do not confuse this result with project <strong>Gross profit</strong>, which is an operational project calculation based on allocated gross transaction values, or with the Dashboard’s monthly Difference line. Those pages use different data and rules.</p>
+        </section>
+
+        <section>
+          <h2>Date filtering and reporting period behaviour</h2>
+          <p><strong>Date From</strong> and <strong>Date To</strong> are optional, inclusive journal-date filters. Date From includes journals on or after its calendar date. Date To includes journals on or before it. With both fields blank, Simple Books uses all loaded journals. After changing either date, select <strong>Refresh</strong>.</p>
+          <p>Date From must be on or before Date To. An invalid range shows <strong>Check dates</strong>, leaves the totals blank and asks you to adjust the filters. Journal dates use their written YYYY-MM-DD calendar date without timezone shifting.</p>
+          <p>Before applying the chosen period, Simple Books validates every loaded journal and checks that every journal has a valid calendar date. A malformed journal outside the selected period still makes the report unavailable. This prevents an invalid record from being hidden by the date filter and producing apparently complete partial totals.</p>
+          <p>If the in-range journals contain no Income or Expense activity, the page shows No data even if they contain valid Asset, Liability or Equity postings.</p>
+        </section>
+
+        <section>
+          <h2>Relationship to the General Ledger</h2>
+          <p>The <a href="/guides/understanding-the-general-ledger">General Ledger</a> uses the same saved journals but displays the individual debit and credit lines for one selected account. Profit &amp; Loss groups those lines into account totals and includes only Income and Expense chart types.</p>
+          <p>To investigate a P&amp;L row, open the General Ledger and select its corresponding account, such as Sales Revenue, Utilities or Software &amp; Subscriptions. Use matching Date From and Date To values so both reports examine the same journal period.</p>
+          <p>The current P&amp;L statement displays account names and amounts as plain text. It does not provide direct account-code links into the General Ledger. The General Ledger’s filtered running balance also starts at zero for the in-range journals, while the P&amp;L uses the same in-range account movements to calculate its period amount.</p>
+        </section>
+
+        <section>
+          <h2>Relationship to the Trial Balance</h2>
+          <p>The <a href="/guides/understanding-the-trial-balance">Trial Balance</a> accumulation is the calculation foundation for Profit &amp; Loss. For the filtered journals, Simple Books totals debits and credits by account. Profit &amp; Loss then selects the Income and Expense accounts from those balances and applies its account-type sign rules.</p>
+          <p>An Income account’s Trial Balance-style net is debits minus credits, but P&amp;L reports Income as credits minus debits so ordinary credit revenue appears positive. An Expense account already has the debit-oriented amount needed by P&amp;L: debits minus credits.</p>
+          <p>The current Trial Balance has no date filter and uses all loaded journals. Profit &amp; Loss can use a date range, so the figures should only be compared directly when their journal scope is equivalent.</p>
+        </section>
+
+        <section>
+          <h2>Relationship to the Balance Sheet</h2>
+          <p>The <a href="/guides/understanding-the-balance-sheet">Balance Sheet</a> builds from journals up to an optional inclusive <strong>As at</strong> date. It lists Asset, Liability and Equity accounts rather than displaying Income and Expense accounts directly.</p>
+          <p>For the same Balance Sheet journal set, Simple Books runs the Profit &amp; Loss calculation and adds its net result to displayed equity as <strong>Current Year Profit</strong> or <strong>Current Year Loss</strong>. A £500 P&amp;L profit therefore increases displayed total equity by £500; a loss reduces it.</p>
+          <p>To compare the reports, set Profit &amp; Loss Date To to the Balance Sheet As at date and leave Date From blank. That gives both reports journals from the beginning of the available data through the same reporting date.</p>
+        </section>
+
+        <section>
+          <h2>Why Profit &amp; Loss and Dashboard figures differ</h2>
+          <p>The operational <a href="/guides/understanding-the-dashboard">Dashboard</a> does not calculate accounting profit. Its Income vs Bills chart uses gross invoice totals and gross bill totals, includes every payment status, excludes expenses and mileage, and labels the difference between those two series <strong>Difference</strong>.</p>
+          <p>Profit &amp; Loss instead reads journals, uses net invoice revenue, includes the net expense portions of bills and ordinary expenses, includes the full mileage claim, and excludes VAT Input and VAT Output. Paid status does not determine P&amp;L inclusion. These deliberate differences mean Dashboard Difference and P&amp;L Net Profit should not be expected to match.</p>
+          <p>The Dashboard guide documents its operational calculations in detail; use that guide rather than treating the Dashboard chart as a financial statement.</p>
+        </section>
+
+        <section>
+          <h2>Worked examples</h2>
+          <h3>Invoice, bill, expense and mileage in one period</h3>
+          <p>A consultant saves a £600 sales invoice made up of £500 net and £100 VAT. They also save a £240 Software supplier bill made up of £200 net and £40 VAT, a £120 Utilities expense made up of £100 net and £20 VAT, and a £45 mileage claim.</p>
+          <ul class="remember-list">
+            <li>Sales Revenue: £500 income from the invoice journal.</li>
+            <li>Software &amp; Subscriptions: £200 expense from the bill journal.</li>
+            <li>Utilities: £100 expense from the ordinary expense journal.</li>
+            <li>Travel &amp; Mileage: £45 expense from the mileage journal.</li>
+            <li>Total Income: £500.</li>
+            <li>Total Expenses: £200 + £100 + £45 = £345.</li>
+            <li>Net Profit: £500 − £345 = £155.</li>
+          </ul>
+          <p>The £100 VAT Output and combined £60 VAT Input do not appear in P&amp;L. Nor do the gross Trade Receivables, Trade Payables and Employee Reimbursements Payable postings.</p>
+
+          <h3>Date range excludes an earlier invoice</h3>
+          <p>The same business also has a £300 net invoice dated 30 June. With Date From set to 1 July and the four July records above inside the period, the earlier £300 Sales Revenue is excluded. Total Income remains £500 and Net Profit remains £155. With Date From blank, the earlier invoice is included and the result rises by £300, assuming no other activity.</p>
+
+          <h3>Net loss</h3>
+          <p>In another period, Sales Revenue is £100 and the included expense accounts total £240. Simple Books calculates £100 − £240 = minus £140, labels the result <strong>Net Loss</strong>, displays £140.00 and gives the report status Loss.</p>
+
+          <h3>Dashboard Difference is not the P&amp;L result</h3>
+          <p>Using only the £600 gross invoice and £240 gross bill above, the Dashboard chart Difference is £360. It ignores the £120 ordinary expense and £45 mileage claim. Profit &amp; Loss uses £500 net revenue less £200, £100 and £45 of expenses, giving £155. The reports differ because their sources and calculations differ.</p>
+        </section>
+
+        <section>
+          <h2>Common mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Using gross invoice totals as P&amp;L income.</strong> The report uses the net Sales Revenue journal credit and excludes VAT Output.</li>
+            <li><strong>Expecting VAT Input to be an expense row.</strong> It is currently an Asset account; bills and ordinary expenses contribute their net expense posting.</li>
+            <li><strong>Calling Dashboard Difference profit.</strong> It uses gross invoices and bills and omits expenses and mileage.</li>
+            <li><strong>Expecting a separate gross-profit subtotal.</strong> The current report calculates only Total Income, Total Expenses and the net result.</li>
+            <li><strong>Comparing reports with different dates.</strong> Match the journal period before investigating a difference.</li>
+            <li><strong>Expecting Paid status to control inclusion.</strong> The report reads journals, and current status actions do not post settlement entries.</li>
+            <li><strong>Recording one cost as both a bill and an expense.</strong> Each source can create its own expense journal and duplicate the P&amp;L cost.</li>
+            <li><strong>Deleting a source to remove its accounting effect.</strong> Current delete workflows do not reverse or delete the linked journal.</li>
+            <li><strong>Ignoring a ledger-posting warning.</strong> A saved operational record whose journal write failed is absent from P&amp;L.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Current implementation limitations</h2>
+          <ul class="remember-list">
+            <li><strong>No gross-profit or cost-of-sales section:</strong> all current Expense accounts feed Total Expenses before the single net result.</li>
+            <li><strong>One Income account:</strong> the current chart includes Sales Revenue only.</li>
+            <li><strong>No direct General Ledger drill-down:</strong> P&amp;L account rows display names and amounts but are not links.</li>
+            <li><strong>No manual journals or opening-balance workflow:</strong> the current user interface does not provide those posting tools.</li>
+            <li><strong>No P&amp;L export, print, comparative-period or budget columns:</strong> the current page displays one selected journal period.</li>
+            <li><strong>Payment status does not post settlement:</strong> marking an invoice, bill or expense Paid does not create Bank entries or clear receivables, payables or reimbursements.</li>
+            <li><strong>Deletion does not reverse journals:</strong> deleting an invoice, bill, expense or mileage source does not currently create a reversal or remove its linked journal, so its income or expense can remain.</li>
+            <li><strong>A journal write can fail after its source is saved:</strong> the operational record can exist while being absent from journal-based P&amp;L.</li>
+            <li><strong>No partial result for malformed data:</strong> an invalid loaded journal or invalid journal date makes the complete report unavailable, even when it falls outside the selected period.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>The Simple Books Profit &amp; Loss Statement validates the user’s journals, applies an optional inclusive reporting period, accumulates Trial Balance-style account totals, selects Income and Expense accounts, and calculates Total Income minus Total Expenses. The current Income account is Sales Revenue; expenses can appear in General Expenses, Travel &amp; Mileage, Utilities, Professional Fees and Software &amp; Subscriptions.</p>
+          <p>Use the General Ledger to inspect the postings behind a named row, the Trial Balance to understand the wider account set, and the Balance Sheet to see the net result included in displayed equity. Keep the present boundaries in mind: there is no separate gross-profit subtotal, no direct ledger drill-down, no manual-journal workflow, and current payment, deletion and failed-write behaviour can leave journal-based figures different from operational records.</p>
         </section>`
 };

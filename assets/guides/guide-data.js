@@ -197,13 +197,14 @@ export const GUIDES = [
   },
   {
     slug: "understanding-profit-and-loss",
-    title: "Understanding Profit & Loss",
+    title: "Understanding the Profit & Loss Statement in Simple Books",
     category: "Accounting",
-    description: "See how income, expenses and the resulting profit or loss fit together.",
-    keywords: ["income statement", "revenue", "expenses", "net profit"],
-    readTime: 7,
+    description: "Learn how Simple Books calculates Profit & Loss from invoice, bill, expense and mileage journals for a selected reporting period.",
+    keywords: ["profit and loss statement", "P&L report", "net profit", "business expenses", "sales revenue", "Simple Books"],
+    readTime: 14,
     featured: true,
-    format: "article"
+    format: "how-to",
+    lastUpdated: "2026-07-30"
   },
   {
     slug: "understanding-the-balance-sheet",
