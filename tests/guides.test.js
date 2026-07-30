@@ -61,6 +61,10 @@ const profitLossGuide = readFileSync(
   projectFile("guide-pages/understanding-profit-and-loss.html"),
   "utf8"
 );
+const balanceSheetGuide = readFileSync(
+  projectFile("guide-pages/understanding-the-balance-sheet.html"),
+  "utf8"
+);
 const indexScript = readFileSync(projectFile("assets/guides/guides-index.js"), "utf8");
 const guideScript = readFileSync(projectFile("assets/guides/guide-page.js"), "utf8");
 const hosting = JSON.parse(readFileSync(projectFile("firebase.json"), "utf8"));
@@ -1142,13 +1146,118 @@ describe("generated guide pages", () => {
       '<span>Previous guide</span><strong>Understanding the General Ledger in Simple Books</strong>'
     );
     expect(profitLossGuide).toContain(
-      '<span>Next guide</span><strong>Understanding the Balance Sheet</strong>'
+      '<span>Next guide</span><strong>Understanding the Balance Sheet in Simple Books</strong>'
     );
     expect(guidesIndex).toContain(
       'data-category="Accounting" data-search="Understanding the Profit &amp; Loss Statement in Simple Books'
     );
     expect(guidesIndex).toContain(
       "profit and loss statement P&amp;L report net profit business expenses sales revenue Simple Books"
+    );
+  });
+
+  it("publishes the complete Balance Sheet guide from the current report calculation", () => {
+    const expectedHeadings = [
+      "Introduction",
+      "What a Balance Sheet is",
+      "Why businesses use a Balance Sheet",
+      "How Simple Books calculates the Balance Sheet",
+      "Asset accounts currently included",
+      "Liability accounts currently included",
+      "Equity accounts currently included",
+      "Current Year Profit or Loss calculation",
+      "The accounting equation",
+      "Relationship to the Trial Balance",
+      "Relationship to the General Ledger",
+      "Relationship to the Profit & Loss Statement",
+      "As at date filtering behaviour",
+      "Worked examples",
+      "Common mistakes",
+      "Current implementation limitations",
+      "Summary"
+    ];
+
+    expect(balanceSheetGuide).toContain(
+      "<title>Understanding the Balance Sheet in Simple Books | Simple Books Guides</title>"
+    );
+    expect(balanceSheetGuide).toContain(
+      '<meta name="description" content="Learn how Simple Books calculates assets, liabilities, equity and the current-year result from journals as at a reporting date.">'
+    );
+    expect(balanceSheetGuide).toContain(
+      '<link rel="canonical" href="https://simple-books.co.uk/guides/understanding-the-balance-sheet">'
+    );
+    expect(balanceSheetGuide).toContain(
+      '<meta property="og:url" content="https://simple-books.co.uk/guides/understanding-the-balance-sheet">'
+    );
+    expect(balanceSheetGuide).toContain("<span>15 minute read</span>");
+    expect(balanceSheetGuide).toContain(
+      '<time datetime="2026-07-30">30 July 2026</time>'
+    );
+    expect(balanceSheetGuide).toContain('"@type":"BreadcrumbList"');
+    expect(balanceSheetGuide).toContain('"@type":"TechArticle"');
+    expect(balanceSheetGuide).toContain('"articleSection":"Accounting"');
+    expect(balanceSheetGuide).toContain(
+      '"keywords":"balance sheet, assets and liabilities, business equity'
+    );
+    expect(balanceSheetGuide).not.toMatch(
+      /Coming soon|currently being prepared|placeholder/i
+    );
+    expect(occurrences(balanceSheetGuide, /<h1>/g)).toBe(1);
+    expect(occurrences(balanceSheetGuide, /<h2>/g)).toBe(
+      expectedHeadings.length
+    );
+
+    for (const heading of expectedHeadings) {
+      expect(balanceSheetGuide).toContain(
+        `<h2>${heading.replace(/&/g, "&amp;")}</h2>`
+      );
+    }
+
+    for (const slug of [
+      "what-is-double-entry-bookkeeping",
+      "understanding-the-trial-balance",
+      "understanding-the-general-ledger",
+      "understanding-profit-and-loss"
+    ]) {
+      expect(balanceSheetGuide).toContain(`href="/guides/${slug}"`);
+    }
+
+    for (const currentBehaviour of [
+      "Asset amount</strong> = account debits − account credits.",
+      "Liability amount</strong> = account credits − account debits.",
+      "Equity account amount</strong> = account credits − account debits.",
+      "Total Equity</strong> = displayed Equity account amounts + Current Year Profit or Loss.",
+      "<strong>1000 Bank:</strong>",
+      "<strong>1100 Trade Receivables:</strong>",
+      "<strong>1200 VAT Input:</strong>",
+      "<strong>2000 Trade Payables:</strong>",
+      "<strong>2100 VAT Output:</strong>",
+      "<strong>2200 Employee Reimbursements Payable:</strong>",
+      "one Equity account: <strong>3000 Owner’s Equity</strong>",
+      "Current Year Profit or Loss = Total Income − Total Expenses.",
+      "Every displayed Asset, Liability and direct Equity account on the Balance Sheet is an account-code link",
+      "optional <strong>As at</strong> field is an inclusive upper date boundary.",
+      "An invalid journal after the selected As at date still makes the report unavailable",
+      "current product has no user-facing workflow to create that capital or opening journal.",
+      "Paid status does not post Bank or clear Trade Receivables, Trade Payables or Employee Reimbursements Payable.",
+      "deleting a source record does not currently create a reversal or remove its linked journal",
+      "No historical comparative columns",
+      "No Balance Sheet export or print control"
+    ]) {
+      expect(balanceSheetGuide).toContain(currentBehaviour);
+    }
+
+    expect(balanceSheetGuide).toContain(
+      '<span>Previous guide</span><strong>Understanding the Profit &amp; Loss Statement in Simple Books</strong>'
+    );
+    expect(balanceSheetGuide).toContain(
+      '<span>Next guide</span><strong>What is VAT?</strong>'
+    );
+    expect(guidesIndex).toContain(
+      'data-category="Accounting" data-search="Understanding the Balance Sheet in Simple Books'
+    );
+    expect(guidesIndex).toContain(
+      "balance sheet assets and liabilities business equity current year profit accounting equation Simple Books"
     );
   });
 });

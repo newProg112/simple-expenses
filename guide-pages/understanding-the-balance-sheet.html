@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Understanding the Balance Sheet | Simple Books Guides</title>
-  <meta name="description" content="Understand the relationship between assets, liabilities and equity.">
+  <title>Understanding the Balance Sheet in Simple Books | Simple Books Guides</title>
+  <meta name="description" content="Learn how Simple Books calculates assets, liabilities, equity and the current-year result from journals as at a reporting date.">
   <link rel="canonical" href="https://simple-books.co.uk/guides/understanding-the-balance-sheet">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Understanding the Balance Sheet | Simple Books Guides">
-  <meta property="og:description" content="Understand the relationship between assets, liabilities and equity.">
+  <meta property="og:title" content="Understanding the Balance Sheet in Simple Books | Simple Books Guides">
+  <meta property="og:description" content="Learn how Simple Books calculates assets, liabilities, equity and the current-year result from journals as at a reporting date.">
   <meta property="og:url" content="https://simple-books.co.uk/guides/understanding-the-balance-sheet">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"Understanding the Balance Sheet","description":"Understand the relationship between assets, liabilities and equity.","dateModified":"2026-07-29","datePublished":"2026-07-29","inLanguage":"en-GB","mainEntityOfPage":"https://simple-books.co.uk/guides/understanding-the-balance-sheet","author":{"@type":"Organization","name":"Simple Books","url":"https://simple-books.co.uk"},"publisher":{"@type":"Organization","name":"Simple Books","url":"https://simple-books.co.uk"}}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://simple-books.co.uk"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://simple-books.co.uk/guides"},{"@type":"ListItem","position":3,"name":"Accounting","item":"https://simple-books.co.uk/guides#all-guides-heading"},{"@type":"ListItem","position":4,"name":"Understanding the Balance Sheet","item":"https://simple-books.co.uk/guides/understanding-the-balance-sheet"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Understanding the Balance Sheet in Simple Books","description":"Learn how Simple Books calculates assets, liabilities, equity and the current-year result from journals as at a reporting date.","dateModified":"2026-07-30","datePublished":"2026-07-30","inLanguage":"en-GB","articleSection":"Accounting","keywords":"balance sheet, assets and liabilities, business equity, current year profit, accounting equation, Simple Books","mainEntityOfPage":"https://simple-books.co.uk/guides/understanding-the-balance-sheet","author":{"@type":"Organization","name":"Simple Books","url":"https://simple-books.co.uk"},"publisher":{"@type":"Organization","name":"Simple Books","url":"https://simple-books.co.uk"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://simple-books.co.uk"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://simple-books.co.uk/guides"},{"@type":"ListItem","position":3,"name":"Accounting","item":"https://simple-books.co.uk/guides#all-guides-heading"},{"@type":"ListItem","position":4,"name":"Understanding the Balance Sheet in Simple Books","item":"https://simple-books.co.uk/guides/understanding-the-balance-sheet"}]}</script>
   <link rel="stylesheet" href="/assets/guides/guides.css">
   <script src="/assets/sentry-monitoring.js"></script>
 </head>
@@ -53,16 +53,16 @@
         <li><a href="/">Home</a></li>
         <li><a href="/guides">Guides</a></li>
         <li><a href="/guides#all-guides-heading">Accounting</a></li>
-        <li aria-current="page">Understanding the Balance Sheet</li>
+        <li aria-current="page">Understanding the Balance Sheet in Simple Books</li>
       </ol>
     </nav>
     <header class="guide-header">
       <p class="eyebrow">Accounting</p>
-      <h1>Understanding the Balance Sheet</h1>
-      <p class="guide-intro">Understand the relationship between assets, liabilities and equity.</p>
+      <h1>Understanding the Balance Sheet in Simple Books</h1>
+      <p class="guide-intro">Learn how Simple Books calculates assets, liabilities, equity and the current-year result from journals as at a reporting date.</p>
       <p class="guide-meta">
-        <span>7 minute read</span>
-        <span>Last updated <time datetime="2026-07-29">29 July 2026</time></span>
+        <span>15 minute read</span>
+        <span>Last updated <time datetime="2026-07-30">30 July 2026</time></span>
       </p>
     </header>
 
@@ -70,35 +70,181 @@
       <article class="guide-article">
         <section>
           <h2>Introduction</h2>
-          <p>This guide is currently being prepared. It will soon contain clear, practical guidance on Understanding the Balance Sheet.</p>
-          <div class="placeholder-note">
-            <strong>Coming soon</strong>
-            Detailed step-by-step guidance and practical examples will be added here.
-          </div>
+          <p>The Balance Sheet in Simple Books summarises Asset, Liability and Equity account balances from accounting journals, then includes the Profit &amp; Loss result in displayed equity. Unlike Profit &amp; Loss, which measures performance over a selected period, the Balance Sheet is cumulative up to an optional <strong>As at</strong> date.</p>
+          <p>This guide documents the current implementation only: the available accounts, balance orientations, current-year result, accounting equation, date behaviour, report links and present limitations. For the journal postings behind each source, use the <a href="/guides/what-is-double-entry-bookkeeping">double-entry bookkeeping guide</a> rather than repeating every journal rule here. This is general product guidance, not accounting or tax advice.</p>
         </section>
+
         <section>
-          <h2>What this guide will cover</h2>
-          <p>The completed guide will explain the key ideas, the information to have ready and where this topic fits within Simple Books.</p>
+          <h2>What a Balance Sheet is</h2>
+          <p>A Balance Sheet is a statement of financial position. It organises balances into Assets, Liabilities and Equity and checks whether the accounting equation holds:</p>
+          <p><strong>Assets = Liabilities + Equity.</strong></p>
+          <p>The current Simple Books page shows summary cards for Total Assets, Total Liabilities, Total Equity and Status. The statement then lists non-zero account balances under Assets, Liabilities and Equity, shows Current Year Profit or Current Year Loss, and compares Total Assets with Total Liabilities and Equity.</p>
+          <p>When the rounded difference is zero, the status is <strong>Balanced</strong>. With no journals on or before the reporting date, the page shows <strong>No data</strong> rather than treating an empty statement as meaningful.</p>
         </section>
+
         <section>
-          <h2>Step-by-step guidance</h2>
-          <p>A concise sequence of product steps or learning points will appear here, with clear outcomes and supporting screenshots where they add value.</p>
-        </section>
-        <section>
-          <h2>Example</h2>
-          <p>A realistic small-business example will show how the topic works in practice without using personal or customer data.</p>
-        </section>
-        <section>
-          <h2>Things to remember</h2>
+          <h2>Why businesses use a Balance Sheet</h2>
+          <p>The Balance Sheet provides a compact view of the journal-based financial position. In the current report, it can help a business:</p>
           <ul class="remember-list">
-            <li>Review the completed record before relying on it for reporting.</li>
-            <li>Keep supporting information organised and easy to find.</li>
-            <li>Ask a qualified professional when you need advice specific to your circumstances.</li>
+            <li>review amounts due from customers and owed to suppliers or claimants;</li>
+            <li>see VAT Input and VAT Output balances separately;</li>
+            <li>review any posted Bank or Owner’s Equity balance;</li>
+            <li>see how the current Profit &amp; Loss result affects total equity;</li>
+            <li>check Assets against Liabilities plus Equity; and</li>
+            <li>open the General Ledger for the postings behind an account balance.</li>
+          </ul>
+          <p>A balanced statement does not prove that all transactions, dates, amounts, categories or VAT treatments are correct. It shows the result of the journals that successfully exist.</p>
+        </section>
+
+        <section>
+          <h2>How Simple Books calculates the Balance Sheet</h2>
+          <p>Simple Books loads the authenticated user’s journal documents, validates the complete loaded set, applies the optional As at date, and builds Trial Balance-style debit and credit totals for every account in the remaining journals.</p>
+          <p>It selects accounts by their current chart type and applies these formulas:</p>
+          <ul class="remember-list">
+            <li><strong>Asset amount</strong> = account debits − account credits.</li>
+            <li><strong>Liability amount</strong> = account credits − account debits.</li>
+            <li><strong>Equity account amount</strong> = account credits − account debits.</li>
+            <li><strong>Total Assets</strong> = sum of displayed Asset account amounts.</li>
+            <li><strong>Total Liabilities</strong> = sum of displayed Liability account amounts.</li>
+            <li><strong>Total Equity</strong> = displayed Equity account amounts + Current Year Profit or Loss.</li>
+            <li><strong>Difference</strong> = Total Assets − Total Liabilities and Equity.</li>
+          </ul>
+          <p>Rows with a zero calculated amount are omitted and the remaining rows are ordered by account code. Positive values display in GBP. An abnormal negative account amount is shown in accounting parentheses. Income and Expense accounts are not listed directly; they feed the current-year result described below.</p>
+        </section>
+
+        <section>
+          <h2>Asset accounts currently included</h2>
+          <p>The current chart contains three Asset accounts:</p>
+          <ul class="remember-list">
+            <li><strong>1000 Bank:</strong> intended for money held by the business. The current invoice, bill, expense and mileage journal builders do not post to Bank, so Paid status does not create or change this balance.</li>
+            <li><strong>1100 Trade Receivables:</strong> invoices debit this account for their gross total, representing the amount recorded as due from customers.</li>
+            <li><strong>1200 VAT Input:</strong> bills and ordinary expenses debit this account for VAT greater than zero. Mileage journals have no VAT line.</li>
+          </ul>
+          <p>Assets are debit-oriented in this report: debits minus credits. An account appears only when the filtered journals produce a non-zero amount. Bank therefore remains absent unless a valid stored journal posts to it; there is currently no user-facing Bank transaction or manual-journal workflow that creates such a posting.</p>
+        </section>
+
+        <section>
+          <h2>Liability accounts currently included</h2>
+          <p>The current Liability accounts are:</p>
+          <ul class="remember-list">
+            <li><strong>2000 Trade Payables:</strong> supplier bill journals credit the gross bill total.</li>
+            <li><strong>2100 VAT Output:</strong> sales invoice journals credit VAT greater than zero.</li>
+            <li><strong>2200 Employee Reimbursements Payable:</strong> ordinary expenses credit their gross amount and mileage claims credit their full claim amount.</li>
+          </ul>
+          <p>Liabilities are credit-oriented: credits minus debits. Under the current workflows, marking an invoice, bill or expense Paid changes operational status only. It does not post Bank or add a clearing debit to Trade Payables or Employee Reimbursements Payable, and it does not add a clearing credit to Trade Receivables.</p>
+        </section>
+
+        <section>
+          <h2>Equity accounts currently included</h2>
+          <p>The current chart contains one Equity account: <strong>3000 Owner’s Equity</strong>. Its statement amount is credits minus debits, the same orientation used for Liabilities.</p>
+          <p>The current invoice, bill, expense and mileage builders do not post directly to Owner’s Equity. The report can display the account when a valid loaded journal contains a non-zero posting, but the current product has no user-facing manual-journal, capital-introduction or opening-balance workflow to create one.</p>
+          <p>Current Year Profit or Loss is shown as a separate line in the Equity section. It is not stored as a journal posting to account 3000 and is not included in the Equity account row itself.</p>
+        </section>
+
+        <section>
+          <h2>Current Year Profit or Loss calculation</h2>
+          <p>For the same journals included by the Balance Sheet As at date, Simple Books runs the <a href="/guides/understanding-profit-and-loss">Profit &amp; Loss calculation</a>. It selects Income and Expense accounts, calculates Total Income and Total Expenses, and applies:</p>
+          <p><strong>Current Year Profit or Loss = Total Income − Total Expenses.</strong></p>
+          <p>A positive result is labelled <strong>Current Year Profit</strong>. A negative result is labelled <strong>Current Year Loss</strong> and displayed as an absolute amount, while its negative numeric value reduces Total Equity. A zero result is labelled Current Year Profit in the Balance Sheet view.</p>
+          <p>The Current Year Profit or Loss label links directly to the Profit &amp; Loss report page. That page does not automatically inherit the Balance Sheet As at date, so enter a matching Date To and leave Date From blank when you want to reconcile the same cumulative journal set.</p>
+        </section>
+
+        <section>
+          <h2>The accounting equation</h2>
+          <p>After calculating its rows and current-year result, Simple Books totals:</p>
+          <ul class="remember-list">
+            <li><strong>Total Equity</strong> = direct Equity account total + current-year result.</li>
+            <li><strong>Total Liabilities and Equity</strong> = Total Liabilities + Total Equity.</li>
+            <li><strong>Difference</strong> = Total Assets − Total Liabilities and Equity.</li>
+          </ul>
+          <p>If Difference rounds to £0.00, the report status is Balanced and says <strong>Assets equal liabilities plus equity</strong>. Otherwise, it reports Out of balance.</p>
+          <p>Balanced does not mean complete or correct. An omitted journal removes equal debits and credits, a duplicated balanced journal adds equal sides, and a posting to the wrong recognised accounts can still leave the equation intact.</p>
+        </section>
+
+        <section>
+          <h2>Relationship to the Trial Balance</h2>
+          <p>The <a href="/guides/understanding-the-trial-balance">Trial Balance</a> calculation is the Balance Sheet’s starting point. Simple Books accumulates every debit and credit by account from the As at journal set. The Balance Sheet then selects Asset, Liability and Equity account types and changes the presentation orientation by type.</p>
+          <p>For an Asset, the Balance Sheet amount is the Trial Balance-style debits-minus-credits balance. For a Liability or Equity account, it reverses that sign to credits minus debits so an ordinary credit balance displays positively. Income and Expense balances are brought together through Current Year Profit or Loss rather than shown as statement rows.</p>
+          <p>The current Trial Balance has no date filter. A dated Balance Sheet can therefore use fewer journals, so compare the two only when the underlying journal scope is equivalent.</p>
+        </section>
+
+        <section>
+          <h2>Relationship to the General Ledger</h2>
+          <p>The <a href="/guides/understanding-the-general-ledger">General Ledger</a> shows the individual journal lines behind one account. Every displayed Asset, Liability and direct Equity account on the Balance Sheet is an account-code link to the General Ledger, using a query such as <strong>?account=1100</strong>.</p>
+          <p>Use that link to investigate the dates, references, descriptions, debits, credits and running balance behind a Balance Sheet row. To compare with a dated Balance Sheet, leave General Ledger Date From blank and set Date To to the same As at date. This includes journals from the beginning of the available data through the reporting date.</p>
+          <p>The Current Year Profit or Loss line is different: it links to Profit &amp; Loss, because it is a calculated combination of Income and Expense accounts rather than a direct balance in one ledger account.</p>
+        </section>
+
+        <section>
+          <h2>Relationship to the Profit &amp; Loss Statement</h2>
+          <p>The Profit &amp; Loss Statement and Balance Sheet use the same journal data but present different account types. Profit &amp; Loss displays Income and Expense account totals for its reporting period. The Balance Sheet displays Asset, Liability and Equity accounts and adds the P&amp;L net result to Total Equity.</p>
+          <p>To compare the same cumulative data, set Profit &amp; Loss Date To to the Balance Sheet As at date and leave Profit &amp; Loss Date From blank. A P&amp;L with a later Date From reports movement within that shorter period and will not equal the cumulative current-year result shown by the Balance Sheet implementation.</p>
+          <p>The current P&amp;L report calculates one net result and has no separate cost-of-sales or gross-profit subtotal. The Balance Sheet uses that exact implemented net result.</p>
+        </section>
+
+        <section>
+          <h2>As at date filtering behaviour</h2>
+          <p>The optional <strong>As at</strong> field is an inclusive upper date boundary. A journal dated on or before the selected date is included; a journal after it is excluded. With the field blank, Simple Books uses all loaded journals and reports the latest included journal date as the reporting date.</p>
+          <p>After changing As at, select <strong>Refresh</strong>. An invalid value shows <strong>Check date</strong>, leaves the statement totals blank and asks for a valid reporting date. Journal dates use their written YYYY-MM-DD calendar date without timezone shifting.</p>
+          <p>Before applying the chosen date, Simple Books validates every loaded journal and verifies every journal calendar date. An invalid journal after the selected As at date still makes the report unavailable, preventing the filter from hiding malformed data and producing partial totals.</p>
+          <p>If no journals exist on or before the selected date, the page shows No data. There is no Date From control: the statement is cumulative from the beginning of the available journal data through As at.</p>
+        </section>
+
+        <section>
+          <h2>Worked examples</h2>
+          <h3>Sales invoice</h3>
+          <p>A consultant saves an invoice for £100 net plus £20 VAT, total £120. The Balance Sheet shows £120 Trade Receivables under Assets and £20 VAT Output under Liabilities. The £100 Sales Revenue is not listed directly; it produces £100 Current Year Profit in Equity. Assets of £120 equal £20 Liabilities plus £100 Equity.</p>
+
+          <h3>Supplier bill</h3>
+          <p>The business saves a Software bill for £200 net plus £40 VAT, total £240. VAT Input adds £40 to Assets, Trade Payables adds £240 to Liabilities, and the £200 software expense produces a £200 Current Year Loss that reduces Equity. The equation is £40 Assets = £240 Liabilities + minus £200 Equity.</p>
+
+          <h3>Business expense</h3>
+          <p>A director records a Utilities expense for £50 net plus £10 VAT, gross £60. VAT Input adds £10 to Assets, Employee Reimbursements Payable adds £60 to Liabilities, and the £50 expense reduces the current-year result by £50. Marking it Paid does not add a Bank credit or clear the £60 liability in the current implementation.</p>
+
+          <h3>Mileage claim</h3>
+          <p>A £45 mileage claim creates no VAT asset. It adds £45 to Employee Reimbursements Payable and £45 to Travel &amp; Mileage expense, reducing Current Year Profit—or increasing Current Year Loss—by £45. With no other activity, £0 Assets equals £45 Liabilities plus minus £45 Equity.</p>
+
+          <h3>Current Year Profit affects Total Equity</h3>
+          <p>Suppose the journal set contains £500 Sales Revenue and £345 of combined bill, expense and mileage costs, with no direct Owner’s Equity posting. Current Year Profit is £155 and Total Equity is £155. If a valid direct Owner’s Equity credit of £1,000 also existed in the loaded journals, Total Equity would be £1,155. The current product has no user-facing workflow to create that capital or opening journal.</p>
+
+          <h3>Changing the As at date</h3>
+          <p>An invoice for £100 net plus £20 VAT is dated 10 July, and a £60 Utilities bill made up of £50 net plus £10 VAT is dated 15 July. As at 10 July, the report shows £120 Trade Receivables, £20 VAT Output and £100 Current Year Profit. As at 15 July, it also includes £10 VAT Input, £60 Trade Payables and the £50 expense, so Current Year Profit falls to £50. The later date changes the cumulative journal set; it does not alter either saved journal.</p>
+        </section>
+
+        <section>
+          <h2>Common mistakes</h2>
+          <ul class="remember-list">
+            <li><strong>Treating the Balance Sheet as a period-only report.</strong> As at is cumulative from the beginning of available journals.</li>
+            <li><strong>Expecting Sales Revenue or expense accounts as direct rows.</strong> They feed Current Year Profit or Loss.</li>
+            <li><strong>Assuming VAT is part of revenue or expense on this report.</strong> VAT Input is an Asset and VAT Output is a Liability.</li>
+            <li><strong>Expecting Paid status to clear balances.</strong> Current status actions do not post Bank or settlement entries.</li>
+            <li><strong>Expecting Bank or Owner’s Equity to appear automatically.</strong> The four current source builders do not post to them.</li>
+            <li><strong>Comparing a dated Balance Sheet with an all-time Trial Balance or a shorter-period P&amp;L.</strong> Align the journal scope first.</li>
+            <li><strong>Assuming balanced means correct.</strong> Equal sides cannot detect every omission, duplicate or wrong account choice.</li>
+            <li><strong>Deleting a source to reverse its accounting.</strong> Current delete workflows do not reverse or remove the linked journal.</li>
+            <li><strong>Ignoring a ledger-posting warning.</strong> A saved source whose journal write failed is absent from the Balance Sheet.</li>
           </ul>
         </section>
+
+        <section>
+          <h2>Current implementation limitations</h2>
+          <ul class="remember-list">
+            <li><strong>No payment journals:</strong> Paid status does not post Bank or clear Trade Receivables, Trade Payables or Employee Reimbursements Payable.</li>
+            <li><strong>No manual journals or opening balances:</strong> the current user interface cannot post capital, opening Bank, retained balances or adjustments.</li>
+            <li><strong>Bank and Owner’s Equity are unused by current source builders:</strong> they exist in the chart but invoices, bills, expenses and mileage do not post to them.</li>
+            <li><strong>Deletion does not reverse journals:</strong> deleting a source record does not currently create a reversal or remove its linked journal, so balances can remain.</li>
+            <li><strong>A journal write can fail after its source is saved:</strong> an operational record can exist while its accounting effect is absent.</li>
+            <li><strong>No historical comparative columns:</strong> the report displays one As at statement rather than side-by-side dates.</li>
+            <li><strong>No Balance Sheet export or print control:</strong> the current page only displays the statement.</li>
+            <li><strong>No fixed-asset, inventory, loan, accrual, retained-earnings or other extended accounts in the default chart:</strong> only the listed current Asset, Liability and Equity accounts are available to the live report.</li>
+            <li><strong>No partial result for malformed data:</strong> one invalid loaded journal or journal date makes the report unavailable, even if it falls after As at.</li>
+          </ul>
+        </section>
+
         <section>
           <h2>Summary</h2>
-          <p>The finished summary will recap the important points and direct you to the most useful next guide.</p>
+          <p>The Simple Books Balance Sheet validates the user’s journals, includes them cumulatively through an optional As at date, and turns their Trial Balance totals into debit-oriented Assets and credit-oriented Liabilities and Equity. The current chart includes Bank, Trade Receivables and VAT Input as Assets; Trade Payables, VAT Output and Employee Reimbursements Payable as Liabilities; and Owner’s Equity as the direct Equity account.</p>
+          <p>Profit &amp; Loss supplies the Current Year Profit or Loss added to Total Equity, and the report checks Total Assets against Total Liabilities plus Equity. Use each account-code link to inspect the General Ledger, align report dates before comparing figures, and remember the current boundaries around payments, manual and opening journals, deletion, failed writes, comparisons and export.</p>
         </section>
       </article>
 

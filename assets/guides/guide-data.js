@@ -208,12 +208,13 @@ export const GUIDES = [
   },
   {
     slug: "understanding-the-balance-sheet",
-    title: "Understanding the Balance Sheet",
+    title: "Understanding the Balance Sheet in Simple Books",
     category: "Accounting",
-    description: "Understand the relationship between assets, liabilities and equity.",
-    keywords: ["assets", "liabilities", "equity", "financial position"],
-    readTime: 7,
-    format: "article"
+    description: "Learn how Simple Books calculates assets, liabilities, equity and the current-year result from journals as at a reporting date.",
+    keywords: ["balance sheet", "assets and liabilities", "business equity", "current year profit", "accounting equation", "Simple Books"],
+    readTime: 15,
+    format: "how-to",
+    lastUpdated: "2026-07-30"
   },
   {
     slug: "what-is-vat",
