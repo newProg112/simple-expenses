@@ -476,3 +476,51 @@ Manual emulator check:
    the no-customer, permission-denied, signed-out, and unavailable states.
 6. Confirm there are no edit, delete, impersonation, password-reset, plan, or
    account-change controls and no Firestore rules were changed.
+
+# Admin Dashboard Phase 3B
+
+The callable `searchAdminUsers` reuses `SIMPLE_BOOKS_ADMIN_UIDS` and
+`SIMPLE_BOOKS_DEMO_IDENTIFIERS`. It pages Firebase Authentication server-side,
+excludes configured demo identities, applies a case-insensitive partial email
+match, and returns at most 20 minimal support records. Only matching Auth users'
+`userProfiles/{uid}` documents and current-month usage documents are read. For a
+larger customer base, replace this scan behind the same callable contract with
+a purpose-built indexed search; Phase 3B does not add an aggregate collection,
+scheduled job, or accounting-data search.
+
+Run the focused automated coverage with:
+
+```powershell
+npm.cmd test -- tests/admin-user-search.test.js tests/admin-user-details.test.js tests/admin-dashboard.test.js
+```
+
+Manual support-workspace check:
+
+1. Sign in as a configured admin, open `/admin`, and confirm the initial table
+   shows Recent sign-ups.
+2. Type part of a recent email and confirm the loaded rows filter immediately
+   without a `searchAdminUsers` network request.
+3. Enter one character and press Enter or choose Search all users. Confirm the
+   query-too-short message appears and no callable request is made.
+4. Enter two or more characters, press Enter, and confirm one loading state and
+   one `searchAdminUsers` request. Repeated activation while loading must not
+   start a concurrent request.
+5. Verify full-user results, the “No matching users found” state, and Clear
+   returning the table to Recent sign-ups.
+6. Open a full-search result and verify the Account, Subscription, Usage this
+   month, and supported neutral Support diagnostics sections. Confirm no stale
+   customer data remains visible during loading or after failure.
+7. Choose Refresh details and confirm one `getAdminUserDetails` request, a fresh
+   loading state, and removal of any stale panel error.
+8. Choose Copy email and Copy summary, verify the clipboard contains only the
+   visible approved fields, and confirm the inline “Copied” feedback. Block
+   clipboard permission and verify the inline failure message without an alert.
+9. Open the panel with the keyboard, close it with Escape and the close button,
+   and confirm focus returns to the email button that opened it.
+10. Repeat at a narrow mobile viewport and confirm the result cards and panel
+    remain usable without horizontal page overflow.
+11. Repeat search signed out and as a non-admin; verify redirect/access-denied
+    behaviour. Temporarily omit emulator secrets to verify the configuration
+    state, then stop Functions to verify the unavailable state.
+12. Confirm a failed search clears old results and that no customer-specific
+    console deep links, account actions, or Firestore rules changes were added.

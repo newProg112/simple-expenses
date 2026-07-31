@@ -22,6 +22,9 @@ const {createAdminMetricsHandler} = require("./lib/admin-metrics-handler");
 const {
   createAdminUserDetailsHandler,
 } = require("./lib/admin-user-details-handler");
+const {
+  createAdminUserSearchHandler,
+} = require("./lib/admin-user-search-handler");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -765,6 +768,23 @@ exports.getAdminUserDetails = onCall(
       auth: admin.auth(),
       firestore: admin.firestore(),
       adminUidConfiguration: adminUidsSecret.value(),
+      logger: console,
+    })(request),
+);
+
+exports.searchAdminUsers = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 60,
+      memory: "256MiB",
+      secrets: [adminUidsSecret, demoIdentifiersSecret],
+    },
+    (request) => createAdminUserSearchHandler({
+      auth: admin.auth(),
+      firestore: admin.firestore(),
+      adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
       logger: console,
     })(request),
 );

@@ -26,6 +26,29 @@ function safeIsoDate(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function supportDiagnostics(profileExists, profile, usage) {
+  const diagnostics = [];
+  const recordedPlan = typeof profile.currentPlan === "string" ?
+    profile.currentPlan.trim() : "";
+  const subscriptionStatus = stripeSubscriptionStatus({
+    status: profile.subscriptionStatus,
+  });
+  const hasStripeCustomer = typeof profile.stripeCustomerId === "string" &&
+    Boolean(profile.stripeCustomerId.trim());
+  const aiUsage = normaliseUsageCount(usage.aiAssistantSuccessfulUses);
+  const scanUsage = normaliseUsageCount(usage.invoiceScanningSuccessfulUses);
+
+  if (!profileExists) diagnostics.push("missing-profile");
+  if (recordedPlan !== "Starter" && recordedPlan !== "Pro") {
+    diagnostics.push("plan-not-set");
+  }
+  if (!subscriptionStatus) diagnostics.push("subscription-status-not-set");
+  if (!hasStripeCustomer) diagnostics.push("stripe-customer-not-linked");
+  if (aiUsage === 0) diagnostics.push("no-ai-usage-this-month");
+  if (scanUsage === 0) diagnostics.push("no-invoice-scan-usage-this-month");
+  return diagnostics;
+}
+
 async function getAuthUserByEmail(auth, email) {
   if (!auth || typeof auth.getUserByEmail !== "function") {
     throw new TypeError("A Firebase Auth Admin service is required.");
@@ -83,6 +106,11 @@ async function buildAdminUserDetails({
     stripeCustomerPresent: typeof profile.stripeCustomerId === "string" &&
       Boolean(profile.stripeCustomerId.trim()),
     currentPeriodEnd: safeIsoDate(profile.subscriptionCurrentPeriodEnd),
+    diagnostics: supportDiagnostics(
+        profileSnapshot.exists,
+        profile,
+        usage,
+    ),
   };
 }
 
@@ -91,4 +119,5 @@ module.exports = {
   buildAdminUserDetails,
   getAuthUserByEmail,
   safeIsoDate,
+  supportDiagnostics,
 };

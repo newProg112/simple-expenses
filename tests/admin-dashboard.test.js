@@ -9,11 +9,15 @@ import {
 import {
   adminMetricsErrorState,
   adminUserDetailsErrorState,
+  adminUserSearchErrorState,
+  buildCustomerSummary,
   filterSignupsByEmail,
   formatAdminDate,
   formatEstimatedMrr,
   formatSubscriptionStatus,
-  safeMetricCount
+  safeMetricCount,
+  supportDiagnosticMessages,
+  validateAdminUserSearchQuery
 } from "../assets/admin-metrics-view.js";
 
 const html = readFileSync(new URL("../admin.html", import.meta.url), "utf8");
@@ -178,7 +182,8 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(filterSignupsByEmail(signups, "ALI")).toEqual([signups[0]]);
     expect(filterSignupsByEmail(signups, "example")).toHaveLength(2);
     expect(filterSignupsByEmail(signups, "missing")).toEqual([]);
-    expect(javascript).toContain('customerSearch.addEventListener("input", renderFilteredRecentSignups)');
+    expect(javascript).toContain('customerSearch.addEventListener("input", handleSearchInput)');
+    expect(javascript).not.toMatch(/customerSearch\.addEventListener\("input"[\s\S]*?callSearchAdminUsers/);
   });
 
   it("provides a read-only customer summary with loading and error states", () => {
@@ -201,5 +206,93 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
       .toBe("not-found");
     expect(adminUserDetailsErrorState({ code: "functions/internal" }).kind)
       .toBe("general");
+  });
+
+  it("validates full-user queries and maps structured search errors", () => {
+    expect(validateAdminUserSearchQuery("x").valid).toBe(false);
+    expect(validateAdminUserSearchQuery("  alice ")).toEqual({
+      valid: true,
+      query: "alice",
+      message: ""
+    });
+    expect(validateAdminUserSearchQuery("x".repeat(321)).valid).toBe(false);
+    expect(adminUserSearchErrorState({ code: "functions/unauthenticated" }).kind)
+      .toBe("unauthenticated");
+    expect(adminUserSearchErrorState({ code: "functions/permission-denied" }).kind)
+      .toBe("permission-denied");
+    expect(adminUserSearchErrorState({ code: "functions/failed-precondition" }).kind)
+      .toBe("configuration");
+    expect(adminUserSearchErrorState({ code: "functions/internal" }).kind)
+      .toBe("general");
+  });
+
+  it("uses an explicit, single-request all-user search workflow", () => {
+    expect(html).toContain('id="customerSearchForm"');
+    expect(html).toContain('id="customerSearchButton" type="submit">Search all users');
+    expect(html).toContain('id="customerSearchClear"');
+    expect(javascript).toContain('httpsCallable(functions, "searchAdminUsers")');
+    expect(javascript).toContain('if(searchRequest || !currentAdminUser) return searchRequest;');
+    expect(javascript).toContain('callSearchAdminUsers({ query: validation.query })');
+    expect(javascript).toContain('customerSearchForm.addEventListener("submit"');
+    expect(javascript).toContain("No matching users found");
+    expect(javascript).toContain('customerSearch.value = ""');
+    expect(javascript).toContain("renderFilteredRecentSignups();");
+  });
+
+  it("renders search results through semantic customer buttons", () => {
+    expect(javascript).toContain('button.className = "customer-open-button"');
+    expect(javascript).toContain('button.type = "button"');
+    expect(javascript).toContain("openCustomerSummary");
+    expect(html).toContain("<th>Last sign in</th>");
+    expect(javascript).toContain('createTableCell("Last sign in"');
+  });
+
+  it("groups the customer summary and renders only supported diagnostics", () => {
+    for(const heading of ["Account", "Subscription", "Usage this month", "Support diagnostics"]){
+      expect(html).toContain(`>${heading}<`);
+    }
+    expect(supportDiagnosticMessages([
+      "plan-not-set",
+      "unknown-diagnostic",
+      "stripe-customer-not-linked"
+    ])).toEqual([
+      "No plan has been recorded for this account.",
+      "A Stripe customer is not linked to this account."
+    ]);
+    expect(supportDiagnosticMessages(["unknown-diagnostic"])).toEqual([]);
+    expect(javascript).toContain("customerDiagnosticsSection.hidden = messages.length === 0");
+  });
+
+  it("builds a clipboard summary from approved visible fields only", () => {
+    const summary = buildCustomerSummary({
+      email: "user@example.test",
+      plan: "Starter",
+      subscriptionStatus: "",
+      createdDate: "2026-07-31T00:00:00.000Z",
+      lastSignInTime: "2026-07-31T00:00:00.000Z",
+      aiAssistantSuccessfulUses: 0,
+      invoiceScanningSuccessfulUses: 0,
+      stripeCustomerPresent: false,
+      uid: "must-not-copy",
+      stripeCustomerId: "cus_must_not_copy"
+    });
+    expect(summary).toContain("Simple Books customer summary");
+    expect(summary).toContain("Email: user@example.test");
+    expect(summary).toContain("Stripe customer linked: No");
+    expect(summary).not.toMatch(/must-not-copy|cus_must_not_copy|uid/i);
+  });
+
+  it("supports copy feedback, customer refresh, Escape, and focus return", () => {
+    expect(html).toContain('id="customerCopyEmail"');
+    expect(html).toContain('id="customerCopySummary"');
+    expect(html).toContain('id="customerRefresh"');
+    expect(html).toContain('id="customerClipboardStatus" role="status"');
+    expect(javascript).toContain('navigator.clipboard.writeText(text)');
+    expect(javascript).toContain('customerClipboardStatus.textContent = "Copied"');
+    expect(javascript).toContain("Copy failed.");
+    expect(javascript).toContain('customerRefresh.addEventListener("click", () => loadCustomerDetails(currentCustomerEmail))');
+    expect(javascript).toContain('event.key === "Escape"');
+    expect(javascript).toContain("returnFocus?.isConnected");
+    expect(javascript).toContain("returnFocus.focus()");
   });
 });

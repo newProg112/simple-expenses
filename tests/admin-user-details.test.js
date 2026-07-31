@@ -149,7 +149,15 @@ describe("admin customer detail projection", () => {
       aiAssistantSuccessfulUses: 0,
       invoiceScanningSuccessfulUses: 0,
       stripeCustomerPresent: false,
-      currentPeriodEnd: null
+      currentPeriodEnd: null,
+      diagnostics: [
+        "missing-profile",
+        "plan-not-set",
+        "subscription-status-not-set",
+        "stripe-customer-not-linked",
+        "no-ai-usage-this-month",
+        "no-invoice-scan-usage-this-month"
+      ]
     });
   });
 
@@ -184,7 +192,8 @@ describe("admin customer detail projection", () => {
       aiAssistantSuccessfulUses: 7,
       invoiceScanningSuccessfulUses: 3,
       stripeCustomerPresent: true,
-      currentPeriodEnd: "2026-08-31T00:00:00.000Z"
+      currentPeriodEnd: "2026-08-31T00:00:00.000Z",
+      diagnostics: []
     });
     expect(JSON.stringify(result)).not.toMatch(/uid|cus_private|sub_private|billingAddress|tokens|Reservations/);
   });
