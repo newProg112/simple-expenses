@@ -1,55 +1,147 @@
 # Simple Books Roadmap
 
-## 🚀 MVP (Before Launch)
+> **Mission**
+>
+> Simple Books helps UK small businesses understand and manage their finances through simple accounting software with built-in AI.
 
-- [ ] Finish Exports page UI
+---
+
+# ✅ Current Status
+
+## Core Platform
+
+- [x] User accounts & authentication
+- [x] Dashboard
+- [x] Clients
+- [x] Invoices
+- [x] Bills
+- [x] Expenses
+- [x] Mileage
+- [x] Projects
+- [x] Budgets
+- [x] Cashflow forecasting
+- [x] Trial Balance
+- [x] General Ledger
+- [x] Profit & Loss
+- [x] Balance Sheet
+
+## AI
+
+- [x] AI Assistant
+- [x] AI Invoice Scanning
+- [x] AI usage limits
+- [x] Starter / Pro feature gating
+
+## Imports & Exports
+
+- [x] Excel Import
+- [x] Excel Export
+- [x] Accountant Pack
+- [x] CSV exports
+- [x] Backup & Restore
+
+## Business Features
+
+- [x] Stripe subscriptions
+- [x] Starter & Pro plans
+- [x] Usage counters
+- [x] Production monitoring
+- [x] Responsive navigation
+- [x] Guides / Help Centre
+
+---
+
+# 🚀 Version 1 Launch Checklist
+
+## Platform
+
+- [ ] Fix www.simple-books.co.uk hosting
+- [ ] Complete Demo environment
 - [ ] Final responsive review
 - [ ] End-to-end testing
-- [ ] Final bug fixes
-- [ ] Google search/favicon review
+- [ ] Accessibility review
+- [ ] Final bug fixing
+- [ ] Google Search / favicon review
 - [ ] Prepare launch announcement
 
 ---
 
-## ⭐ High Priority
+# 🧪 Demo Environment
 
-- [ ] Import Excel data
-- [ ] Accountant Pack
-- [ ] Year-end settings
-- [ ] Budgets
-- [ ] Dashboard improvements
+- [ ] Hide Upgrade to Pro
+- [ ] Hide Manage Subscription
+- [ ] Protect Account page
+- [ ] Prevent subscription changes
+- [ ] Limit AI Assistant usage
+- [ ] Limit AI Invoice Scanning
+- [ ] Protect demo data
+- [ ] Seed realistic demo company
+- [ ] Reset demo data automatically
 
 ---
 
-## 💡 Future Features
+# 🤖 Version 1.1 — Embedded AI
 
-- [ ] AI Assistant
+## Dashboard
+
+- [ ] AI Dashboard Insights
+- [ ] Daily business summary
+- [ ] Highlight important changes
+- [ ] Suggest actions
+
+## Reports
+
+- [ ] Explain Trial Balance
+- [ ] Explain General Ledger
+- [ ] Explain Profit & Loss
+- [ ] Explain Balance Sheet
+
+## Business Intelligence
+
+- [ ] Weekly Business Insights
+- [ ] AI trend analysis
+- [ ] AI transaction suggestions
+- [ ] Cashflow observations
+
+---
+
+# 📈 Version 1.2
+
 - [ ] Recurring invoices
 - [ ] Recurring bills
-- [ ] Email invoices
 - [ ] Payment reminders
-- [ ] Custom branding
+- [ ] Email invoices
+- [ ] Year-end settings
+- [ ] Custom branding improvements
+
+---
+
+# 🌱 Future
+
+## Growth
+
 - [ ] Multi-user support
 - [ ] Bank feed integration
 - [ ] Android app
 
+## Industry Templates
+
+- [ ] Sole Trader
+- [ ] Landlord
+- [ ] Electrician
+- [ ] Courier
+- [ ] Mechanic
+- [ ] Beautician
+
 ---
 
-## 🎨 UI Polish
+# 💡 Product Principles
 
-- [ ] Rebuild Exports page to match the rest of the app
-- [ ] Final icon review
-- [ ] Animation polish
-- [ ] Accessibility review
+Every new feature should satisfy at least one of these:
 
----
+- Make accounting simpler.
+- Save users time.
+- Help users understand their business.
+- Help businesses grow.
 
-## 📝 Ideas
-
-- Sole Trader mode
-- Landlord mode
-- Courier mode
-- Electrician mode
-- Mechanic mode
-- Beautician mode
-- Industry-specific dashboards
+If a feature does none of these, it probably doesn't belong in Simple Books.
