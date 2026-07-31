@@ -49,6 +49,7 @@
 - [x] Responsive navigation
 - [x] Guides / Help Centre
 - [x] Admin Dashboard – Phase 1 shell
+- [x] Admin Dashboard – Phase 2A protected user, plan and usage metrics
 
 ---
 
@@ -121,7 +122,7 @@
 
 ## Growth
 
-- [ ] Admin Dashboard – Phase 2 metrics and SaaS monitoring
+- [ ] Admin Dashboard – Phase 2B aggregates and SaaS monitoring
 - [ ] Multi-user support
 - [ ] Bank feed integration
 - [ ] Android app

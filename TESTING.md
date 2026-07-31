@@ -400,3 +400,48 @@ Run the complete suite and whitespace validation before finishing:
 npm.cmd test
 git diff --check
 ```
+
+# Admin Dashboard Phase 2A
+
+The callable `getAdminMetrics` requires two backend-only Secret Manager values:
+
+```powershell
+firebase functions:secrets:set SIMPLE_BOOKS_ADMIN_UIDS
+firebase functions:secrets:set SIMPLE_BOOKS_DEMO_IDENTIFIERS
+```
+
+Enter one or more comma-separated Firebase Authentication UIDs for
+`SIMPLE_BOOKS_ADMIN_UIDS`. For `SIMPLE_BOOKS_DEMO_IDENTIFIERS`, prefer
+`uid:DEMO_FIREBASE_UID`; `email:demo@simple-books.co.uk` is supported as a
+temporary fallback. Multiple demo identifiers may be comma-separated. Never
+commit production values.
+
+For local Functions emulator testing, create an ignored `functions/.secret.local`
+file containing development-only values:
+
+```dotenv
+SIMPLE_BOOKS_ADMIN_UIDS=DEVELOPMENT_ADMIN_FIREBASE_UID
+SIMPLE_BOOKS_DEMO_IDENTIFIERS=uid:DEVELOPMENT_DEMO_FIREBASE_UID
+```
+
+Start Authentication, Firestore, Functions and the main Hosting emulator with:
+
+```powershell
+firebase emulators:start --only auth,firestore,functions,hosting:main
+```
+
+In the browser console on `http://127.0.0.1:5000`, opt this tab into the local
+emulators, then reload:
+
+```js
+sessionStorage.setItem("simpleBooksUseFirebaseEmulators", "true");
+location.reload();
+```
+
+This switch works only on `localhost` or `127.0.0.1` and lasts only for the
+current browser tab. Remove it with
+`sessionStorage.removeItem("simpleBooksUseFirebaseEmulators")`.
+
+Disabled Firebase Authentication accounts are included in Total Users because
+they remain registered accounts. Configured demo accounts are excluded from all
+Phase 2A metrics and recent sign-ups.

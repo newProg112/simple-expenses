@@ -21,24 +21,28 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .page-header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin:0 0 24px}
     .page-header h1{margin:0 0 8px;font-size:32px;line-height:1.1}.page-header p{max-width:720px;margin:0;color:var(--muted);line-height:1.5}
+    .header-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
     .owner-badge{display:inline-flex;align-items:center;min-height:32px;padding:6px 12px;border:1px solid #bae6fd;border-radius:999px;background:#e0f2fe;color:#075985;font-size:13px;font-weight:850;white-space:nowrap}
+    .refresh-button{min-height:38px;padding:8px 14px;border:1px solid #b8d3e3;border-radius:10px;background:#fff;color:#075985;font:750 13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}.refresh-button:hover:not(:disabled){background:#f0f9ff;border-color:#7dd3fc}.refresh-button:disabled{cursor:wait;opacity:.65}
     .kpi-grid,.status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
     .card,.panel{min-width:0;background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 14px 34px rgba(15,23,42,.07)}
     .kpi-card{position:relative;overflow:hidden;padding:20px}.kpi-card::before{content:"";position:absolute;inset:0 0 auto;height:4px;background:var(--card-accent,#0077b6)}
     .kpi-card:nth-child(2){--card-accent:#16a34a}.kpi-card:nth-child(3){--card-accent:#7c3aed}.kpi-card:nth-child(4){--card-accent:#f97316}
     .kpi-label{margin:0;color:var(--muted);font-size:13px;font-weight:750}.kpi-value{margin:11px 0 5px;font-size:30px;font-weight:850;line-height:1}.phase-note{margin:0;color:#64748b;font-size:12px}
+    .secondary-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}.secondary-card{padding:18px}.secondary-card .kpi-value{font-size:25px}
+    .metrics-message{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding:18px 20px}.metrics-message h2{margin:0 0 4px;font-size:17px}.metrics-message p{margin:0;color:var(--muted);line-height:1.45}.metrics-message .spinner{flex:0 0 auto}.metrics-failure{align-items:flex-start;border-color:#fecaca;background:#fffafa}.metrics-failure .state-icon{width:38px;height:38px;flex:0 0 auto;margin:0;font-size:18px}.metrics-updated{min-height:20px;margin:12px 0 0;color:#64748b;font-size:12px;text-align:right}
     .section-heading{margin:34px 0 12px;font-size:20px}.panel{padding:20px}
-    .signup-table{width:100%;border-collapse:collapse;table-layout:fixed}.signup-table th{padding:0 12px 12px;text-align:left;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.05em}.signup-table td{padding:22px 12px;border-top:1px solid #eef2f7;color:var(--muted);font-size:14px;line-height:1.5}.signup-table td[colspan]{text-align:center}
+    .signup-table{width:100%;border-collapse:collapse;table-layout:fixed}.signup-table th{padding:0 10px 12px;text-align:left;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}.signup-table td{padding:18px 10px;border-top:1px solid #eef2f7;color:var(--muted);font-size:13px;line-height:1.5;overflow-wrap:anywhere}.signup-table td:first-child{color:var(--text);font-weight:700}.signup-table td[colspan]{text-align:center}.subscription-status-cell{font-weight:700}
     .status-card{padding:18px}.status-top{display:flex;align-items:center;gap:10px}.status-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8}.status-card h3{margin:0;font-size:16px}.status-card p{margin:10px 0 0;color:var(--muted);font-size:13px}
     .useful-links{display:flex;flex-wrap:wrap;gap:10px}.useful-links a{display:inline-flex;align-items:center;min-height:42px;padding:9px 14px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#075985;font-weight:750;text-decoration:none}.useful-links a:hover{border-color:#7dd3fc;background:#f0f9ff}
-    a:focus-visible{outline:3px solid rgba(0,119,182,.3);outline-offset:3px}
-    @media(max-width:1000px){.kpi-grid,.status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media(max-width:640px){.wrap{padding:28px 16px 44px}.page-header{flex-direction:column}.page-header h1{font-size:28px}.kpi-grid,.status-grid{grid-template-columns:1fr}.panel{padding:16px}.signup-table,.signup-table tbody,.signup-table tr,.signup-table td{display:block;width:100%}.signup-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%)}.signup-table td{padding:16px;border-top:0;text-align:left}.signup-table td[colspan]{text-align:left}}
+    a:focus-visible,.refresh-button:focus-visible{outline:3px solid rgba(0,119,182,.3);outline-offset:3px}
+    @media(max-width:1000px){.kpi-grid,.status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.secondary-metrics{grid-template-columns:1fr}}
+    @media(max-width:640px){.wrap{padding:28px 16px 44px}.page-header{flex-direction:column}.page-header h1{font-size:28px}.header-actions{justify-content:flex-start}.kpi-grid,.status-grid{grid-template-columns:1fr}.panel{padding:16px}.metrics-message{align-items:flex-start}.signup-table,.signup-table tbody,.signup-table tr,.signup-table td{display:block;width:100%}.signup-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%)}.signup-table tr{padding:12px 0;border-top:1px solid #e2e8f0}.signup-table tr:first-child{border-top:0}.signup-table td{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(0,1.2fr);gap:12px;padding:6px 0;border-top:0;text-align:left}.signup-table td::before{content:attr(data-label);color:#64748b;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.signup-table td[colspan]{display:block;text-align:left}.signup-table td[colspan]::before{display:none}.metrics-updated{text-align:left}}
     @media(prefers-reduced-motion:reduce){.spinner{animation:none}}
   </style>
-  <link rel="stylesheet" href="/assets/app-shell.css?v=20260731-admin1">
-  <script type="module" src="/assets/app-shell.js?v=20260731-admin1"></script>
-  <script type="module" src="/assets/admin-dashboard.js?v=20260731-admin1"></script>
+  <link rel="stylesheet" href="/assets/app-shell.css?v=20260801-admin2a">
+  <script type="module" src="/assets/app-shell.js?v=20260801-admin2a"></script>
+  <script type="module" src="/assets/admin-dashboard.js?v=20260801-admin2a"></script>
 </head>
 <body>
   <div data-app-navigation data-auth-controlled hidden></div>
@@ -82,35 +86,56 @@
           <h1>Admin Dashboard</h1>
           <p>A private overview of Simple Books users, plans, usage and system health.</p>
         </div>
-        <span class="owner-badge">Owner Access</span>
+        <div class="header-actions">
+          <span class="owner-badge">Owner Access</span>
+          <button class="refresh-button" id="refreshMetricsButton" type="button">Refresh</button>
+        </div>
       </header>
 
-      <section aria-label="Admin metrics">
-        <div class="kpi-grid">
-          <article class="card kpi-card"><p class="kpi-label">Total Users</p><p class="kpi-value">&mdash;</p><p class="phase-note">Metrics coming in Phase 2</p></article>
-          <article class="card kpi-card"><p class="kpi-label">Starter Users</p><p class="kpi-value">&mdash;</p><p class="phase-note">Metrics coming in Phase 2</p></article>
-          <article class="card kpi-card"><p class="kpi-label">Pro Users</p><p class="kpi-value">&mdash;</p><p class="phase-note">Metrics coming in Phase 2</p></article>
-          <article class="card kpi-card"><p class="kpi-label">Estimated MRR</p><p class="kpi-value">&mdash;</p><p class="phase-note">Metrics coming in Phase 2</p></article>
-        </div>
+      <section class="card metrics-message" id="metricsLoading" role="status" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <div><h2>Loading metrics</h2><p>Securely gathering user, plan and current-month usage totals.</p></div>
       </section>
 
-      <section aria-labelledby="recentSignupsTitle">
-        <h2 class="section-heading" id="recentSignupsTitle">Recent signups</h2>
-        <div class="panel">
-          <table class="signup-table">
-            <thead><tr><th>User</th><th>Plan</th><th>Joined</th><th>AI Usage</th><th>Scan Usage</th></tr></thead>
-            <tbody><tr><td colspan="5">Recent sign-up data will appear here after the admin metrics service is connected.</td></tr></tbody>
-          </table>
-        </div>
+      <section class="card metrics-message metrics-failure" id="metricsFailure" role="alert" hidden>
+        <div class="state-icon" aria-hidden="true">!</div>
+        <div><h2 id="metricsFailureTitle">Metrics could not be loaded</h2><p id="metricsFailureMessage"></p></div>
       </section>
+
+      <div id="metricsData" hidden>
+        <section aria-label="Admin metrics">
+          <div class="kpi-grid">
+            <article class="card kpi-card"><p class="kpi-label">Total Users</p><p class="kpi-value" id="totalUsersValue">&mdash;</p><p class="phase-note">Registered non-demo accounts</p></article>
+            <article class="card kpi-card"><p class="kpi-label">Starter Users</p><p class="kpi-value" id="starterUsersValue">&mdash;</p><p class="phase-note">Missing or unknown plans included</p></article>
+            <article class="card kpi-card"><p class="kpi-label">Pro Users</p><p class="kpi-value" id="proUsersValue">&mdash;</p><p class="phase-note">Plan count, not payment status</p></article>
+            <article class="card kpi-card"><p class="kpi-label">Estimated MRR</p><p class="kpi-value" id="estimatedMrrValue">&mdash;</p><p class="phase-note">Estimate based on qualifying £15 plans</p></article>
+          </div>
+          <div class="secondary-metrics">
+            <article class="card secondary-card"><p class="kpi-label">Active paid subscriptions</p><p class="kpi-value" id="activePaidValue">&mdash;</p><p class="phase-note">Active qualifying Stripe profiles</p></article>
+            <article class="card secondary-card"><p class="kpi-label">AI Assistant uses this month</p><p class="kpi-value" id="aiUsageValue">&mdash;</p><p class="phase-note">Successful uses in the current UTC month</p></article>
+            <article class="card secondary-card"><p class="kpi-label">Invoice scans this month</p><p class="kpi-value" id="scanUsageValue">&mdash;</p><p class="phase-note">Successful scans in the current UTC month</p></article>
+          </div>
+          <p class="metrics-updated" id="metricsUpdatedAt" aria-live="polite"></p>
+        </section>
+
+        <section aria-labelledby="recentSignupsTitle">
+          <h2 class="section-heading" id="recentSignupsTitle">Recent signups</h2>
+          <div class="panel">
+            <table class="signup-table">
+              <thead><tr><th>User</th><th>Plan</th><th>Joined</th><th>Subscription status</th><th>AI usage</th><th>Scan usage</th></tr></thead>
+              <tbody id="recentSignupsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
 
       <section aria-labelledby="systemStatusTitle">
         <h2 class="section-heading" id="systemStatusTitle">System status</h2>
         <div class="status-grid">
-          <article class="card status-card"><div class="status-top"><span class="status-dot" aria-hidden="true"></span><h3>Firebase</h3></div><p>Not connected in Phase 1</p></article>
-          <article class="card status-card"><div class="status-top"><span class="status-dot" aria-hidden="true"></span><h3>Stripe</h3></div><p>Not connected in Phase 1</p></article>
-          <article class="card status-card"><div class="status-top"><span class="status-dot" aria-hidden="true"></span><h3>OpenAI</h3></div><p>Not connected in Phase 1</p></article>
-          <article class="card status-card"><div class="status-top"><span class="status-dot" aria-hidden="true"></span><h3>Sentry</h3></div><p>Not connected in Phase 1</p></article>
+          <article class="card status-card"><div class="status-top"><span class="status-dot" aria-hidden="true"></span><h3>Firebase</h3></div><p>Live health monitoring is not connected in Phase 2A</p></article>
+          <article class="card status-card"><div class="status-top"><span class="status-dot" aria-hidden="true"></span><h3>Stripe</h3></div><p>Live health monitoring is not connected in Phase 2A</p></article>
+          <article class="card status-card"><div class="status-top"><span class="status-dot" aria-hidden="true"></span><h3>OpenAI</h3></div><p>Live health monitoring is not connected in Phase 2A</p></article>
+          <article class="card status-card"><div class="status-top"><span class="status-dot" aria-hidden="true"></span><h3>Sentry</h3></div><p>Live health monitoring is not connected in Phase 2A</p></article>
         </div>
       </section>
 

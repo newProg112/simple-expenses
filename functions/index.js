@@ -8,7 +8,7 @@
  */
 
 const {setGlobalOptions} = require("firebase-functions/v2");
-const {onRequest} = require("firebase-functions/v2/https");
+const {onCall, onRequest} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const functionsV1 = require("firebase-functions/v1");
 const admin = require("firebase-admin");
@@ -18,6 +18,7 @@ const {
   stripeSubscriptionStatus,
 } = require("./lib/stripe-subscription-status");
 const {readMonthlyUsage} = require("./lib/monthly-usage-reader");
+const {createAdminMetricsHandler} = require("./lib/admin-metrics-handler");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -34,6 +35,8 @@ admin.initializeApp();
 
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
+const adminUidsSecret = defineSecret("SIMPLE_BOOKS_ADMIN_UIDS");
+const demoIdentifiersSecret = defineSecret("SIMPLE_BOOKS_DEMO_IDENTIFIERS");
 const simpleBooksProPriceId = "price_1TnLTCJmLqrFk5SqusEJiIhu";
 const successUrl = "https://simple-books.co.uk/account.html?checkout=success";
 const cancelUrl = "https://simple-books.co.uk/account.html?checkout=cancelled";
@@ -727,4 +730,22 @@ exports.getMonthlyUsage = onRequest(
         });
       }
     },
+);
+
+exports.getAdminMetrics = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 60,
+      memory: "256MiB",
+      secrets: [adminUidsSecret, demoIdentifiersSecret],
+    },
+    (request) => createAdminMetricsHandler({
+      auth: admin.auth(),
+      firestore: admin.firestore(),
+      adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
+      proPriceId: simpleBooksProPriceId,
+      logger: console,
+    })(request),
 );
