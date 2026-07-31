@@ -30,10 +30,11 @@ describe("Admin Dashboard Phase 1", () => {
     expect(hostingSmokeTest).toContain('expectPage("/admin", "<h1>Admin Dashboard</h1>")');
   });
 
-  it("fails closed until the owner UID is configured", () => {
-    expect(ADMIN_UIDS).toEqual(["REPLACE_WITH_OWNER_FIREBASE_UID"]);
-    expect(isConfiguredAdminUid(ADMIN_UIDS[0])).toBe(false);
-    expect(isAdminUid("REPLACE_WITH_OWNER_FIREBASE_UID")).toBe(false);
+  it("contains a configured owner UID and rejects an unrelated UID", () => {
+    expect(ADMIN_UIDS.length).toBeGreaterThan(0);
+    expect(isConfiguredAdminUid(ADMIN_UIDS[0])).toBe(true);
+    expect(isAdminUid(ADMIN_UIDS[0])).toBe(true);
+    expect(isAdminUid("random-non-admin-uid")).toBe(false);
   });
 
   it("distinguishes signed-out, non-admin, and admin users", () => {
