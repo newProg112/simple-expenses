@@ -1,3 +1,5 @@
+import { isAdminUid } from "./admin-access.js";
+
 export const NAVIGATION_GROUPS = Object.freeze([
   Object.freeze({
     label: "",
@@ -51,6 +53,12 @@ export const NAVIGATION_GROUPS = Object.freeze([
   })
 ]);
 
+export const ADMIN_NAVIGATION_ITEM = Object.freeze({
+  key: "admin",
+  label: "Admin",
+  href: "/admin"
+});
+
 export const SIDEBAR_STATE_STORAGE_KEY = "simple-books:app-shell:sidebar-state:v1";
 export const SIDEBAR_SCROLL_STORAGE_KEY = "simple-books:app-shell:sidebar-scroll:v1";
 
@@ -69,11 +77,13 @@ export const NAVIGATION_ICONS = Object.freeze({
   "balance-sheet": '<path d="M5 3h14v18H5zM9 3v18M12 8h4M12 12h4M12 16h4"/>',
   "ai-assistant": '<path d="m12 3 1.3 4.2L17 9l-3.7 1.8L12 15l-1.3-4.2L7 9l3.7-1.8L12 3ZM18.5 14l.7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3ZM5 3l.7 2.3L8 6l-2.3.7L5 9l-.7-2.3L2 6l2.3-.7L5 3Z"/>',
   exports: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
-  account: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+  account: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  admin: '<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8 7.5 9.5 4.3-1.5 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="M9.5 12 11 13.5l3.5-4"/>'
 });
 
 const ROUTE_ALIASES = Object.freeze({
-  "/resources/tools/project-details.html": "projects"
+  "/resources/tools/project-details.html": "projects",
+  "/admin.html": "admin"
 });
 
 export function normaliseSidebarState(value){
@@ -156,6 +166,10 @@ export function activeNavigationKey(pathname){
     }
   }
 
+  if(normalizedPath === normalizePathname(ADMIN_NAVIGATION_ITEM.href)){
+    return ADMIN_NAVIGATION_ITEM.key;
+  }
+
   return "";
 }
 
@@ -219,36 +233,81 @@ function createNavigationLink(item, activeKey){
   return link;
 }
 
+function buildNavigationSection(group, activeKey){
+  const section = document.createElement("section");
+  section.className = "sb-shell-group";
+
+  if(group.label){
+    const heading = document.createElement("h2");
+    heading.className = "sb-shell-group-title";
+    heading.textContent = group.label;
+    section.append(heading);
+  }else{
+    section.classList.add("sb-shell-group-ungrouped");
+  }
+
+  const links = document.createElement("div");
+  links.className = "sb-shell-links";
+
+  for(const item of group.items){
+    links.append(createNavigationLink(item, activeKey));
+  }
+
+  section.append(links);
+  return section;
+}
+
 function buildNavigation(activeKey){
   const navigation = document.createElement("nav");
   navigation.className = "sb-shell-navigation";
   navigation.setAttribute("aria-label", "Main navigation");
 
   for(const group of NAVIGATION_GROUPS){
-    const section = document.createElement("section");
-    section.className = "sb-shell-group";
-
-    if(group.label){
-      const heading = document.createElement("h2");
-      heading.className = "sb-shell-group-title";
-      heading.textContent = group.label;
-      section.append(heading);
-    }else{
-      section.classList.add("sb-shell-group-ungrouped");
-    }
-
-    const links = document.createElement("div");
-    links.className = "sb-shell-links";
-
-    for(const item of group.items){
-      links.append(createNavigationLink(item, activeKey));
-    }
-
-    section.append(links);
-    navigation.append(section);
+    navigation.append(buildNavigationSection(group, activeKey));
   }
 
   return navigation;
+}
+
+export function shouldShowAdminNavigation(user, allowedUids){
+  return Boolean(user && isAdminUid(user.uid, allowedUids));
+}
+
+function setAdminNavigationAccess(navigation, activeKey, user){
+  const existingSection = navigation.querySelector("[data-admin-navigation]");
+
+  if(!shouldShowAdminNavigation(user)){
+    existingSection?.remove();
+    return;
+  }
+
+  if(existingSection){
+    return;
+  }
+
+  const section = buildNavigationSection({
+    label: "",
+    items: [ADMIN_NAVIGATION_ITEM]
+  }, activeKey);
+  section.dataset.adminNavigation = "true";
+  navigation.append(section);
+}
+
+async function watchAdminNavigationAccess(navigation, activeKey){
+  try{
+    const [{ auth }, { onAuthStateChanged }] = await Promise.all([
+      import("/firebase-config.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js")
+    ]);
+
+    onAuthStateChanged(
+      auth,
+      user => setAdminNavigationAccess(navigation, activeKey, user),
+      () => setAdminNavigationAccess(navigation, activeKey, null)
+    );
+  }catch(_error){
+    setAdminNavigationAccess(navigation, activeKey, null);
+  }
 }
 
 function renderShell(mount){
@@ -306,6 +365,7 @@ function renderShell(mount){
   collapseButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m14 7-5 5 5 5"/></svg>';
 
   const navigation = buildNavigation(activeKey);
+  watchAdminNavigationAccess(navigation, activeKey);
   sidebarHeader.append(brand, collapseButton, closeButton);
   sidebar.append(sidebarHeader, navigation);
   mount.replaceChildren(mobileHeader, backdrop, sidebar);

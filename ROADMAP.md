@@ -48,6 +48,7 @@
 - [x] Production monitoring
 - [x] Responsive navigation
 - [x] Guides / Help Centre
+- [x] Admin Dashboard – Phase 1 shell
 
 ---
 
@@ -120,6 +121,7 @@
 
 ## Growth
 
+- [ ] Admin Dashboard – Phase 2 metrics and SaaS monitoring
 - [ ] Multi-user support
 - [ ] Bank feed integration
 - [ ] Android app

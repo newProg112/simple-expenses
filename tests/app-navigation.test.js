@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  ADMIN_NAVIGATION_ITEM,
   NAVIGATION_GROUPS,
   NAVIGATION_ICONS,
   SIDEBAR_SCROLL_STORAGE_KEY,
@@ -12,6 +13,7 @@ import {
   normalizePathname,
   parseStoredScrollPosition,
   shouldSaveSidebarScroll,
+  shouldShowAdminNavigation,
   sidebarStateFromStorage
 } from "../assets/app-shell.js";
 
@@ -34,6 +36,7 @@ const expectedRoutes = [
   "/account.html"
 ];
 const shellPages = [
+  "admin.html",
   "dashboard.html",
   "account.html",
   "exports.html",
@@ -88,6 +91,22 @@ describe("application navigation", () => {
     expect(activeNavigationKey("/unknown.html")).toBe("");
   });
 
+  it("supports the clean admin route without changing normal navigation", () => {
+    expect(ADMIN_NAVIGATION_ITEM).toEqual({
+      key: "admin",
+      label: "Admin",
+      href: "/admin"
+    });
+    expect(activeNavigationKey("/admin")).toBe("admin");
+    expect(activeNavigationKey("/admin.html")).toBe("admin");
+    expect(shouldShowAdminNavigation({ uid: "normal-user-uid-123456789" }, [
+      "owner-user-uid-1234567890"
+    ])).toBe(false);
+    expect(shouldShowAdminNavigation({ uid: "owner-user-uid-1234567890" }, [
+      "owner-user-uid-1234567890"
+    ])).toBe(true);
+  });
+
   it.each(shellPages)("$file consumes only the shared application shell", file => {
     const html = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 
@@ -101,9 +120,12 @@ describe("application navigation", () => {
   });
 
   it("provides a dependency-free icon for every collapsed navigation item", () => {
-    expect(Object.keys(NAVIGATION_ICONS).sort()).toEqual(items.map(item => item.key).sort());
+    expect(Object.keys(NAVIGATION_ICONS).sort()).toEqual([
+      ...items.map(item => item.key),
+      ADMIN_NAVIGATION_ITEM.key
+    ].sort());
 
-    for(const item of items){
+    for(const item of [...items, ADMIN_NAVIGATION_ITEM]){
       expect(NAVIGATION_ICONS[item.key]).toBeTruthy();
       expect(NAVIGATION_ICONS[item.key]).not.toMatch(/\p{Extended_Pictographic}/u);
     }
