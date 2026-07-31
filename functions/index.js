@@ -19,6 +19,9 @@ const {
 } = require("./lib/stripe-subscription-status");
 const {readMonthlyUsage} = require("./lib/monthly-usage-reader");
 const {createAdminMetricsHandler} = require("./lib/admin-metrics-handler");
+const {
+  createAdminUserDetailsHandler,
+} = require("./lib/admin-user-details-handler");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -746,6 +749,22 @@ exports.getAdminMetrics = onCall(
       adminUidConfiguration: adminUidsSecret.value(),
       demoConfiguration: demoIdentifiersSecret.value(),
       proPriceId: simpleBooksProPriceId,
+      logger: console,
+    })(request),
+);
+
+exports.getAdminUserDetails = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 30,
+      memory: "256MiB",
+      secrets: [adminUidsSecret],
+    },
+    (request) => createAdminUserDetailsHandler({
+      auth: admin.auth(),
+      firestore: admin.firestore(),
+      adminUidConfiguration: adminUidsSecret.value(),
       logger: console,
     })(request),
 );

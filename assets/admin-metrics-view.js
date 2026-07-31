@@ -35,6 +35,37 @@ export function formatSubscriptionStatus(value){
     .join(" ");
 }
 
+export function filterSignupsByEmail(signups, query){
+  if(!Array.isArray(signups)) return [];
+  const term = typeof query === "string" ? query.trim().toLowerCase() : "";
+  if(!term) return signups.slice();
+  return signups.filter(signup =>
+    String(signup?.email || "").toLowerCase().includes(term)
+  );
+}
+
+export function adminUserDetailsErrorState(error){
+  const code = String(error?.code || "").replace(/^functions\//, "");
+  if(code === "unauthenticated"){
+    return Object.freeze({ kind: "unauthenticated" });
+  }
+  if(code === "permission-denied"){
+    return Object.freeze({ kind: "permission-denied" });
+  }
+  if(code === "not-found"){
+    return Object.freeze({
+      kind: "not-found",
+      title: "No customer found",
+      message: "No customer account matches this email."
+    });
+  }
+  return Object.freeze({
+    kind: "general",
+    title: "Customer details unavailable",
+    message: "The secure customer lookup service is unavailable. Try again in a moment."
+  });
+}
+
 export function adminMetricsErrorState(error){
   const code = String(error?.code || "").replace(/^functions\//, "");
   if(code === "unauthenticated"){

@@ -445,3 +445,34 @@ current browser tab. Remove it with
 Disabled Firebase Authentication accounts are included in Total Users because
 they remain registered accounts. Configured demo accounts are excluded from all
 Phase 2A metrics and recent sign-ups.
+
+# Admin Dashboard Phase 3A
+
+The callable `getAdminUserDetails` reuses the backend-only
+`SIMPLE_BOOKS_ADMIN_UIDS` secret. It authorises the caller from Firebase
+Authentication before accepting an email and never uses browser-supplied admin
+flags.
+
+Automated coverage verifies unauthenticated and non-admin rejection, unknown
+emails, missing profiles, the successful response projection, local
+case-insensitive filtering, and the customer panel's loading and error states:
+
+```powershell
+npm.cmd test -- tests/admin-user-details.test.js tests/admin-dashboard.test.js
+```
+
+Manual emulator check:
+
+1. Open `/admin` as a configured admin and wait for recent sign-ups to load.
+2. Type part of an email, including with different letter casing, and confirm
+   the table filters immediately without a Functions request in the Network
+   panel.
+3. Select a row and confirm the read-only Customer Summary shows a loading
+   state followed by only the approved account and current-month usage fields.
+4. Confirm Escape, the close button, and the backdrop close the panel and that
+   the mobile panel fits the viewport.
+5. Repeat with an unknown email through the callable emulator, a non-admin
+   account, no signed-in account, and the Functions emulator stopped to verify
+   the no-customer, permission-denied, signed-out, and unavailable states.
+6. Confirm there are no edit, delete, impersonation, password-reset, plan, or
+   account-change controls and no Firestore rules were changed.

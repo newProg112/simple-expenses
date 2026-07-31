@@ -2,6 +2,8 @@ import { auth, functions } from "/firebase-config.js";
 import { adminAccessDecision } from "./admin-access.js";
 import {
   adminMetricsErrorState,
+  adminUserDetailsErrorState,
+  filterSignupsByEmail,
   formatAdminDate,
   formatEstimatedMrr,
   formatSubscriptionStatus,
@@ -27,10 +29,23 @@ const metricsFailure = document.getElementById("metricsFailure");
 const metricsFailureTitle = document.getElementById("metricsFailureTitle");
 const metricsFailureMessage = document.getElementById("metricsFailureMessage");
 const recentSignupsBody = document.getElementById("recentSignupsBody");
+const customerSearch = document.getElementById("customerSearch");
+const customerSearchStatus = document.getElementById("customerSearchStatus");
+const customerPanelBackdrop = document.getElementById("customerPanelBackdrop");
+const customerPanel = document.getElementById("customerPanel");
+const customerPanelClose = document.getElementById("customerPanelClose");
+const customerPanelLoading = document.getElementById("customerPanelLoading");
+const customerPanelFailure = document.getElementById("customerPanelFailure");
+const customerPanelFailureTitle = document.getElementById("customerPanelFailureTitle");
+const customerPanelFailureMessage = document.getElementById("customerPanelFailureMessage");
+const customerPanelData = document.getElementById("customerPanelData");
 const refreshMetricsButton = document.getElementById("refreshMetricsButton");
 const metricsUpdatedAt = document.getElementById("metricsUpdatedAt");
 const callGetAdminMetrics = httpsCallable(functions, "getAdminMetrics");
+const callGetAdminUserDetails = httpsCallable(functions, "getAdminUserDetails");
 let metricsRequest = null;
+let customerDetailsRequest = 0;
+let recentSignupRecords = [];
 let authGeneration = 0;
 let resolvedAuthUid = "";
 let currentAdminUser = null;
@@ -57,6 +72,8 @@ function clearRenderedMetrics(){
     document.getElementById(id).textContent = "—";
   }
   recentSignupsBody.replaceChildren();
+  recentSignupRecords = [];
+  customerSearchStatus.textContent = "";
   metricsUpdatedAt.textContent = "";
   metricsData.hidden = true;
 }
@@ -82,7 +99,9 @@ function renderRecentSignups(signups){
     const row = document.createElement("tr");
     const cell = createTableCell(
       "Recent signups",
-      "No non-demo users are available yet."
+      recentSignupRecords.length === 0
+        ? "No non-demo users are available yet."
+        : "No recent signups match that email."
     );
     cell.colSpan = 6;
     row.append(cell);
@@ -92,6 +111,18 @@ function renderRecentSignups(signups){
 
   for(const signup of signups.slice(0, 10)){
     const row = document.createElement("tr");
+    row.className = "customer-row";
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-label", `View customer summary for ${String(signup?.email || "this customer")}`);
+    const openRow = () => openCustomerSummary(String(signup?.email || ""));
+    row.addEventListener("click", openRow);
+    row.addEventListener("keydown", event => {
+      if(event.key === "Enter" || event.key === " "){
+        event.preventDefault();
+        openRow();
+      }
+    });
     const statusCell = createTableCell(
       "Subscription status",
       formatSubscriptionStatus(signup?.subscriptionStatus)
@@ -125,13 +156,93 @@ function renderAdminMetrics(payload){
     String(safeMetricCount(metrics.aiAssistantSuccessfulUses));
   document.getElementById("scanUsageValue").textContent =
     String(safeMetricCount(metrics.invoiceScanningSuccessfulUses));
-  renderRecentSignups(payload?.recentSignups);
+  recentSignupRecords = Array.isArray(payload?.recentSignups)
+    ? payload.recentSignups.slice(0, 10)
+    : [];
+  renderFilteredRecentSignups();
   metricsUpdatedAt.textContent = payload?.generatedAt
     ? `Updated ${formatAdminDate(payload.generatedAt)} · Usage month ${String(payload.monthKey || "")}`
     : "Metrics loaded";
   metricsLoading.hidden = true;
   metricsFailure.hidden = true;
   metricsData.hidden = false;
+}
+
+function renderFilteredRecentSignups(){
+  const filtered = filterSignupsByEmail(
+    recentSignupRecords,
+    customerSearch.value
+  );
+  renderRecentSignups(filtered);
+  customerSearchStatus.textContent = recentSignupRecords.length === 0
+    ? ""
+    : `${filtered.length} of ${recentSignupRecords.length} recent signups shown`;
+}
+
+function setCustomerPanelState(state){
+  customerPanelLoading.hidden = state !== "loading";
+  customerPanelFailure.hidden = state !== "failure";
+  customerPanelData.hidden = state !== "data";
+}
+
+function closeCustomerPanel(){
+  customerDetailsRequest += 1;
+  customerPanel.hidden = true;
+  customerPanelBackdrop.hidden = true;
+  document.body.classList.remove("customer-panel-open");
+}
+
+function renderCustomerDetails(details){
+  document.getElementById("customerEmailValue").textContent = String(details?.email || "Not available");
+  document.getElementById("customerPlanValue").textContent = details?.plan === "Pro" ? "Pro" : "Starter";
+  document.getElementById("customerSubscriptionValue").textContent = formatSubscriptionStatus(details?.subscriptionStatus);
+  document.getElementById("customerCreatedValue").textContent = formatAdminDate(details?.createdDate);
+  document.getElementById("customerLastSignInValue").textContent = formatAdminDate(details?.lastSignInTime);
+  document.getElementById("customerAiUsageValue").textContent = String(safeMetricCount(details?.aiAssistantSuccessfulUses));
+  document.getElementById("customerScanUsageValue").textContent = String(safeMetricCount(details?.invoiceScanningSuccessfulUses));
+  document.getElementById("customerPeriodEndValue").textContent = formatAdminDate(details?.currentPeriodEnd);
+  document.getElementById("customerStripeValue").textContent = details?.stripeCustomerPresent === true ? "Yes" : "No";
+  setCustomerPanelState("data");
+}
+
+function showCustomerPanelFailure(error){
+  const state = adminUserDetailsErrorState(error);
+  if(state.kind === "unauthenticated"){
+    closeCustomerPanel();
+    showState("signedOutState");
+    window.location.replace("/login.html");
+    return;
+  }
+  if(state.kind === "permission-denied"){
+    closeCustomerPanel();
+    showState("deniedState");
+    return;
+  }
+  customerPanelFailureTitle.textContent = state.title;
+  customerPanelFailureMessage.textContent = state.message;
+  setCustomerPanelState("failure");
+}
+
+function openCustomerSummary(email){
+  if(!currentAdminUser || !email) return;
+  const requestId = ++customerDetailsRequest;
+  customerPanel.hidden = false;
+  customerPanelBackdrop.hidden = false;
+  document.body.classList.add("customer-panel-open");
+  setCustomerPanelState("loading");
+  customerPanel.focus();
+
+  callGetAdminUserDetails({ email })
+    .then(result => {
+      if(requestId === customerDetailsRequest && currentAdminUser){
+        renderCustomerDetails(result.data);
+      }
+    })
+    .catch(error => {
+      if(requestId === customerDetailsRequest){
+        showCustomerPanelFailure(error);
+      }
+    });
 }
 
 function showMetricsFailure(error){
@@ -182,12 +293,19 @@ function loadAdminMetrics(){
 }
 
 refreshMetricsButton.addEventListener("click", () => loadAdminMetrics());
+customerSearch.addEventListener("input", renderFilteredRecentSignups);
+customerPanelClose.addEventListener("click", closeCustomerPanel);
+customerPanelBackdrop.addEventListener("click", closeCustomerPanel);
+document.addEventListener("keydown", event => {
+  if(event.key === "Escape" && !customerPanel.hidden) closeCustomerPanel();
+});
 
 onAuthStateChanged(
   auth,
   user => {
     const nextAuthUid = user?.uid || "";
     if(nextAuthUid !== resolvedAuthUid){
+      closeCustomerPanel();
       authGeneration += 1;
       resolvedAuthUid = nextAuthUid;
     }

@@ -8,6 +8,8 @@ import {
 } from "../assets/admin-access.js";
 import {
   adminMetricsErrorState,
+  adminUserDetailsErrorState,
+  filterSignupsByEmail,
   formatAdminDate,
   formatEstimatedMrr,
   formatSubscriptionStatus,
@@ -165,6 +167,39 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(adminMetricsErrorState({ code: "functions/failed-precondition" }).kind)
       .toBe("configuration");
     expect(adminMetricsErrorState({ code: "functions/internal" }).kind)
+      .toBe("general");
+  });
+
+  it("filters recent signups locally with partial case-insensitive matches", () => {
+    const signups = [
+      { email: "Alice@example.test" },
+      { email: "bob@example.test" }
+    ];
+    expect(filterSignupsByEmail(signups, "ALI")).toEqual([signups[0]]);
+    expect(filterSignupsByEmail(signups, "example")).toHaveLength(2);
+    expect(filterSignupsByEmail(signups, "missing")).toEqual([]);
+    expect(javascript).toContain('customerSearch.addEventListener("input", renderFilteredRecentSignups)');
+  });
+
+  it("provides a read-only customer summary with loading and error states", () => {
+    expect(html).toContain('placeholder="Search by email..."');
+    expect(html).toContain('id="customerPanelLoading"');
+    expect(html).toContain('id="customerPanelFailure"');
+    expect(html).toContain('id="customerPanelData"');
+    expect(html).toContain("Customer Summary");
+    expect(javascript).toContain('httpsCallable(functions, "getAdminUserDetails")');
+    expect(javascript).toContain('callGetAdminUserDetails({ email })');
+    expect(javascript).not.toMatch(/resetPassword|impersonat|deleteUser|updatePlan/);
+  });
+
+  it("maps customer lookup errors to signed-out, denied, missing, and unavailable states", () => {
+    expect(adminUserDetailsErrorState({ code: "functions/unauthenticated" }))
+      .toEqual({ kind: "unauthenticated" });
+    expect(adminUserDetailsErrorState({ code: "functions/permission-denied" }))
+      .toEqual({ kind: "permission-denied" });
+    expect(adminUserDetailsErrorState({ code: "functions/not-found" }).kind)
+      .toBe("not-found");
+    expect(adminUserDetailsErrorState({ code: "functions/internal" }).kind)
       .toBe("general");
   });
 });
