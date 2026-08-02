@@ -175,8 +175,9 @@ describe("Analytics success trigger integration", () => {
     const createCall = invoices.indexOf("await window.trackInvoiceCreated({");
     expect(createCall).toBeGreaterThan(invoices.indexOf("if(!invoiceSaved)"));
     expect(createCall).toBeGreaterThan(invoices.indexOf("await saveInvoiceToHistory"));
-    expect(invoices).toContain("window.trackInvoiceCreated = trackInvoiceCreated;");
-    expect(invoices).toContain('typeof window.trackInvoiceCreated === "function"');
+    expect(invoices).toContain("window.trackInvoiceCreated = async function(parameters)");
+    expect(invoices).toContain("analyticsEvents.trackInvoiceCreated(parameters)");
+    expect(invoices).toContain('console.log("invoice_created fired")');
     expect(invoices).toContain("Analytics must never interrupt a completed invoice save.");
     const editStart = invoices.indexOf("async function updateExistingInvoice");
     const editEnd = invoices.indexOf("function cancelInvoiceEdit", editStart);
@@ -187,8 +188,9 @@ describe("Analytics success trigger integration", () => {
   it("exports and imports the exact invoice-created tracker name", () => {
     expect(adapter).toMatch(/export const trackInvoiceCreated\s*=/);
     expect(invoices).toContain(
-      'import { trackInvoiceCreated } from "../../assets/analytics-events.js?v=20260802-analytics1";'
+      '"../../assets/analytics-events.js?v=20260802-analytics1"'
     );
+    expect(invoices).toContain('typeof analyticsEvents.trackInvoiceCreated !== "function"');
   });
 
   it.each([

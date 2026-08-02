@@ -2637,8 +2637,6 @@
   <script type="module">
 
   import { app, auth, db } from "../../firebase-config.js";
-  import { trackInvoiceCreated } from "../../assets/analytics-events.js?v=20260802-analytics1";
-  window.trackInvoiceCreated = trackInvoiceCreated;
   import {
     getJournalForSource,
     replaceInvoiceJournal
@@ -3194,6 +3192,19 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+
+window.trackInvoiceCreated = async function(parameters){
+  try{
+    const analyticsEvents = await import(
+      "../../assets/analytics-events.js?v=20260802-analytics1"
+    );
+    if(typeof analyticsEvents.trackInvoiceCreated !== "function") return false;
+    console.log("invoice_created fired");
+    return await analyticsEvents.trackInvoiceCreated(parameters);
+  }catch(_analyticsError){
+    return false;
+  }
+};
 
 let editingInvoiceId = null;
 
@@ -4721,13 +4732,11 @@ async function generateInvoice(saveToHistory = true){
     }
 
     try{
-      if(typeof window.trackInvoiceCreated === "function"){
-        await window.trackInvoiceCreated({
-          plan: await invoiceAnalyticsPlanPromise,
-          hasVat: vat > 0,
-          itemCount: activeItems.length
-        });
-      }
+      await window.trackInvoiceCreated({
+        plan: await invoiceAnalyticsPlanPromise,
+        hasVat: vat > 0,
+        itemCount: activeItems.length
+      });
     }catch(_analyticsError){
       // Analytics must never interrupt a completed invoice save.
     }
