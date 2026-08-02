@@ -2675,7 +2675,6 @@
   window.simpleBooksProjectsLoadError = false;
   let invoiceAuthReadyResolved = false;
   let resolveInvoiceAuthReady;
-  let invoiceAnalyticsPlanPromise = Promise.resolve("Starter");
 
   window.invoiceAuthReady = new Promise(resolve => {
     resolveInvoiceAuthReady = resolve;
@@ -2686,10 +2685,14 @@
     try{
       const profile = await getDoc(doc(db, "userProfiles", user.uid));
       return profile.exists() ? profile.data()?.currentPlan : "Starter";
-    }catch(_error){
+    }catch(error){
+      console.error("Invoice Analytics plan lookup failed", error);
       return "Starter";
     }
   }
+
+  window.invoiceAnalyticsPlan = () =>
+    loadInvoiceAnalyticsPlan(window.currentUser);
 
   if(localStorage.getItem("simpleBooksDarkMode") === "true"){
 
@@ -2832,7 +2835,6 @@
 
   onAuthStateChanged(auth, function(user){
     window.currentUser = user;
-    invoiceAnalyticsPlanPromise = loadInvoiceAnalyticsPlan(user);
     window.simpleBooksFirestoreCustomers = [];
     window.simpleBooksCustomersLoaded = false;
     window.simpleBooksFirestoreProjects = [];
@@ -3196,12 +3198,14 @@
 window.trackInvoiceCreated = async function(parameters){
   try{
     const analyticsEvents = await import(
-      "../../assets/analytics-events.js?v=20260802-analytics1"
+      "/assets/analytics-events.js?v=20260802-analytics2"
     );
-    if(typeof analyticsEvents.trackInvoiceCreated !== "function") return false;
-    console.log("invoice_created fired");
+    if(typeof analyticsEvents.trackInvoiceCreated !== "function"){
+      throw new TypeError("trackInvoiceCreated export is unavailable");
+    }
     return await analyticsEvents.trackInvoiceCreated(parameters);
-  }catch(_analyticsError){
+  }catch(analyticsError){
+    console.error("invoice_created wrapper failed", analyticsError);
     return false;
   }
 };
@@ -4732,12 +4736,16 @@ async function generateInvoice(saveToHistory = true){
     }
 
     try{
+      const analyticsPlan = typeof window.invoiceAnalyticsPlan === "function"
+        ? await window.invoiceAnalyticsPlan()
+        : "Starter";
       await window.trackInvoiceCreated({
-        plan: await invoiceAnalyticsPlanPromise,
+        plan: analyticsPlan,
         hasVat: vat > 0,
         itemCount: activeItems.length
       });
-    }catch(_analyticsError){
+    }catch(analyticsError){
+      console.error("invoice_created call failed", analyticsError);
       // Analytics must never interrupt a completed invoice save.
     }
   }

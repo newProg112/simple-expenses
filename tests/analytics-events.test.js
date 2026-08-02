@@ -143,6 +143,51 @@ describe("Analytics event privacy policy", () => {
     expect(logEvent).toHaveBeenCalledTimes(2);
   });
 
+  it("dispatches invoice_created through Firebase with the shared instance and sanitized parameters", async () => {
+    const analytics = { instance: "shared-firebase-analytics" };
+    const logEvent = vi.fn();
+    const track = createAnalyticsTracker({ analytics, logEvent, runtime: runtime() });
+    const parameters = {
+      plan: "pro",
+      has_vat: true,
+      item_count_bucket: "2-3",
+      customer: "must-not-send"
+    };
+
+    await expect(track("invoice_created", parameters)).resolves.toBe(true);
+    const sanitizedParameters = {
+      plan: "pro",
+      has_vat: true,
+      item_count_bucket: "2-3"
+    };
+    expect(logEvent).toHaveBeenCalledTimes(1);
+    expect(logEvent).toHaveBeenCalledWith(
+      analytics,
+      "invoice_created",
+      sanitizedParameters
+    );
+  });
+
+  it("reports the full Firebase error when invoice_created dispatch fails", async () => {
+    const dispatchError = new Error("Firebase Analytics dispatch failed");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const track = createAnalyticsTracker({
+      analytics: {},
+      logEvent: () => { throw dispatchError; },
+      runtime: runtime()
+    });
+    await expect(track("invoice_created", {
+      plan: "starter",
+      has_vat: false,
+      item_count_bucket: "1"
+    })).resolves.toBe(false);
+    expect(consoleError).toHaveBeenCalledWith(
+      "invoice_created logEvent failed",
+      dispatchError
+    );
+    consoleError.mockRestore();
+  });
+
   it("sends only approved values for every event wrapper", () => {
     expect(adapter).toContain('trackAnalyticsEvent("sign_up", { method: "email" })');
     expect(adapter).toContain('trackAnalyticsEvent("login", { method: "email" })');
@@ -153,6 +198,7 @@ describe("Analytics event privacy policy", () => {
     expect(adapter).toContain('currency: "GBP"');
     expect(adapter).toContain("value: 15");
     expect(adapter).not.toMatch(/trackAnalyticsEvent\(["']purchase["']/);
+    expect(adapter).toContain("createAnalyticsTracker({\n  analytics,\n  logEvent,");
   });
 });
 
@@ -176,8 +222,17 @@ describe("Analytics success trigger integration", () => {
     expect(createCall).toBeGreaterThan(invoices.indexOf("if(!invoiceSaved)"));
     expect(createCall).toBeGreaterThan(invoices.indexOf("await saveInvoiceToHistory"));
     expect(invoices).toContain("window.trackInvoiceCreated = async function(parameters)");
+    expect(invoices).toContain("window.invoiceAnalyticsPlan = () =>");
+    expect(invoices).toContain('doc(db, "userProfiles", user.uid)');
+    expect(invoices).toContain('typeof window.invoiceAnalyticsPlan === "function"');
+    expect(invoices).not.toContain("invoiceAnalyticsPlanPromise");
     expect(invoices).toContain("analyticsEvents.trackInvoiceCreated(parameters)");
-    expect(invoices).toContain('console.log("invoice_created fired")');
+    expect(invoices).toContain('console.error("invoice_created wrapper failed", analyticsError)');
+    expect(invoices).toContain('console.error("invoice_created call failed", analyticsError)');
+    expect(invoices).not.toMatch(/console\.log\("(?:invoice save succeeded|invoice_created wrapper called|analytics module imported|invoice_created fired)"\)/);
+    expect(read("assets/analytics-event-policy.js")).not.toMatch(
+      /console\.log\("(?:logEvent called|invoice_created dispatched to Firebase Analytics)"/
+    );
     expect(invoices).toContain("Analytics must never interrupt a completed invoice save.");
     const editStart = invoices.indexOf("async function updateExistingInvoice");
     const editEnd = invoices.indexOf("function cancelInvoiceEdit", editStart);
@@ -188,7 +243,7 @@ describe("Analytics success trigger integration", () => {
   it("exports and imports the exact invoice-created tracker name", () => {
     expect(adapter).toMatch(/export const trackInvoiceCreated\s*=/);
     expect(invoices).toContain(
-      '"../../assets/analytics-events.js?v=20260802-analytics1"'
+      '"/assets/analytics-events.js?v=20260802-analytics2"'
     );
     expect(invoices).toContain('typeof analyticsEvents.trackInvoiceCreated !== "function"');
   });

@@ -65,7 +65,8 @@ export function analyticsRuntimeDisabled(runtime = globalThis){
   if(hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") return true;
   try{
     if(runtime.sessionStorage?.getItem("simpleBooksUseFirebaseEmulators") === "true") return true;
-  }catch(_error){
+  }catch(error){
+    console.error("Analytics runtime inspection failed", error);
     return true;
   }
   return Boolean(runtime.__FIREBASE_DEFAULTS__?.emulatorHosts);
@@ -82,26 +83,32 @@ export function createAnalyticsTracker({
   const recentEvents = new Map();
 
   return async function trackAnalyticsEvent(eventName, parameters = {}){
-    let safeParameters;
+    let sanitizedParameters;
     try{
-      safeParameters = sanitizeAnalyticsParameters(eventName, parameters);
-      if(!safeParameters || analyticsRuntimeDisabled(runtime) || !analytics || typeof logEvent !== "function"){
+      sanitizedParameters = sanitizeAnalyticsParameters(eventName, parameters);
+      if(!sanitizedParameters || analyticsRuntimeDisabled(runtime) || !analytics || typeof logEvent !== "function"){
         return false;
       }
-    }catch(_error){
+    }catch(error){
+      if(eventName === "invoice_created"){
+        console.error("invoice_created Analytics preflight failed", error);
+      }
       return false;
     }
 
-    const fingerprint = `${eventName}:${JSON.stringify(safeParameters)}`;
+    const fingerprint = `${eventName}:${JSON.stringify(sanitizedParameters)}`;
     const timestamp = now();
     const previousTimestamp = recentEvents.get(fingerprint);
     if(previousTimestamp !== undefined && timestamp - previousTimestamp < dedupeWindowMs) return false;
     recentEvents.set(fingerprint, timestamp);
 
     try{
-      await Promise.resolve(logEvent(analytics, eventName, safeParameters));
+      await Promise.resolve(logEvent(analytics, eventName, sanitizedParameters));
       return true;
-    }catch(_error){
+    }catch(error){
+      if(eventName === "invoice_created"){
+        console.error("invoice_created logEvent failed", error);
+      }
       warn(`Analytics event unavailable: ${eventName}`);
       return false;
     }
