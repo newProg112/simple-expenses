@@ -15,16 +15,25 @@ import {
   getFunctions
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
+import {
+  getAnalytics
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyCnQPQiBGOK3FCyU_Xl3j3d9qmjWWGxuo4",
   authDomain: "simple-books-office.firebaseapp.com",
   projectId: "simple-books-office",
   storageBucket: "simple-books-office.firebasestorage.app",
   messagingSenderId: "612547283593",
-  appId: "1:612547283593:web:eb4e326540978e8f671458"
+  appId: "1:612547283593:web:eb4e326540978e8f671458",
+  measurementId: "G-KREFVH0K70"
 };
 
 const app = initializeApp(firebaseConfig);
+const analytics =
+  typeof window !== "undefined"
+    ? getAnalytics(app)
+    : null;
 
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -55,4 +64,11 @@ const businessAssistantMode = "ai";
 
 console.log("Firebase SDK loaded");
 
-export { app, auth, businessAssistantMode, db, functions };
+export {
+  analytics,
+  app,
+  auth,
+  businessAssistantMode,
+  db,
+  functions
+};
