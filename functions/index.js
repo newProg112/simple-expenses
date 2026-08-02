@@ -25,6 +25,15 @@ const {
 const {
   createAdminUserSearchHandler,
 } = require("./lib/admin-user-search-handler");
+const {
+  createActivityLoggerHandler,
+  createAdminRecentActivityHandler,
+} = require("./lib/admin-activity-handlers");
+const {
+  normalizePlan,
+  trustedActivityIdentity,
+  writeActivityEvent,
+} = require("./lib/admin-activity");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -87,6 +96,23 @@ async function createUserProfileIfMissing(uid, user) {
 
 exports.createUserProfile = functionsV1.auth.user().onCreate(async (user) => {
   await createUserProfileIfMissing(user.uid, user);
+  try {
+    await writeActivityEvent({
+      firestore: admin.firestore(),
+      fieldValue: admin.firestore.FieldValue,
+      identity: {
+        uid: user.uid,
+        displayEmail: user.email || "",
+        plan: "starter",
+      },
+      eventType: "user_signed_up",
+      idempotencyKey: `auth_${user.uid}`,
+    });
+  } catch (error) {
+    console.warn("Account activity could not be recorded", {
+      code: error && error.code ? String(error.code) : "unknown",
+    });
+  }
 });
 
 exports.ensureUserProfile = onRequest(
@@ -426,6 +452,26 @@ exports.createCheckoutSession = onRequest(
           return;
         }
 
+        try {
+          const identity = await trustedActivityIdentity({
+            auth: admin.auth(),
+            firestore: admin.firestore(),
+            uid,
+          });
+          await writeActivityEvent({
+            firestore: admin.firestore(),
+            fieldValue: admin.firestore.FieldValue,
+            identity,
+            eventType: "checkout_started",
+            idempotencyKey: session.id,
+          });
+        } catch (activityError) {
+          console.warn("Checkout activity could not be recorded", {
+            code: activityError && activityError.code ?
+              String(activityError.code) : "unknown",
+          });
+        }
+
         response.json({
           url: session.url,
         });
@@ -612,6 +658,7 @@ exports.stripeWebhook = onRequest(
             await subscriptionBillingDetails(stripe, subscription) :
             {};
 
+          const subscriptionStatus = stripeSubscriptionStatus(subscription);
           await updateSubscriptionProfile(uid, {
             subscriptionStatus: stripeSubscriptionStatus(subscription),
             stripeCustomerId: session.customer || "",
@@ -619,6 +666,28 @@ exports.stripeWebhook = onRequest(
             stripePriceId,
             ...billingDetails,
           });
+          if (subscription &&
+            ["active", "trialing"].includes(subscriptionStatus)) {
+            try {
+              const user = await admin.auth().getUser(uid);
+              await writeActivityEvent({
+                firestore: admin.firestore(),
+                fieldValue: admin.firestore.FieldValue,
+                identity: {
+                  uid,
+                  displayEmail: user.email || "",
+                  plan: "pro",
+                },
+                eventType: "upgraded_to_pro",
+                idempotencyKey: event.id,
+              });
+            } catch (activityError) {
+              console.warn("Upgrade activity could not be recorded", {
+                code: activityError && activityError.code ?
+                  String(activityError.code) : "unknown",
+              });
+            }
+          }
         }
 
         if (event.type === "customer.subscription.created" ||
@@ -657,6 +726,27 @@ exports.stripeWebhook = onRequest(
             stripePriceId: subscriptionPriceId(subscription),
             ...billingDetails,
           });
+          if (event.type === "customer.subscription.deleted") {
+            try {
+              const user = await admin.auth().getUser(uid);
+              await writeActivityEvent({
+                firestore: admin.firestore(),
+                fieldValue: admin.firestore.FieldValue,
+                identity: {
+                  uid,
+                  displayEmail: user.email || "",
+                  plan: normalizePlan("pro"),
+                },
+                eventType: "subscription_cancelled",
+                idempotencyKey: event.id,
+              });
+            } catch (activityError) {
+              console.warn("Cancellation activity could not be recorded", {
+                code: activityError && activityError.code ?
+                  String(activityError.code) : "unknown",
+              });
+            }
+          }
         }
 
         response.json({received: true});
@@ -753,6 +843,37 @@ exports.getAdminMetrics = onCall(
       demoConfiguration: demoIdentifiersSecret.value(),
       proPriceId: simpleBooksProPriceId,
       logger: console,
+    })(request),
+);
+
+exports.logActivityEvent = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 10,
+      timeoutSeconds: 15,
+      memory: "256MiB",
+    },
+    (request) => createActivityLoggerHandler({
+      auth: admin.auth(),
+      firestore: admin.firestore(),
+      fieldValue: admin.firestore.FieldValue,
+    })(request),
+);
+
+exports.getAdminRecentActivity = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 30,
+      memory: "256MiB",
+      secrets: [adminUidsSecret, demoIdentifiersSecret],
+    },
+    (request) => createAdminRecentActivityHandler({
+      firestore: admin.firestore(),
+      adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
+      timestampFactory: admin.firestore.Timestamp,
+      documentIdField: admin.firestore.FieldPath.documentId(),
     })(request),
 );
 

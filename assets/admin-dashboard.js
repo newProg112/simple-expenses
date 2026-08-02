@@ -1,6 +1,13 @@
 import { auth, functions } from "/firebase-config.js";
 import { adminAccessDecision } from "./admin-access.js";
 import {
+  ACTIVITY_PRESENTATION,
+  activityErrorState,
+  filterActivityEvents,
+  formatActivityExactTime,
+  formatActivityRelativeTime
+} from "./admin-activity-view.js?v=20260802-admin5a";
+import {
   adminMetricsErrorState,
   adminUserDetailsErrorState,
   adminUserSearchErrorState,
@@ -58,7 +65,18 @@ const customerClipboardStatus = document.getElementById("customerClipboardStatus
 const refreshMetricsButton = document.getElementById("refreshMetricsButton");
 const metricsUpdatedAt = document.getElementById("metricsUpdatedAt");
 const growthOverview = document.getElementById("growthOverview");
+const activityFilter = document.getElementById("activityFilter");
+const activityList = document.getElementById("activityList");
+const activityLoading = document.getElementById("activityLoading");
+const activityError = document.getElementById("activityError");
+const activityEmpty = document.getElementById("activityEmpty");
+const activityMore = document.getElementById("activityMore");
+const activityStatus = document.getElementById("activityStatus");
+const refreshActivityButton = document.getElementById("refreshActivityButton");
+const retryActivityButton = document.getElementById("retryActivityButton");
+const showMoreActivityButton = document.getElementById("showMoreActivityButton");
 const callGetAdminMetrics = httpsCallable(functions, "getAdminMetrics");
+const callGetAdminRecentActivity = httpsCallable(functions, "getAdminRecentActivity");
 const callGetAdminUserDetails = httpsCallable(functions, "getAdminUserDetails");
 const callSearchAdminUsers = httpsCallable(functions, "searchAdminUsers");
 let metricsRequest = null;
@@ -72,7 +90,106 @@ let customerPanelTrigger = null;
 let authGeneration = 0;
 let resolvedAuthUid = "";
 let currentAdminUser = null;
+let activityRequest = null;
+let activityRecords = [];
+let activityCursor = null;
 const adminCharts = new Map();
+
+function setActivityState(state){
+  activityLoading.hidden = state !== "loading";
+  activityError.hidden = state !== "error";
+  activityEmpty.hidden = state !== "empty";
+  activityList.hidden = state !== "loaded";
+}
+
+function createActivityItem(record){
+  const presentation = ACTIVITY_PRESENTATION[record?.eventType];
+  if(!presentation) return null;
+  const item = document.createElement("li");
+  item.className = "activity-item";
+  const marker = document.createElement("span");
+  marker.className = "activity-marker";
+  marker.setAttribute("aria-hidden", "true");
+  marker.textContent = presentation.marker;
+  const identity = document.createElement("div");
+  const title = document.createElement("p");
+  title.className = "activity-title";
+  title.textContent = presentation.title;
+  const email = document.createElement("p");
+  email.className = "activity-email";
+  email.textContent = record.displayEmail || "User email unavailable";
+  identity.append(title, email);
+  const summary = document.createElement("p");
+  summary.className = "activity-summary";
+  summary.textContent = String(record.summary || "Activity completed.");
+  const time = document.createElement("time");
+  time.className = "activity-time";
+  time.dateTime = record.createdAt;
+  time.title = formatActivityExactTime(record.createdAt);
+  time.textContent = formatActivityRelativeTime(record.createdAt);
+  item.append(marker, identity, summary, time);
+  return item;
+}
+
+function renderActivity(){
+  const visibleRecords = filterActivityEvents(activityRecords, activityFilter.value);
+  activityList.replaceChildren();
+  for(const record of visibleRecords){
+    const item = createActivityItem(record);
+    if(item) activityList.append(item);
+  }
+  setActivityState(visibleRecords.length ? "loaded" : "empty");
+  activityMore.hidden = !activityCursor;
+  activityStatus.textContent = `${visibleRecords.length} recent activity event${visibleRecords.length === 1 ? "" : "s"} shown.`;
+}
+
+function showActivityFailure(error){
+  const state = activityErrorState(error);
+  if(state.kind === "unauthenticated"){
+    showState("signedOutState");
+    window.location.replace("/login.html");
+    return;
+  }
+  if(state.kind === "permission-denied"){
+    showState("deniedState");
+    return;
+  }
+  document.getElementById("activityErrorTitle").textContent = state.title;
+  document.getElementById("activityErrorMessage").textContent = state.message;
+  setActivityState("error");
+  activityMore.hidden = true;
+}
+
+function loadRecentActivity({append = false} = {}){
+  if(activityRequest || !currentAdminUser) return activityRequest;
+  const requestGeneration = authGeneration;
+  if(!append){
+    activityRecords = [];
+    activityCursor = null;
+    setActivityState("loading");
+  }
+  refreshActivityButton.disabled = true;
+  showMoreActivityButton.disabled = true;
+  activityRequest = callGetAdminRecentActivity({
+    limit: 30,
+    ...(append && activityCursor ? {cursor: activityCursor} : {})
+  }).then(result => {
+    if(requestGeneration !== authGeneration || !currentAdminUser) return;
+    const events = Array.isArray(result.data?.events) ? result.data.events : [];
+    activityRecords = append ? activityRecords.concat(events) : events;
+    activityCursor = typeof result.data?.nextCursor === "string" ? result.data.nextCursor : null;
+    renderActivity();
+  }).catch(error => {
+    if(requestGeneration === authGeneration) showActivityFailure(error);
+  }).finally(() => {
+    activityRequest = null;
+    if(requestGeneration === authGeneration && currentAdminUser){
+      refreshActivityButton.disabled = false;
+      showMoreActivityButton.disabled = false;
+    }
+  });
+  return activityRequest;
+}
 
 function destroyAdminCharts(){
   for(const chart of adminCharts.values()) chart.destroy();
@@ -559,7 +676,14 @@ function loadAdminMetrics(){
   return metricsRequest;
 }
 
-refreshMetricsButton.addEventListener("click", () => loadAdminMetrics());
+refreshMetricsButton.addEventListener("click", () => {
+  loadAdminMetrics();
+  loadRecentActivity();
+});
+refreshActivityButton.addEventListener("click", () => loadRecentActivity());
+retryActivityButton.addEventListener("click", () => loadRecentActivity());
+showMoreActivityButton.addEventListener("click", () => loadRecentActivity({append: true}));
+activityFilter.addEventListener("change", renderActivity);
 customerSearch.addEventListener("input", handleSearchInput);
 customerSearchForm.addEventListener("submit", event => {
   event.preventDefault();
@@ -608,6 +732,7 @@ onAuthStateChanged(
     currentAdminUser = user;
     showAdminDashboard();
     loadAdminMetrics();
+    loadRecentActivity();
   },
   error => {
     authGeneration += 1;

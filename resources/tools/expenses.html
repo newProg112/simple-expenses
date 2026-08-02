@@ -2067,6 +2067,7 @@
     } from "../js/ledger-firestore.js";
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
+    import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -2626,6 +2627,7 @@
           plan: await receiptAnalyticsPlan(),
           fileName: file.name
         });
+        await logActivityEvent("invoice_scanned", createActivityIdempotencyKey());
         renderReceiptScanResults(extraction);
       } catch (error) {
         if (requestToken !== receiptScanRequestToken) return;

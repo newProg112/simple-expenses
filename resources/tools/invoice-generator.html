@@ -3197,13 +3197,19 @@
 
 window.trackInvoiceCreated = async function(parameters){
   try{
-    const analyticsEvents = await import(
-      "/assets/analytics-events.js?v=20260802-analytics2"
-    );
+    const [analyticsEvents, activityLogger] = await Promise.all([
+      import("/assets/analytics-events.js?v=20260802-analytics2"),
+      import("/assets/activity-logger.js?v=20260802-admin5a")
+    ]);
     if(typeof analyticsEvents.trackInvoiceCreated !== "function"){
       throw new TypeError("trackInvoiceCreated export is unavailable");
     }
-    return await analyticsEvents.trackInvoiceCreated(parameters);
+    const tracked = await analyticsEvents.trackInvoiceCreated(parameters);
+    await activityLogger.logActivityEvent(
+      "invoice_created",
+      parameters?.activityIdempotencyKey || activityLogger.createActivityIdempotencyKey()
+    );
+    return tracked;
   }catch(analyticsError){
     console.error("invoice_created wrapper failed", analyticsError);
     return false;
@@ -3626,6 +3632,7 @@ async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items
     console.log("Invoice generation: Firestore save complete", invoiceNo);
 
     await postInvoiceJournalAfterInvoiceSave(invoiceId, invoice, "saved");
+    window.lastSavedInvoiceActivityKey = String(invoiceId);
     return true;
   }
 
@@ -3638,6 +3645,7 @@ async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items
 
   localStorage.setItem("simpleBooksInvoices", JSON.stringify(invoices));
 
+  window.lastSavedInvoiceActivityKey = String(invoice.id);
   return true;
 }
 
@@ -4742,7 +4750,8 @@ async function generateInvoice(saveToHistory = true){
       await window.trackInvoiceCreated({
         plan: analyticsPlan,
         hasVat: vat > 0,
-        itemCount: activeItems.length
+        itemCount: activeItems.length,
+        activityIdempotencyKey: window.lastSavedInvoiceActivityKey || undefined
       });
     }catch(analyticsError){
       console.error("invoice_created call failed", analyticsError);

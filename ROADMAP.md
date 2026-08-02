@@ -1,5 +1,9 @@
 # Simple Books Roadmap
 
+## Admin Dashboard delivery
+
+- [x] Admin Dashboard Phase 5A — Recent activity feed
+
 > **Mission**
 >
 > Simple Books helps UK small businesses understand and manage their finances through simple accounting software with built-in AI.

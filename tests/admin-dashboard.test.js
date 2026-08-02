@@ -60,7 +60,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(importedNames).toContain("chartSummaryItems");
     expect(importedNames.filter(name => !exportedNames.has(name))).toEqual([]);
     expect(javascript).toContain('from "./admin-metrics-view.js?v=20260802-admin4b"');
-    expect(html).toContain('/assets/admin-dashboard.js?v=20260802-admin4b');
+    expect(html).toContain('/assets/admin-dashboard.js?v=20260802-admin5a');
   });
 
   it("provides the admin page and exact clean hosting route", () => {

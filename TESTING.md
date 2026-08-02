@@ -1,5 +1,19 @@
 # Testing
 
+## Admin Dashboard Phase 5A — Recent activity feed
+
+Phase 5A adds the owner-only, read-only `adminActivityEvents/{eventId}` feed. Browser Firestore access remains denied by default; `getAdminRecentActivity` performs all reads after validating the authenticated UID against `SIMPLE_BOOKS_ADMIN_UIDS` and validating `SIMPLE_BOOKS_DEMO_IDENTIFIERS`. Responses omit UIDs and contain only event type, ISO timestamp, normalised display email and plan, a server-owned summary, and an empty approved metadata object.
+
+`logActivityEvent` is the narrow authenticated logger for successful login, invoice creation, scanning and AI Assistant flows. It accepts only `eventType` and an optional constrained `idempotencyKey`; UID, email, plan, summary and metadata are server-derived. Auth user creation and Stripe checkout/webhook flows write authoritative sign-up, checkout, upgrade and cancellation records. Deterministic document IDs suppress retries and 30-second rapid duplicates, while successful invoice, scan and AI actions use a unique action key so separate actions remain visible. Logging failures are caught and never reverse the completed application action.
+
+Run the focused Phase 5A contracts with:
+
+```sh
+npm.cmd test -- tests/admin-activity.test.js tests/admin-dashboard.test.js
+```
+
+The tests cover authorization failures, missing configuration, event and field allow-lists, server-derived identity, sanitisation, duplicate keys, limits and timestamps, filters, relative time, semantic loading/empty/error states, refresh/retry/show-more controls, reduced motion, Stripe-originated subscription events, and absence of browser Firestore access. Cloud Functions and Hosting must both be deployed for Phase 5A; Firestore rules and indexes do not change.
+
 Install the root test dependency once:
 
 ```sh

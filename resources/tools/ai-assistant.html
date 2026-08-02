@@ -849,6 +849,7 @@
     import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
     import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260728-phase4d";
     import { trackAiQuestionAsked } from "../../assets/analytics-events.js?v=20260802-analytics1";
+    import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
 
     (() => {
       const mode = businessAssistantMode === "ai" ? "ai" : "preview";
@@ -1169,6 +1170,7 @@
           renderPreviewResponse(result.data || {});
           if(result.data?.mode === "ai" && currentUsageUser){
             await trackAiQuestionAsked(currentAnalyticsPlan);
+            await logActivityEvent("ai_question_asked", createActivityIdempotencyKey());
             loadMonthlyUsage(currentUsageUser);
           }
         }catch(error){

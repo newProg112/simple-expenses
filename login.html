@@ -293,6 +293,7 @@
 
   <script type="module">
     import { auth } from "./firebase-config.js";
+    import { logActivityEvent } from "./assets/activity-logger.js?v=20260802-admin5a";
     import { trackLogin } from "./assets/analytics-events.js?v=20260802-analytics1";
 
     import {
@@ -372,6 +373,7 @@
       try{
         const credential = await signInWithEmailAndPassword(auth, email, password);
         await trackLogin();
+        await logActivityEvent("user_logged_in");
         clearAccountCacheForUserChange(credential.user);
 
         showMessage(loginMessage, "Login successful. Opening dashboard...", "success");
@@ -427,6 +429,7 @@
           "demo123"
         );
         await trackLogin();
+        await logActivityEvent("user_logged_in");
         clearAccountCacheForUserChange(credential.user);
 
         showMessage(loginMessage, "Demo login successful. Opening dashboard...", "success");
