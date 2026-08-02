@@ -2066,6 +2066,7 @@
       replaceMileageJournal
     } from "../js/ledger-firestore.js";
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
+    import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -2157,6 +2158,17 @@
       if (lowerName.endsWith(".webp")) return "image/webp";
       if (lowerName.endsWith(".pdf")) return "application/pdf";
       return "";
+    }
+
+    async function receiptAnalyticsPlan() {
+      try {
+        const user = await getCurrentUser();
+        if (!user) return "Starter";
+        const profile = await getDoc(doc(db, "userProfiles", user.uid));
+        return profile.exists() ? profile.data()?.currentPlan : "Starter";
+      } catch (_error) {
+        return "Starter";
+      }
     }
 
     function validateReceiptScanFile(file) {
@@ -2610,6 +2622,10 @@
           invalidResponse.code = "functions/data-loss";
           throw invalidResponse;
         }
+        await trackInvoiceScanned({
+          plan: await receiptAnalyticsPlan(),
+          fileName: file.name
+        });
         renderReceiptScanResults(extraction);
       } catch (error) {
         if (requestToken !== receiptScanRequestToken) return;

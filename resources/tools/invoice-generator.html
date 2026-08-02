@@ -2637,6 +2637,8 @@
   <script type="module">
 
   import { app, auth, db } from "../../firebase-config.js";
+  import { trackInvoiceCreated } from "../../assets/analytics-events.js?v=20260802-analytics1";
+  window.trackInvoiceCreated = trackInvoiceCreated;
   import {
     getJournalForSource,
     replaceInvoiceJournal
@@ -2675,10 +2677,21 @@
   window.simpleBooksProjectsLoadError = false;
   let invoiceAuthReadyResolved = false;
   let resolveInvoiceAuthReady;
+  let invoiceAnalyticsPlanPromise = Promise.resolve("Starter");
 
   window.invoiceAuthReady = new Promise(resolve => {
     resolveInvoiceAuthReady = resolve;
   });
+
+  async function loadInvoiceAnalyticsPlan(user){
+    if(!user) return "Starter";
+    try{
+      const profile = await getDoc(doc(db, "userProfiles", user.uid));
+      return profile.exists() ? profile.data()?.currentPlan : "Starter";
+    }catch(_error){
+      return "Starter";
+    }
+  }
 
   if(localStorage.getItem("simpleBooksDarkMode") === "true"){
 
@@ -2821,6 +2834,7 @@
 
   onAuthStateChanged(auth, function(user){
     window.currentUser = user;
+    invoiceAnalyticsPlanPromise = loadInvoiceAnalyticsPlan(user);
     window.simpleBooksFirestoreCustomers = [];
     window.simpleBooksCustomersLoaded = false;
     window.simpleBooksFirestoreProjects = [];
@@ -4704,6 +4718,18 @@ async function generateInvoice(saveToHistory = true){
 
     if(!invoiceSaved){
       return;
+    }
+
+    try{
+      if(typeof window.trackInvoiceCreated === "function"){
+        await window.trackInvoiceCreated({
+          plan: await invoiceAnalyticsPlanPromise,
+          hasVat: vat > 0,
+          itemCount: activeItems.length
+        });
+      }
+    }catch(_analyticsError){
+      // Analytics must never interrupt a completed invoice save.
     }
   }
 

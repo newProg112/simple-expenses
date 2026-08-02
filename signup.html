@@ -254,6 +254,7 @@
 
   <script type="module">
     import { auth } from "./firebase-config.js";
+    import { trackSignUp } from "./assets/analytics-events.js?v=20260802-analytics1";
 
     import {
       createUserWithEmailAndPassword
@@ -288,6 +289,7 @@
 
       try{
         await createUserWithEmailAndPassword(auth, email, password);
+        await trackSignUp();
 
         const existingAccount =
           JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}");

@@ -46,6 +46,8 @@
 - [x] Starter & Pro plans
 - [x] Usage counters
 - [x] Production monitoring
+- [x] Google Analytics enabled
+- [x] Custom Analytics events Phase 1
 - [x] Responsive navigation
 - [x] Guides / Help Centre
 - [x] Admin Dashboard – Phase 1 shell

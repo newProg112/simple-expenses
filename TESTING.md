@@ -575,3 +575,66 @@ Manual growth-chart checks:
    descriptions, canvas labels, and hidden summary lists communicate every
    returned value without requiring canvas interaction or colour recognition.
 10. Enable reduced motion and confirm chart and loading animations are disabled.
+
+# Custom Analytics Events Phase 1
+
+The shared browser helper in `assets/analytics-events.js` reuses the Analytics
+instance exported by `firebase-config.js`; it does not initialise another
+Firebase app. Custom Analytics and Analytics initialisation are disabled on
+`localhost`, `127.0.0.1`, IPv6 localhost, and Firebase emulator sessions.
+Analytics failures and browser-extension blocking are non-fatal.
+
+Tracked events and exact success boundaries:
+
+| Event | Trigger | Approved parameters |
+| --- | --- | --- |
+| `sign_up` | Firebase email/password account creation resolves successfully | `method: "email"` |
+| `login` | Email/password login resolves successfully, including the demo email login | `method: "email"` |
+| `invoice_created` | A new invoice save completes; invoice edits and unsaved previews are excluded | `plan: "starter" \| "pro"`, `has_vat: boolean`, `item_count_bucket: "1" \| "2-3" \| "4+"` |
+| `invoice_scanned` | A bill or expense scan callable returns a valid successful extraction after the backend records successful usage | `plan: "starter" \| "pro"`, `file_type: "pdf" \| "jpg" \| "jpeg" \| "png" \| "other"` |
+| `ai_question_asked` | The AI Assistant returns `mode: "ai"`; previews, deterministic fallbacks, errors, and duplicate backend requests are excluded | `plan: "starter" \| "pro"` |
+| `begin_checkout` | A signed-in Starter user receives a valid Pro Checkout URL, immediately before redirect | `currency: "GBP"`, `value: 15`, `plan: "pro"` |
+
+The event policy rejects unknown event names and strips unknown or invalid
+parameters. Payloads never include emails, Firebase UIDs, names, phone numbers,
+addresses, invoice or bill numbers, customer or supplier names, filenames,
+URLs, Storage paths, Stripe identifiers, document contents, extracted values,
+prompts, AI responses, projects, notes, descriptions, or accounting amounts.
+The only amount is the fixed public Pro price of GBP 15 for `begin_checkout`.
+
+Focused automated coverage:
+
+```powershell
+npm.cmd test -- tests/analytics-events.test.js
+```
+
+Realtime verification:
+
+1. Use a production-hosted Simple Books URL with a dedicated test account;
+   localhost and emulator traffic is deliberately suppressed.
+2. In Google Analytics, open **Reports > Realtime**.
+3. Complete one supported success action and confirm its event appears once with
+   only the approved parameters above. Repeat a failed action and confirm no
+   success event appears.
+4. Disable any Analytics-blocking extension if events do not arrive. Do not use
+   real customer or accounting information during verification.
+
+DebugView verification:
+
+1. Enable the Google Analytics Debugger browser extension for the production
+   test session; no application `debug_mode` parameter is permanently added.
+2. Open **Admin > Data display > DebugView** in Google Analytics.
+3. Perform each supported success action and inspect its parameters. Confirm
+   failures, invoice edits, deterministic AI fallbacks, and invalid Checkout
+   responses do not create success events.
+4. Disable the debugger extension after testing.
+
+Simple Books deliberately does not emit `purchase` from frontend code. A future
+`purchase` event must be emitted only by the trusted Stripe webhook after a
+confirmed payment, using server-side idempotency so browser navigation or page
+refreshes cannot create false purchases.
+
+Consent and cookie presentation are intentionally unchanged in this phase.
+Review the production consent model, privacy notice, regional requirements, and
+Google Consent Mode separately before deciding whether a consent banner or
+additional controls are required.

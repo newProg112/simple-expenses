@@ -293,6 +293,7 @@
 
   <script type="module">
     import { auth } from "./firebase-config.js";
+    import { trackLogin } from "./assets/analytics-events.js?v=20260802-analytics1";
 
     import {
       sendPasswordResetEmail,
@@ -370,6 +371,7 @@
 
       try{
         const credential = await signInWithEmailAndPassword(auth, email, password);
+        await trackLogin();
         clearAccountCacheForUserChange(credential.user);
 
         showMessage(loginMessage, "Login successful. Opening dashboard...", "success");
@@ -424,6 +426,7 @@
           "demo@simple-books.co.uk",
           "demo123"
         );
+        await trackLogin();
         clearAccountCacheForUserChange(credential.user);
 
         showMessage(loginMessage, "Demo login successful. Opening dashboard...", "success");

@@ -30,10 +30,16 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const analytics =
-  typeof window !== "undefined"
-    ? getAnalytics(app)
-    : null;
+const analyticsHostIsLocal = typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+let analytics = null;
+if(typeof window !== "undefined" && !analyticsHostIsLocal){
+  try{
+    analytics = getAnalytics(app);
+  }catch(_error){
+    analytics = null;
+  }
+}
 
 const auth = getAuth(app);
 const db = getFirestore(app);

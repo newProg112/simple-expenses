@@ -848,6 +848,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
     import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260728-phase4d";
+    import { trackAiQuestionAsked } from "../../assets/analytics-events.js?v=20260802-analytics1";
 
     (() => {
       const mode = businessAssistantMode === "ai" ? "ai" : "preview";
@@ -889,9 +890,11 @@
       ]);
       let isResponding = false;
       let currentUsageUser = null;
+      let currentAnalyticsPlan = "Starter";
       let activeRequestToken = 0;
 
       function renderMonthlyUsage(view){
+        currentAnalyticsPlan = view.plan;
         const allowance = view.aiAssistant.allowance;
         const current = view.aiAssistant.current;
         usageDataLabel.textContent = view.trackingEnabled ? "Live data" : "Unavailable";
@@ -916,6 +919,7 @@
             user.getIdToken(),
             getDoc(doc(db, "userProfiles", user.uid))
           ]);
+          currentAnalyticsPlan = profile.exists() ? profile.data()?.currentPlan : "Starter";
           const response = await fetch(monthlyUsageFunctionUrl, {
             method: "POST",
             headers: {
@@ -1164,6 +1168,7 @@
           document.getElementById("typingIndicator")?.remove();
           renderPreviewResponse(result.data || {});
           if(result.data?.mode === "ai" && currentUsageUser){
+            await trackAiQuestionAsked(currentAnalyticsPlan);
             loadMonthlyUsage(currentUsageUser);
           }
         }catch(error){
