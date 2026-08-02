@@ -16,6 +16,7 @@ const AUTH_PAGE_SIZE = 1000;
 const FIRESTORE_READ_BATCH_SIZE = 50;
 const PRO_MONTHLY_PRICE_PENCE = 1500;
 const RECENT_SIGNUP_LIMIT = 10;
+const GROWTH_RANGE_MONTHS = 12;
 
 async function listAllAuthUsers(auth) {
   if (!auth || typeof auth.listUsers !== "function") {
@@ -44,6 +45,77 @@ function safeCreationTime(user) {
   if (typeof value !== "string" && typeof value !== "number") return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function utcMonthStart(date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function growthMonthRange(now, rangeMonths = GROWTH_RANGE_MONTHS) {
+  const currentMonth = utcMonthStart(now);
+  const firstMonth = new Date(Date.UTC(
+      currentMonth.getUTCFullYear(),
+      currentMonth.getUTCMonth() - (rangeMonths - 1),
+      1,
+  ));
+  return Array.from({length: rangeMonths}, (_, index) => {
+    const date = new Date(Date.UTC(
+        firstMonth.getUTCFullYear(),
+        firstMonth.getUTCMonth() + index,
+        1,
+    ));
+    return {
+      monthKey: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
+      label: new Intl.DateTimeFormat("en-GB", {
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(date),
+      date,
+    };
+  });
+}
+
+function buildGrowthCharts(users, planDistribution, now) {
+  const months = growthMonthRange(now);
+  const counts = new Map(months.map((month) => [month.monthKey, 0]));
+  const firstMonthTime = months[0].date.getTime();
+  let openingUsers = 0;
+
+  users.forEach((user) => {
+    const created = safeCreationTime(user);
+    if (!created || created.getTime() < firstMonthTime) {
+      // Accounts without a usable creation date cannot be assigned to a
+      // historical month. Keep them in the opening registered-user baseline
+      // so the final cumulative figure still agrees with Total Users.
+      openingUsers += 1;
+      return;
+    }
+    const key = `${created.getUTCFullYear()}-${String(created.getUTCMonth() + 1).padStart(2, "0")}`;
+    if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+    else openingUsers += 1;
+  });
+
+  let cumulative = openingUsers;
+  const monthlySignups = months.map(({monthKey, label}) => ({
+    monthKey,
+    label,
+    count: counts.get(monthKey),
+  }));
+  const cumulativeUsers = monthlySignups.map((month) => {
+    cumulative += month.count;
+    return {...month, count: cumulative};
+  });
+
+  return {
+    rangeMonths: GROWTH_RANGE_MONTHS,
+    monthlySignups,
+    cumulativeUsers,
+    planDistribution: {
+      starter: planDistribution.starter,
+      pro: planDistribution.pro,
+    },
+  };
 }
 
 function qualifiesAsActivePaidSubscription(profile, proPriceId) {
@@ -182,6 +254,10 @@ async function buildAdminMetrics({
       aiAssistantSuccessfulUses,
       invoiceScanningSuccessfulUses,
     },
+    charts: buildGrowthCharts(users, {
+      starter: starterUsers,
+      pro: proUsers,
+    }, now),
     recentSignups,
   };
 }
@@ -189,9 +265,12 @@ async function buildAdminMetrics({
 module.exports = {
   AUTH_PAGE_SIZE,
   FIRESTORE_READ_BATCH_SIZE,
+  GROWTH_RANGE_MONTHS,
   PRO_MONTHLY_PRICE_PENCE,
   RECENT_SIGNUP_LIMIT,
   buildAdminMetrics,
+  buildGrowthCharts,
+  growthMonthRange,
   listAllAuthUsers,
   qualifiesAsActivePaidSubscription,
   recentSignupRecord,

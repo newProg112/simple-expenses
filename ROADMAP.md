@@ -52,6 +52,8 @@
 - [x] Admin Dashboard – Phase 2A protected metrics
 - [x] Admin Dashboard – Phase 3A read-only customer lookup
 - [x] Admin Dashboard – Phase 3B customer support workspace
+- [x] Admin Dashboard – Phase 4A growth charts
+- [ ] Admin Dashboard – historical subscription and revenue snapshots
 - [ ] Admin Dashboard – future customer-management actions
 
 ---

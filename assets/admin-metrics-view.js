@@ -44,6 +44,52 @@ export function filterSignupsByEmail(signups, query){
   );
 }
 
+function validChartPoint(point){
+  return point && /^\d{4}-(0[1-9]|1[0-2])$/.test(point.monthKey) &&
+    typeof point.label === "string" && point.label.trim() &&
+    Number.isInteger(point.count) && point.count >= 0;
+}
+
+export function buildAdminChartModel(charts, metrics){
+  if(!charts || charts.rangeMonths !== 12 ||
+    !Array.isArray(charts.monthlySignups) ||
+    !Array.isArray(charts.cumulativeUsers) ||
+    charts.monthlySignups.length !== 12 ||
+    charts.cumulativeUsers.length !== 12) return null;
+
+  const monthly = charts.monthlySignups;
+  const cumulative = charts.cumulativeUsers;
+  for(let index = 0; index < 12; index += 1){
+    if(!validChartPoint(monthly[index]) || !validChartPoint(cumulative[index]) ||
+      monthly[index].monthKey !== cumulative[index].monthKey ||
+      monthly[index].label !== cumulative[index].label ||
+      (index > 0 && monthly[index - 1].monthKey >= monthly[index].monthKey) ||
+      (index > 0 && cumulative[index].count < cumulative[index - 1].count)) return null;
+  }
+
+  const starter = charts.planDistribution?.starter;
+  const pro = charts.planDistribution?.pro;
+  const totalUsers = metrics?.totalUsers;
+  if(!Number.isInteger(starter) || starter < 0 ||
+    !Number.isInteger(pro) || pro < 0 ||
+    starter !== metrics?.starterUsers || pro !== metrics?.proUsers ||
+    starter + pro !== totalUsers ||
+    cumulative[11].count !== totalUsers) return null;
+
+  return Object.freeze({
+    labels: monthly.map(point => point.label),
+    monthlyValues: monthly.map(point => point.count),
+    cumulativeValues: cumulative.map(point => point.count),
+    planValues: [starter, pro],
+    totalUsers
+  });
+}
+
+export function chartSummaryItems(labels, values, suffix){
+  if(!Array.isArray(labels) || !Array.isArray(values) || labels.length !== values.length) return [];
+  return labels.map((label, index) => `${label}: ${safeMetricCount(values[index])} ${suffix}`);
+}
+
 export function validateAdminUserSearchQuery(value){
   if(typeof value !== "string"){
     return Object.freeze({ valid: false, query: "", message: "Enter at least 2 characters to search all users." });

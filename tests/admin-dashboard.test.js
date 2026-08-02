@@ -10,7 +10,9 @@ import {
   adminMetricsErrorState,
   adminUserDetailsErrorState,
   adminUserSearchErrorState,
+  buildAdminChartModel,
   buildCustomerSummary,
+  chartSummaryItems,
   filterSignupsByEmail,
   formatAdminDate,
   formatEstimatedMrr,
@@ -22,6 +24,10 @@ import {
 
 const html = readFileSync(new URL("../admin.html", import.meta.url), "utf8");
 const javascript = readFileSync(new URL("../assets/admin-dashboard.js", import.meta.url), "utf8");
+const metricsViewJavascript = readFileSync(
+  new URL("../assets/admin-metrics-view.js", import.meta.url),
+  "utf8"
+);
 const shellJavascript = readFileSync(new URL("../assets/app-shell.js", import.meta.url), "utf8");
 const publicHomepage = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const hostingSmokeTest = readFileSync(
@@ -37,6 +43,26 @@ const firebaseConfigSource = readFileSync(
 );
 
 describe("Admin Dashboard Phase 1 and Phase 2A", () => {
+  it("exports every admin metrics view helper named by the dashboard import", () => {
+    const viewImport = javascript.match(
+      /import\s*\{([^{}]*)\}\s*from\s*["']\.\/admin-metrics-view\.js(?:\?[^"']+)?["']/
+    );
+    expect(viewImport).not.toBeNull();
+    const importedNames = viewImport[1]
+      .split(",")
+      .map(name => name.trim())
+      .filter(Boolean);
+    const exportedNames = new Set(
+      [...metricsViewJavascript.matchAll(/export\s+(?:async\s+)?(?:function|const|let|class)\s+([A-Za-z_$][\w$]*)/g)]
+        .map(match => match[1])
+    );
+    expect(importedNames).toContain("buildAdminChartModel");
+    expect(importedNames).toContain("chartSummaryItems");
+    expect(importedNames.filter(name => !exportedNames.has(name))).toEqual([]);
+    expect(javascript).toContain('from "./admin-metrics-view.js?v=20260802-admin4b"');
+    expect(html).toContain('/assets/admin-dashboard.js?v=20260802-admin4b');
+  });
+
   it("provides the admin page and exact clean hosting route", () => {
     expect(html).toContain("<title>Admin Dashboard | Simple Books</title>");
     const mainHosting = firebaseHosting.hosting.find(site => site.target === "main");
@@ -120,8 +146,78 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
   it("calls only the protected metrics function and adds no admin actions", () => {
     expect(javascript).toContain('httpsCallable(functions, "getAdminMetrics")');
     expect(javascript).not.toMatch(/getDocs|collection\(|fetch\(/);
-    expect(html).not.toMatch(/<canvas|Delete user|Manage subscription/);
+    expect(html).not.toMatch(/Delete user|Manage subscription/);
     expect(javascript).not.toMatch(/stripeCustomerId|stripeSubscriptionId|billingOverrideReason/);
+  });
+
+  it("places three Chart.js growth charts between KPIs and recent sign-ups", () => {
+    const growthPosition = html.indexOf('id="growthOverview"');
+    expect(growthPosition).toBeGreaterThan(html.indexOf('class="kpi-grid"'));
+    expect(growthPosition).toBeLessThan(html.indexOf('id="recentSignupsTitle"'));
+    expect(html).toContain("https://cdn.jsdelivr.net/npm/chart.js");
+    for(const id of ["monthlySignupsChart", "cumulativeUsersChart", "planDistributionChart"]){
+      expect(html).toContain(`id="${id}"`);
+    }
+    expect(javascript).toContain('type: "bar"');
+    expect(javascript).toContain('type: "line"');
+    expect(javascript).toContain('type: "doughnut"');
+    expect(javascript).toContain("tension: 0");
+  });
+
+  it("directly tests buildAdminChartModel against KPI totals and builds accessible summaries", () => {
+    const monthlySignups = Array.from({ length: 12 }, (_, index) => ({
+      monthKey: `2025-${String(index + 1).padStart(2, "0")}`,
+      label: `Month ${index + 1}`,
+      count: index === 11 ? 2 : 0
+    }));
+    const cumulativeUsers = monthlySignups.map((point, index) => ({
+      ...point,
+      count: index === 11 ? 2 : 0
+    }));
+    const metrics = { totalUsers: 2, starterUsers: 1, proUsers: 1 };
+    const model = buildAdminChartModel({
+      rangeMonths: 12,
+      monthlySignups,
+      cumulativeUsers,
+      planDistribution: { starter: 1, pro: 1 }
+    }, metrics);
+    expect(model.labels).toHaveLength(12);
+    expect(model.monthlyValues.at(-1)).toBe(2);
+    expect(model.planValues).toEqual([1, 1]);
+    expect(chartSummaryItems(["Jan 2026"], [3], "new accounts"))
+      .toEqual(["Jan 2026: 3 new accounts"]);
+    expect(buildAdminChartModel({ rangeMonths: 12 }, metrics)).toBeNull();
+    expect(buildAdminChartModel({
+      rangeMonths: 12,
+      monthlySignups,
+      cumulativeUsers,
+      planDistribution: { starter: 2, pro: 1 }
+    }, metrics)).toBeNull();
+  });
+
+  it("clears stale charts, prevents duplicate refreshes, and handles empty or malformed data", () => {
+    expect(javascript).toContain("destroyAdminCharts();");
+    expect(javascript).toContain("clearGrowthChartContent();");
+    expect(javascript).toContain("adminCharts.get(canvasId)?.destroy()");
+    expect(javascript).toContain('if(metricsRequest || !currentAdminUser) return metricsRequest;');
+    expect(javascript).toContain("Growth data is unavailable for this snapshot.");
+    expect(javascript).toContain("No new sign-ups in the displayed months.");
+    expect(javascript).toContain("No current plan data yet.");
+    expect(javascript.indexOf("if(model.totalUsers === 0)")).toBeLessThan(
+      javascript.indexOf("model.planValues[0] / model.totalUsers")
+    );
+  });
+
+  it("provides non-colour text equivalents and responsive chart resizing", () => {
+    expect(html).toContain('id="monthlySignupsSummary" aria-label="New sign-ups data"');
+    expect(html).toContain('id="cumulativeUsersSummary" aria-label="Cumulative user growth data"');
+    expect(html).toContain('id="planDistributionSummary" aria-label="Current plan distribution data"');
+    expect(html).toContain("Current plan status, not subscription-payment status");
+    expect(html).toMatch(/\.chart-shell\{[^}]*overflow:hidden/);
+    expect(html).toMatch(/@media\(max-width:1000px\)[\s\S]*?\.growth-grid\{grid-template-columns:1fr\}/);
+    expect(javascript).toContain('new ResizeObserver(() =>');
+    expect(javascript).toContain('matchMedia("(prefers-reduced-motion: reduce)")');
+    expect(javascript).toContain("Starter ${model.planValues[0]}");
   });
 
   it("provides loading, empty, refresh, and backend error states", () => {

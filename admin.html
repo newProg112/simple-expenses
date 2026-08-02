@@ -31,6 +31,7 @@
     .kpi-label{margin:0;color:var(--muted);font-size:13px;font-weight:750}.kpi-value{margin:11px 0 5px;font-size:30px;font-weight:850;line-height:1}.phase-note{margin:0;color:#64748b;font-size:12px}
     .secondary-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}.secondary-card{padding:18px}.secondary-card .kpi-value{font-size:25px}
     .metrics-message{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding:18px 20px}.metrics-message h2{margin:0 0 4px;font-size:17px}.metrics-message p{margin:0;color:var(--muted);line-height:1.45}.metrics-message .spinner{flex:0 0 auto}.metrics-failure{align-items:flex-start;border-color:#fecaca;background:#fffafa}.metrics-failure .state-icon{width:38px;height:38px;flex:0 0 auto;margin:0;font-size:18px}.metrics-updated{min-height:20px;margin:12px 0 0;color:#64748b;font-size:12px;text-align:right}
+    .growth-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.chart-card{min-width:0;padding:20px;overflow:hidden}.chart-card-plan{grid-column:1/-1;width:min(100%,480px)}.chart-card h3{margin:0;font-size:17px}.chart-description{min-height:38px;margin:6px 0 0;color:var(--muted);font-size:12px;line-height:1.5}.chart-shell{position:relative;width:100%;height:260px;margin-top:14px;overflow:hidden}.chart-shell-compact{height:220px}.chart-shell canvas{display:block;width:100% !important;max-width:100%;height:100% !important}.chart-empty{position:absolute;inset:0;display:grid;place-items:center;padding:20px;background:#fff;color:var(--muted);font-size:13px;text-align:center}.chart-legend-text{margin:12px 0 0;color:#475569;font-size:12px;line-height:1.5}.visually-hidden{position:absolute !important;width:1px !important;height:1px !important;padding:0 !important;margin:-1px !important;overflow:hidden !important;clip:rect(0,0,0,0) !important;white-space:nowrap !important;border:0 !important}.chart-loading-preview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:min(420px,100%);margin-left:auto}.chart-skeleton{height:42px;border-radius:9px;background:linear-gradient(90deg,#eef2f7,#f8fafc,#eef2f7);background-size:200% 100%;animation:skeleton 1.4s ease infinite}@keyframes skeleton{to{background-position:-200% 0}}
     .section-heading{margin:34px 0 12px;font-size:20px}.panel{padding:20px}
     .customer-search-explainer{margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.5}.signup-tools{display:flex;align-items:flex-end;gap:10px;margin-bottom:8px}.search-field{display:grid;flex:1;gap:6px;max-width:520px}.search-field label{font-size:13px;font-weight:750}.customer-search{width:100%;min-height:44px;padding:10px 13px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:var(--text);font:inherit}.customer-search::placeholder{color:#64748b}.search-action{min-height:44px;padding:10px 14px;border:1px solid #b8d3e3;border-radius:10px;background:#fff;color:#075985;font:750 13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}.search-action-primary{border-color:#0077b6;background:#0077b6;color:#fff}.search-action:hover:not(:disabled){background:#f0f9ff;color:#075985}.search-action:disabled{cursor:wait;opacity:.6}.customer-search-status{display:block;min-height:20px;margin:0 0 16px;color:#64748b;font-size:12px}
     .signup-table{width:100%;border-collapse:collapse;table-layout:fixed}.signup-table th{padding:0 10px 12px;text-align:left;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}.signup-table td{padding:18px 10px;border-top:1px solid #eef2f7;color:var(--muted);font-size:13px;line-height:1.5;overflow-wrap:anywhere}.signup-table td:first-child{color:var(--text);font-weight:700}.signup-table td[colspan]{text-align:center}.subscription-status-cell{font-weight:700}.customer-open-button{padding:0;border:0;background:transparent;color:#075985;font:inherit;font-weight:750;text-align:left;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer}
@@ -38,13 +39,14 @@
     .status-card{padding:18px}.status-top{display:flex;align-items:center;gap:10px}.status-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8}.status-card h3{margin:0;font-size:16px}.status-card p{margin:10px 0 0;color:var(--muted);font-size:13px}
     .useful-links{display:flex;flex-wrap:wrap;gap:10px}.useful-links a{display:inline-flex;align-items:center;min-height:42px;padding:9px 14px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#075985;font-weight:750;text-decoration:none}.useful-links a:hover{border-color:#7dd3fc;background:#f0f9ff}
     a:focus-visible,button:focus-visible,.refresh-button:focus-visible,.customer-search:focus-visible,.customer-panel-close:focus-visible{outline:3px solid rgba(0,119,182,.3);outline-offset:3px}
-    @media(max-width:1000px){.kpi-grid,.status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.secondary-metrics{grid-template-columns:1fr}}
-    @media(max-width:640px){.wrap{padding:28px 16px 44px}.page-header{flex-direction:column}.page-header h1{font-size:28px}.header-actions{justify-content:flex-start}.kpi-grid,.status-grid{grid-template-columns:1fr}.panel{padding:16px}.metrics-message{align-items:flex-start}.signup-tools{align-items:stretch;flex-direction:column}.search-field{max-width:none}.signup-table,.signup-table tbody,.signup-table tr,.signup-table td{display:block;width:100%}.signup-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%)}.signup-table tr{padding:12px 0;border-top:1px solid #e2e8f0}.signup-table tr:first-child{border-top:0}.signup-table td{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(0,1.2fr);gap:12px;padding:6px 0;border-top:0;text-align:left}.signup-table td::before{content:attr(data-label);color:#64748b;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.signup-table td[colspan]{display:block;text-align:left}.signup-table td[colspan]::before{display:none}.metrics-updated{text-align:left}.customer-panel{padding:20px}.customer-detail{grid-template-columns:1fr;gap:6px}}
-    @media(prefers-reduced-motion:reduce){.spinner{animation:none}}
+    @media(max-width:1000px){.kpi-grid,.status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.secondary-metrics{grid-template-columns:1fr}.growth-grid{grid-template-columns:1fr}.chart-card-plan{grid-column:auto}}
+    @media(max-width:640px){.wrap{padding:28px 16px 44px}.page-header{flex-direction:column}.page-header h1{font-size:28px}.header-actions{justify-content:flex-start}.kpi-grid,.status-grid{grid-template-columns:1fr}.panel{padding:16px}.metrics-message{align-items:flex-start;flex-wrap:wrap}.chart-loading-preview{grid-template-columns:1fr;margin-left:0}.chart-skeleton:nth-child(n+2){display:none}.chart-card{padding:16px}.chart-shell{height:220px}.chart-shell-compact{height:200px}.signup-tools{align-items:stretch;flex-direction:column}.search-field{max-width:none}.signup-table,.signup-table tbody,.signup-table tr,.signup-table td{display:block;width:100%}.signup-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%)}.signup-table tr{padding:12px 0;border-top:1px solid #e2e8f0}.signup-table tr:first-child{border-top:0}.signup-table td{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(0,1.2fr);gap:12px;padding:6px 0;border-top:0;text-align:left}.signup-table td::before{content:attr(data-label);color:#64748b;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.signup-table td[colspan]{display:block;text-align:left}.signup-table td[colspan]::before{display:none}.metrics-updated{text-align:left}.customer-panel{padding:20px}.customer-detail{grid-template-columns:1fr;gap:6px}}
+    @media(prefers-reduced-motion:reduce){.spinner,.chart-skeleton{animation:none}}
   </style>
   <link rel="stylesheet" href="/assets/app-shell.css?v=20260801-admin2a">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module" src="/assets/app-shell.js?v=20260801-admin2a"></script>
-  <script type="module" src="/assets/admin-dashboard.js?v=20260801-admin3b"></script>
+  <script type="module" src="/assets/admin-dashboard.js?v=20260802-admin4b"></script>
 </head>
 <body>
   <div data-app-navigation data-auth-controlled hidden></div>
@@ -96,7 +98,8 @@
 
       <section class="card metrics-message" id="metricsLoading" role="status" aria-live="polite">
         <span class="spinner" aria-hidden="true"></span>
-        <div><h2>Loading metrics</h2><p>Securely gathering user, plan and current-month usage totals.</p></div>
+        <div><h2>Loading metrics and growth charts</h2><p>Securely gathering user, plan and current-month usage totals.</p></div>
+        <div class="chart-loading-preview" aria-hidden="true"><span class="chart-skeleton"></span><span class="chart-skeleton"></span><span class="chart-skeleton"></span></div>
       </section>
 
       <section class="card metrics-message metrics-failure" id="metricsFailure" role="alert" hidden>
@@ -118,6 +121,31 @@
             <article class="card secondary-card"><p class="kpi-label">Invoice scans this month</p><p class="kpi-value" id="scanUsageValue">&mdash;</p><p class="phase-note">Successful scans in the current UTC month</p></article>
           </div>
           <p class="metrics-updated" id="metricsUpdatedAt" aria-live="polite"></p>
+        </section>
+
+        <section aria-labelledby="growthOverviewTitle" id="growthOverview">
+          <h2 class="section-heading" id="growthOverviewTitle">Growth overview</h2>
+          <div class="growth-grid">
+            <article class="card chart-card">
+              <h3 id="newSignupsTitle">New sign-ups</h3>
+              <p class="chart-description" id="newSignupsDescription">Registered non-demo accounts created each month</p>
+              <div class="chart-shell"><canvas id="monthlySignupsChart" role="img" aria-labelledby="newSignupsTitle newSignupsDescription"></canvas><p class="chart-empty" id="monthlySignupsEmpty" hidden></p></div>
+              <ul class="visually-hidden" id="monthlySignupsSummary" aria-label="New sign-ups data"></ul>
+            </article>
+            <article class="card chart-card">
+              <h3 id="userGrowthTitle">User growth</h3>
+              <p class="chart-description" id="userGrowthDescription">Total registered non-demo accounts at each month end</p>
+              <div class="chart-shell"><canvas id="cumulativeUsersChart" role="img" aria-labelledby="userGrowthTitle userGrowthDescription"></canvas><p class="chart-empty" id="cumulativeUsersEmpty" hidden></p></div>
+              <ul class="visually-hidden" id="cumulativeUsersSummary" aria-label="Cumulative user growth data"></ul>
+            </article>
+            <article class="card chart-card chart-card-plan">
+              <h3 id="planMixTitle">Current plan mix</h3>
+              <p class="chart-description" id="planMixDescription">Current plan status, not subscription-payment status</p>
+              <div class="chart-shell chart-shell-compact"><canvas id="planDistributionChart" role="img" aria-labelledby="planMixTitle planMixDescription"></canvas><p class="chart-empty" id="planDistributionEmpty" hidden></p></div>
+              <p class="chart-legend-text" id="planDistributionText"></p>
+              <ul class="visually-hidden" id="planDistributionSummary" aria-label="Current plan distribution data"></ul>
+            </article>
+          </div>
         </section>
 
         <section aria-labelledby="recentSignupsTitle">

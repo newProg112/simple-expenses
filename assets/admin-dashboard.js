@@ -4,7 +4,9 @@ import {
   adminMetricsErrorState,
   adminUserDetailsErrorState,
   adminUserSearchErrorState,
+  buildAdminChartModel,
   buildCustomerSummary,
+  chartSummaryItems,
   filterSignupsByEmail,
   formatAdminDate,
   formatEstimatedMrr,
@@ -12,7 +14,7 @@ import {
   safeMetricCount,
   supportDiagnosticMessages,
   validateAdminUserSearchQuery
-} from "./admin-metrics-view.js";
+} from "./admin-metrics-view.js?v=20260802-admin4b";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
@@ -55,6 +57,7 @@ const customerRefresh = document.getElementById("customerRefresh");
 const customerClipboardStatus = document.getElementById("customerClipboardStatus");
 const refreshMetricsButton = document.getElementById("refreshMetricsButton");
 const metricsUpdatedAt = document.getElementById("metricsUpdatedAt");
+const growthOverview = document.getElementById("growthOverview");
 const callGetAdminMetrics = httpsCallable(functions, "getAdminMetrics");
 const callGetAdminUserDetails = httpsCallable(functions, "getAdminUserDetails");
 const callSearchAdminUsers = httpsCallable(functions, "searchAdminUsers");
@@ -69,6 +72,131 @@ let customerPanelTrigger = null;
 let authGeneration = 0;
 let resolvedAuthUid = "";
 let currentAdminUser = null;
+const adminCharts = new Map();
+
+function destroyAdminCharts(){
+  for(const chart of adminCharts.values()) chart.destroy();
+  adminCharts.clear();
+}
+
+function clearGrowthChartContent(){
+  destroyAdminCharts();
+  for(const id of ["monthlySignupsSummary", "cumulativeUsersSummary", "planDistributionSummary"]){
+    document.getElementById(id).replaceChildren();
+  }
+  for(const id of ["monthlySignupsEmpty", "cumulativeUsersEmpty", "planDistributionEmpty"]){
+    const empty = document.getElementById(id);
+    empty.textContent = "";
+    empty.hidden = true;
+  }
+  document.getElementById("planDistributionText").textContent = "";
+}
+
+function replaceSummaryList(id, items){
+  const list = document.getElementById(id);
+  list.replaceChildren();
+  for(const text of items){
+    const item = document.createElement("li");
+    item.textContent = text;
+    list.append(item);
+  }
+}
+
+function showChartEmpty(canvasId, emptyId, message){
+  document.getElementById(canvasId).hidden = true;
+  const empty = document.getElementById(emptyId);
+  empty.textContent = message;
+  empty.hidden = false;
+}
+
+function prepareChart(canvasId, emptyId){
+  const canvas = document.getElementById(canvasId);
+  canvas.hidden = false;
+  document.getElementById(emptyId).hidden = true;
+  return canvas;
+}
+
+function renderChart(canvasId, emptyId, configuration){
+  const canvas = prepareChart(canvasId, emptyId);
+  const ChartLibrary = window.Chart;
+  if(typeof ChartLibrary !== "function"){
+    showChartEmpty(canvasId, emptyId, "Charts are unavailable. The accessible data summary remains available.");
+    return;
+  }
+  adminCharts.get(canvasId)?.destroy();
+  adminCharts.set(canvasId, new ChartLibrary(canvas, configuration));
+}
+
+function baseChartOptions(){
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : { duration: 300 },
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.parsed.y ?? context.parsed}` } }
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { precision: 0 } },
+      x: { grid: { display: false } }
+    }
+  };
+}
+
+function renderGrowthCharts(payload){
+  destroyAdminCharts();
+  const model = buildAdminChartModel(payload?.charts, payload?.metrics);
+  const summaries = ["monthlySignupsSummary", "cumulativeUsersSummary", "planDistributionSummary"];
+  summaries.forEach(id => replaceSummaryList(id, []));
+  document.getElementById("planDistributionText").textContent = "";
+  if(!model){
+    showChartEmpty("monthlySignupsChart", "monthlySignupsEmpty", "Growth data is unavailable for this snapshot.");
+    showChartEmpty("cumulativeUsersChart", "cumulativeUsersEmpty", "Growth data is unavailable for this snapshot.");
+    showChartEmpty("planDistributionChart", "planDistributionEmpty", "Plan data is unavailable for this snapshot.");
+    return;
+  }
+
+  replaceSummaryList("monthlySignupsSummary", chartSummaryItems(model.labels, model.monthlyValues, "new accounts"));
+  replaceSummaryList("cumulativeUsersSummary", chartSummaryItems(model.labels, model.cumulativeValues, "total accounts"));
+  if(model.monthlyValues.every(value => value === 0)){
+    showChartEmpty("monthlySignupsChart", "monthlySignupsEmpty", "No new sign-ups in the displayed months.");
+  }else{
+    renderChart("monthlySignupsChart", "monthlySignupsEmpty", {
+      type: "bar",
+      data: { labels: model.labels, datasets: [{ label: "New sign-ups", data: model.monthlyValues, backgroundColor: "#0077b6", borderColor: "#075985", borderWidth: 1 }] },
+      options: baseChartOptions()
+    });
+  }
+
+  if(model.totalUsers === 0){
+    showChartEmpty("cumulativeUsersChart", "cumulativeUsersEmpty", "No registered non-demo accounts yet.");
+    showChartEmpty("planDistributionChart", "planDistributionEmpty", "No current plan data yet.");
+    document.getElementById("planDistributionText").textContent = "Starter 0 · Pro 0";
+  }else{
+    renderChart("cumulativeUsersChart", "cumulativeUsersEmpty", {
+      type: "line",
+      data: { labels: model.labels, datasets: [{ label: "Total users", data: model.cumulativeValues, borderColor: "#0077b6", backgroundColor: "#0077b6", borderWidth: 2, pointRadius: 3, pointStyle: "circle", tension: 0, fill: false }] },
+      options: baseChartOptions()
+    });
+    const starterPercent = Math.round((model.planValues[0] / model.totalUsers) * 100);
+    const proPercent = 100 - starterPercent;
+    document.getElementById("planDistributionText").textContent = `Starter ${model.planValues[0]} (${starterPercent}%) · Pro ${model.planValues[1]} (${proPercent}%)`;
+    renderChart("planDistributionChart", "planDistributionEmpty", {
+      type: "doughnut",
+      data: { labels: ["Starter", "Pro"], datasets: [{ label: "Current users", data: model.planValues, backgroundColor: ["#0077b6", "#7c3aed"], borderColor: "#ffffff", borderWidth: 2 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : { duration: 300 },
+        plugins: { legend: { display: true, position: "bottom", labels: { usePointStyle: true } }, tooltip: { callbacks: { label: context => `${context.label}: ${context.parsed}` } } }
+      }
+    });
+  }
+  replaceSummaryList("planDistributionSummary", [
+    `Starter: ${model.planValues[0]} users`,
+    `Pro: ${model.planValues[1]} users`
+  ]);
+}
 
 function showState(stateId){
   for(const id of stateIds){
@@ -88,6 +216,7 @@ function showAdminDashboard(){
 }
 
 function clearRenderedMetrics(){
+  clearGrowthChartContent();
   for(const id of metricValueIds){
     document.getElementById(id).textContent = "—";
   }
@@ -181,6 +310,7 @@ function renderAdminMetrics(payload){
   document.getElementById("activePaidValue").textContent = String(safeMetricCount(metrics.activePaidSubscriptions));
   document.getElementById("aiUsageValue").textContent = String(safeMetricCount(metrics.aiAssistantSuccessfulUses));
   document.getElementById("scanUsageValue").textContent = String(safeMetricCount(metrics.invoiceScanningSuccessfulUses));
+  renderGrowthCharts(payload);
   recentSignupRecords = Array.isArray(payload?.recentSignups)
     ? payload.recentSignups.slice(0, 10)
     : [];
@@ -448,6 +578,12 @@ customerCopySummary.addEventListener("click", () => {
 document.addEventListener("keydown", event => {
   if(event.key === "Escape" && !customerPanel.hidden) closeCustomerPanel();
 });
+
+if(typeof ResizeObserver === "function"){
+  new ResizeObserver(() => {
+    for(const chart of adminCharts.values()) chart.resize();
+  }).observe(growthOverview);
+}
 
 onAuthStateChanged(
   auth,

@@ -524,3 +524,54 @@ Manual support-workspace check:
     state, then stop Functions to verify the unavailable state.
 12. Confirm a failed search clears old results and that no customer-specific
     console deep links, account actions, or Firestore rules changes were added.
+
+# Admin Dashboard Phase 4A
+
+`getAdminMetrics` now returns a backward-compatible `charts` section calculated
+from the same Firebase Authentication pagination pass and normalised profile
+plans as the existing KPI cards. It returns the current UTC month plus the
+preceding 11 months. Months without sign-ups are explicit zeroes. Accounts with
+missing or malformed Auth creation dates are not assigned to a sign-up month;
+they remain in the cumulative opening baseline so the final cumulative value
+continues to agree with Total Users. Demo identities remain excluded.
+
+At a larger user volume, an owner-only aggregate snapshot document written as
+part of normal account lifecycle processing would avoid a full Auth scan. Such
+snapshots should store month-keyed aggregate counts only, be updated idempotently
+on account creation and authoritative subscription events, and never reconstruct
+historical revenue from current profile fields. Phase 4A adds no snapshots,
+scheduled jobs, accounting reads, or historical revenue figures.
+
+Run focused automated coverage with:
+
+```powershell
+npm.cmd test -- tests/admin-metrics.test.js tests/admin-dashboard.test.js
+```
+
+Manual growth-chart checks:
+
+1. Sign in as a configured admin, open `/admin`, and confirm Growth overview is
+   below the KPI cards and above Recent sign-ups.
+2. Confirm New sign-ups shows exactly 12 chronological UTC calendar months,
+   includes the current month, and shows zero-sign-up months rather than gaps.
+3. Confirm User growth never decreases, includes accounts created before the
+   displayed range in its opening value, and ends at the Total Users KPI.
+4. Confirm Current plan mix shows Starter and Pro counts equal to their KPI
+   cards, totals to Total Users, and describes plan rather than payment status.
+5. Configure a demo account and verify it is absent from all chart counts. Test
+   an empty Auth emulator and confirm all three cards show clear empty states
+   with no invalid percentages.
+6. Choose Refresh repeatedly and confirm only one metrics request is active,
+   chart instances are replaced without duplicate canvases, and new values are
+   shown. Stop the Functions emulator during refresh and confirm all stale KPI,
+   table, and chart content is cleared before the unavailable message appears.
+7. Temporarily omit backend secrets and verify the configuration error. Repeat
+   signed out and as a non-admin to verify redirect and access-denied behaviour.
+8. Test wide desktop, laptop, tablet, and narrow mobile widths. Resize the
+   browser and collapse or expand the sidebar; confirm charts resize, labels and
+   legends remain readable, and the page has no horizontal overflow or clipped
+   tooltips.
+9. Use keyboard navigation and a screen reader to confirm headings,
+   descriptions, canvas labels, and hidden summary lists communicate every
+   returned value without requiring canvas interaction or colour recognition.
+10. Enable reduced motion and confirm chart and loading animations are disabled.

@@ -11,6 +11,7 @@ const {
 } = require("../functions/lib/admin-authorization.js");
 const {
   AUTH_PAGE_SIZE,
+  GROWTH_RANGE_MONTHS,
   PRO_MONTHLY_PRICE_PENCE,
   RECENT_SIGNUP_LIMIT,
   buildAdminMetrics,
@@ -246,7 +247,7 @@ describe("admin metrics backend authorization", () => {
 describe("admin metrics aggregation", () => {
   it("returns fixed zero metrics for an empty Auth system", async () => {
     const { result } = await metricsFor([]);
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       generatedAt: NOW.toISOString(),
       monthKey: "2026-07",
       metrics: {
@@ -259,8 +260,14 @@ describe("admin metrics aggregation", () => {
         aiAssistantSuccessfulUses: 0,
         invoiceScanningSuccessfulUses: 0
       },
+      charts: {
+        rangeMonths: 12,
+        planDistribution: { starter: 0, pro: 0 }
+      },
       recentSignups: []
     });
+    expect(result.charts.monthlySignups).toHaveLength(GROWTH_RANGE_MONTHS);
+    expect(result.charts.cumulativeUsers).toHaveLength(GROWTH_RANGE_MONTHS);
   });
 
   it("paginates Firebase Auth beyond 1,000 users", async () => {
@@ -419,6 +426,77 @@ describe("admin metrics aggregation", () => {
       "userProfiles/customer/usage/2026-07"
     ]);
     expect(reads.join("|")).not.toContain("users/");
+  });
+});
+
+describe("admin growth chart data", () => {
+  it("returns 12 chronological UTC months including the current month and zero months", async () => {
+    const { result } = await metricsFor([
+      authUser("august", { creationTime: "2025-08-31T23:59:59.999Z" }),
+      authUser("september", { creationTime: "2025-09-01T00:00:00.000Z" }),
+      authUser("current", { creationTime: "2026-07-15T12:00:00.000Z" })
+    ]);
+    const monthly = result.charts.monthlySignups;
+    expect(monthly).toHaveLength(12);
+    expect(monthly[0]).toEqual({ monthKey: "2025-08", label: "Aug 2025", count: 1 });
+    expect(monthly.at(-1)).toEqual({ monthKey: "2026-07", label: "Jul 2026", count: 1 });
+    expect(monthly.find(point => point.monthKey === "2025-10").count).toBe(0);
+    expect(monthly.map(point => point.monthKey)).toEqual(
+      [...monthly].map(point => point.monthKey).sort()
+    );
+  });
+
+  it("uses pre-range and undated accounts as the opening cumulative baseline", async () => {
+    const { result } = await metricsFor([
+      authUser("old", { creationTime: "2020-01-01T00:00:00.000Z" }),
+      authUser("malformed", { creationTime: "not-a-date" }),
+      authUser("missing", { creationTime: null }),
+      authUser("new", { creationTime: "2026-07-01T00:00:00.000Z" })
+    ]);
+    expect(result.charts.monthlySignups.reduce((sum, point) => sum + point.count, 0)).toBe(1);
+    expect(result.charts.cumulativeUsers[0].count).toBe(3);
+    expect(result.charts.cumulativeUsers.at(-1).count).toBe(result.metrics.totalUsers);
+    for(let index = 1; index < result.charts.cumulativeUsers.length; index += 1){
+      expect(result.charts.cumulativeUsers[index].count)
+        .toBeGreaterThanOrEqual(result.charts.cumulativeUsers[index - 1].count);
+    }
+  });
+
+  it("excludes demo identities and keeps plan distribution equal to KPI totals", async () => {
+    const { result } = await metricsFor([
+      authUser("demo-user", { creationTime: "2026-07-02T00:00:00.000Z" }),
+      authUser("starter", { creationTime: "2026-06-02T00:00:00.000Z" }),
+      authUser("pro", { creationTime: "2026-07-02T00:00:00.000Z" })
+    ], { profiles: { pro: { currentPlan: "Pro" } } });
+    expect(result.charts.planDistribution).toEqual({ starter: 1, pro: 1 });
+    expect(result.charts.planDistribution.starter).toBe(result.metrics.starterUsers);
+    expect(result.charts.planDistribution.pro).toBe(result.metrics.proUsers);
+    expect(Object.values(result.charts.planDistribution).reduce((sum, count) => sum + count, 0))
+      .toBe(result.metrics.totalUsers);
+    expect(result.charts.monthlySignups.at(-1).count).toBe(1);
+  });
+
+  it("derives chart totals after paging beyond one Auth page", async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, index) => authUser(`paged-${index}`));
+    const auth = createAuthPages([firstPage, [authUser("paged-1000")]]);
+    const result = await buildAdminMetrics({
+      auth,
+      firestore: createFirestore(),
+      demoIdentifiers: parseDemoIdentifiers(DEMO_CONFIGURATION),
+      proPriceId: PRO_PRICE_ID,
+      now: NOW
+    });
+    expect(auth.listUsers).toHaveBeenCalledTimes(2);
+    expect(result.metrics.totalUsers).toBe(1001);
+    expect(result.charts.monthlySignups.at(-1).count).toBe(1001);
+    expect(result.charts.cumulativeUsers.at(-1).count).toBe(1001);
+  });
+
+  it("returns only aggregate chart fields and reads no accounting collections", async () => {
+    const { result, reads } = await metricsFor([authUser("private-user")]);
+    const serialized = JSON.stringify(result.charts);
+    expect(serialized).not.toMatch(/uid|email|stripe|business|address/i);
+    expect(reads.every(read => read.includes("userProfiles") || read.startsWith("collection:userProfiles"))).toBe(true);
   });
 });
 
