@@ -34,6 +34,9 @@ const {
   trustedActivityIdentity,
   writeActivityEvent,
 } = require("./lib/admin-activity");
+const {
+  createAdminFeatureUsageHandler,
+} = require("./lib/admin-feature-usage-handler");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -874,6 +877,22 @@ exports.getAdminRecentActivity = onCall(
       demoConfiguration: demoIdentifiersSecret.value(),
       timestampFactory: admin.firestore.Timestamp,
       documentIdField: admin.firestore.FieldPath.documentId(),
+    })(request),
+);
+
+exports.getAdminFeatureUsage = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 30,
+      memory: "256MiB",
+      secrets: [adminUidsSecret, demoIdentifiersSecret],
+    },
+    (request) => createAdminFeatureUsageHandler({
+      firestore: admin.firestore(),
+      adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
+      timestampFactory: admin.firestore.Timestamp,
     })(request),
 );
 

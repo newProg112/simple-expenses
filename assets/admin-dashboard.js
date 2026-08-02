@@ -8,6 +8,10 @@ import {
   formatActivityRelativeTime
 } from "./admin-activity-view.js?v=20260802-admin5a";
 import {
+  buildFeatureUsageChartModel,
+  featureUsageErrorState
+} from "./admin-feature-usage-view.js?v=20260802-admin5b";
+import {
   adminMetricsErrorState,
   adminUserDetailsErrorState,
   adminUserSearchErrorState,
@@ -75,8 +79,19 @@ const activityStatus = document.getElementById("activityStatus");
 const refreshActivityButton = document.getElementById("refreshActivityButton");
 const retryActivityButton = document.getElementById("retryActivityButton");
 const showMoreActivityButton = document.getElementById("showMoreActivityButton");
+const featureUsageRange = document.getElementById("featureUsageRange");
+const featureUsageLoading = document.getElementById("featureUsageLoading");
+const featureUsageError = document.getElementById("featureUsageError");
+const featureUsageData = document.getElementById("featureUsageData");
+const featureUsageZero = document.getElementById("featureUsageZero");
+const featureUsageUnavailable = document.getElementById("featureUsageUnavailable");
+const featureUsageChartShell = document.getElementById("featureUsageChartShell");
+const featureUsageTableBody = document.getElementById("featureUsageTableBody");
+const featureUsageStatus = document.getElementById("featureUsageStatus");
+const retryFeatureUsageButton = document.getElementById("retryFeatureUsageButton");
 const callGetAdminMetrics = httpsCallable(functions, "getAdminMetrics");
 const callGetAdminRecentActivity = httpsCallable(functions, "getAdminRecentActivity");
+const callGetAdminFeatureUsage = httpsCallable(functions, "getAdminFeatureUsage");
 const callGetAdminUserDetails = httpsCallable(functions, "getAdminUserDetails");
 const callSearchAdminUsers = httpsCallable(functions, "searchAdminUsers");
 let metricsRequest = null;
@@ -93,7 +108,146 @@ let currentAdminUser = null;
 let activityRequest = null;
 let activityRecords = [];
 let activityCursor = null;
+let featureUsageRequest = null;
+let featureUsageChart = null;
 const adminCharts = new Map();
+
+function destroyFeatureUsageChart(){
+  featureUsageChart?.destroy();
+  featureUsageChart = null;
+}
+
+function setFeatureUsageState(state){
+  featureUsageLoading.hidden = state !== "loading";
+  featureUsageError.hidden = state !== "error";
+  featureUsageData.hidden = !["loaded", "zero", "unavailable"].includes(state);
+  featureUsageZero.hidden = state !== "zero";
+  featureUsageUnavailable.hidden = state !== "unavailable";
+  featureUsageChartShell.hidden = state !== "loaded";
+}
+
+function renderFeatureUsageTable(items){
+  featureUsageTableBody.replaceChildren();
+  for(const item of items){
+    const row = document.createElement("tr");
+    const label = document.createElement("th");
+    label.scope = "row";
+    label.textContent = item.label;
+    const count = document.createElement("td");
+    count.textContent = String(item.count);
+    row.append(label, count);
+    featureUsageTableBody.append(row);
+  }
+}
+
+const featureUsageValueLabels = {
+  id: "featureUsageValueLabels",
+  afterDatasetsDraw(chart){
+    const context = chart.ctx;
+    const values = chart.data.datasets[0]?.data || [];
+    context.save();
+    context.fillStyle = "#334155";
+    context.font = "700 12px system-ui";
+    context.textBaseline = "middle";
+    chart.getDatasetMeta(0).data.forEach((bar, index) => {
+      const x = Math.min(bar.x + 8, chart.chartArea.right - 18);
+      context.fillText(String(values[index] || 0), x, bar.y);
+    });
+    context.restore();
+  }
+};
+
+function renderFeatureUsage(payload){
+  destroyFeatureUsageChart();
+  const model = buildFeatureUsageChartModel(payload?.items);
+  document.getElementById("featureUsageTotal").textContent = String(model.totalTrackedActions);
+  const mostUsed = document.getElementById("featureUsageMostUsed");
+  mostUsed.hidden = !model.mostUsedFeature;
+  document.getElementById("featureUsageMostUsedValue").textContent = model.mostUsedFeature;
+  renderFeatureUsageTable(model.items);
+  featureUsageStatus.textContent = `${model.totalTrackedActions} tracked actions across ${model.items.length} features.`;
+  if(model.totalTrackedActions === 0){
+    setFeatureUsageState("zero");
+    return;
+  }
+  const ChartLibrary = window.Chart;
+  if(typeof ChartLibrary !== "function"){
+    setFeatureUsageState("unavailable");
+    return;
+  }
+  setFeatureUsageState("loaded");
+  featureUsageChart = new ChartLibrary(document.getElementById("featureUsageChart"), {
+    type: "bar",
+    data: {
+      labels: model.labels,
+      datasets: [{
+        label: "Tracked actions",
+        data: model.counts,
+        backgroundColor: "#0077b6",
+        borderColor: "#075985",
+        borderWidth: 1
+      }]
+    },
+    plugins: [featureUsageValueLabels],
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : {duration: 300},
+      layout: {padding: {right: 36}},
+      plugins: {
+        legend: {display: false},
+        tooltip: {callbacks: {label: context => `Tracked actions: ${context.parsed.x}`}}
+      },
+      scales: {
+        x: {beginAtZero: true, ticks: {precision: 0, stepSize: 1}},
+        y: {grid: {display: false}}
+      }
+    }
+  });
+}
+
+function showFeatureUsageFailure(error){
+  destroyFeatureUsageChart();
+  const state = featureUsageErrorState(error);
+  if(state.kind === "unauthenticated"){
+    showState("signedOutState");
+    window.location.replace("/login.html");
+    return;
+  }
+  if(state.kind === "permission-denied"){
+    showState("deniedState");
+    return;
+  }
+  document.getElementById("featureUsageErrorTitle").textContent = state.title;
+  document.getElementById("featureUsageErrorMessage").textContent = state.message;
+  setFeatureUsageState("error");
+}
+
+function loadFeatureUsage(){
+  if(featureUsageRequest || !currentAdminUser) return featureUsageRequest;
+  const requestGeneration = authGeneration;
+  const requestedRange = featureUsageRange.value;
+  destroyFeatureUsageChart();
+  setFeatureUsageState("loading");
+  featureUsageRange.disabled = true;
+  featureUsageRequest = callGetAdminFeatureUsage({range: requestedRange})
+    .then(result => {
+      if(requestGeneration === authGeneration && currentAdminUser){
+        renderFeatureUsage(result.data);
+      }
+    })
+    .catch(error => {
+      if(requestGeneration === authGeneration) showFeatureUsageFailure(error);
+    })
+    .finally(() => {
+      featureUsageRequest = null;
+      if(requestGeneration === authGeneration && currentAdminUser){
+        featureUsageRange.disabled = false;
+      }
+    });
+  return featureUsageRequest;
+}
 
 function setActivityState(state){
   activityLoading.hidden = state !== "loading";
@@ -679,11 +833,14 @@ function loadAdminMetrics(){
 refreshMetricsButton.addEventListener("click", () => {
   loadAdminMetrics();
   loadRecentActivity();
+  loadFeatureUsage();
 });
 refreshActivityButton.addEventListener("click", () => loadRecentActivity());
 retryActivityButton.addEventListener("click", () => loadRecentActivity());
 showMoreActivityButton.addEventListener("click", () => loadRecentActivity({append: true}));
 activityFilter.addEventListener("change", renderActivity);
+featureUsageRange.addEventListener("change", loadFeatureUsage);
+retryFeatureUsageButton.addEventListener("click", loadFeatureUsage);
 customerSearch.addEventListener("input", handleSearchInput);
 customerSearchForm.addEventListener("submit", event => {
   event.preventDefault();
@@ -733,6 +890,7 @@ onAuthStateChanged(
     showAdminDashboard();
     loadAdminMetrics();
     loadRecentActivity();
+    loadFeatureUsage();
   },
   error => {
     authGeneration += 1;

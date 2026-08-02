@@ -1,5 +1,19 @@
 # Testing
 
+## Admin Dashboard Phase 5B — Top feature usage
+
+Phase 5B adds the owner-only `getAdminFeatureUsage` callable and a responsive horizontal bar chart below Recent activity. The callable aggregates the existing `adminActivityEvents` collection into eight fixed feature categories and returns no raw events, document IDs, UIDs or emails. It reuses `SIMPLE_BOOKS_ADMIN_UIDS` and `SIMPLE_BOOKS_DEMO_IDENTIFIERS`, defaults to `30d`, and accepts only `7d`, `30d`, `90d` and `all`.
+
+Ranged queries filter `createdAt` at an exact UTC-duration boundary and project only `eventType`, `createdAt`, `uid` and `displayEmail`; identity fields are used solely to remove configured demo events. `all` omits the date filter. Existing automatic single-field indexing is sufficient, so Phase 5B adds no Firestore index or rule changes.
+
+Run the focused contracts with:
+
+```sh
+npm.cmd test -- tests/admin-feature-usage.test.js tests/admin-activity.test.js tests/admin-dashboard.test.js
+```
+
+The tests cover owner authorization, closed configuration, range validation and boundaries, demo removal, malformed and unknown records, zero aggregates, stable response ordering, privacy, frontend sorting, exact counts, all UI states, Chart.js fallback, responsive horizontal chart options, accessible fallback values, reduced motion, request de-duplication, range switching and shared Refresh integration.
+
 ## Admin Dashboard Phase 5A — Recent activity feed
 
 Phase 5A adds the owner-only, read-only `adminActivityEvents/{eventId}` feed. Browser Firestore access remains denied by default; `getAdminRecentActivity` performs all reads after validating the authenticated UID against `SIMPLE_BOOKS_ADMIN_UIDS` and validating `SIMPLE_BOOKS_DEMO_IDENTIFIERS`. Responses omit UIDs and contain only event type, ISO timestamp, normalised display email and plan, a server-owned summary, and an empty approved metadata object.

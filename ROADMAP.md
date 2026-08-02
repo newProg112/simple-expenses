@@ -3,6 +3,7 @@
 ## Admin Dashboard delivery
 
 - [x] Admin Dashboard Phase 5A — Recent activity feed
+- [x] Admin Dashboard Phase 5B — Top feature usage
 
 > **Mission**
 >
