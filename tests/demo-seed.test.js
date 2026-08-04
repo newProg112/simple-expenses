@@ -8,8 +8,34 @@ import {
   seedDemoBusiness,
   validateDemoSeed
 } from "../assets/demo-seed-engine.js";
+import { buildReceivablesAgeing } from "../resources/js/business-logic.js";
+import {
+  buildTrialBalance,
+  validateJournal
+} from "../resources/js/ledger-engine.js";
+import { trialBalanceViewFromJournals } from "../resources/js/trial-balance-view.js";
+import { generalLedgerViewFromJournals } from "../resources/js/general-ledger-view.js";
+import { profitLossViewFromJournals } from "../resources/js/profit-loss-view.js";
+import { balanceSheetViewFromJournals } from "../resources/js/balance-sheet-view.js";
 
 const demoUser = { uid: "official-demo-user" };
+const seededSections = [
+  "customers",
+  "invoices",
+  "bills",
+  "expenses",
+  "mileage",
+  "projects",
+  "budgets"
+];
+
+function demoJournals(){
+  return buildDemoJournalRecords(demoUser.uid).map(record => record.data);
+}
+
+function seededDocumentCount(){
+  return seededSections.reduce((total, section) => total + DEMO_SEED[section].length, 0);
+}
 
 function createFirestoreServices(documentsByCollection = {}){
   const batches = [];
@@ -59,46 +85,106 @@ function createFirestoreServices(documentsByCollection = {}){
 }
 
 describe("demo seed definition", () => {
-  it("loads as a small, centrally versioned definition", () => {
-    expect(DEMO_SEED_VERSION).toBe(1);
+  it("loads the centrally versioned Northbank business", () => {
+    expect(DEMO_SEED_VERSION).toBe(2);
     expect(DEMO_SEED.businessProfile.demoMode).toBe(true);
-
-    for(const section of [
-      "customers",
-      "invoices",
-      "bills",
-      "expenses",
-      "mileage",
-      "projects",
-      "budgets"
-    ]){
-      expect(DEMO_SEED[section].length).toBeGreaterThan(0);
-      expect(DEMO_SEED[section].length).toBeLessThanOrEqual(2);
-    }
+    expect(DEMO_SEED.businessProfile.businessName)
+      .toBe("Northbank Creative Studio Ltd");
+    expect(DEMO_SEED.customers).toHaveLength(10);
+    expect(DEMO_SEED.projects).toHaveLength(7);
+    expect(DEMO_SEED.invoices).toHaveLength(25);
+    expect(DEMO_SEED.bills).toHaveLength(18);
+    expect(DEMO_SEED.expenses).toHaveLength(20);
+    expect(DEMO_SEED.mileage).toHaveLength(15);
+    expect(DEMO_SEED.budgets).toHaveLength(7);
   });
 
   it("passes structural, financial, and ledger validation", () => {
     expect(validateDemoSeed()).toEqual({ valid: true, errors: [] });
-    expect(buildDemoJournalRecords(demoUser.uid)).toHaveLength(4);
+    expect(demoJournals()).toHaveLength(78);
+    expect(demoJournals().every(journal => validateJournal(journal).valid)).toBe(true);
   });
 
-  it("keeps customer, project, and transaction relationships valid", () => {
-    const customer = DEMO_SEED.customers[0];
-    const project = DEMO_SEED.projects[0];
-    const invoice = DEMO_SEED.invoices[0];
+  it("keeps every customer, project, and transaction relationship valid", () => {
+    const customersById = new Map(DEMO_SEED.customers.map(record => [record.id, record.data]));
+    const projectsById = new Map(DEMO_SEED.projects.map(record => [record.id, record.data]));
 
-    expect(project.data.customerId).toBe(customer.id);
-    expect(project.data.customerName).toBe(customer.data.name);
-    expect(invoice.data.client).toBe(customer.data.name);
-    expect(invoice.data.clientEmail).toBe(customer.data.email);
+    for(const project of DEMO_SEED.projects){
+      const customer = customersById.get(project.data.customerId);
+      expect(customer).toBeDefined();
+      expect(project.data.customerName).toBe(customer.name);
+    }
+
+    for(const invoice of DEMO_SEED.invoices){
+      expect(DEMO_SEED.customers.some(customer =>
+        customer.data.name === invoice.data.client &&
+        customer.data.email === invoice.data.clientEmail
+      )).toBe(true);
+    }
 
     for(const section of ["invoices", "bills", "expenses", "mileage", "budgets"]){
       for(const record of DEMO_SEED[section]){
-        expect(record.data.projectId).toBe(project.id);
-        expect(record.data.projectName).toBe(project.data.name);
-        expect(record.data.projectReference).toBe(project.data.reference);
+        if(!record.data.projectId) continue;
+        const project = projectsById.get(record.data.projectId);
+        expect(project).toBeDefined();
+        expect(record.data.projectName).toBe(project.name);
+        expect(record.data.projectReference).toBe(project.reference);
       }
     }
+  });
+
+  it("gives every customer and project genuine invoice history", () => {
+    const invoicedCustomerNames = new Set(DEMO_SEED.invoices.map(record => record.data.client));
+    const invoicedProjectIds = new Set(
+      DEMO_SEED.invoices.map(record => record.data.projectId).filter(Boolean)
+    );
+
+    for(const customer of DEMO_SEED.customers){
+      expect(invoicedCustomerNames.has(customer.data.name)).toBe(true);
+    }
+    for(const project of DEMO_SEED.projects){
+      expect(invoicedProjectIds.has(project.id)).toBe(true);
+    }
+  });
+
+  it("contains varied project states, invoice states, and trading trends", () => {
+    expect(new Set(DEMO_SEED.projects.map(record => record.data.status)))
+      .toEqual(new Set(["Active", "Completed", "On Hold"]));
+    expect(new Set(DEMO_SEED.invoices.map(record => record.data.status)))
+      .toEqual(new Set(["Paid", "Unpaid"]));
+
+    const monthlyRevenue = new Map();
+    for(const invoice of DEMO_SEED.invoices){
+      const month = invoice.data.createdAt.slice(0, 7);
+      monthlyRevenue.set(month, (monthlyRevenue.get(month) || 0) + invoice.data.amount);
+    }
+
+    expect(monthlyRevenue.size).toBeGreaterThanOrEqual(7);
+    expect(monthlyRevenue.get("2026-07")).toBeGreaterThan(monthlyRevenue.get("2026-02"));
+    expect(new Set(monthlyRevenue.values()).size).toBeGreaterThanOrEqual(6);
+  });
+
+  it("produces meaningful overdue receivables and future cashflow inputs", () => {
+    const invoices = DEMO_SEED.invoices.map(record => record.data);
+    const ageing = buildReceivablesAgeing(invoices, new Date("2026-08-04T12:00:00.000Z"));
+    const overdueReceivables = ageing["0-30 days"] + ageing["31-60 days"] + ageing["61+ days"];
+    const futureReceivables = ageing["Not yet due"];
+    const futurePayables = DEMO_SEED.bills
+      .filter(record => record.data.status === "Unpaid" && record.data.dueDate >= "2026-08-04")
+      .reduce((sum, record) => sum + record.data.total, 0);
+
+    expect(overdueReceivables).toBeGreaterThan(0);
+    expect(futureReceivables).toBeGreaterThan(0);
+    expect(futurePayables).toBeGreaterThan(0);
+    expect(DEMO_SEED).not.toHaveProperty("cashflow");
+  });
+
+  it("is deterministic across repeated seed and journal generation", () => {
+    const firstSeed = JSON.stringify(DEMO_SEED);
+    const firstJournals = buildDemoJournalRecords(demoUser.uid);
+
+    expect(JSON.stringify(DEMO_SEED)).toBe(firstSeed);
+    expect(buildDemoJournalRecords(demoUser.uid)).toEqual(firstJournals);
   });
 
   it("detects broken relationships", () => {
@@ -116,6 +202,50 @@ describe("demo seed definition", () => {
   });
 });
 
+describe("demo accounting integrity", () => {
+  it("produces a balanced Trial Balance", () => {
+    const journals = demoJournals();
+    const report = buildTrialBalance(journals);
+    const view = trialBalanceViewFromJournals(journals);
+
+    expect(report.balanced).toBe(true);
+    expect(report.totalDebits).toBe(report.totalCredits);
+    expect(view.state).toBe("ready");
+    expect(view.status).toBe("Balanced");
+  });
+
+  it("produces a populated General Ledger", () => {
+    const journals = demoJournals();
+    const readyView = generalLedgerViewFromJournals(journals);
+    const loadedView = generalLedgerViewFromJournals(journals, { accountCode: "4000" });
+
+    expect(readyView.state).toBe("ready");
+    expect(readyView.accountsCount).toBeGreaterThanOrEqual(8);
+    expect(loadedView.state).toBe("loaded");
+    expect(loadedView.rows).toHaveLength(
+      DEMO_SEED.invoices.reduce((total, invoice) => total + invoice.data.items.length, 0)
+    );
+  });
+
+  it("derives a profitable Profit & Loss report", () => {
+    const view = profitLossViewFromJournals(demoJournals());
+
+    expect(view.state).toBe("profit");
+    expect(view.totalIncome).toBeGreaterThan(view.totalExpenses);
+    expect(view.netResult).toBeGreaterThan(0);
+    expect(view.incomeRows.length).toBeGreaterThan(0);
+    expect(view.expenseRows.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("derives a balanced Balance Sheet", () => {
+    const view = balanceSheetViewFromJournals(demoJournals());
+
+    expect(view.state).toBe("balanced");
+    expect(view.difference).toBe(0);
+    expect(view.totalAssets).toBe(view.totalLiabilitiesAndEquity);
+  });
+});
+
 describe("demo seed engine", () => {
   it("writes deterministic business, module, and derived journal documents only when called", async () => {
     const { services, batches } = createFirestoreServices();
@@ -125,20 +255,22 @@ describe("demo seed engine", () => {
       services
     });
     const operations = batches.flatMap(batch => batch.operations);
+    const journalCount = demoJournals().length;
+    const expectedWrites = 1 + seededDocumentCount() + journalCount;
 
     expect(result).toEqual({
-      seedVersion: 1,
-      writtenDocuments: 12,
+      seedVersion: 2,
+      writtenDocuments: expectedWrites,
       committedBatches: 1
     });
-    expect(operations).toHaveLength(12);
+    expect(operations).toHaveLength(expectedWrites);
     expect(operations[0]).toMatchObject({
       type: "set",
       documentReference: { path: `users/${demoUser.uid}` },
       options: { merge: true }
     });
     expect(operations.filter(operation => operation.documentReference.path.startsWith("journals/")))
-      .toHaveLength(4);
+      .toHaveLength(journalCount);
   });
 
   it("clears all managed demo records and journals while preserving the account marker", async () => {
