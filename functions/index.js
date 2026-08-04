@@ -37,6 +37,9 @@ const {
 const {
   createAdminFeatureUsageHandler,
 } = require("./lib/admin-feature-usage-handler");
+const {
+  createAdminDemoSeedHandler,
+} = require("./lib/admin-demo-seed-handler");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -925,6 +928,21 @@ exports.searchAdminUsers = onCall(
       firestore: admin.firestore(),
       adminUidConfiguration: adminUidsSecret.value(),
       demoConfiguration: demoIdentifiersSecret.value(),
+      logger: console,
+    })(request),
+);
+
+exports.seedAdminDemoEnvironment = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 1,
+      timeoutSeconds: 300,
+      memory: "512MiB",
+      secrets: [adminUidsSecret],
+    },
+    (request) => createAdminDemoSeedHandler({
+      firestore: admin.firestore(),
+      adminUidConfiguration: adminUidsSecret.value(),
       logger: console,
     })(request),
 );

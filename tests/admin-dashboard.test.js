@@ -60,7 +60,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(importedNames).toContain("chartSummaryItems");
     expect(importedNames.filter(name => !exportedNames.has(name))).toEqual([]);
     expect(javascript).toContain('from "./admin-metrics-view.js?v=20260802-admin4b"');
-    expect(html).toContain('/assets/admin-dashboard.js?v=20260802-admin5b');
+    expect(html).toContain('/assets/admin-dashboard.js?v=20260804-demo-admin1');
   });
 
   it("provides the admin page and exact clean hosting route", () => {
@@ -143,8 +143,9 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(html).toContain("@media(prefers-reduced-motion:reduce)");
   });
 
-  it("calls only the protected metrics function and adds no admin actions", () => {
+  it("keeps existing admin features and routes privileged actions through callables", () => {
     expect(javascript).toContain('httpsCallable(functions, "getAdminMetrics")');
+    expect(javascript).toContain('httpsCallable(functions, "seedAdminDemoEnvironment")');
     expect(javascript).not.toMatch(/getDocs|collection\(|fetch\(/);
     expect(html).not.toMatch(/Delete user|Manage subscription/);
     expect(javascript).not.toMatch(/stripeCustomerId|stripeSubscriptionId|billingOverrideReason/);

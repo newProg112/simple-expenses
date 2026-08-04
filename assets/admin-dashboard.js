@@ -26,6 +26,11 @@ import {
   supportDiagnosticMessages,
   validateAdminUserSearchQuery
 } from "./admin-metrics-view.js?v=20260802-admin4b";
+import {
+  createDemoEnvironmentController,
+  DEMO_COUNT_LABELS,
+  DEMO_COUNT_ORDER
+} from "./admin-demo-environment.js?v=20260804-demo-admin1";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
@@ -89,11 +94,16 @@ const featureUsageChartShell = document.getElementById("featureUsageChartShell")
 const featureUsageTableBody = document.getElementById("featureUsageTableBody");
 const featureUsageStatus = document.getElementById("featureUsageStatus");
 const retryFeatureUsageButton = document.getElementById("retryFeatureUsageButton");
+const demoTargetUid = document.getElementById("demoTargetUid");
+const seedDemoDataButton = document.getElementById("seedDemoDataButton");
+const demoEnvironmentFeedback = document.getElementById("demoEnvironmentFeedback");
+const demoEnvironmentCounts = document.getElementById("demoEnvironmentCounts");
 const callGetAdminMetrics = httpsCallable(functions, "getAdminMetrics");
 const callGetAdminRecentActivity = httpsCallable(functions, "getAdminRecentActivity");
 const callGetAdminFeatureUsage = httpsCallable(functions, "getAdminFeatureUsage");
 const callGetAdminUserDetails = httpsCallable(functions, "getAdminUserDetails");
 const callSearchAdminUsers = httpsCallable(functions, "searchAdminUsers");
+const callSeedAdminDemoEnvironment = httpsCallable(functions, "seedAdminDemoEnvironment");
 let metricsRequest = null;
 let searchRequest = null;
 let searchGeneration = 0;
@@ -111,6 +121,62 @@ let activityCursor = null;
 let featureUsageRequest = null;
 let featureUsageChart = null;
 const adminCharts = new Map();
+
+function renderDemoEnvironmentCounts(counts){
+  demoEnvironmentCounts.replaceChildren();
+  if(!counts || typeof counts !== "object"){
+    demoEnvironmentCounts.hidden = true;
+    return;
+  }
+
+  for(const key of DEMO_COUNT_ORDER){
+    const item = document.createElement("span");
+    item.className = "demo-environment-count";
+    const value = Number.isFinite(Number(counts[key])) ? Number(counts[key]) : 0;
+    item.append(`${DEMO_COUNT_LABELS[key]}: `);
+    const strong = document.createElement("strong");
+    strong.textContent = String(value);
+    item.append(strong);
+    demoEnvironmentCounts.append(item);
+  }
+  demoEnvironmentCounts.hidden = false;
+}
+
+function renderDemoEnvironmentState(state){
+  const running = state?.state === "running";
+  demoTargetUid.disabled = running;
+  seedDemoDataButton.disabled = running;
+  seedDemoDataButton.textContent = running ? "Seeding Demo Data…" : "Seed Demo Data";
+  demoEnvironmentFeedback.dataset.state = state?.state || "idle";
+
+  if(state?.state === "success"){
+    const cleared = Number(state.result?.clearedDocuments) || 0;
+    const written = Number(state.result?.writtenDocuments) || 0;
+    demoEnvironmentFeedback.textContent = `Complete. Cleared ${cleared} managed documents and wrote ${written} canonical documents.`;
+    renderDemoEnvironmentCounts(state.result?.counts);
+    return;
+  }
+
+  if(state?.state === "error"){
+    const stage = state.stage ? `${state.stage[0].toUpperCase()}${state.stage.slice(1)} failed: ` : "";
+    demoEnvironmentFeedback.textContent = `${stage}${state.message}`;
+    renderDemoEnvironmentCounts(null);
+    return;
+  }
+
+  demoEnvironmentFeedback.textContent = state?.message || "Enter the official demo account UID to begin.";
+  if(state?.state !== "running") renderDemoEnvironmentCounts(null);
+}
+
+const demoEnvironmentController = createDemoEnvironmentController({
+  isAdmin: () => adminAccessDecision(currentAdminUser) === "allowed",
+  confirmAction: message => window.confirm(message),
+  execute: async ({ targetUid }) => {
+    const response = await callSeedAdminDemoEnvironment({ targetUid });
+    return response.data;
+  },
+  onState: renderDemoEnvironmentState
+});
 
 function destroyFeatureUsageChart(){
   featureUsageChart?.destroy();
@@ -841,6 +907,9 @@ showMoreActivityButton.addEventListener("click", () => loadRecentActivity({appen
 activityFilter.addEventListener("change", renderActivity);
 featureUsageRange.addEventListener("change", loadFeatureUsage);
 retryFeatureUsageButton.addEventListener("click", loadFeatureUsage);
+seedDemoDataButton.addEventListener("click", () => {
+  demoEnvironmentController.run(demoTargetUid.value);
+});
 customerSearch.addEventListener("input", handleSearchInput);
 customerSearchForm.addEventListener("submit", event => {
   event.preventDefault();

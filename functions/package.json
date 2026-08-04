@@ -2,6 +2,7 @@
   "name": "functions",
   "description": "Cloud Functions for Firebase",
   "scripts": {
+    "prepare:demo-seed": "node ../scripts/sync-demo-seed-runtime.mjs",
     "lint": "eslint .",
     "test:assistant": "node test/ai-assistant-preview.test.js && node test/ai-assistant.test.js",
     "test:document-scan": "node test/business-document-scan.test.js",
