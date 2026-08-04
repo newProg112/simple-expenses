@@ -25,6 +25,72 @@ body[data-sidebar-state="collapsed"]{
   transition:margin-left .2s ease;
 }
 
+.sb-demo-banner{
+  width:calc(100% - 32px);
+  max-width:1180px;
+  min-height:74px;
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  margin:18px auto 0;
+  padding:15px 18px;
+  border:1px solid #bae6fd;
+  border-radius:14px;
+  background:linear-gradient(135deg, #f0f9ff 0%, #e7f4fb 100%);
+  box-shadow:0 8px 24px rgba(14,116,144,.09);
+  color:#0f3d56;
+  font-family:Arial, sans-serif;
+}
+
+.sb-demo-banner[hidden]{
+  display:none !important;
+}
+
+.sb-demo-banner-copy{
+  min-width:0;
+}
+
+.sb-demo-banner-label{
+  display:block;
+  margin-bottom:4px;
+  color:#075985;
+  font-size:15px;
+  line-height:1.25;
+}
+
+.sb-demo-banner p{
+  margin:0;
+  color:#36566a;
+  font-size:14px;
+  line-height:1.45;
+}
+
+.sb-demo-reset-button{
+  min-height:40px;
+  flex:0 0 auto;
+  padding:9px 15px;
+  border:1px solid #0284c7;
+  border-radius:10px;
+  background:#fff;
+  color:#0369a1;
+  font:800 14px/1.2 Arial, sans-serif;
+  cursor:pointer;
+  transition:background-color .16s ease, color .16s ease, transform .16s ease;
+}
+
+.sb-demo-reset-button:hover{
+  background:#0284c7;
+  color:#fff;
+  transform:translateY(-1px);
+}
+
+.sb-demo-reset-button:focus-visible{
+  outline:3px solid rgba(2,132,199,.3);
+  outline-offset:2px;
+}
+
 .financial-report-access-gate{
   padding:28px;
   text-align:center;
@@ -396,6 +462,19 @@ body[data-sidebar-state="collapsed"]{
   html.sb-drawer-scroll-locked body{
     overflow:hidden;
   }
+
+  .sb-demo-banner{
+    width:calc(100% - 24px);
+    align-items:stretch;
+    flex-direction:column;
+    gap:12px;
+    margin-top:12px;
+    padding:14px;
+  }
+
+  .sb-demo-reset-button{
+    width:100%;
+  }
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -407,6 +486,10 @@ body[data-sidebar-state="collapsed"]{
     scroll-behavior:auto;
     transition:none;
   }
+
+  .sb-demo-reset-button{
+    transition:none;
+  }
 }
 
 @media print{
@@ -414,6 +497,10 @@ body[data-sidebar-state="collapsed"]{
   .sb-shell-sidebar,
   .sb-shell-mobile-header,
   .sb-shell-backdrop{
+    display:none !important;
+  }
+
+  .sb-demo-banner{
     display:none !important;
   }
 

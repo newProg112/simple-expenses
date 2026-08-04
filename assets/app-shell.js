@@ -1,4 +1,8 @@
 import { isAdminUid } from "./admin-access.js";
+import {
+  handleDemoResetClick,
+  watchDemoMode
+} from "./demo-mode.js";
 
 export const NAVIGATION_GROUPS = Object.freeze([
   Object.freeze({
@@ -310,6 +314,40 @@ async function watchAdminNavigationAccess(navigation, activeKey){
   }
 }
 
+export function createDemoBanner(){
+  const banner = document.createElement("section");
+  banner.className = "sb-demo-banner";
+  banner.hidden = true;
+  banner.setAttribute("aria-label", "Demo account");
+
+  const copy = document.createElement("div");
+  copy.className = "sb-demo-banner-copy";
+
+  const label = document.createElement("strong");
+  label.className = "sb-demo-banner-label";
+  label.textContent = "Demo Account";
+
+  const explanation = document.createElement("p");
+  explanation.textContent =
+    "You are exploring a sample Simple Books business. Changes and restrictions will be introduced in later phases.";
+
+  const resetButton = document.createElement("button");
+  resetButton.className = "sb-demo-reset-button";
+  resetButton.type = "button";
+  resetButton.textContent = "Reset Demo";
+  resetButton.addEventListener("click", event => handleDemoResetClick(event));
+
+  copy.append(label, explanation);
+  banner.append(copy, resetButton);
+  return banner;
+}
+
+function watchDemoBannerAccess(banner){
+  watchDemoMode(visible => {
+    banner.hidden = !visible;
+  });
+}
+
 function renderShell(mount){
   const drawerId = "simpleBooksNavigationDrawer";
   const activeKey = activeNavigationKey(window.location.pathname);
@@ -374,6 +412,12 @@ function renderShell(mount){
   let desktopSidebarState = sidebarStateFromStorage(getBrowserStorage("localStorage"));
   let wasDesktop = window.matchMedia("(min-width: 901px)").matches;
   const appContent = document.querySelector(".app-content");
+
+  if(appContent){
+    const demoBanner = createDemoBanner();
+    appContent.prepend(demoBanner);
+    watchDemoBannerAccess(demoBanner);
+  }
 
   function applyDesktopSidebarState(state, persist = false){
     desktopSidebarState = normaliseSidebarState(state);
