@@ -13,6 +13,7 @@ import {
 } from "./admin-feature-usage-view.js?v=20260802-admin5b";
 import {
   adminMetricsErrorState,
+  adminUserActionErrorState,
   adminUserDetailsErrorState,
   adminUserSearchErrorState,
   buildAdminChartModel,
@@ -21,11 +22,12 @@ import {
   formatAdminDate,
   formatEstimatedMrr,
   formatSubscriptionStatus,
+  normalizeAdminNotesSavePayload,
   normalizeAdminUserDetailsPayload,
   safeMetricCount,
   supportDiagnosticMessages,
   validateAdminUserSearchQuery
-} from "./admin-metrics-view.js?v=20260805-admin-users2";
+} from "./admin-metrics-view.js?v=20260805-admin-users-phase2-fix1";
 import {
   createDemoEnvironmentController,
   DEMO_COUNT_LABELS,
@@ -46,6 +48,11 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/f
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
 const stateIds = ["checkingState", "signedOutState", "deniedState", "errorState"];
+const CUSTOMER_TIMELINE_PRESENTATION = Object.freeze({
+  ...ACTIVITY_PRESENTATION,
+  admin_ai_usage_reset: {title: "AI Assistant usage reset", marker: "R"},
+  admin_invoice_scanning_usage_reset: {title: "Invoice scanning usage reset", marker: "R"}
+});
 const metricValueIds = [
   "totalUsersValue",
   "starterUsersValue",
@@ -81,6 +88,22 @@ const customerCopyEmail = document.getElementById("customerCopyEmail");
 const customerCopySummary = document.getElementById("customerCopySummary");
 const customerRefresh = document.getElementById("customerRefresh");
 const customerClipboardStatus = document.getElementById("customerClipboardStatus");
+const customerAdminNotes = document.getElementById("customerAdminNotes");
+const customerAdminNotesMeta = document.getElementById("customerAdminNotesMeta");
+const customerAdminNotesSave = document.getElementById("customerAdminNotesSave");
+const customerAdminNotesFeedback = document.getElementById("customerAdminNotesFeedback");
+const customerResetAiUsage = document.getElementById("customerResetAiUsage");
+const customerResetScanUsage = document.getElementById("customerResetScanUsage");
+const customerUsageFeedback = document.getElementById("customerUsageFeedback");
+const customerUsageConfirmDialog = document.getElementById("customerUsageConfirmDialog");
+const customerUsageConfirmMessage = document.getElementById("customerUsageConfirmMessage");
+const customerUsageConfirmCancel = document.getElementById("customerUsageConfirmCancel");
+const customerUsageConfirmSubmit = document.getElementById("customerUsageConfirmSubmit");
+const customerTimelineDetails = document.getElementById("customerTimelineDetails");
+const customerTimelineLoading = document.getElementById("customerTimelineLoading");
+const customerTimelineList = document.getElementById("customerTimelineList");
+const customerTimelineStatus = document.getElementById("customerTimelineStatus");
+const customerTimelineMore = document.getElementById("customerTimelineMore");
 const refreshMetricsButton = document.getElementById("refreshMetricsButton");
 const metricsUpdatedAt = document.getElementById("metricsUpdatedAt");
 const growthOverview = document.getElementById("growthOverview");
@@ -130,6 +153,9 @@ const callGetAdminRecentActivity = httpsCallable(functions, "getAdminRecentActiv
 const callGetAdminFeatureUsage = httpsCallable(functions, "getAdminFeatureUsage");
 const callGetAdminUserDetails = httpsCallable(functions, "getAdminUserDetails");
 const callSearchAdminUsers = httpsCallable(functions, "searchAdminUsers");
+const callUpdateAdminUserNotes = httpsCallable(functions, "updateAdminUserNotes");
+const callResetAdminUserUsage = httpsCallable(functions, "resetAdminUserUsage");
+const callGetAdminUserTimeline = httpsCallable(functions, "getAdminUserTimeline");
 const callSeedAdminDemoEnvironment = httpsCallable(functions, "seedAdminDemoEnvironment");
 const callGetAdminDemoAnalytics = httpsCallable(functions, "getAdminDemoAnalytics");
 const callGetAdminCustomerAnalytics = httpsCallable(functions, "getAdminCustomerAnalytics");
@@ -141,6 +167,11 @@ let customerDetailsRequest = 0;
 let recentSignupRecords = [];
 let currentCustomerDetails = null;
 let currentCustomerSelector = null;
+let customerActionRequest = null;
+let pendingUsageReset = null;
+let customerTimelineRequest = null;
+let customerTimelineRecords = [];
+let customerTimelineCursor = null;
 let customerPanelTrigger = null;
 let authGeneration = 0;
 let resolvedAuthUid = "";
@@ -1058,10 +1089,16 @@ function setCustomerPanelState(state){
   if(customerPanelData) customerPanelData.hidden = state !== "data";
   if(customerCopyEmail) customerCopyEmail.disabled = state !== "data";
   if(customerCopySummary) customerCopySummary.disabled = state !== "data";
+  if(customerAdminNotesSave) customerAdminNotesSave.disabled = state !== "data" || Boolean(customerActionRequest);
+  if(customerResetAiUsage) customerResetAiUsage.disabled = state !== "data" || Boolean(customerActionRequest);
+  if(customerResetScanUsage) customerResetScanUsage.disabled = state !== "data" || Boolean(customerActionRequest);
 }
 
 function closeCustomerPanel(){
   customerDetailsRequest += 1;
+  customerTimelineRequest = null;
+  pendingUsageReset = null;
+  if(customerUsageConfirmDialog?.open) customerUsageConfirmDialog.close();
   customerPanel.hidden = true;
   customerPanelBackdrop.hidden = true;
   document.body.classList.remove("customer-panel-open");
@@ -1090,6 +1127,7 @@ function renderCustomerAccountBadges(badges){
   for(const badge of badgeList){
     const item = document.createElement("span");
     item.className = "account-badge";
+    item.dataset.status = String(badge);
     item.textContent = String(badge);
     container.append(item);
   }
@@ -1162,6 +1200,12 @@ function renderCustomerDetails(details){
       ? String(safeMetricCount(usage.activeProjects))
       : "Not available");
   renderCustomerActivity(normalized.recentActivity);
+  customerAdminNotes.value = normalized.adminNotes.text;
+  customerAdminNotesMeta.textContent = normalized.adminNotes.updatedAt
+    ? `Last updated ${formatActivityExactTime(normalized.adminNotes.updatedAt)} by admin ${normalized.adminNotes.updatedByAdminUid || "unknown"}.`
+    : "No private admin notes saved yet.";
+  customerAdminNotesFeedback.textContent = "";
+  customerUsageFeedback.textContent = "";
   renderCustomerDiagnostics(normalized.diagnostics);
   if(customerClipboardStatus) customerClipboardStatus.textContent = "";
   setCustomerPanelState("data");
@@ -1193,6 +1237,14 @@ function loadCustomerDetails(selector){
   currentCustomerDetails = null;
   customerClipboardStatus.textContent = "";
   customerRefresh.disabled = true;
+  customerTimelineRecords = [];
+  customerTimelineCursor = null;
+  customerTimelineRequest = null;
+  customerTimelineList.replaceChildren();
+  customerTimelineStatus.textContent = "";
+  customerTimelineLoading.hidden = true;
+  customerTimelineMore.hidden = true;
+  customerTimelineDetails.open = false;
   setCustomerPanelState("loading");
 
   return callGetAdminUserDetails(selector)
@@ -1229,6 +1281,164 @@ async function copyCustomerText(text){
     customerClipboardStatus.textContent = "Copied";
   }catch{
     customerClipboardStatus.textContent = "Copy failed. Select and copy the visible details manually.";
+  }
+}
+
+function setCustomerActionsRunning(running){
+  const disabled = Boolean(running);
+  customerAdminNotes.disabled = disabled;
+  customerAdminNotesSave.disabled = disabled;
+  customerResetAiUsage.disabled = disabled;
+  customerResetScanUsage.disabled = disabled;
+  customerUsageConfirmSubmit.disabled = disabled;
+  customerUsageConfirmCancel.disabled = disabled;
+  customerRefresh.disabled = disabled;
+}
+
+function handleCustomerActionError(error, action, feedback){
+  const state = adminUserActionErrorState(error, action);
+  if(state.kind === "unauthenticated"){
+    closeCustomerPanel();
+    showState("signedOutState");
+    window.location.replace("/login.html");
+    return;
+  }
+  if(state.kind === "permission-denied"){
+    closeCustomerPanel();
+    showState("deniedState");
+    return;
+  }
+  feedback.textContent = state.message;
+}
+
+async function saveCustomerAdminNotes(){
+  if(customerActionRequest || !currentCustomerDetails?.account?.uid) return;
+  customerAdminNotesFeedback.textContent = "Saving admin notes...";
+  setCustomerActionsRunning(true);
+  customerActionRequest = callUpdateAdminUserNotes({
+    uid: currentCustomerDetails.account.uid,
+    notes: customerAdminNotes.value
+  });
+  try{
+    const result = await customerActionRequest;
+    const savedNotes = normalizeAdminNotesSavePayload(result?.data);
+    if(!savedNotes) throw new Error("Saved admin notes response was incomplete.");
+    currentCustomerDetails = normalizeAdminUserDetailsPayload({
+      ...currentCustomerDetails,
+      adminNotes: savedNotes
+    });
+    customerAdminNotes.value = savedNotes.text;
+    customerAdminNotesMeta.textContent = `Last updated ${formatActivityExactTime(savedNotes.updatedAt)} by admin ${savedNotes.updatedByAdminUid}.`;
+    customerAdminNotesFeedback.textContent = "Admin notes saved.";
+  }catch(error){
+    handleCustomerActionError(error, "save admin notes", customerAdminNotesFeedback);
+  }finally{
+    customerActionRequest = null;
+    if(currentAdminUser && !customerPanel.hidden) setCustomerActionsRunning(false);
+  }
+}
+
+function requestUsageReset(usageType){
+  if(customerActionRequest || !currentCustomerDetails?.account?.uid) return;
+  pendingUsageReset = usageType;
+  const label = usageType === "aiAssistant" ? "AI Assistant" : "invoice scanning";
+  customerUsageConfirmMessage.textContent = `Reset this customer's ${label} usage for the current month to zero? This action is recorded in admin activity.`;
+  customerUsageConfirmDialog.showModal();
+  customerUsageConfirmSubmit.focus();
+}
+
+async function confirmUsageReset(){
+  if(customerActionRequest || !pendingUsageReset || !currentCustomerDetails?.account?.uid) return;
+  const usageType = pendingUsageReset;
+  const label = usageType === "aiAssistant" ? "AI Assistant" : "Invoice scanning";
+  customerUsageFeedback.textContent = `Resetting ${label} usage...`;
+  setCustomerActionsRunning(true);
+  customerActionRequest = callResetAdminUserUsage({uid: currentCustomerDetails.account.uid, usageType});
+  try{
+    await customerActionRequest;
+    pendingUsageReset = null;
+    customerUsageConfirmDialog.close();
+    await loadCustomerDetails(currentCustomerSelector);
+    if(currentAdminUser && !customerPanel.hidden){
+      customerUsageFeedback.textContent = `${label} monthly usage reset successfully.`;
+    }
+  }catch(error){
+    handleCustomerActionError(error, `reset ${label} usage`, customerUsageFeedback);
+    if(customerUsageConfirmDialog.open && customerUsageFeedback.textContent){
+      customerUsageConfirmMessage.textContent = customerUsageFeedback.textContent;
+    }
+  }finally{
+    customerActionRequest = null;
+    if(currentAdminUser && !customerPanel.hidden) setCustomerActionsRunning(false);
+  }
+}
+
+function renderCustomerTimeline(){
+  customerTimelineList.replaceChildren();
+  for(const record of customerTimelineRecords){
+    const item = document.createElement("li");
+    const icon = document.createElement("span");
+    icon.className = "timeline-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = CUSTOMER_TIMELINE_PRESENTATION[record.eventType]?.marker || "•";
+    const content = document.createElement("span");
+    const description = document.createElement("span");
+    description.textContent = String(record.summary || CUSTOMER_TIMELINE_PRESENTATION[record.eventType]?.title || "Account activity");
+    const timestamp = document.createElement("time");
+    timestamp.dateTime = String(record.timestamp || "");
+    timestamp.textContent = formatActivityExactTime(record.timestamp);
+    content.append(description, timestamp);
+    item.append(icon, content);
+    customerTimelineList.append(item);
+  }
+  customerTimelineStatus.textContent = customerTimelineRecords.length
+    ? `${customerTimelineRecords.length} most recent event${customerTimelineRecords.length === 1 ? "" : "s"} shown.`
+    : "No activity events are available for this account.";
+  customerTimelineMore.hidden = !customerTimelineCursor || customerTimelineRecords.length >= 100;
+  customerTimelineMore.textContent = "Load more";
+}
+
+async function loadCustomerTimeline({append = false} = {}){
+  if(customerTimelineRequest || !currentCustomerDetails?.account?.uid) return;
+  if(!append){
+    customerTimelineRecords = [];
+    customerTimelineCursor = null;
+  }
+  const remaining = 100 - customerTimelineRecords.length;
+  if(remaining <= 0) return;
+  customerTimelineLoading.hidden = false;
+  customerTimelineMore.disabled = true;
+  customerTimelineStatus.textContent = "";
+  const timelineUid = currentCustomerDetails.account.uid;
+  const request = callGetAdminUserTimeline({
+    uid: timelineUid,
+    limit: Math.min(25, remaining),
+    ...(append && customerTimelineCursor ? {cursor: customerTimelineCursor} : {})
+  });
+  customerTimelineRequest = request;
+  try{
+    const payload = (await request)?.data || {};
+    if(currentCustomerDetails?.account?.uid !== timelineUid) return;
+    const events = Array.isArray(payload.events) ? payload.events : [];
+    customerTimelineRecords = (append ? customerTimelineRecords.concat(events) : events).slice(0, 100);
+    customerTimelineCursor = typeof payload.nextCursor === "string" ? payload.nextCursor : null;
+    renderCustomerTimeline();
+  }catch(error){
+    if(currentCustomerDetails?.account?.uid !== timelineUid) return;
+    const state = adminUserActionErrorState(error, "load the customer activity timeline");
+    if(state.kind === "unauthenticated" || state.kind === "permission-denied"){
+      handleCustomerActionError(error, "load the customer activity timeline", customerTimelineStatus);
+    }else{
+      customerTimelineStatus.textContent = state.message;
+      customerTimelineMore.textContent = "Retry timeline";
+      customerTimelineMore.hidden = false;
+    }
+  }finally{
+    if(customerTimelineRequest === request){
+      customerTimelineRequest = null;
+      customerTimelineLoading.hidden = true;
+      customerTimelineMore.disabled = false;
+    }
   }
 }
 
@@ -1307,8 +1517,23 @@ customerCopyEmail.addEventListener("click", () => {
 customerCopySummary.addEventListener("click", () => {
   if(currentCustomerDetails) copyCustomerText(buildCustomerSummary(currentCustomerDetails));
 });
+customerAdminNotesSave.addEventListener("click", saveCustomerAdminNotes);
+customerResetAiUsage.addEventListener("click", () => requestUsageReset("aiAssistant"));
+customerResetScanUsage.addEventListener("click", () => requestUsageReset("invoiceScanning"));
+customerUsageConfirmCancel.addEventListener("click", () => {
+  pendingUsageReset = null;
+  customerUsageConfirmDialog.close();
+});
+customerUsageConfirmSubmit.addEventListener("click", confirmUsageReset);
+customerUsageConfirmDialog.addEventListener("cancel", () => {
+  if(!customerActionRequest) pendingUsageReset = null;
+});
+customerTimelineDetails.addEventListener("toggle", () => {
+  if(customerTimelineDetails.open && customerTimelineRecords.length === 0) loadCustomerTimeline();
+});
+customerTimelineMore.addEventListener("click", () => loadCustomerTimeline({append: true}));
 document.addEventListener("keydown", event => {
-  if(event.key === "Escape" && !customerPanel.hidden) closeCustomerPanel();
+  if(event.key === "Escape" && !customerPanel.hidden && !customerUsageConfirmDialog.open) closeCustomerPanel();
 });
 
 if(typeof ResizeObserver === "function"){

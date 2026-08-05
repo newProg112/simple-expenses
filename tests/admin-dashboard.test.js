@@ -8,6 +8,7 @@ import {
 } from "../assets/admin-access.js";
 import {
   adminMetricsErrorState,
+  adminUserActionErrorState,
   adminUserDetailsErrorState,
   adminUserSearchErrorState,
   buildAdminChartModel,
@@ -17,6 +18,7 @@ import {
   formatAdminDate,
   formatEstimatedMrr,
   formatSubscriptionStatus,
+  normalizeAdminNotesSavePayload,
   normalizeAdminUserDetailsPayload,
   safeMetricCount,
   supportDiagnosticMessages,
@@ -60,8 +62,8 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(importedNames).toContain("buildAdminChartModel");
     expect(importedNames).toContain("chartSummaryItems");
     expect(importedNames.filter(name => !exportedNames.has(name))).toEqual([]);
-    expect(javascript).toContain('from "./admin-metrics-view.js?v=20260805-admin-users2"');
-    expect(html).toContain('/assets/admin-dashboard.js?v=20260805-admin-users2');
+    expect(javascript).toContain('from "./admin-metrics-view.js?v=20260805-admin-users-phase2-fix1"');
+    expect(html).toContain('/assets/admin-dashboard.js?v=20260805-admin-users-phase2-fix1');
   });
 
   it("provides the admin page and exact clean hosting route", () => {
@@ -396,13 +398,61 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
       plan: { currentPlan: "Starter", subscriptionStatus: "" },
       usage: { aiAssistantSuccessfulUses: 0, aiAssistantAllowance: 10,
         invoiceScanningSuccessfulUses: 0, invoiceScanningAllowance: 10, activeProjects: 0 },
+      recentActivity: [{summary: "An invoice was created.", timestamp: "2026-07-31T10:00:00.000Z"}],
+      adminNotes: {text: "Follow up on Friday."},
       stripeCustomerId: "cus_must_not_copy"
     });
     expect(summary).toContain("Simple Books customer summary");
     expect(summary).toContain("Email: user@example.test");
     expect(summary).toContain("Firebase UID: user-uid");
     expect(summary).toContain("AI Assistant usage this month: 0 of 10");
+    expect(summary).toContain("Recent activity:");
+    expect(summary).toContain("An invoice was created.");
+    expect(summary).toContain("Admin notes:\nFollow up on Friday.");
     expect(summary).not.toMatch(/cus_must_not_copy|stripe/i);
+  });
+
+  it("provides Phase 2 notes, confirmed usage resets, and a paginated timeline", () => {
+    for(const id of [
+      "customerAdminNotes", "customerAdminNotesSave", "customerAdminNotesFeedback",
+      "customerResetAiUsage", "customerResetScanUsage", "customerUsageConfirmDialog",
+      "customerTimelineDetails", "customerTimelineList", "customerTimelineMore"
+    ]) expect(html).toContain(`id="${id}"`);
+    expect(html).toContain("Copy Support Summary");
+    expect(html).toContain("Full Activity Timeline");
+    expect(javascript).toContain('httpsCallable(functions, "updateAdminUserNotes")');
+    expect(javascript).toContain('httpsCallable(functions, "resetAdminUserUsage")');
+    expect(javascript).toContain('httpsCallable(functions, "getAdminUserTimeline")');
+    expect(javascript).toContain("customerUsageConfirmDialog.showModal()");
+    expect(javascript).toContain("await loadCustomerDetails(currentCustomerSelector)");
+    expect(javascript).toContain("customerTimelineRecords.length >= 100");
+    expect(javascript).toContain("setCustomerActionsRunning(true)");
+  });
+
+  it("updates saved notes immediately only from a complete persisted callable response", () => {
+    expect(normalizeAdminNotesSavePayload({
+      saved: true,
+      notes: "Persisted support note",
+      updatedAt: "2026-08-05T12:00:00.000Z",
+      updatedByAdminUid: "owner-uid"
+    })).toEqual({
+      text: "Persisted support note",
+      updatedAt: "2026-08-05T12:00:00.000Z",
+      updatedByAdminUid: "owner-uid"
+    });
+    expect(normalizeAdminNotesSavePayload({saved: true, notes: "Not verified"})).toBeNull();
+    expect(javascript.indexOf("if(!savedNotes) throw")).toBeLessThan(
+      javascript.indexOf('customerAdminNotesFeedback.textContent = "Admin notes saved."')
+    );
+    expect(javascript).toContain("customerAdminNotes.value = savedNotes.text");
+    expect(javascript).toContain("adminNotes: savedNotes");
+  });
+
+  it("maps Phase 2 callable failures without exposing backend details", () => {
+    expect(adminUserActionErrorState({code: "functions/unauthenticated"}, "save")).toEqual({kind: "unauthenticated"});
+    expect(adminUserActionErrorState({code: "functions/permission-denied"}, "save")).toEqual({kind: "permission-denied"});
+    expect(adminUserActionErrorState({code: "functions/internal", message: "private/path"}, "save admin notes"))
+      .toEqual({kind: "general", message: "Could not save admin notes. Try again in a moment."});
   });
 
   it("supports copy feedback, customer refresh, Escape, and focus return", () => {

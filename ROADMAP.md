@@ -8,7 +8,7 @@
 - [x] Customer Analytics Phase 1B — expanded feature activity instrumentation
 - [ ] Customer Analytics Phase 2 — retention, cohorts and conversion journeys
 - [x] Admin User Management Phase 1 — secure read-only account search and support details
-- [ ] Admin User Management Phase 2 — audited support actions and account controls
+- [x] Admin User Management Phase 2 — audited support actions and account controls
 - [ ] Admin User Management Phase 3 — advanced lifecycle and subscription management
 
 > **Mission**

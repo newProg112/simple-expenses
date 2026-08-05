@@ -13,6 +13,7 @@ const {stripeSubscriptionStatus} = require("./stripe-subscription-status");
 const {qualifiesAsActivePaidSubscription} = require("./admin-metrics");
 const {EVENT_PRESENTATION, safeTimestamp} = require("./admin-activity");
 const {isDemoAuthUser} = require("./admin-authorization");
+const {readAdminNotes} = require("./admin-user-management");
 
 const ADMIN_USER_ACTIVITY_LIMIT = 20;
 
@@ -63,11 +64,11 @@ async function getAuthUser(auth, selector) {
   }
 }
 
-function detailBadges(user, account, adminUids, demoIdentifiers) {
+function detailBadges(user, account, adminUids, demoIdentifiers, profile = {}) {
   const badges = [];
-  if (user.disabled === true) badges.push("Disabled");
-  if (account.demoMode === true || isDemoAuthUser(user, demoIdentifiers)) badges.push("Demo");
-  if (adminUids.has(user.uid)) badges.push("Admin");
+  if (user.disabled === true || account.suspended === true || profile.suspended === true) badges.push("Suspended");
+  if (account.demoMode === true || isDemoAuthUser(user, demoIdentifiers)) badges.push("Official Demo Account");
+  if (adminUids.has(user.uid)) badges.push("Admin Account");
   if (user.emailVerified !== true) badges.push("Email unverified");
   if (badges.length === 0) badges.push("Active");
   return badges;
@@ -82,6 +83,8 @@ async function readActiveProjectCount(accountReference) {
 }
 
 async function readRecentSafeActivity(firestore, uid) {
+  // This compact drawer section is intentionally customer-originated activity only.
+  // Admin support actions are projected by the separate Full Activity Timeline.
   const snapshot = await firestore.collection("adminActivityEvents")
       .where("uid", "==", uid)
       .orderBy("createdAt", "desc")
@@ -111,12 +114,13 @@ async function buildAdminUserDetails({auth, firestore, selector, adminUids, demo
   const accountReference = firestore.collection("users").doc(user.uid);
   const profileReference = firestore.collection("userProfiles").doc(user.uid);
   const usageReference = profileReference.collection("usage").doc(monthKey);
-  const [accountSnapshot, profileSnapshot, usageSnapshot, activeProjects, recentActivity] = await Promise.all([
+  const [accountSnapshot, profileSnapshot, usageSnapshot, activeProjects, recentActivity, adminNotes] = await Promise.all([
     accountReference.get(),
     profileReference.get(),
     usageReference.get(),
     readActiveProjectCount(accountReference),
     readRecentSafeActivity(firestore, user.uid),
+    readAdminNotes(firestore, user.uid),
   ]);
   const account = accountSnapshot.exists ? accountSnapshot.data() || {} : {};
   const profile = profileSnapshot.exists ? profileSnapshot.data() || {} : {};
@@ -136,7 +140,8 @@ async function buildAdminUserDetails({auth, firestore, selector, adminUids, demo
       emailVerified: user.emailVerified === true,
       demo: account.demoMode === true || isDemoAuthUser(user, demoIdentifiers),
       admin: adminUids.has(user.uid),
-      badges: detailBadges(user, account, adminUids, demoIdentifiers),
+      suspended: user.disabled === true || account.suspended === true || profile.suspended === true,
+      badges: detailBadges(user, account, adminUids, demoIdentifiers, profile),
     },
     plan: {
       currentPlan: plan,
@@ -153,6 +158,7 @@ async function buildAdminUserDetails({auth, firestore, selector, adminUids, demo
       activeProjects,
     },
     recentActivity,
+    adminNotes,
     diagnostics: supportDiagnostics(profileSnapshot.exists, profile, usage),
   };
 }

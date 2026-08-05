@@ -1,5 +1,11 @@
 # Testing
 
+## Admin User Management Phase 2
+
+Private admin notes are stored at the dedicated `adminUserNotes/{uid}` document used by both `updateAdminUserNotes` and `getAdminUserDetails`. The update callable reads the document back after the committed write and returns only the verified note, timestamp and administrator UID. Direct browser access remains denied by Firestore rules.
+
+AI Assistant and invoice-scanning resets atomically update the monthly counter and create an `adminActivityEvents` audit document. These administrator support actions are intentionally excluded from the customer-only Recent Safe Activity list. They appear in the admin-only Full Activity Timeline with fixed, privacy-safe descriptions; actor IDs and stored metadata are not projected to the browser.
+
 ## Admin Dashboard Phase 5B — Top feature usage
 
 Phase 5B adds the owner-only `getAdminFeatureUsage` callable and a responsive horizontal bar chart below Recent activity. The callable aggregates the existing `adminActivityEvents` collection into eight fixed feature categories and returns no raw events, document IDs, UIDs or emails. It reuses `SIMPLE_BOOKS_ADMIN_UIDS` and `SIMPLE_BOOKS_DEMO_IDENTIFIERS`, defaults to `30d`, and accepts only `7d`, `30d`, `90d` and `all`.

@@ -22,6 +22,11 @@ service cloud.firestore {
       allow read: if isOwner(uid);
     }
 
+    // Private support notes are available only through admin-authorised callables.
+    match /adminUserNotes/{uid} {
+      allow read, write: if false;
+    }
+
     match /demoAnalyticsEvents/{eventId} {
       allow create: if isSignedIn()
         && request.resource.data.keys().hasOnly([

@@ -26,6 +26,11 @@ const {
   createAdminUserSearchHandler,
 } = require("./lib/admin-user-search-handler");
 const {
+  createAdminUserTimelineHandler,
+  createResetAdminUserUsageHandler,
+  createUpdateAdminUserNotesHandler,
+} = require("./lib/admin-user-management-handler");
+const {
   createActivityLoggerHandler,
   createAdminRecentActivityHandler,
 } = require("./lib/admin-activity-handlers");
@@ -957,6 +962,50 @@ exports.getAdminUserDetails = onCall(
       demoConfiguration: demoIdentifiersSecret.value(),
       proPriceId: simpleBooksProPriceId,
       logger: console,
+    })(request),
+);
+
+exports.updateAdminUserNotes = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 30,
+      memory: "256MiB",
+      secrets: [adminUidsSecret],
+    },
+    (request) => createUpdateAdminUserNotesHandler({
+      firestore: admin.firestore(), fieldValue: admin.firestore.FieldValue,
+      adminUidConfiguration: adminUidsSecret.value(), logger: console,
+    })(request),
+);
+
+exports.resetAdminUserUsage = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 30,
+      memory: "256MiB",
+      secrets: [adminUidsSecret],
+    },
+    (request) => createResetAdminUserUsageHandler({
+      firestore: admin.firestore(), fieldValue: admin.firestore.FieldValue,
+      adminUidConfiguration: adminUidsSecret.value(), logger: console,
+    })(request),
+);
+
+exports.getAdminUserTimeline = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 30,
+      memory: "256MiB",
+      secrets: [adminUidsSecret],
+    },
+    (request) => createAdminUserTimelineHandler({
+      firestore: admin.firestore(),
+      adminUidConfiguration: adminUidsSecret.value(),
+      timestampFactory: admin.firestore.Timestamp,
+      documentIdField: admin.firestore.FieldPath.documentId(), logger: console,
     })(request),
 );
 

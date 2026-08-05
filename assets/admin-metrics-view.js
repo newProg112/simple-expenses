@@ -162,6 +162,7 @@ export function normalizeAdminUserDetailsPayload(payload){
       emailVerified: firstDefined(accountSource.emailVerified, source.emailVerified, null),
       demo: firstDefined(accountSource.demo, source.demo, null),
       admin: firstDefined(accountSource.admin, source.admin, null),
+      suspended: firstDefined(accountSource.suspended, source.suspended, null),
       badges: Array.isArray(accountSource.badges)
         ? accountSource.badges.slice()
         : (Array.isArray(source.accountStatus) ? source.accountStatus.slice() : [])
@@ -182,7 +183,28 @@ export function normalizeAdminUserDetailsPayload(payload){
       activeProjects: firstDefined(usageSource.activeProjects, source.activeProjects, null)
     }),
     recentActivity: Array.isArray(source.recentActivity) ? source.recentActivity.slice(0, 20) : [],
+    adminNotes: Object.freeze({
+      text: firstDefined(source.adminNotes?.text, ""),
+      updatedAt: firstDefined(source.adminNotes?.updatedAt, null),
+      updatedByAdminUid: firstDefined(source.adminNotes?.updatedByAdminUid, "")
+    }),
     diagnostics: Array.isArray(source.diagnostics) ? source.diagnostics.slice() : []
+  });
+}
+
+export function normalizeAdminNotesSavePayload(payload){
+  const source = payload && typeof payload === "object" ? payload : {};
+  const updatedAt = typeof source.updatedAt === "string" ? source.updatedAt : "";
+  const updatedDate = new Date(updatedAt);
+  if(source.saved !== true || typeof source.notes !== "string" ||
+    !Number.isFinite(updatedDate.getTime()) ||
+    typeof source.updatedByAdminUid !== "string" || !source.updatedByAdminUid){
+    return null;
+  }
+  return Object.freeze({
+    text: source.notes,
+    updatedAt: updatedDate.toISOString(),
+    updatedByAdminUid: source.updatedByAdminUid
   });
 }
 
@@ -191,6 +213,7 @@ export function buildCustomerSummary(details){
   const account = source.account || {};
   const plan = source.plan || {};
   const usage = source.usage || {};
+  const recentActivity = source.recentActivity || [];
   const visibleText = value => typeof value === "string" && value.trim() ? value.trim() : "Not available";
   const visibleCount = value => typeof value === "number" && Number.isFinite(value) && value >= 0
     ? String(safeMetricCount(value))
@@ -209,8 +232,26 @@ export function buildCustomerSummary(details){
     `Last sign in: ${formatAdminDate(account.lastSignInDate)}`,
     `AI Assistant usage this month: ${visibleCount(usage.aiAssistantSuccessfulUses)} of ${visibleCount(usage.aiAssistantAllowance)}`,
     `Invoice scans this month: ${visibleCount(usage.invoiceScanningSuccessfulUses)} of ${visibleCount(usage.invoiceScanningAllowance)}`,
-    `Active projects: ${visibleCount(usage.activeProjects)}`
+    `Active projects: ${visibleCount(usage.activeProjects)}`,
+    "",
+    "Recent activity:",
+    ...(recentActivity.length
+      ? recentActivity.slice(0, 20).map(event => `- ${formatAdminDate(event?.timestamp)}: ${visibleText(event?.summary)}`)
+      : ["- None available"]),
+    "",
+    "Admin notes:",
+    visibleText(source.adminNotes?.text)
   ].join("\n");
+}
+
+export function adminUserActionErrorState(error, action = "complete this action"){
+  const code = String(error?.code || "").replace(/^functions\//, "");
+  if(code === "unauthenticated") return Object.freeze({ kind: "unauthenticated" });
+  if(code === "permission-denied") return Object.freeze({ kind: "permission-denied" });
+  if(code === "invalid-argument") return Object.freeze({
+    kind: "validation", message: "The request was not valid. Refresh the customer details and try again."
+  });
+  return Object.freeze({ kind: "general", message: `Could not ${action}. Try again in a moment.` });
 }
 
 export function adminUserDetailsErrorState(error){

@@ -3,13 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { AdminUserNotFoundError, buildAdminUserDetails } = require("../functions/lib/admin-user-details.js");
+const { readRecentSafeActivity } = require("../functions/lib/admin-user-details.js");
 const { createAdminUserDetailsHandler, requestedUserSelector } = require("../functions/lib/admin-user-details-handler.js");
 
 const NOW = new Date("2026-07-31T20:00:00.000Z");
 const DEMO_CONFIGURATION = "uid:demo-user,email:demo@example.test";
 const snapshot = value => ({ exists: value !== undefined, data: () => value });
 
-function firestoreFor({ account, profile, usage, projectCount = 0, activity = [] } = {}) {
+function firestoreFor({ account, profile, usage, adminNotes, projectCount = 0, activity = [] } = {}) {
   return {
     collection(name) {
       if(name === "users") return {
@@ -30,6 +31,9 @@ function firestoreFor({ account, profile, usage, projectCount = 0, activity = []
         where: () => ({ orderBy: () => ({ limit: () => ({
           select: () => ({ get: async () => ({ docs: activity.map(value => ({ data: () => value })) }) })
         }) }) })
+      };
+      if(name === "adminUserNotes") return {
+        doc: () => ({ get: async () => snapshot(adminNotes) })
       };
       throw new Error(`Unexpected collection ${name}`);
     }
@@ -80,6 +84,16 @@ describe("Admin User Management detail authorization", () => {
 });
 
 describe("read-only account detail projection", () => {
+  it("intentionally keeps admin support actions out of Recent Safe Activity", async () => {
+    const activity = [
+      {eventType: "admin_ai_usage_reset", createdAt: NOW},
+      {eventType: "admin_invoice_scanning_usage_reset", createdAt: NOW},
+      {eventType: "invoice_created", createdAt: NOW}
+    ];
+    const result = await readRecentSafeActivity(firestoreFor({activity}), "customer-uid");
+    expect(result.map(event => event.eventType)).toEqual(["invoice_created"]);
+  });
+
   it("maps Firebase Auth misses to the safe lookup error", async () => {
     const auth = { getUser: vi.fn(async () => { throw Object.assign(new Error("missing"), { code: "auth/user-not-found" }); }) };
     await expect(buildAdminUserDetails({
@@ -100,6 +114,7 @@ describe("read-only account detail projection", () => {
           subscriptionCurrentPeriodEnd: { toDate: () => new Date("2026-08-31T00:00:00.000Z") }
         },
         usage: { aiAssistantSuccessfulUses: 7, invoiceScanningSuccessfulUses: 3, token: "private" },
+        adminNotes: {notes: "Customer called about scanning.", updatedAt: new Date("2026-07-30T13:00:00.000Z"), updatedByAdminUid: "owner-uid"},
         projectCount: 4,
         activity: [
           { eventType: "invoice_created", createdAt: new Date("2026-07-30T12:00:00.000Z"), metadata: { secret: true } },
@@ -122,7 +137,8 @@ describe("read-only account detail projection", () => {
       recentActivity: [{
         eventType: "invoice_created", summary: "An invoice was successfully created.",
         timestamp: "2026-07-30T12:00:00.000Z"
-      }]
+      }],
+      adminNotes: {text: "Customer called about scanning.", updatedAt: "2026-07-30T13:00:00.000Z", updatedByAdminUid: "owner-uid"}
     });
     expect(JSON.stringify(result)).not.toMatch(/privateNote|secret|cus_private|sub_private|stripePriceId|metadata|token/);
   });
