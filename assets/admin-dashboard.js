@@ -194,10 +194,27 @@ function setCustomerAnalyticsState(state){
   customerAnalyticsError.hidden = state !== "error";
   customerAnalyticsEmpty.hidden = state !== "empty";
   customerAnalyticsData.hidden = !["loaded", "empty"].includes(state);
+  document.getElementById("customerAnalyticsSection")?.setAttribute("aria-busy", String(state === "loading"));
+  document.getElementById("customerAnalyticsRange").disabled = state === "loading";
+  retryCustomerAnalyticsButton.disabled = state === "loading";
 }
 
-function renderCustomerTable(body, rows){
+function renderTableEmptyState(body, columnCount, message){
+  const row = document.createElement("tr");
+  row.className = "table-empty-row";
+  const cell = document.createElement("td");
+  cell.colSpan = columnCount;
+  cell.textContent = message;
+  row.append(cell);
+  body.append(row);
+}
+
+function renderCustomerTable(body, rows, emptyMessage = "No aggregate data is available for this view."){
   body.replaceChildren();
+  if(!Array.isArray(rows) || rows.length === 0){
+    renderTableEmptyState(body, body.closest("table")?.tHead?.rows[0]?.cells.length || 1, emptyMessage);
+    return;
+  }
   for(const values of rows){
     const row = document.createElement("tr");
     values.forEach((value, index) => {
@@ -230,39 +247,46 @@ function renderCustomerAnalytics(payload){
   document.getElementById("customerNewThisMonthValue").textContent = String(model.returningUsers.newUsersThisMonth);
   document.getElementById("customerReturningThisMonthValue").textContent = String(model.returningUsers.returningUsersThisMonth);
   document.getElementById("customerReturningPercentageValue").textContent = `${model.returningUsers.returningUserPercentage.toFixed(1)}%`;
-  renderCustomerTable(customerAdoptionTableBody, model.adoption.length
-    ? model.adoption.map(item => [item.label, item.count])
-    : [["No reliably tracked product actions", 0]]);
-  renderCustomerTable(customerFeaturesTableBody, model.features.length
-    ? model.features.map(item => [item.label, item.count, `${item.share.toFixed(1)}%`])
-    : [["No measured feature actions", 0, "0.0%"]]);
+  renderCustomerTable(
+    customerAdoptionTableBody,
+    model.adoption.map(item => [item.label, item.count]),
+    "No reliably tracked product actions are available in this time range."
+  );
+  renderCustomerTable(
+    customerFeaturesTableBody,
+    model.features.map(item => [item.label, item.count, `${item.share.toFixed(1)}%`]),
+    "No measured feature actions are available in this time range."
+  );
   renderCustomerTable(customerPlanTableBody, [
     ["Starter", model.planAdoption.starter.count, `${model.planAdoption.starter.percentageOfKnown.toFixed(1)}%`],
     ["Pro", model.planAdoption.pro.count, `${model.planAdoption.pro.percentageOfKnown.toFixed(1)}%`],
     ["Unknown or missing", model.planAdoption.unknown.count, "Excluded"]
   ]);
-  renderCustomerTable(customerFeatureAdoptionTableBody, model.featureAdoption.length
-    ? model.featureAdoption.map(item => [item.label, item.customers, `${item.percentageOfCustomers.toFixed(1)}%`])
-    : [["No measured adoption", 0, "0.0%"]]);
+  renderCustomerTable(
+    customerFeatureAdoptionTableBody,
+    model.featureAdoption.map(item => [item.label, item.customers, `${item.percentageOfCustomers.toFixed(1)}%`]),
+    "No customer feature milestones have been measured yet."
+  );
   renderCustomerTable(customerConversionJourneyTableBody, model.conversionJourney.length
     ? model.conversionJourney.map((item, index) => [index === 0 ? item.label : `↓ ${item.label}`, item.count, index === 0 ? "Baseline" : `${item.percentageFromPrevious.toFixed(1)}%`])
     : [["Account Created", 0, "Baseline"]]);
-  renderCustomerTable(customerTopEngagedTableBody, model.topEngagedCustomers.length
-    ? model.topEngagedCustomers.map(item => [
+  renderCustomerTable(customerTopEngagedTableBody, model.topEngagedCustomers.map(item => [
       item.businessName || "Business name not set",
       formatSubscriptionStatus(item.plan),
       formatActivityExactTime(item.lastActive),
       item.totalSafeActivityEvents,
       item.aiAssistantSuccessfulUses,
       item.invoiceScanningSuccessfulUses
-    ])
-    : [["No engaged customers", "Not available", "Not available", 0, 0, 0]]);
+    ]), "No engaged customers are available for this time range.");
   const cohortSummary = document.getElementById("customerSignupCohortsSummary");
   cohortSummary.replaceChildren(...model.signupCohorts.map(item => {
     const row = document.createElement("li");
     row.textContent = `${item.label}: ${item.count} new customer account${item.count === 1 ? "" : "s"}`;
     return row;
   }));
+  replaceSummaryList("customerActivitySummary", model.daily.map(item =>
+    `${formatDemoDay(item.date)}: ${item.activeAccounts} active accounts and ${item.trackedActions} tracked actions`
+  ));
   document.getElementById("customerPlanConversion").textContent = `Current conversion rate: ${model.planAdoption.conversionRate.toFixed(1)}% of ${model.planAdoption.knownAccounts} known-plan accounts.`;
   document.getElementById("customerAnalyticsUpdatedAt").textContent = model.generatedAt
     ? `Updated ${formatAdminDate(model.generatedAt)} | UTC date range`
@@ -296,7 +320,7 @@ function renderCustomerAnalytics(payload){
       options
     });
   }else{
-    showChartEmpty("customerActivityChart", "customerActivityChartEmpty", "No customer activity dates to plot.");
+    showChartEmpty("customerActivityChart", "customerActivityChartEmpty", "No customer activity dates are available in this time range.");
   }
   if(model.schemaVersion < 2){
     showChartEmpty("customerSignupCohortsChart", "customerSignupCohortsEmpty", "Signup cohort data is unavailable because the Customer Analytics backend is out of date.");
@@ -310,7 +334,7 @@ function renderCustomerAnalytics(payload){
       options: baseChartOptions()
     });
   }else{
-    showChartEmpty("customerSignupCohortsChart", "customerSignupCohortsEmpty", "No signup cohorts are available.");
+    showChartEmpty("customerSignupCohortsChart", "customerSignupCohortsEmpty", "No non-demo customer sign-ups are available for the last 12 months.");
   }
 }
 
@@ -376,10 +400,17 @@ function setDemoAnalyticsState(state){
   demoAnalyticsError.hidden = state !== "error";
   demoAnalyticsEmpty.hidden = state !== "empty";
   demoAnalyticsData.hidden = state !== "loaded";
+  document.getElementById("demoAnalyticsSection")?.setAttribute("aria-busy", String(state === "loading"));
+  document.getElementById("demoAnalyticsRange").disabled = state === "loading";
+  retryDemoAnalyticsButton.disabled = state === "loading";
 }
 
-function renderDemoAnalyticsTable(body, items, cells){
+function renderDemoAnalyticsTable(body, items, cells, emptyMessage){
   body.replaceChildren();
+  if(!Array.isArray(items) || items.length === 0){
+    renderTableEmptyState(body, body.closest("table")?.tHead?.rows[0]?.cells.length || 1, emptyMessage);
+    return;
+  }
   for(const item of items){
     const row = document.createElement("tr");
     cells(item).forEach((value, index) => {
@@ -401,6 +432,9 @@ function formatDemoDay(value){
 
 function renderDemoAnalyticsCharts(model){
   const dailyLabels = model.daily.map(item => formatDemoDay(item.date));
+  replaceSummaryList("demoActivitySummary", model.daily.map(item =>
+    `${formatDemoDay(item.date)}: ${item.sessions} sessions and ${item.pageViews} page views`
+  ));
   const activityOptions = baseChartOptions();
   activityOptions.plugins.legend = {display: true};
   renderDemoAnalyticsChart("demoActivityChart", "demoActivityChartEmpty", {
@@ -453,6 +487,7 @@ function renderDemoAnalytics(payload){
   destroyDemoAnalyticsCharts();
   const model = normalizeDemoAnalyticsPayload(payload);
   if(model.eventsProcessed === 0){
+    replaceSummaryList("demoActivitySummary", []);
     setDemoAnalyticsState("empty");
     return;
   }
@@ -463,8 +498,8 @@ function renderDemoAnalytics(payload){
   document.getElementById("demoAveragePagesValue").textContent = metrics.averagePagesPerSession.toFixed(2);
   document.getElementById("demoAverageDurationValue").textContent = formatDemoSessionDuration(metrics.averageSessionDurationSeconds);
   document.getElementById("demoSinglePageValue").textContent = String(metrics.singlePageSessions);
-  renderDemoAnalyticsTable(demoPagesTableBody, model.pages, item => [item.label, item.count, `${item.percentage.toFixed(1)}%`]);
-  renderDemoAnalyticsTable(demoEventsTableBody, model.eventBreakdown, item => [item.eventName, item.count]);
+  renderDemoAnalyticsTable(demoPagesTableBody, model.pages, item => [item.label, item.count, `${item.percentage.toFixed(1)}%`], "No demo page views are available in this time range.");
+  renderDemoAnalyticsTable(demoEventsTableBody, model.eventBreakdown, item => [item.eventName, item.count], "No valid demo events are available in this time range.");
   document.getElementById("demoAnalyticsUpdatedAt").textContent = model.generatedAt
     ? `Updated ${formatAdminDate(model.generatedAt)} | ${model.eventsProcessed} validated events processed`
     : `${model.eventsProcessed} validated events processed`;
@@ -584,6 +619,8 @@ function setFeatureUsageState(state){
   featureUsageZero.hidden = state !== "zero";
   featureUsageUnavailable.hidden = state !== "unavailable";
   featureUsageChartShell.hidden = state !== "loaded";
+  document.getElementById("featureUsageSection")?.setAttribute("aria-busy", String(state === "loading"));
+  retryFeatureUsageButton.disabled = state === "loading";
 }
 
 function renderFeatureUsageTable(items){
@@ -714,6 +751,8 @@ function setActivityState(state){
   activityError.hidden = state !== "error";
   activityEmpty.hidden = state !== "empty";
   activityList.hidden = state !== "loaded";
+  document.getElementById("recentActivitySection")?.setAttribute("aria-busy", String(state === "loading"));
+  retryActivityButton.disabled = state === "loading";
 }
 
 function createActivityItem(record){
@@ -783,6 +822,7 @@ function loadRecentActivity({append = false} = {}){
     setActivityState("loading");
   }
   refreshActivityButton.disabled = true;
+  refreshActivityButton.textContent = "Refreshing…";
   showMoreActivityButton.disabled = true;
   activityRequest = callGetAdminRecentActivity({
     limit: 30,
@@ -799,6 +839,7 @@ function loadRecentActivity({append = false} = {}){
     activityRequest = null;
     if(requestGeneration === authGeneration && currentAdminUser){
       refreshActivityButton.disabled = false;
+      refreshActivityButton.textContent = "Refresh activity";
       showMoreActivityButton.disabled = false;
     }
   });
@@ -964,6 +1005,7 @@ function setMetricsLoading(){
   metricsLoading.hidden = false;
   refreshMetricsButton.disabled = true;
   refreshMetricsButton.textContent = "Refreshing…";
+  document.getElementById("adminContent")?.setAttribute("aria-busy", "true");
 }
 
 function createTableCell(label, value){
@@ -997,6 +1039,7 @@ function createAccountStatusCell(badges){
   for(const badge of badgeList){
     const item = document.createElement("span");
     item.className = "account-badge";
+    item.dataset.status = String(badge);
     item.textContent = String(badge);
     container.append(item);
   }
@@ -1008,6 +1051,7 @@ function renderCustomerRows(records, emptyMessage){
   recentSignupsBody.replaceChildren();
   if(!Array.isArray(records) || records.length === 0){
     const row = document.createElement("tr");
+    row.className = "table-empty-row";
     const cell = createTableCell("Customers", emptyMessage);
     cell.colSpan = 8;
     row.append(cell);
@@ -1061,11 +1105,13 @@ function renderAdminMetrics(payload){
   metricsLoading.hidden = true;
   metricsFailure.hidden = true;
   metricsData.hidden = false;
+  document.getElementById("adminContent")?.setAttribute("aria-busy", "false");
 }
 
 function renderSearchMessage(title, message){
   recentSignupsBody.replaceChildren();
   const row = document.createElement("tr");
+  row.className = "table-empty-row";
   const cell = document.createElement("td");
   cell.colSpan = 8;
   cell.dataset.label = "Customer search";
@@ -1091,6 +1137,7 @@ function showSearchFailure(error){
   }
   renderSearchMessage(state.title, state.message);
   customerSearchStatus.textContent = state.message;
+  customerSearchStatus.dataset.state = "error";
 }
 
 function runAdminUserSearch(){
@@ -1098,6 +1145,8 @@ function runAdminUserSearch(){
   if(!validation.valid){
     searchGeneration += 1;
     customerSearchStatus.textContent = validation.message;
+    customerSearchStatus.dataset.state = "error";
+    customerSearch.focus();
     return null;
   }
   if(searchRequest || !currentAdminUser) return searchRequest;
@@ -1106,7 +1155,11 @@ function runAdminUserSearch(){
   hasUserSearchResults = true;
   renderSearchMessage("Searching all users", "Securely checking registered user accounts…");
   customerSearchStatus.textContent = "Searching registered user accounts…";
+  customerSearchStatus.dataset.state = "busy";
   customerSearchButton.disabled = true;
+  customerSearchClear.disabled = true;
+  customerSearchButton.textContent = "Searching…";
+  customerSearchForm.setAttribute("aria-busy", "true");
 
   searchRequest = callSearchAdminUsers({ query: validation.query })
     .then(result => {
@@ -1117,13 +1170,19 @@ function runAdminUserSearch(){
       customerSearchStatus.textContent = records.length === 0
         ? "No matching users found"
         : `${records.length} matching ${records.length === 1 ? "user" : "users"} found.${truncatedNote}`;
+      customerSearchStatus.dataset.state = records.length === 0 ? "" : "success";
     })
     .catch(error => {
       if(requestGeneration === searchGeneration) showSearchFailure(error);
     })
     .finally(() => {
       searchRequest = null;
-      if(currentAdminUser) customerSearchButton.disabled = false;
+      customerSearchForm.setAttribute("aria-busy", "false");
+      customerSearchButton.textContent = "Search";
+      if(currentAdminUser){
+        customerSearchButton.disabled = false;
+        customerSearchClear.disabled = false;
+      }
     });
   return searchRequest;
 }
@@ -1134,6 +1193,7 @@ function clearCustomerSearch(){
   customerSearch.value = "";
   renderFilteredRecentSignups();
   customerSearchStatus.textContent = "Showing recent sign-ups.";
+  customerSearchStatus.dataset.state = "";
   customerSearch.focus();
 }
 
@@ -1146,6 +1206,7 @@ function setCustomerPanelState(state){
   if(customerAdminNotesSave) customerAdminNotesSave.disabled = state !== "data" || Boolean(customerActionRequest);
   if(customerResetAiUsage) customerResetAiUsage.disabled = state !== "data" || Boolean(customerActionRequest);
   if(customerResetScanUsage) customerResetScanUsage.disabled = state !== "data" || Boolean(customerActionRequest);
+  customerPanel.setAttribute("aria-busy", String(state === "loading"));
 }
 
 function closeCustomerPanel(){
@@ -1257,9 +1318,11 @@ function renderCustomerDetails(details){
   customerAdminNotes.value = normalized.adminNotes.text;
   customerAdminNotesMeta.textContent = normalized.adminNotes.updatedAt
     ? `Last updated ${formatActivityExactTime(normalized.adminNotes.updatedAt)} by admin ${normalized.adminNotes.updatedByAdminUid || "unknown"}.`
-    : "No private admin notes saved yet.";
+    : "No admin notes yet. Add private support context when it would help a future admin.";
   customerAdminNotesFeedback.textContent = "";
+  customerAdminNotesFeedback.dataset.state = "";
   customerUsageFeedback.textContent = "";
+  customerUsageFeedback.dataset.state = "";
   renderCustomerDiagnostics(normalized.diagnostics);
   if(customerClipboardStatus) customerClipboardStatus.textContent = "";
   setCustomerPanelState("data");
@@ -1291,6 +1354,7 @@ function loadCustomerDetails(selector){
   currentCustomerDetails = null;
   customerClipboardStatus.textContent = "";
   customerRefresh.disabled = true;
+  customerRefresh.textContent = "Refreshing…";
   customerTimelineRecords = [];
   customerTimelineCursor = null;
   customerTimelineRequest = null;
@@ -1313,6 +1377,7 @@ function loadCustomerDetails(selector){
     .finally(() => {
       if(requestId === customerDetailsRequest && currentAdminUser){
         customerRefresh.disabled = false;
+        customerRefresh.textContent = "Refresh details";
       }
     });
 }
@@ -1329,12 +1394,15 @@ function openCustomerSummary(selector, trigger){
 
 async function copyCustomerText(text){
   customerClipboardStatus.textContent = "";
+  customerClipboardStatus.dataset.state = "";
   try{
     if(!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
     await navigator.clipboard.writeText(text);
     customerClipboardStatus.textContent = "Copied";
+    customerClipboardStatus.dataset.state = "success";
   }catch{
     customerClipboardStatus.textContent = "Copy failed. Select and copy the visible details manually.";
+    customerClipboardStatus.dataset.state = "error";
   }
 }
 
@@ -1363,11 +1431,14 @@ function handleCustomerActionError(error, action, feedback){
     return;
   }
   feedback.textContent = state.message;
+  feedback.dataset.state = "error";
 }
 
 async function saveCustomerAdminNotes(){
   if(customerActionRequest || !currentCustomerDetails?.account?.uid) return;
   customerAdminNotesFeedback.textContent = "Saving admin notes...";
+  customerAdminNotesFeedback.dataset.state = "busy";
+  customerAdminNotesSave.textContent = "Saving…";
   setCustomerActionsRunning(true);
   customerActionRequest = callUpdateAdminUserNotes({
     uid: currentCustomerDetails.account.uid,
@@ -1384,10 +1455,12 @@ async function saveCustomerAdminNotes(){
     customerAdminNotes.value = savedNotes.text;
     customerAdminNotesMeta.textContent = `Last updated ${formatActivityExactTime(savedNotes.updatedAt)} by admin ${savedNotes.updatedByAdminUid}.`;
     customerAdminNotesFeedback.textContent = "Admin notes saved.";
+    customerAdminNotesFeedback.dataset.state = "success";
   }catch(error){
     handleCustomerActionError(error, "save admin notes", customerAdminNotesFeedback);
   }finally{
     customerActionRequest = null;
+    customerAdminNotesSave.textContent = "Save notes";
     if(currentAdminUser && !customerPanel.hidden) setCustomerActionsRunning(false);
   }
 }
@@ -1406,6 +1479,8 @@ async function confirmUsageReset(){
   const usageType = pendingUsageReset;
   const label = usageType === "aiAssistant" ? "AI Assistant" : "Invoice scanning";
   customerUsageFeedback.textContent = `Resetting ${label} usage...`;
+  customerUsageFeedback.dataset.state = "busy";
+  customerUsageConfirmSubmit.textContent = "Resetting…";
   setCustomerActionsRunning(true);
   customerActionRequest = callResetAdminUserUsage({uid: currentCustomerDetails.account.uid, usageType});
   try{
@@ -1415,6 +1490,7 @@ async function confirmUsageReset(){
     await loadCustomerDetails(currentCustomerSelector);
     if(currentAdminUser && !customerPanel.hidden){
       customerUsageFeedback.textContent = `${label} monthly usage reset successfully.`;
+      customerUsageFeedback.dataset.state = "success";
     }
   }catch(error){
     handleCustomerActionError(error, `reset ${label} usage`, customerUsageFeedback);
@@ -1423,6 +1499,7 @@ async function confirmUsageReset(){
     }
   }finally{
     customerActionRequest = null;
+    customerUsageConfirmSubmit.textContent = "Reset usage";
     if(currentAdminUser && !customerPanel.hidden) setCustomerActionsRunning(false);
   }
 }
@@ -1463,6 +1540,7 @@ async function loadCustomerTimeline({append = false} = {}){
   customerTimelineLoading.hidden = false;
   customerTimelineMore.disabled = true;
   customerTimelineStatus.textContent = "";
+  customerTimelineStatus.dataset.state = "busy";
   const timelineUid = currentCustomerDetails.account.uid;
   const request = callGetAdminUserTimeline({
     uid: timelineUid,
@@ -1476,6 +1554,7 @@ async function loadCustomerTimeline({append = false} = {}){
     const events = Array.isArray(payload.events) ? payload.events : [];
     customerTimelineRecords = (append ? customerTimelineRecords.concat(events) : events).slice(0, 100);
     customerTimelineCursor = typeof payload.nextCursor === "string" ? payload.nextCursor : null;
+    customerTimelineStatus.dataset.state = "";
     renderCustomerTimeline();
   }catch(error){
     if(currentCustomerDetails?.account?.uid !== timelineUid) return;
@@ -1499,6 +1578,7 @@ async function loadCustomerTimeline({append = false} = {}){
 function showMetricsFailure(error){
   clearRenderedMetrics();
   metricsLoading.hidden = true;
+  document.getElementById("adminContent")?.setAttribute("aria-busy", "false");
   const state = adminMetricsErrorState(error);
   if(state.kind === "unauthenticated"){
     showState("signedOutState");

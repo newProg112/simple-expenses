@@ -44,16 +44,22 @@
     .customer-panel-backdrop{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.45);border:0}.customer-panel{position:fixed;z-index:101;inset:0 0 0 auto;width:min(480px,100%);padding:28px;overflow-y:auto;background:#fff;box-shadow:-18px 0 50px rgba(15,23,42,.2)}.customer-panel-open{overflow:hidden}.customer-panel-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:20px;border-bottom:1px solid #e2e8f0}.customer-panel-header h2{margin:0;font-size:23px}.customer-panel-close{width:42px;height:42px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:var(--text);font-size:24px;cursor:pointer}.customer-panel-state{padding:28px 0;color:var(--muted)}.customer-panel-state h3{margin:0 0 8px;color:var(--text)}.customer-panel-actions{display:flex;flex-wrap:wrap;gap:8px;padding:16px 0;border-bottom:1px solid #e2e8f0}.customer-panel-action{min-height:40px;padding:8px 11px;border:1px solid #b8d3e3;border-radius:9px;background:#fff;color:#075985;font:750 12px/1 system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}.customer-panel-action:disabled{cursor:wait;opacity:.55}.customer-panel-action-danger{border-color:#fecaca;color:#b91c1c}.clipboard-status{align-self:center;color:#166534;font-size:12px;font-weight:750}.customer-detail-section{padding-top:20px}.customer-detail-section h3{margin:0 0 4px;color:#64748b;font-size:12px;letter-spacing:.07em;text-transform:uppercase}.customer-details{margin:0}.customer-detail{display:grid;grid-template-columns:minmax(150px,.9fr) minmax(0,1.1fr);gap:14px;padding:13px 0;border-bottom:1px solid #eef2f7}.customer-detail dt{color:#64748b;font-size:13px}.customer-detail dd{margin:0;color:var(--text);font-weight:700;overflow-wrap:anywhere}.customer-diagnostics{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:13px;line-height:1.55}.customer-diagnostics li+li{margin-top:7px}.admin-notes-input{width:100%;min-height:130px;margin-top:10px;padding:11px;border:1px solid #cbd5e1;border-radius:9px;resize:vertical;font:inherit;line-height:1.45}.admin-notes-meta,.customer-action-feedback,.timeline-status{margin:8px 0;color:#64748b;font-size:12px}.customer-usage-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.timeline-details summary{cursor:pointer;color:#075985;font-weight:750}.timeline-list li{display:grid;grid-template-columns:32px minmax(0,1fr);gap:9px}.timeline-icon{display:grid;width:28px;height:28px;place-items:center;border-radius:50%;background:#e0f2fe;color:#075985;font-size:10px;font-weight:800}.admin-confirm-dialog{max-width:420px;padding:24px;border:0;border-radius:14px;box-shadow:0 22px 60px rgba(15,23,42,.3)}.admin-confirm-dialog::backdrop{background:rgba(15,23,42,.5)}.admin-confirm-dialog h2{margin:0 0 10px}.admin-confirm-dialog p{color:#475569;line-height:1.5}.admin-confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
     .status-card{padding:18px}.status-top{display:flex;align-items:center;gap:10px}.status-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8}.status-card h3{margin:0;font-size:16px}.status-card p{margin:10px 0 0;color:var(--muted);font-size:13px}
     .useful-links{display:flex;flex-wrap:wrap;gap:10px}.useful-links a{display:inline-flex;align-items:center;min-height:42px;padding:9px 14px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#075985;font-weight:750;text-decoration:none}.useful-links a:hover{border-color:#7dd3fc;background:#f0f9ff}
-    a:focus-visible,button:focus-visible,input:focus-visible,.refresh-button:focus-visible,.customer-search:focus-visible,.customer-panel-close:focus-visible{outline:3px solid rgba(0,119,182,.3);outline-offset:3px}
+    /* Admin Dashboard Polish Phase 1: shared presentation and state treatment. */
+    .kpi-card{display:flex;min-height:146px;flex-direction:column}.kpi-label{line-height:1.35}.kpi-value{margin:12px 0 8px;font-variant-numeric:tabular-nums}.kpi-card .phase-note{margin-top:auto}.phase-note{line-height:1.5}.secondary-card{display:flex;min-height:130px;flex-direction:column}.secondary-card .phase-note{margin-top:auto}
+    .section-heading{line-height:1.25}.customer-search-explainer,.demo-analytics-description,.feature-usage-description{max-width:78ch;line-height:1.55}.demo-analytics-state p{max-width:62ch;margin:12px auto 13px;line-height:1.55}.demo-analytics-state[role="alert"],.activity-state[role="alert"],.feature-usage-state[role="alert"]{border-color:#fecaca;background:#fffafa}.demo-analytics-state .spinner{margin:0 auto}
+    .table-scroll{width:100%;overflow-x:auto}.signup-table tbody tr:hover,.demo-analytics-table tbody tr:hover,.customer-analytics-table tbody tr:hover{background:#f8fafc}.demo-analytics-table td:not(:first-child),.demo-analytics-table th:not(:first-child),.customer-analytics-table td:not(:first-child),.customer-analytics-table th:not(:first-child){font-variant-numeric:tabular-nums;white-space:nowrap}.table-empty-row:hover{background:transparent !important}.table-empty-row td{padding:24px 10px !important;color:#64748b !important;font-weight:400 !important;line-height:1.55;text-align:left !important;white-space:normal !important}.user-management-table td:nth-child(3){max-width:280px;overflow-wrap:anywhere}.customer-open-button:hover{text-decoration-thickness:2px}
+    .customer-search-status[data-state="error"],.customer-action-feedback[data-state="error"],.timeline-status[data-state="error"]{color:#b91c1c}.customer-search-status[data-state="success"],.customer-action-feedback[data-state="success"],.clipboard-status[data-state="success"]{color:#166534}.customer-search-status[data-state="busy"],.customer-action-feedback[data-state="busy"],.timeline-status[data-state="busy"]{color:#475569}
+    .customer-panel-header{position:sticky;top:-28px;z-index:2;margin:-28px -28px 0;padding:24px 28px 18px;background:#fff}.customer-panel-close:hover{border-color:#7dd3fc;background:#f0f9ff}.customer-detail-section{scroll-margin-top:80px}.customer-detail-section>h3{margin-bottom:7px}.customer-usage-control{margin-top:20px;padding:18px;border:1px solid #fed7aa;border-radius:12px;background:#fffaf5}.customer-usage-control h3{color:#9a3412}.customer-usage-control .customer-detail-section-description{color:#9a3412}.customer-detail-section-description{margin:0 0 10px;color:#64748b;font-size:12px;line-height:1.5}.timeline-details summary{padding:4px 0}.timeline-details summary:hover{text-decoration:underline}.admin-notes-input:disabled{background:#f8fafc;cursor:wait}.admin-confirm-dialog{width:min(420px,calc(100% - 32px))}
+    a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.table-scroll:focus-visible,.refresh-button:focus-visible,.customer-search:focus-visible,.customer-panel-close:focus-visible{outline:3px solid rgba(0,119,182,.3);outline-offset:3px}
     @media(max-width:1000px){.kpi-grid,.status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.secondary-metrics{grid-template-columns:1fr}.growth-grid{grid-template-columns:1fr}.customer-analytics-grid{grid-template-columns:1fr}.demo-analytics-grid{grid-template-columns:1fr}.chart-card-plan,.demo-analytics-table-card,.customer-analytics-wide{grid-column:auto}}
     @media(max-width:700px){.activity-header,.feature-usage-header,.demo-analytics-header{align-items:stretch;flex-direction:column}.activity-controls{align-items:stretch}.activity-filter{flex:1}.activity-item{grid-template-columns:42px minmax(0,1fr);align-items:start}.activity-summary,.activity-time{grid-column:2}.activity-time{text-align:left}.feature-range-control{min-width:0}.feature-usage-chart{height:480px}}
-    @media(max-width:640px){.wrap{padding:28px 16px 44px}.page-header,.demo-environment-header{flex-direction:column}.page-header h1{font-size:28px}.header-actions{justify-content:flex-start}.demo-environment-controls{grid-template-columns:1fr}.demo-seed-button{width:100%}.kpi-grid,.status-grid{grid-template-columns:1fr}.panel{padding:16px}.metrics-message{align-items:flex-start;flex-wrap:wrap}.chart-loading-preview{grid-template-columns:1fr;margin-left:0}.chart-skeleton:nth-child(n+2){display:none}.chart-card{padding:16px}.chart-shell{height:220px}.chart-shell-compact{height:200px}.signup-tools{align-items:stretch;flex-direction:column}.search-field{max-width:none}.signup-table,.signup-table tbody,.signup-table tr,.signup-table td{display:block;width:100%}.signup-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%)}.signup-table tr{padding:12px 0;border-top:1px solid #e2e8f0}.signup-table tr:first-child{border-top:0}.signup-table td{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(0,1.2fr);gap:12px;padding:6px 0;border-top:0;text-align:left}.signup-table td::before{content:attr(data-label);color:#64748b;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.signup-table td[colspan]{display:block;text-align:left}.signup-table td[colspan]::before{display:none}.metrics-updated{text-align:left}.customer-panel{padding:20px}.customer-detail{grid-template-columns:1fr;gap:6px}}
+    @media(max-width:640px){.wrap{padding:28px 16px 44px}.page-header,.demo-environment-header{flex-direction:column}.page-header h1{font-size:28px}.header-actions{justify-content:flex-start}.demo-environment-controls{grid-template-columns:1fr}.demo-seed-button{width:100%}.kpi-grid,.status-grid{grid-template-columns:1fr}.kpi-card,.secondary-card{min-height:0}.panel{padding:16px}.metrics-message{align-items:flex-start;flex-wrap:wrap}.chart-loading-preview{grid-template-columns:1fr;margin-left:0}.chart-skeleton:nth-child(n+2){display:none}.chart-card{padding:16px}.chart-shell{height:220px}.chart-shell-compact{height:200px}.signup-tools{align-items:stretch;flex-direction:column}.search-field{max-width:none}.signup-table,.signup-table tbody,.signup-table tr,.signup-table td{display:block;width:100%}.signup-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%)}.signup-table tr{padding:12px 0;border-top:1px solid #e2e8f0}.signup-table tr:first-child{border-top:0}.signup-table td{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(0,1.2fr);gap:12px;padding:6px 0;border-top:0;text-align:left}.signup-table td::before{content:attr(data-label);color:#64748b;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.signup-table td[colspan]{display:block;text-align:left}.signup-table td[colspan]::before{display:none}.metrics-updated{text-align:left}.customer-panel{padding:20px}.customer-panel-header{top:-20px;margin:-20px -20px 0;padding:18px 20px 15px}.customer-panel-actions{align-items:stretch}.customer-panel-action{flex:1 1 auto}.customer-detail{grid-template-columns:1fr;gap:6px}.customer-usage-control{padding:15px}.admin-confirm-actions{flex-direction:column-reverse}.admin-confirm-actions .customer-panel-action{width:100%}}
     @media(prefers-reduced-motion:reduce){.spinner,.chart-skeleton,.activity-skeleton span,.feature-usage-skeleton span{animation:none}}
   </style>
   <link rel="stylesheet" href="/assets/app-shell.css?v=20260801-admin2a">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module" src="/assets/app-shell.js?v=20260801-admin2a"></script>
-  <script type="module" src="/assets/admin-dashboard.js?v=20260805-customer-analytics2-cohorts-fix1"></script>
+  <script type="module" src="/assets/admin-dashboard.js?v=20260805-admin-polish1"></script>
 </head>
 <body>
   <div data-app-navigation data-auth-controlled hidden></div>
@@ -140,10 +146,12 @@
             <button class="search-action" id="customerSearchClear" type="button">Clear</button>
           </form>
           <span class="customer-search-status" id="customerSearchStatus" role="status" aria-live="polite"></span>
-          <table class="signup-table user-management-table">
-            <thead><tr><th>Customer</th><th>Business</th><th>Email</th><th>Plan</th><th>Status</th><th>Signed up</th><th>Last activity</th><th>Details</th></tr></thead>
-            <tbody id="recentSignupsBody"></tbody>
-          </table>
+          <div class="table-scroll" role="region" aria-label="User search results" tabindex="0">
+            <table class="signup-table user-management-table">
+              <thead><tr><th scope="col">Customer</th><th scope="col">Business</th><th scope="col">Email</th><th scope="col">Plan</th><th scope="col">Status</th><th scope="col">Signed up</th><th scope="col">Last activity</th><th scope="col">Details</th></tr></thead>
+              <tbody id="recentSignupsBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -224,7 +232,7 @@
               <p><strong id="activityErrorTitle">Recent activity could not be loaded</strong><br><span id="activityErrorMessage"></span></p>
               <button class="refresh-button" id="retryActivityButton" type="button">Retry</button>
             </div>
-            <div class="activity-state" id="activityEmpty" role="status" aria-live="polite" hidden><p>No recent activity matches this filter.</p></div>
+            <div class="activity-state" id="activityEmpty" role="status" aria-live="polite" hidden><p><strong>No recent activity matches this filter.</strong><br>Choose another event type or refresh to check for newer safe activity.</p></div>
             <ol class="activity-list" id="activityList" aria-label="Recent Simple Books activity" hidden></ol>
             <div class="activity-more" id="activityMore" hidden><button class="refresh-button" id="showMoreActivityButton" type="button">Show more</button></div>
             <p class="visually-hidden" id="activityStatus" role="status" aria-live="polite"></p>
@@ -257,7 +265,7 @@
             </div>
             <div id="featureUsageData" hidden>
               <p class="feature-usage-summary"><span>Tracked actions: <strong id="featureUsageTotal">0</strong></span><span id="featureUsageMostUsed" hidden>Most-used feature: <strong id="featureUsageMostUsedValue"></strong></span></p>
-              <div class="feature-usage-state" id="featureUsageZero" role="status" aria-live="polite" hidden><p>No tracked feature activity in this time range.</p></div>
+              <div class="feature-usage-state" id="featureUsageZero" role="status" aria-live="polite" hidden><p><strong>No tracked feature activity in this time range.</strong><br>Choose a longer time range to check earlier safe activity.</p></div>
               <div class="feature-usage-state" id="featureUsageUnavailable" role="status" hidden><p>The chart is unavailable. The accessible feature values remain below.</p></div>
               <div class="feature-usage-chart" id="featureUsageChartShell"><canvas id="featureUsageChart" role="img" aria-labelledby="featureUsageTitle featureUsageDescription"></canvas></div>
               <table class="visually-hidden" id="featureUsageTable">
@@ -315,7 +323,7 @@
           <div><p><strong id="demoAnalyticsErrorTitle">Demo Analytics could not be loaded</strong><br><span id="demoAnalyticsErrorMessage"></span></p><button class="refresh-button" id="retryDemoAnalyticsButton" type="button">Retry</button></div>
         </div>
         <div class="card demo-analytics-state" id="demoAnalyticsEmpty" role="status" aria-live="polite" hidden>
-          <div><p><strong>No demo activity in this time range.</strong><br>Events will appear here after visitors use the demo environment.</p></div>
+          <div><p><strong>No demo activity in this time range.</strong><br>Choose a longer time range or check again after visitors use the demo environment.</p></div>
         </div>
 
         <div id="demoAnalyticsData" hidden>
@@ -333,6 +341,7 @@
               <h3 id="demoActivityTitle">Activity over time</h3>
               <p class="chart-description" id="demoActivityDescription">Sessions and page views per UTC day</p>
               <div class="chart-shell demo-analytics-chart"><canvas id="demoActivityChart" role="img" aria-labelledby="demoActivityTitle demoActivityDescription"></canvas><p class="chart-empty" id="demoActivityChartEmpty" hidden></p></div>
+              <ul class="visually-hidden" id="demoActivitySummary" aria-label="Demo activity over time data"></ul>
             </article>
             <article class="card chart-card">
               <h3 id="demoPagesTitle">Most viewed pages</h3>
@@ -373,7 +382,7 @@
         </div>
         <div class="card demo-analytics-state" id="customerAnalyticsLoading" role="status" aria-live="polite"><div><span class="spinner" aria-hidden="true"></span><p>Loading Customer Analytics&hellip;</p></div></div>
         <div class="card demo-analytics-state" id="customerAnalyticsError" role="alert" hidden><div><p><strong id="customerAnalyticsErrorTitle">Customer Analytics could not be loaded</strong><br><span id="customerAnalyticsErrorMessage"></span></p><button class="refresh-button" id="retryCustomerAnalyticsButton" type="button">Retry</button></div></div>
-        <div class="card demo-analytics-state" id="customerAnalyticsEmpty" role="status" aria-live="polite" hidden><div><p><strong>No tracked customer activity in this time range.</strong><br>The current plan snapshot and zero-valued range metrics are shown below.</p></div></div>
+        <div class="card demo-analytics-state" id="customerAnalyticsEmpty" role="status" aria-live="polite" hidden><div><p><strong>No tracked customer activity in this time range.</strong><br>Choose a longer range to check earlier activity. Current plan, retention and cohort snapshots remain visible below.</p></div></div>
         <div id="customerAnalyticsData" hidden>
           <div class="kpi-grid customer-analytics-kpis" aria-label="Customer Analytics summary metrics">
             <article class="card kpi-card"><p class="kpi-label">Active customer accounts</p><p class="kpi-value" id="customerActiveAccountsValue">&mdash;</p><p class="phase-note">Accounts with a qualifying action</p></article>
@@ -391,7 +400,7 @@
             <article class="card kpi-card"><p class="kpi-label">Returning user percentage</p><p class="kpi-value" id="customerReturningPercentageValue">&mdash;</p><p class="phase-note">Returning / new plus returning users</p></article>
           </div>
           <div class="customer-analytics-grid">
-            <article class="card chart-card customer-analytics-wide"><h3 id="customerActivityTitle">Customer activity over time</h3><p class="chart-description" id="customerActivityDescription">Active customer accounts and tracked actions per UTC day</p><div class="chart-shell customer-analytics-chart"><canvas id="customerActivityChart" role="img" aria-labelledby="customerActivityTitle customerActivityDescription"></canvas><p class="chart-empty" id="customerActivityChartEmpty" hidden></p></div></article>
+            <article class="card chart-card customer-analytics-wide"><h3 id="customerActivityTitle">Customer activity over time</h3><p class="chart-description" id="customerActivityDescription">Active customer accounts and tracked actions per UTC day</p><div class="chart-shell customer-analytics-chart"><canvas id="customerActivityChart" role="img" aria-labelledby="customerActivityTitle customerActivityDescription"></canvas><p class="chart-empty" id="customerActivityChartEmpty" hidden></p></div><ul class="visually-hidden" id="customerActivitySummary" aria-label="Customer activity over time data"></ul></article>
             <article class="card chart-card customer-analytics-wide"><h3 id="customerSignupCohortsTitle">Signup cohorts</h3><p class="chart-description" id="customerSignupCohortsDescription">New non-demo customer accounts grouped by creation month for the last 12 months</p><div class="chart-shell customer-analytics-chart"><canvas id="customerSignupCohortsChart" role="img" aria-labelledby="customerSignupCohortsTitle customerSignupCohortsDescription"></canvas><p class="chart-empty" id="customerSignupCohortsEmpty" hidden></p></div><ul class="visually-hidden" id="customerSignupCohortsSummary" aria-label="Monthly signup cohort data"></ul></article>
             <article class="card customer-analytics-table-card"><h3>Product adoption</h3><p>Only actions supported by valid existing activity records are shown.</p><table class="customer-analytics-table"><thead><tr><th scope="col">Product action</th><th scope="col">Count</th></tr></thead><tbody id="customerAdoptionTableBody"></tbody></table></article>
             <article class="card customer-analytics-table-card"><h3>Most-used customer features</h3><p>Share of measured product-feature actions in the selected range.</p><table class="customer-analytics-table"><thead><tr><th scope="col">Feature</th><th scope="col">Actions</th><th scope="col">Share</th></tr></thead><tbody id="customerFeaturesTableBody"></tbody></table></article>
@@ -450,8 +459,9 @@
           <div class="customer-detail"><dt>Confirmed active paid subscription</dt><dd id="customerActivePaidValue"></dd></div>
         </dl>
       </section>
-      <section class="customer-detail-section" aria-labelledby="customerUsageHeading">
+      <section class="customer-detail-section customer-usage-control" aria-labelledby="customerUsageHeading">
         <h3 id="customerUsageHeading">Usage this month</h3>
+        <p class="customer-detail-section-description">Support controls below change monthly usage counters and are recorded in admin activity.</p>
         <dl class="customer-details">
           <div class="customer-detail"><dt>AI Assistant</dt><dd id="customerAiUsageValue"></dd></div>
           <div class="customer-detail"><dt>Invoice scanning</dt><dd id="customerScanUsageValue"></dd></div>
@@ -466,12 +476,12 @@
       <section class="customer-detail-section" aria-labelledby="customerActivityHeading">
         <h3 id="customerActivityHeading">Recent safe activity</h3>
         <ol class="activity-mini-list" id="customerActivityList"></ol>
-        <p class="phase-note" id="customerActivityEmpty" hidden>No safe activity events are available for this account.</p>
+        <p class="phase-note" id="customerActivityEmpty" hidden>No recent customer activity is available. Admin support actions remain visible in the full timeline.</p>
       </section>
       <section class="customer-detail-section" aria-labelledby="customerTimelineHeading">
         <details class="timeline-details" id="customerTimelineDetails">
           <summary id="customerTimelineHeading">Full Activity Timeline</summary>
-          <div class="customer-panel-state" id="customerTimelineLoading" role="status" hidden>Loading full activity timeline...</div>
+          <div class="customer-panel-state" id="customerTimelineLoading" role="status" aria-live="polite" hidden>Loading full activity timeline&hellip;</div>
           <ol class="activity-mini-list timeline-list" id="customerTimelineList"></ol>
           <p class="timeline-status" id="customerTimelineStatus" role="status" aria-live="polite"></p>
           <button class="customer-panel-action" id="customerTimelineMore" type="button" hidden>Load more</button>
@@ -479,6 +489,7 @@
       </section>
       <section class="customer-detail-section" aria-labelledby="customerAdminNotesHeading">
         <h3 id="customerAdminNotesHeading">Admin notes</h3>
+        <p class="customer-detail-section-description">Private support context visible only to authorised admins.</p>
         <label class="visually-hidden" for="customerAdminNotes">Private admin notes</label>
         <textarea class="admin-notes-input" id="customerAdminNotes" maxlength="4000" placeholder="Add private support notes for this account"></textarea>
         <p class="admin-notes-meta" id="customerAdminNotesMeta"></p>

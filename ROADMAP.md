@@ -11,6 +11,8 @@
 - [x] Admin User Management Phase 2 — audited support actions and account controls
 - [ ] Admin User Management Phase 3 — advanced lifecycle and subscription management
 
+- [x] Admin Dashboard Polish Phase 1 — consistent states, responsive tables and accessible admin workflows
+
 > **Mission**
 >
 > Simple Books helps UK small businesses understand and manage their finances through simple accounting software with built-in AI.

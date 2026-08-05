@@ -1,5 +1,19 @@
 # Testing
 
+## Admin Dashboard Polish Phase 1
+
+This phase standardises the existing Admin dashboard presentation without changing analytics calculations, callable permissions or customer data. It adds truthful aggregate table empty rows, recovery guidance, consistent busy labels and disabled controls, visible success/error semantics, numeric table alignment, sticky drawer context, clearer separation for audited usage resets, mobile dialog improvements, and screen-reader data summaries for the Demo and Customer activity charts.
+
+KPI cards remain informational because the existing architecture does not provide a consistent safe drill-down for them. Aggregate CSV export was assessed but not added: Demo and Customer analytics use independent request lifecycles, so a combined export would introduce cross-section state and new product behaviour beyond this polish phase.
+
+Run the focused UI contracts with:
+
+```sh
+npm.cmd test -- tests/admin-dashboard.test.js tests/admin-demo-analytics.test.js tests/admin-customer-analytics.test.js tests/admin-activity.test.js tests/admin-feature-usage.test.js tests/admin-user-management.test.js
+```
+
+Before production release, manually verify the authenticated Admin page at desktop and narrow mobile widths; loading, empty, partial failure and populated states; keyboard focus, Escape and drawer focus restoration; search, copy, notes and reset feedback; chart resizing and accessible summaries; and long email/business-name wrapping. Run the full root test suite, Functions lint, frontend syntax checks, Firebase JSON parsing and `git diff --check` before deployment.
+
 ## Customer Analytics Phase 2
 
 `getAdminCustomerAnalytics` extends the existing bounded, admin-only projection with rolling 24-hour, 7-day and 30-day retention; 30-day dormancy; 12 monthly signup cohorts; current-month new and returning users; six unique-customer adoption milestones; a prerequisite conversion journey; and the top 20 engaged non-demo customers. Activity calculations use only approved safe event types. The response never includes UIDs, email addresses, invoices, balances, journals, payment amounts or other customer financial values. Monthly AI and scanning counters are read only for the internally ranked top 20 accounts. Phase 2 responses carry `schemaVersion: 2`; the dashboard reports an outdated backend contract separately from a genuinely empty cohort dataset.

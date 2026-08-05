@@ -63,7 +63,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(importedNames).toContain("chartSummaryItems");
     expect(importedNames.filter(name => !exportedNames.has(name))).toEqual([]);
     expect(javascript).toContain('from "./admin-metrics-view.js?v=20260805-admin-users-phase2-fix1"');
-    expect(html).toContain('/assets/admin-dashboard.js?v=20260805-customer-analytics2-cohorts-fix1');
+    expect(html).toContain('/assets/admin-dashboard.js?v=20260805-admin-polish1');
   });
 
   it("provides the admin page and exact clean hosting route", () => {
@@ -126,7 +126,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     for(const heading of [
       "Customer", "Business", "Email", "Plan", "Status", "Signed up", "Last activity", "Details"
     ]){
-      expect(html).toContain(`<th>${heading}</th>`);
+      expect(html).toContain(`<th scope="col">${heading}</th>`);
     }
     for(const service of ["Firebase", "Stripe", "OpenAI", "Sentry"]){
       expect(html).toContain(`<h3>${service}</h3>`);
@@ -139,6 +139,37 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(html).toMatch(/@media\(max-width:640px\)[\s\S]*?\.kpi-grid,\.status-grid\{grid-template-columns:1fr\}/);
     expect(html).toMatch(/@media\(max-width:640px\)[\s\S]*?\.signup-table[\s\S]*?display:block/);
     expect(html).toContain("@media(prefers-reduced-motion:reduce)");
+  });
+
+  it("standardizes dense admin cards, tables, and narrow-screen drawer controls", () => {
+    expect(html).toMatch(/\.kpi-card\{display:flex;min-height:146px;flex-direction:column\}/);
+    expect(html).toContain("font-variant-numeric:tabular-nums");
+    expect(html).toContain("table-empty-row");
+    expect(html).toContain("customer-usage-control");
+    expect(html).toMatch(/\.customer-panel-header\{position:sticky/);
+    expect(html).toMatch(/@media\(max-width:640px\)[\s\S]*?\.admin-confirm-actions\{flex-direction:column-reverse\}/);
+  });
+
+  it("provides truthful empty states and isolated retry actions", () => {
+    expect(html).toContain("Choose another event type or refresh to check for newer safe activity.");
+    expect(html).toContain("Choose a longer time range to check earlier safe activity.");
+    expect(html).toContain("Current plan, retention and cohort snapshots remain visible below.");
+    expect(javascript).toContain("No reliably tracked product actions are available in this time range.");
+    expect(javascript).toContain("No non-demo customer sign-ups are available for the last 12 months.");
+    for(const id of [
+      "retryActivityButton", "retryFeatureUsageButton", "retryDemoAnalyticsButton",
+      "retryCustomerAnalyticsButton"
+    ]) expect(html).toContain(`id="${id}"`);
+  });
+
+  it("announces busy states and exposes chart data without relying on colour", () => {
+    expect(javascript).toContain('customerSearchForm.setAttribute("aria-busy", "true")');
+    expect(javascript).toContain('customerSearchButton.textContent = "Searching…"');
+    expect(javascript).toContain('customerAdminNotesSave.textContent = "Saving…"');
+    expect(javascript).toContain('customerUsageConfirmSubmit.textContent = "Resetting…"');
+    expect(html).toContain('id="demoActivitySummary" aria-label="Demo activity over time data"');
+    expect(html).toContain('id="customerActivitySummary" aria-label="Customer activity over time data"');
+    expect(html).toMatch(/select:focus-visible,textarea:focus-visible,summary:focus-visible/);
   });
 
   it("keeps existing admin features and routes privileged actions through callables", () => {
@@ -367,7 +398,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(javascript).toContain('button.className = "customer-open-button"');
     expect(javascript).toContain('button.type = "button"');
     expect(javascript).toContain("openCustomerSummary");
-    expect(html).toContain("<th>Last activity</th>");
+    expect(html).toContain('<th scope="col">Last activity</th>');
     expect(javascript).toContain('createTableCell("Last activity"');
   });
 
