@@ -10,11 +10,15 @@ const require = createRequire(import.meta.url);
 const {
   CUSTOMER_ACCOUNT_LIMIT,
   CUSTOMER_ACTIVITY_LIMIT,
+  CUSTOMER_ANALYTICS_SCHEMA_VERSION,
   aggregateCustomerAnalytics,
   buildAdminCustomerAnalytics,
   normalizeEventName,
   normalizePlan,
+  phaseTwoCustomerAnalytics,
   parseCustomerAnalyticsRange,
+  readTopCustomerUsage,
+  TOP_ENGAGED_CUSTOMER_LIMIT,
   utcRangeStart
 } = require("../functions/lib/admin-customer-analytics.js");
 const {createAdminCustomerAnalyticsHandler} = require("../functions/lib/admin-customer-analytics-handler.js");
@@ -64,6 +68,7 @@ describe("Customer Analytics core aggregation", () => {
       activeProAccounts: 1, activeUnknownPlanAccounts: 1,
       starterToProConversionRate: 33.3, totalTrackedCustomerActions: 4
     });
+    expect(result.schemaVersion).toBe(CUSTOMER_ANALYTICS_SCHEMA_VERSION);
     expect(result.daily).toHaveLength(7);
     expect(result.daily[0]).toEqual({date: "2026-07-30", activeAccounts: 0, trackedActions: 0});
     expect(result.daily.at(-1)).toEqual({date: "2026-08-05", activeAccounts: 1, trackedActions: 2});
@@ -110,6 +115,96 @@ describe("Customer Analytics core aggregation", () => {
   });
 });
 
+describe("Customer Analytics Phase 2 aggregation", () => {
+  it("builds 12-month cohorts independently of the selected activity range", () => {
+    const result = aggregateCustomerAnalytics({
+      entries: [user("older-signup", "2026-05-10T10:00:00Z")],
+      events: [], range: "7d", now: NOW
+    });
+    expect(result.summary.newSignUps).toBe(0);
+    expect(result.signupCohorts.find(item => item.monthKey === "2026-05")?.count).toBe(1);
+  });
+
+  it("calculates rolling retention, dormancy, monthly returning users and 12 signup cohorts", () => {
+    const entries = [
+      user("today", "2026-01-01T00:00:00Z"),
+      user("week", "2026-02-01T00:00:00Z"),
+      user("month", "2026-03-01T00:00:00Z"),
+      user("dormant", "2026-01-01T00:00:00Z"),
+      user("never-old", "2026-01-01T00:00:00Z"),
+      user("new", "2026-08-02T00:00:00Z")
+    ];
+    const result = phaseTwoCustomerAnalytics({
+      entries,
+      events: [
+        action("today", "user_logged_in", "2026-08-05T11:00:00Z"),
+        action("week", "invoice_created", "2026-08-01T10:00:00Z"),
+        action("month", "invoice_scanned", "2026-07-15T10:00:00Z"),
+        action("dormant", "user_logged_in", "2026-06-01T10:00:00Z")
+      ],
+      now: NOW
+    });
+    expect(result.retention).toEqual({active24Hours: 1, active7Days: 2, active30Days: 3, dormant30Days: 2});
+    expect(result.returningUsers).toEqual({
+      newUsersThisMonth: 1, returningUsersThisMonth: 2, returningUserPercentage: 66.7
+    });
+    expect(result.signupCohorts).toHaveLength(12);
+    expect(result.signupCohorts.at(-1)).toMatchObject({monthKey: "2026-08", count: 1});
+    expect(result.signupCohorts[7]).toMatchObject({monthKey: "2026-04", count: 0});
+  });
+
+  it("uses unique customers for six adoption rates and builds a monotonic conversion journey", () => {
+    const entries = [
+      user("complete", "2026-01-01T00:00:00Z", "Pro"),
+      user("partial", "2026-01-01T00:00:00Z", "Starter"),
+      user("account-only", "2026-01-01T00:00:00Z", "Starter")
+    ];
+    entries[0].account.businessName = "Complete Books";
+    entries[0].account.balance = 999999;
+    entries[0].profile.stripeCustomerId = "cus_private";
+    const events = [
+      action("complete", "user_logged_in", "2026-02-01T00:00:00Z"),
+      action("complete", "invoice_created", "2026-02-02T00:00:00Z"),
+      action("complete", "invoice_created", "2026-02-03T00:00:00Z"),
+      action("complete", "bill_created", "2026-02-04T00:00:00Z"),
+      action("complete", "expense_created", "2026-02-05T00:00:00Z"),
+      action("complete", "project_created", "2026-02-06T00:00:00Z"),
+      action("complete", "ai_question_asked", "2026-02-07T00:00:00Z"),
+      action("complete", "invoice_scanned", "2026-02-08T00:00:00Z"),
+      action("partial", "user_logged_in", "2026-03-01T00:00:00Z"),
+      action("partial", "invoice_created", "2026-03-02T00:00:00Z")
+    ];
+    const usageByUid = new Map([["complete", {aiAssistantSuccessfulUses: 4, invoiceScanningSuccessfulUses: 2}]]);
+    const result = phaseTwoCustomerAnalytics({entries, events, now: NOW, usageByUid});
+    expect(result.featureAdoption.map(item => [item.key, item.customers, item.percentageOfCustomers])).toEqual([
+      ["first_invoice", 2, 66.7], ["first_bill", 1, 33.3], ["first_expense", 1, 33.3],
+      ["first_project", 1, 33.3], ["ai_assistant", 1, 33.3], ["invoice_scanning", 1, 33.3]
+    ]);
+    expect(result.conversionJourney.map(item => item.count)).toEqual([3, 2, 2, 1, 1, 1]);
+    expect(result.conversionJourney.map(item => item.percentageFromPrevious)).toEqual([100, 66.7, 100, 50, 100, 100]);
+    expect(result.topEngagedCustomers[0]).toEqual({
+      businessName: "Complete Books", plan: "pro", lastActive: "2026-02-08T00:00:00.000Z",
+      totalSafeActivityEvents: 8, aiAssistantSuccessfulUses: 4, invoiceScanningSuccessfulUses: 2
+    });
+    expect(JSON.stringify(result)).not.toMatch(/uid|invoiceNumber|balance|amount|journal|cus_private|stripe/i);
+  });
+
+  it("reads current-month usage for no more than the internally ranked top 20", async () => {
+    const entries = Array.from({length: 25}, (_value, index) => user(`user-${index}`, "2026-01-01T00:00:00Z"));
+    const events = entries.flatMap((entry, index) => Array.from({length: index + 1}, (_value, eventIndex) =>
+      action(entry.user.uid, "invoice_created", `2026-08-04T${String(eventIndex % 24).padStart(2, "0")}:00:00Z`)));
+    const reads = [];
+    const firestore = {collection: () => ({doc: uid => ({collection: () => ({doc: monthKey => ({get: async () => {
+      reads.push({uid, monthKey});
+      return {exists: true, data: () => ({aiAssistantSuccessfulUses: 1})};
+    }})})})})};
+    const usage = await readTopCustomerUsage(firestore, entries, events, NOW);
+    expect(reads).toHaveLength(TOP_ENGAGED_CUSTOMER_LIMIT);
+    expect(usage.size).toBe(TOP_ENGAGED_CUSTOMER_LIMIT);
+    expect(reads.every(item => item.monthKey === "2026-08")).toBe(true);
+  });
+});
+
 function backendServices(){
   const accountData = new Map([
     ["real", {demoMode: false}], ["flagged-demo", {demoMode: true}], ["official-demo", {}], ["owner", {}]
@@ -127,7 +222,10 @@ function backendServices(){
   const firestore = {collection(name){
     if(name === "adminActivityEvents") return query;
     const values = name === "users" ? accountData : profiles;
-    return {doc: uid => ({get: async () => ({exists: values.has(uid), data: () => values.get(uid)})})};
+    return {doc: uid => ({
+      get: async () => ({exists: values.has(uid), data: () => values.get(uid)}),
+      collection: () => ({doc: () => ({get: async () => ({exists: false, data: () => undefined})})})
+    })};
   }};
   const users = [...accountData.keys()].map(uid => ({uid, email: uid === "official-demo" ? "demo@example.test" : `${uid}@example.test`, metadata: {creationTime: "2026-08-01T00:00:00Z"}}));
   return {firestore, auth: {listUsers: vi.fn(async () => ({users}))}};
@@ -136,13 +234,26 @@ function backendServices(){
 describe("Customer Analytics protected data access", () => {
   it("excludes demoMode, configured demo and admin testing accounts server-side", async () => {
     const services = backendServices();
+    const diagnosticsLogger = vi.fn();
     const result = await buildAdminCustomerAnalytics({
       ...services, demoIdentifiers: parseDemoIdentifiers("uid:official-demo,email:demo@example.test"),
       adminUids: new Set(["owner"]), range: "30d", now: NOW,
-      timestampFactory: {fromDate: date => date}
+      timestampFactory: {fromDate: date => date}, diagnosticsLogger
     });
     expect(result.summary).toMatchObject({activeCustomerAccounts: 1, newSignUps: 1, totalTrackedCustomerActions: 1});
     expect(JSON.stringify(result)).not.toMatch(/real|flagged-demo|official-demo|owner@example/i);
+    expect(diagnosticsLogger).toHaveBeenCalledWith({
+      authAccountsLoaded: 4,
+      excludedAdminAccounts: 1,
+      excludedConfiguredDemoAccounts: 1,
+      excludedDemoModeAccounts: 1,
+      eligibleCustomerAccounts: 1,
+      missingCreationTime: 0,
+      invalidCreationTime: 0,
+      futureCreationTime: 0,
+      outsideLast12Months: 0,
+      includedInSignupCohorts: 1
+    });
   });
 
   it("rejects non-admins, unsupported ranges and unknown fields before reading", async () => {
@@ -174,6 +285,12 @@ describe("Customer Analytics Admin Dashboard", () => {
       "customerAnalyticsLoading", "customerAnalyticsEmpty", "customerAnalyticsError", "retryCustomerAnalyticsButton"]){
       expect(html).toContain(`id="${id}"`);
     }
+    for(const id of ["customerActive24HoursValue", "customerActive7DaysValue", "customerActive30DaysValue",
+      "customerDormant30DaysValue", "customerNewThisMonthValue", "customerReturningThisMonthValue",
+      "customerReturningPercentageValue", "customerSignupCohortsChart", "customerFeatureAdoptionTableBody",
+      "customerConversionJourneyTableBody", "customerTopEngagedTableBody"]){
+      expect(html).toContain(`id="${id}"`);
+    }
     expect(html).not.toMatch(/Customer Analytics[\s\S]{0,500}unique people/i);
   });
 
@@ -187,6 +304,34 @@ describe("Customer Analytics Admin Dashboard", () => {
     expect(model.summary.starterToProConversionRate).toBe(100);
     expect(model.features[0]).toMatchObject({label: "Invoices", share: 100});
     expect(model).not.toHaveProperty("uid");
+    const phaseTwo = normalizeCustomerAnalyticsPayload({
+      retention: {active24Hours: 2},
+      signupCohorts: [{monthKey: "2026-08", label: "Aug 2026", count: 3}],
+      topEngagedCustomers: [{businessName: "Safe Books\u0000", plan: "pro", lastActive: NOW.toISOString(),
+        totalSafeActivityEvents: 9, aiAssistantSuccessfulUses: 2, invoiceScanningSuccessfulUses: 1,
+        invoices: [{amount: 999}], uid: "private"}]
+    });
+    expect(phaseTwo.retention.active24Hours).toBe(2);
+    expect(phaseTwo.signupCohorts).toEqual([{monthKey: "2026-08", label: "Aug 2026", count: 3}]);
+    expect(phaseTwo.topEngagedCustomers[0]).toEqual({
+      businessName: "Safe Books", plan: "pro", lastActive: NOW.toISOString(), totalSafeActivityEvents: 9,
+      aiAssistantSuccessfulUses: 2, invoiceScanningSuccessfulUses: 1
+    });
+  });
+
+  it("distinguishes an outdated backend contract from a genuinely empty cohort dataset", () => {
+    const legacy = normalizeCustomerAnalyticsPayload({summary: {}, signupCohorts: undefined});
+    const currentEmpty = normalizeCustomerAnalyticsPayload({schemaVersion: 2, summary: {}, signupCohorts: []});
+    const currentPopulated = normalizeCustomerAnalyticsPayload({
+      schemaVersion: 2,
+      signupCohorts: [{monthKey: "2026-08", label: "Aug 2026", count: 2}]
+    });
+    expect(legacy).toMatchObject({schemaVersion: 0, signupCohorts: []});
+    expect(currentEmpty).toMatchObject({schemaVersion: 2, signupCohorts: []});
+    expect(currentPopulated.signupCohorts).toHaveLength(1);
+    expect(dashboard).toContain("if(model.schemaVersion < 2)");
+    expect(dashboard).toContain("Customer Analytics backend is out of date");
+    expect(dashboard.indexOf("model.schemaVersion < 2")).toBeLessThan(dashboard.indexOf("else if(model.signupCohorts.length)"));
   });
 
   it("prevents duplicate requests, caches ranges and isolates failures", async () => {

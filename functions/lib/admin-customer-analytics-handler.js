@@ -53,6 +53,7 @@ function createAdminCustomerAnalyticsHandler(options) {
         range,
         now: source.now ? source.now() : new Date(),
         timestampFactory: source.timestampFactory,
+        diagnosticsLogger: (details) => source.logger?.info?.("Customer Analytics cohort diagnostics", details),
       });
     } catch (error) {
       source.logger?.error?.("Customer Analytics aggregation failed", {

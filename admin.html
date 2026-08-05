@@ -53,7 +53,7 @@
   <link rel="stylesheet" href="/assets/app-shell.css?v=20260801-admin2a">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module" src="/assets/app-shell.js?v=20260801-admin2a"></script>
-  <script type="module" src="/assets/admin-dashboard.js?v=20260805-admin-users-phase2-fix1"></script>
+  <script type="module" src="/assets/admin-dashboard.js?v=20260805-customer-analytics2-cohorts-fix1"></script>
 </head>
 <body>
   <div data-app-navigation data-auth-controlled hidden></div>
@@ -360,7 +360,7 @@
         <div class="demo-analytics-header">
           <div>
             <h2 class="section-heading" id="customerAnalyticsTitle">Customer Analytics</h2>
-            <p class="demo-analytics-description" id="customerAnalyticsDescription">Understand how real customers are adopting and using Simple Books.</p>
+            <p class="demo-analytics-description" id="customerAnalyticsDescription">Understand how real customers are adopting and using Simple Books. The selected range controls core activity metrics; retention windows, monthly cohorts and lifetime milestones use their labelled periods.</p>
           </div>
           <div class="feature-range-control">
             <label for="customerAnalyticsRange">Time range</label>
@@ -382,12 +382,23 @@
             <article class="card kpi-card"><p class="kpi-label">Active Pro accounts</p><p class="kpi-value" id="customerActiveProValue">&mdash;</p><p class="phase-note">Current plan, not paid status</p></article>
             <article class="card kpi-card"><p class="kpi-label">Starter-to-Pro conversion rate</p><p class="kpi-value" id="customerConversionValue">&mdash;</p><p class="phase-note">Current Pro / current known-plan accounts</p></article>
             <article class="card kpi-card"><p class="kpi-label">Total tracked customer actions</p><p class="kpi-value" id="customerActionsValue">&mdash;</p><p class="phase-note">Valid qualifying activity events</p></article>
+            <article class="card kpi-card"><p class="kpi-label">Active in last 24 hours</p><p class="kpi-value" id="customerActive24HoursValue">&mdash;</p><p class="phase-note">Accounts with recent safe activity</p></article>
+            <article class="card kpi-card"><p class="kpi-label">Active in last 7 days</p><p class="kpi-value" id="customerActive7DaysValue">&mdash;</p><p class="phase-note">Accounts with safe activity</p></article>
+            <article class="card kpi-card"><p class="kpi-label">Active in last 30 days</p><p class="kpi-value" id="customerActive30DaysValue">&mdash;</p><p class="phase-note">Accounts with safe activity</p></article>
+            <article class="card kpi-card"><p class="kpi-label">Dormant</p><p class="kpi-value" id="customerDormant30DaysValue">&mdash;</p><p class="phase-note">No safe activity for 30+ days</p></article>
+            <article class="card kpi-card"><p class="kpi-label">New users this month</p><p class="kpi-value" id="customerNewThisMonthValue">&mdash;</p><p class="phase-note">Accounts created this UTC month</p></article>
+            <article class="card kpi-card"><p class="kpi-label">Returning users this month</p><p class="kpi-value" id="customerReturningThisMonthValue">&mdash;</p><p class="phase-note">Older accounts active this UTC month</p></article>
+            <article class="card kpi-card"><p class="kpi-label">Returning user percentage</p><p class="kpi-value" id="customerReturningPercentageValue">&mdash;</p><p class="phase-note">Returning / new plus returning users</p></article>
           </div>
           <div class="customer-analytics-grid">
             <article class="card chart-card customer-analytics-wide"><h3 id="customerActivityTitle">Customer activity over time</h3><p class="chart-description" id="customerActivityDescription">Active customer accounts and tracked actions per UTC day</p><div class="chart-shell customer-analytics-chart"><canvas id="customerActivityChart" role="img" aria-labelledby="customerActivityTitle customerActivityDescription"></canvas><p class="chart-empty" id="customerActivityChartEmpty" hidden></p></div></article>
+            <article class="card chart-card customer-analytics-wide"><h3 id="customerSignupCohortsTitle">Signup cohorts</h3><p class="chart-description" id="customerSignupCohortsDescription">New non-demo customer accounts grouped by creation month for the last 12 months</p><div class="chart-shell customer-analytics-chart"><canvas id="customerSignupCohortsChart" role="img" aria-labelledby="customerSignupCohortsTitle customerSignupCohortsDescription"></canvas><p class="chart-empty" id="customerSignupCohortsEmpty" hidden></p></div><ul class="visually-hidden" id="customerSignupCohortsSummary" aria-label="Monthly signup cohort data"></ul></article>
             <article class="card customer-analytics-table-card"><h3>Product adoption</h3><p>Only actions supported by valid existing activity records are shown.</p><table class="customer-analytics-table"><thead><tr><th scope="col">Product action</th><th scope="col">Count</th></tr></thead><tbody id="customerAdoptionTableBody"></tbody></table></article>
             <article class="card customer-analytics-table-card"><h3>Most-used customer features</h3><p>Share of measured product-feature actions in the selected range.</p><table class="customer-analytics-table"><thead><tr><th scope="col">Feature</th><th scope="col">Actions</th><th scope="col">Share</th></tr></thead><tbody id="customerFeaturesTableBody"></tbody></table></article>
+            <article class="card customer-analytics-table-card"><h3>Feature adoption</h3><p>Customers who have completed each milestone using safe activity events.</p><table class="customer-analytics-table"><thead><tr><th scope="col">Feature</th><th scope="col">Customers</th><th scope="col">All customers</th></tr></thead><tbody id="customerFeatureAdoptionTableBody"></tbody></table></article>
+            <article class="card customer-analytics-table-card"><h3>Conversion journey</h3><p>Each stage includes customers who completed every preceding stage.</p><table class="customer-analytics-table"><thead><tr><th scope="col">Stage</th><th scope="col">Customers</th><th scope="col">From previous</th></tr></thead><tbody id="customerConversionJourneyTableBody"></tbody></table></article>
             <article class="card customer-analytics-table-card customer-analytics-wide"><h3>Current plan adoption</h3><p>This is a current-state plan snapshot, separate from the selected date range. Plan does not imply paid subscription status.</p><table class="customer-analytics-table"><thead><tr><th scope="col">Plan</th><th scope="col">Accounts</th><th scope="col">Percentage of known plans</th></tr></thead><tbody id="customerPlanTableBody"></tbody></table><p class="demo-analytics-note" id="customerPlanConversion"></p></article>
+            <article class="card customer-analytics-table-card customer-analytics-wide"><h3>Top engaged customers</h3><p>Top 20 non-demo accounts ranked by bounded safe activity event count. No financial records or values are included.</p><table class="customer-analytics-table"><thead><tr><th scope="col">Business name</th><th scope="col">Plan</th><th scope="col">Last active</th><th scope="col">Safe events</th><th scope="col">AI usage this month</th><th scope="col">Invoice scans this month</th></tr></thead><tbody id="customerTopEngagedTableBody"></tbody></table></article>
           </div>
           <p class="demo-analytics-note" id="customerAnalyticsUpdatedAt" aria-live="polite"></p>
           <p class="demo-analytics-note demo-analytics-warning" id="customerAnalyticsCapped" hidden>The result reached a safe query limit and may be incomplete.</p>

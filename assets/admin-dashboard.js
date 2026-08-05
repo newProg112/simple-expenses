@@ -43,7 +43,7 @@ import {
   createCustomerAnalyticsLoader,
   customerAnalyticsErrorState,
   normalizeCustomerAnalyticsPayload
-} from "./admin-customer-analytics-view.js?v=20260805-customer-analytics1";
+} from "./admin-customer-analytics-view.js?v=20260805-customer-analytics2-cohorts-fix1";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
@@ -148,6 +148,9 @@ const retryCustomerAnalyticsButton = document.getElementById("retryCustomerAnaly
 const customerAdoptionTableBody = document.getElementById("customerAdoptionTableBody");
 const customerFeaturesTableBody = document.getElementById("customerFeaturesTableBody");
 const customerPlanTableBody = document.getElementById("customerPlanTableBody");
+const customerFeatureAdoptionTableBody = document.getElementById("customerFeatureAdoptionTableBody");
+const customerConversionJourneyTableBody = document.getElementById("customerConversionJourneyTableBody");
+const customerTopEngagedTableBody = document.getElementById("customerTopEngagedTableBody");
 const callGetAdminMetrics = httpsCallable(functions, "getAdminMetrics");
 const callGetAdminRecentActivity = httpsCallable(functions, "getAdminRecentActivity");
 const callGetAdminFeatureUsage = httpsCallable(functions, "getAdminFeatureUsage");
@@ -184,6 +187,7 @@ let featureUsageChart = null;
 const adminCharts = new Map();
 const demoAnalyticsCharts = new Map();
 let customerAnalyticsChart = null;
+let customerSignupCohortsChart = null;
 
 function setCustomerAnalyticsState(state){
   customerAnalyticsLoading.hidden = state !== "loading";
@@ -209,6 +213,8 @@ function renderCustomerTable(body, rows){
 function renderCustomerAnalytics(payload){
   customerAnalyticsChart?.destroy();
   customerAnalyticsChart = null;
+  customerSignupCohortsChart?.destroy();
+  customerSignupCohortsChart = null;
   const model = normalizeCustomerAnalyticsPayload(payload);
   const summary = model.summary;
   document.getElementById("customerActiveAccountsValue").textContent = String(summary.activeCustomerAccounts);
@@ -217,6 +223,13 @@ function renderCustomerAnalytics(payload){
   document.getElementById("customerActiveProValue").textContent = String(summary.activeProAccounts);
   document.getElementById("customerConversionValue").textContent = `${summary.starterToProConversionRate.toFixed(1)}%`;
   document.getElementById("customerActionsValue").textContent = String(summary.totalTrackedCustomerActions);
+  document.getElementById("customerActive24HoursValue").textContent = String(model.retention.active24Hours);
+  document.getElementById("customerActive7DaysValue").textContent = String(model.retention.active7Days);
+  document.getElementById("customerActive30DaysValue").textContent = String(model.retention.active30Days);
+  document.getElementById("customerDormant30DaysValue").textContent = String(model.retention.dormant30Days);
+  document.getElementById("customerNewThisMonthValue").textContent = String(model.returningUsers.newUsersThisMonth);
+  document.getElementById("customerReturningThisMonthValue").textContent = String(model.returningUsers.returningUsersThisMonth);
+  document.getElementById("customerReturningPercentageValue").textContent = `${model.returningUsers.returningUserPercentage.toFixed(1)}%`;
   renderCustomerTable(customerAdoptionTableBody, model.adoption.length
     ? model.adoption.map(item => [item.label, item.count])
     : [["No reliably tracked product actions", 0]]);
@@ -228,6 +241,28 @@ function renderCustomerAnalytics(payload){
     ["Pro", model.planAdoption.pro.count, `${model.planAdoption.pro.percentageOfKnown.toFixed(1)}%`],
     ["Unknown or missing", model.planAdoption.unknown.count, "Excluded"]
   ]);
+  renderCustomerTable(customerFeatureAdoptionTableBody, model.featureAdoption.length
+    ? model.featureAdoption.map(item => [item.label, item.customers, `${item.percentageOfCustomers.toFixed(1)}%`])
+    : [["No measured adoption", 0, "0.0%"]]);
+  renderCustomerTable(customerConversionJourneyTableBody, model.conversionJourney.length
+    ? model.conversionJourney.map((item, index) => [index === 0 ? item.label : `↓ ${item.label}`, item.count, index === 0 ? "Baseline" : `${item.percentageFromPrevious.toFixed(1)}%`])
+    : [["Account Created", 0, "Baseline"]]);
+  renderCustomerTable(customerTopEngagedTableBody, model.topEngagedCustomers.length
+    ? model.topEngagedCustomers.map(item => [
+      item.businessName || "Business name not set",
+      formatSubscriptionStatus(item.plan),
+      formatActivityExactTime(item.lastActive),
+      item.totalSafeActivityEvents,
+      item.aiAssistantSuccessfulUses,
+      item.invoiceScanningSuccessfulUses
+    ])
+    : [["No engaged customers", "Not available", "Not available", 0, 0, 0]]);
+  const cohortSummary = document.getElementById("customerSignupCohortsSummary");
+  cohortSummary.replaceChildren(...model.signupCohorts.map(item => {
+    const row = document.createElement("li");
+    row.textContent = `${item.label}: ${item.count} new customer account${item.count === 1 ? "" : "s"}`;
+    return row;
+  }));
   document.getElementById("customerPlanConversion").textContent = `Current conversion rate: ${model.planAdoption.conversionRate.toFixed(1)}% of ${model.planAdoption.knownAccounts} known-plan accounts.`;
   document.getElementById("customerAnalyticsUpdatedAt").textContent = model.generatedAt
     ? `Updated ${formatAdminDate(model.generatedAt)} | UTC date range`
@@ -241,23 +276,42 @@ function renderCustomerAnalytics(payload){
   }));
   setCustomerAnalyticsState(summary.totalTrackedCustomerActions === 0 ? "empty" : "loaded");
   const ChartLibrary = window.Chart;
-  if(typeof ChartLibrary !== "function" || model.daily.length === 0){
-    showChartEmpty("customerActivityChart", "customerActivityChartEmpty", model.daily.length ? "Charts are unavailable. Aggregate values remain available." : "No customer activity dates to plot.");
+  if(typeof ChartLibrary !== "function"){
+    showChartEmpty("customerActivityChart", "customerActivityChartEmpty", "Charts are unavailable. Aggregate values remain available.");
+    showChartEmpty("customerSignupCohortsChart", "customerSignupCohortsEmpty", "Charts are unavailable. Cohort totals remain available to assistive technology.");
     return;
   }
-  const options = baseChartOptions();
-  options.plugins.legend = {display: true};
-  customerAnalyticsChart = new ChartLibrary(prepareChart("customerActivityChart", "customerActivityChartEmpty"), {
-    type: "line",
-    data: {
-      labels: model.daily.map(item => formatDemoDay(item.date)),
-      datasets: [
-        {label: "Active accounts", data: model.daily.map(item => item.activeAccounts), borderColor: "#0077b6", backgroundColor: "rgba(0,119,182,.12)", tension: .2, fill: false},
-        {label: "Tracked actions", data: model.daily.map(item => item.trackedActions), borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,.12)", tension: .2, fill: false}
-      ]
-    },
-    options
-  });
+  if(model.daily.length){
+    const options = baseChartOptions();
+    options.plugins.legend = {display: true};
+    customerAnalyticsChart = new ChartLibrary(prepareChart("customerActivityChart", "customerActivityChartEmpty"), {
+      type: "line",
+      data: {
+        labels: model.daily.map(item => formatDemoDay(item.date)),
+        datasets: [
+          {label: "Active accounts", data: model.daily.map(item => item.activeAccounts), borderColor: "#0077b6", backgroundColor: "rgba(0,119,182,.12)", tension: .2, fill: false},
+          {label: "Tracked actions", data: model.daily.map(item => item.trackedActions), borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,.12)", tension: .2, fill: false}
+        ]
+      },
+      options
+    });
+  }else{
+    showChartEmpty("customerActivityChart", "customerActivityChartEmpty", "No customer activity dates to plot.");
+  }
+  if(model.schemaVersion < 2){
+    showChartEmpty("customerSignupCohortsChart", "customerSignupCohortsEmpty", "Signup cohort data is unavailable because the Customer Analytics backend is out of date.");
+  }else if(model.signupCohorts.length){
+    customerSignupCohortsChart = new ChartLibrary(prepareChart("customerSignupCohortsChart", "customerSignupCohortsEmpty"), {
+      type: "bar",
+      data: {
+        labels: model.signupCohorts.map(item => item.label),
+        datasets: [{label: "New customer accounts", data: model.signupCohorts.map(item => item.count), backgroundColor: "rgba(0,119,182,.72)", borderColor: "#0077b6", borderWidth: 1}]
+      },
+      options: baseChartOptions()
+    });
+  }else{
+    showChartEmpty("customerSignupCohortsChart", "customerSignupCohortsEmpty", "No signup cohorts are available.");
+  }
 }
 
 function showCustomerAnalyticsFailure(error){
@@ -1541,6 +1595,7 @@ if(typeof ResizeObserver === "function"){
     for(const chart of adminCharts.values()) chart.resize();
     for(const chart of demoAnalyticsCharts.values()) chart.resize();
     customerAnalyticsChart?.resize();
+    customerSignupCohortsChart?.resize();
   });
   chartResizeObserver.observe(growthOverview);
   chartResizeObserver.observe(document.getElementById("demoAnalyticsSection"));

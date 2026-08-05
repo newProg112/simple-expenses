@@ -12,6 +12,12 @@ const safeText = (value, maximum = 100) => typeof value === "string"
   ? value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, maximum)
   : "";
 
+const safeIsoDate = value => {
+  if(typeof value !== "string") return "";
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : "";
+};
+
 export function normalizeCustomerAnalyticsPayload(payload){
   const source = payload && typeof payload === "object" ? payload : {};
   const summary = source.summary && typeof source.summary === "object" ? source.summary : {};
@@ -27,6 +33,7 @@ export function normalizeCustomerAnalyticsPayload(payload){
     share: safePercent(item?.share)
   });
   return {
+    schemaVersion: safeCount(source.schemaVersion),
     range: ["7d", "30d", "all"].includes(source.range) ? source.range : "30d",
     generatedAt: safeText(source.generatedAt, 40),
     summary: {
@@ -53,6 +60,42 @@ export function normalizeCustomerAnalyticsPayload(payload){
       knownAccounts: safeCount(plan.knownAccounts),
       conversionRate: safePercent(plan.conversionRate)
     },
+    retention: {
+      active24Hours: safeCount(source.retention?.active24Hours),
+      active7Days: safeCount(source.retention?.active7Days),
+      active30Days: safeCount(source.retention?.active30Days),
+      dormant30Days: safeCount(source.retention?.dormant30Days)
+    },
+    signupCohorts: Array.isArray(source.signupCohorts) ? source.signupCohorts.map(item => ({
+      monthKey: /^\d{4}-(0[1-9]|1[0-2])$/.test(item?.monthKey) ? item.monthKey : "",
+      label: safeText(item?.label, 30),
+      count: safeCount(item?.count)
+    })).filter(item => item.monthKey && item.label).slice(-12) : [],
+    returningUsers: {
+      newUsersThisMonth: safeCount(source.returningUsers?.newUsersThisMonth),
+      returningUsersThisMonth: safeCount(source.returningUsers?.returningUsersThisMonth),
+      returningUserPercentage: safePercent(source.returningUsers?.returningUserPercentage)
+    },
+    featureAdoption: Array.isArray(source.featureAdoption) ? source.featureAdoption.map(item => ({
+      key: safeText(item?.key, 50),
+      label: safeText(item?.label, 80),
+      customers: safeCount(item?.customers),
+      percentageOfCustomers: safePercent(item?.percentageOfCustomers)
+    })).filter(item => item.key && item.label).slice(0, 6) : [],
+    conversionJourney: Array.isArray(source.conversionJourney) ? source.conversionJourney.map(item => ({
+      key: safeText(item?.key, 50),
+      label: safeText(item?.label, 80),
+      count: safeCount(item?.count),
+      percentageFromPrevious: safePercent(item?.percentageFromPrevious)
+    })).filter(item => item.key && item.label).slice(0, 6) : [],
+    topEngagedCustomers: Array.isArray(source.topEngagedCustomers) ? source.topEngagedCustomers.map(item => ({
+      businessName: safeText(item?.businessName, 160),
+      plan: ["starter", "pro", "unknown"].includes(item?.plan) ? item.plan : "unknown",
+      lastActive: safeIsoDate(item?.lastActive),
+      totalSafeActivityEvents: safeCount(item?.totalSafeActivityEvents),
+      aiAssistantSuccessfulUses: safeCount(item?.aiAssistantSuccessfulUses),
+      invoiceScanningSuccessfulUses: safeCount(item?.invoiceScanningSuccessfulUses)
+    })).filter(item => item.lastActive).slice(0, 20) : [],
     caps: {
       activityLimit: safeCount(source.caps?.activityLimit),
       accountLimit: safeCount(source.caps?.accountLimit),

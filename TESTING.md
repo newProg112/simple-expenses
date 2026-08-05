@@ -1,5 +1,9 @@
 # Testing
 
+## Customer Analytics Phase 2
+
+`getAdminCustomerAnalytics` extends the existing bounded, admin-only projection with rolling 24-hour, 7-day and 30-day retention; 30-day dormancy; 12 monthly signup cohorts; current-month new and returning users; six unique-customer adoption milestones; a prerequisite conversion journey; and the top 20 engaged non-demo customers. Activity calculations use only approved safe event types. The response never includes UIDs, email addresses, invoices, balances, journals, payment amounts or other customer financial values. Monthly AI and scanning counters are read only for the internally ranked top 20 accounts. Phase 2 responses carry `schemaVersion: 2`; the dashboard reports an outdated backend contract separately from a genuinely empty cohort dataset.
+
 ## Admin User Management Phase 2
 
 Private admin notes are stored at the dedicated `adminUserNotes/{uid}` document used by both `updateAdminUserNotes` and `getAdminUserDetails`. The update callable reads the document back after the committed write and returns only the verified note, timestamp and administrator UID. Direct browser access remains denied by Firestore rules.
