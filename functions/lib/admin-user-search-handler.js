@@ -6,6 +6,7 @@ const {HttpsError} = require("firebase-functions/v2/https");
 const {
   AdminConfigurationError,
   adminAuthorizationDecision,
+  parseAdminUidAllowList,
   parseDemoIdentifiers,
 } = require("./admin-authorization");
 const {privacySafeErrorCode} = require("./admin-metrics-handler");
@@ -17,8 +18,7 @@ function validSearchQuery(data) {
   if (!data || typeof data !== "object" || Array.isArray(data) ||
     typeof data.query !== "string") return "";
   const query = data.query.trim();
-  return query.length >= 2 &&
-    query.length <= ADMIN_USER_SEARCH_QUERY_MAX_LENGTH ? query : "";
+  return query.length >= 1 && query.length <= ADMIN_USER_SEARCH_QUERY_MAX_LENGTH ? query : "";
 }
 
 function createAdminUserSearchHandler(options) {
@@ -29,6 +29,7 @@ function createAdminUserSearchHandler(options) {
   return async (request) => {
     let authorization;
     let demoIdentifiers;
+    let adminUids;
     try {
       authorization = adminAuthorizationDecision(
           request && request.auth,
@@ -36,6 +37,7 @@ function createAdminUserSearchHandler(options) {
       );
       if (authorization === "allowed") {
         demoIdentifiers = parseDemoIdentifiers(source.demoConfiguration);
+        adminUids = parseAdminUidAllowList(source.adminUidConfiguration);
       }
     } catch (error) {
       if (error instanceof AdminConfigurationError) {
@@ -67,7 +69,7 @@ function createAdminUserSearchHandler(options) {
     if (!query) {
       throw new HttpsError(
           "invalid-argument",
-          "Search query must contain between 2 and 320 characters.",
+          "Search query must contain between 1 and 320 characters.",
       );
     }
 
@@ -76,6 +78,7 @@ function createAdminUserSearchHandler(options) {
         auth: source.auth,
         firestore: source.firestore,
         demoIdentifiers,
+        adminUids,
         query,
         now: source.now ? source.now() : new Date(),
       });

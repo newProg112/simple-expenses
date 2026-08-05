@@ -18,14 +18,14 @@ import {
   buildAdminChartModel,
   buildCustomerSummary,
   chartSummaryItems,
-  filterSignupsByEmail,
   formatAdminDate,
   formatEstimatedMrr,
   formatSubscriptionStatus,
+  normalizeAdminUserDetailsPayload,
   safeMetricCount,
   supportDiagnosticMessages,
   validateAdminUserSearchQuery
-} from "./admin-metrics-view.js?v=20260802-admin4b";
+} from "./admin-metrics-view.js?v=20260805-admin-users2";
 import {
   createDemoEnvironmentController,
   DEMO_COUNT_LABELS,
@@ -61,7 +61,6 @@ const metricsLoading = document.getElementById("metricsLoading");
 const metricsFailure = document.getElementById("metricsFailure");
 const metricsFailureTitle = document.getElementById("metricsFailureTitle");
 const metricsFailureMessage = document.getElementById("metricsFailureMessage");
-const recentSignupsTitle = document.getElementById("recentSignupsTitle");
 const recentSignupsBody = document.getElementById("recentSignupsBody");
 const customerSearchForm = document.getElementById("customerSearchForm");
 const customerSearch = document.getElementById("customerSearch");
@@ -137,10 +136,11 @@ const callGetAdminCustomerAnalytics = httpsCallable(functions, "getAdminCustomer
 let metricsRequest = null;
 let searchRequest = null;
 let searchGeneration = 0;
+let hasUserSearchResults = false;
 let customerDetailsRequest = 0;
 let recentSignupRecords = [];
 let currentCustomerDetails = null;
-let currentCustomerEmail = "";
+let currentCustomerSelector = null;
 let customerPanelTrigger = null;
 let authGeneration = 0;
 let resolvedAuthUid = "";
@@ -866,7 +866,7 @@ function clearRenderedMetrics(){
   for(const id of metricValueIds){
     document.getElementById(id).textContent = "—";
   }
-  recentSignupsBody.replaceChildren();
+  if(!hasUserSearchResults) recentSignupsBody.replaceChildren();
   recentSignupRecords = [];
   customerSearchStatus.textContent = "";
   metricsUpdatedAt.textContent = "";
@@ -888,17 +888,34 @@ function createTableCell(label, value){
   return cell;
 }
 
-function createCustomerEmailCell(record){
+function createCustomerDetailsCell(record){
   const cell = document.createElement("td");
-  cell.dataset.label = "User";
+  cell.dataset.label = "Details";
   const button = document.createElement("button");
   button.className = "customer-open-button";
   button.type = "button";
-  button.textContent = String(record?.email || "Not available");
-  button.addEventListener("click", () =>
-    openCustomerSummary(String(record?.email || ""), button)
-  );
+  button.textContent = "View details";
+  const selector = record?.uid
+    ? {uid: String(record.uid)}
+    : {email: String(record?.email || "")};
+  button.addEventListener("click", () => openCustomerSummary(selector, button));
   cell.append(button);
+  return cell;
+}
+
+function createAccountStatusCell(badges){
+  const cell = document.createElement("td");
+  cell.dataset.label = "Status";
+  const badgeList = Array.isArray(badges) && badges.length > 0 ? badges : ["Unknown"];
+  const container = document.createElement("span");
+  container.className = "account-badges";
+  for(const badge of badgeList){
+    const item = document.createElement("span");
+    item.className = "account-badge";
+    item.textContent = String(badge);
+    container.append(item);
+  }
+  cell.append(container);
   return cell;
 }
 
@@ -907,7 +924,7 @@ function renderCustomerRows(records, emptyMessage){
   if(!Array.isArray(records) || records.length === 0){
     const row = document.createElement("tr");
     const cell = createTableCell("Customers", emptyMessage);
-    cell.colSpan = 7;
+    cell.colSpan = 8;
     row.append(cell);
     recentSignupsBody.append(row);
     return;
@@ -915,36 +932,28 @@ function renderCustomerRows(records, emptyMessage){
 
   for(const record of records.slice(0, 20)){
     const row = document.createElement("tr");
-    const statusCell = createTableCell(
-      "Subscription status",
-      formatSubscriptionStatus(record?.subscriptionStatus)
-    );
-    statusCell.className = "subscription-status-cell";
     row.append(
-      createCustomerEmailCell(record),
+      createTableCell("Customer", record?.fullName || "Not available"),
+      createTableCell("Business", record?.businessName || "Not available"),
+      createTableCell("Email", record?.email || "Not available"),
       createTableCell("Plan", record?.plan === "Pro" ? "Pro" : "Starter"),
-      createTableCell("Joined", formatAdminDate(record?.joinedAt)),
-      createTableCell("Last sign in", formatAdminDate(record?.lastSignInAt)),
-      statusCell,
-      createTableCell("AI usage", String(safeMetricCount(record?.aiAssistantSuccessfulUses))),
-      createTableCell("Scan usage", String(safeMetricCount(record?.invoiceScanningSuccessfulUses)))
+      createAccountStatusCell(record?.accountStatus),
+      createTableCell("Signed up", formatAdminDate(record?.signupDate || record?.joinedAt)),
+      createTableCell("Last activity", formatAdminDate(record?.lastActivityDate || record?.lastSignInAt)),
+      createCustomerDetailsCell(record)
     );
     recentSignupsBody.append(row);
   }
 }
 
 function renderFilteredRecentSignups(){
-  recentSignupsTitle.textContent = "Recent sign-ups";
-  const filtered = filterSignupsByEmail(recentSignupRecords, customerSearch.value);
   renderCustomerRows(
-    filtered,
-    recentSignupRecords.length === 0
-      ? "No non-demo users are available yet."
-      : "No recent sign-ups match that email."
+    recentSignupRecords,
+    "No non-demo users are available yet."
   );
   customerSearchStatus.textContent = recentSignupRecords.length === 0
     ? ""
-    : `${filtered.length} of ${recentSignupRecords.length} recent sign-ups shown. Use Search all users for the full account list.`;
+    : `${recentSignupRecords.length} recent accounts shown. Search to review another account.`;
 }
 
 function renderAdminMetrics(payload){
@@ -960,7 +969,7 @@ function renderAdminMetrics(payload){
   recentSignupRecords = Array.isArray(payload?.recentSignups)
     ? payload.recentSignups.slice(0, 10)
     : [];
-  renderFilteredRecentSignups();
+  if(!hasUserSearchResults) renderFilteredRecentSignups();
   metricsUpdatedAt.textContent = payload?.generatedAt
     ? `Updated ${formatAdminDate(payload.generatedAt)} · Usage month ${String(payload.monthKey || "")}`
     : "Metrics loaded";
@@ -973,7 +982,7 @@ function renderSearchMessage(title, message){
   recentSignupsBody.replaceChildren();
   const row = document.createElement("tr");
   const cell = document.createElement("td");
-  cell.colSpan = 7;
+  cell.colSpan = 8;
   cell.dataset.label = "Customer search";
   const heading = document.createElement("strong");
   heading.textContent = title;
@@ -995,7 +1004,6 @@ function showSearchFailure(error){
     showState("deniedState");
     return;
   }
-  recentSignupsTitle.textContent = "Search results";
   renderSearchMessage(state.title, state.message);
   customerSearchStatus.textContent = state.message;
 }
@@ -1004,16 +1012,15 @@ function runAdminUserSearch(){
   const validation = validateAdminUserSearchQuery(customerSearch.value);
   if(!validation.valid){
     searchGeneration += 1;
-    renderFilteredRecentSignups();
     customerSearchStatus.textContent = validation.message;
     return null;
   }
   if(searchRequest || !currentAdminUser) return searchRequest;
 
   const requestGeneration = ++searchGeneration;
-  recentSignupsTitle.textContent = "Search results";
-  renderSearchMessage("Searching all users", "Securely checking registered customer emails…");
-  customerSearchStatus.textContent = "Searching all registered users…";
+  hasUserSearchResults = true;
+  renderSearchMessage("Searching all users", "Securely checking registered user accounts…");
+  customerSearchStatus.textContent = "Searching registered user accounts…";
   customerSearchButton.disabled = true;
 
   searchRequest = callSearchAdminUsers({ query: validation.query })
@@ -1021,9 +1028,10 @@ function runAdminUserSearch(){
       if(requestGeneration !== searchGeneration || !currentAdminUser) return;
       const records = Array.isArray(result.data?.results) ? result.data.results : [];
       renderCustomerRows(records, "No matching users found");
+      const truncatedNote = result.data?.truncated ? " Results are capped at 20." : "";
       customerSearchStatus.textContent = records.length === 0
         ? "No matching users found"
-        : `${records.length} matching ${records.length === 1 ? "user" : "users"} found.`;
+        : `${records.length} matching ${records.length === 1 ? "user" : "users"} found.${truncatedNote}`;
     })
     .catch(error => {
       if(requestGeneration === searchGeneration) showSearchFailure(error);
@@ -1035,19 +1043,9 @@ function runAdminUserSearch(){
   return searchRequest;
 }
 
-function handleSearchInput(){
-  searchGeneration += 1;
-  renderFilteredRecentSignups();
-  const validation = validateAdminUserSearchQuery(customerSearch.value);
-  if(customerSearch.value && !validation.valid){
-    customerSearchStatus.textContent = validation.message;
-  }else if(validation.valid){
-    customerSearchStatus.textContent += " Ready to search all registered users.";
-  }
-}
-
 function clearCustomerSearch(){
   searchGeneration += 1;
+  hasUserSearchResults = false;
   customerSearch.value = "";
   renderFilteredRecentSignups();
   customerSearchStatus.textContent = "Showing recent sign-ups.";
@@ -1055,11 +1053,11 @@ function clearCustomerSearch(){
 }
 
 function setCustomerPanelState(state){
-  customerPanelLoading.hidden = state !== "loading";
-  customerPanelFailure.hidden = state !== "failure";
-  customerPanelData.hidden = state !== "data";
-  customerCopyEmail.disabled = state !== "data";
-  customerCopySummary.disabled = state !== "data";
+  if(customerPanelLoading) customerPanelLoading.hidden = state !== "loading";
+  if(customerPanelFailure) customerPanelFailure.hidden = state !== "failure";
+  if(customerPanelData) customerPanelData.hidden = state !== "data";
+  if(customerCopyEmail) customerCopyEmail.disabled = state !== "data";
+  if(customerCopySummary) customerCopySummary.disabled = state !== "data";
 }
 
 function closeCustomerPanel(){
@@ -1074,6 +1072,7 @@ function closeCustomerPanel(){
 
 function renderCustomerDiagnostics(codes){
   const messages = supportDiagnosticMessages(codes);
+  if(!customerDiagnosticsList || !customerDiagnosticsSection) return;
   customerDiagnosticsList.replaceChildren();
   for(const message of messages){
     const item = document.createElement("li");
@@ -1083,19 +1082,88 @@ function renderCustomerDiagnostics(codes){
   customerDiagnosticsSection.hidden = messages.length === 0;
 }
 
+function renderCustomerAccountBadges(badges){
+  const container = document.getElementById("customerAccountBadges");
+  if(!container) return;
+  container.replaceChildren();
+  const badgeList = Array.isArray(badges) && badges.length > 0 ? badges : ["Status unavailable"];
+  for(const badge of badgeList){
+    const item = document.createElement("span");
+    item.className = "account-badge";
+    item.textContent = String(badge);
+    container.append(item);
+  }
+}
+
+function formatUsageWithAllowance(count, allowance){
+  if(typeof count !== "number" || !Number.isFinite(count) || count < 0) return "Not available";
+  const safeCount = safeMetricCount(count);
+  return typeof allowance === "number" && Number.isFinite(allowance) && allowance >= 0
+    ? `${safeCount} of ${safeMetricCount(allowance)}`
+    : `${safeCount} (allowance unavailable)`;
+}
+
+function friendlyText(value){
+  return typeof value === "string" && value.trim() ? value.trim() : "Not available";
+}
+
+function friendlyBoolean(value){
+  if(value === true) return "Yes";
+  if(value === false) return "No";
+  return "Not available";
+}
+
+function setCustomerText(id, value){
+  const element = document.getElementById(id);
+  if(element) element.textContent = value;
+}
+
+function renderCustomerActivity(records){
+  const list = document.getElementById("customerActivityList");
+  const empty = document.getElementById("customerActivityEmpty");
+  if(!list || !empty) return;
+  list.replaceChildren();
+  const safeRecords = Array.isArray(records) ? records.slice(0, 20) : [];
+  empty.hidden = safeRecords.length !== 0;
+  for(const record of safeRecords){
+    const item = document.createElement("li");
+    const summary = document.createElement("span");
+    summary.textContent = String(record?.summary || record?.label || "Account activity");
+    const timestamp = document.createElement("time");
+    timestamp.dateTime = String(record?.timestamp || "");
+    timestamp.textContent = formatActivityExactTime(record?.timestamp);
+    item.append(summary, timestamp);
+    list.append(item);
+  }
+}
+
 function renderCustomerDetails(details){
-  currentCustomerDetails = details;
-  document.getElementById("customerEmailValue").textContent = String(details?.email || "Not available");
-  document.getElementById("customerPlanValue").textContent = details?.plan === "Pro" ? "Pro" : "Starter";
-  document.getElementById("customerSubscriptionValue").textContent = formatSubscriptionStatus(details?.subscriptionStatus);
-  document.getElementById("customerCreatedValue").textContent = formatAdminDate(details?.createdDate);
-  document.getElementById("customerLastSignInValue").textContent = formatAdminDate(details?.lastSignInTime);
-  document.getElementById("customerAiUsageValue").textContent = String(safeMetricCount(details?.aiAssistantSuccessfulUses));
-  document.getElementById("customerScanUsageValue").textContent = String(safeMetricCount(details?.invoiceScanningSuccessfulUses));
-  document.getElementById("customerPeriodEndValue").textContent = formatAdminDate(details?.currentPeriodEnd);
-  document.getElementById("customerStripeValue").textContent = details?.stripeCustomerPresent === true ? "Yes" : "No";
-  renderCustomerDiagnostics(details?.diagnostics);
-  customerClipboardStatus.textContent = "";
+  const normalized = normalizeAdminUserDetailsPayload(details);
+  currentCustomerDetails = normalized;
+  const {account, plan, usage} = normalized;
+  setCustomerText("customerUidValue", friendlyText(account.uid));
+  setCustomerText("customerEmailValue", friendlyText(account.email));
+  setCustomerText("customerFullNameValue", friendlyText(account.fullName));
+  setCustomerText("customerBusinessNameValue", friendlyText(account.businessName));
+  setCustomerText("customerCreatedValue", formatAdminDate(account.signupDate));
+  setCustomerText("customerLastSignInValue", formatAdminDate(account.lastSignInDate));
+  setCustomerText("customerEmailVerifiedValue", friendlyBoolean(account.emailVerified));
+  renderCustomerAccountBadges(account.badges);
+  setCustomerText("customerPlanValue", friendlyText(plan.currentPlan));
+  setCustomerText("customerSubscriptionValue", plan.subscriptionStatus
+    ? formatSubscriptionStatus(plan.subscriptionStatus)
+    : "Not available");
+  setCustomerText("customerPeriodEndValue", formatAdminDate(plan.currentPeriodEnd));
+  setCustomerText("customerActivePaidValue", friendlyBoolean(plan.activePaidSubscription));
+  setCustomerText("customerAiUsageValue", formatUsageWithAllowance(usage.aiAssistantSuccessfulUses, usage.aiAssistantAllowance));
+  setCustomerText("customerScanUsageValue", formatUsageWithAllowance(usage.invoiceScanningSuccessfulUses, usage.invoiceScanningAllowance));
+  setCustomerText("customerProjectUsageValue",
+    typeof usage.activeProjects === "number" && Number.isFinite(usage.activeProjects) && usage.activeProjects >= 0
+      ? String(safeMetricCount(usage.activeProjects))
+      : "Not available");
+  renderCustomerActivity(normalized.recentActivity);
+  renderCustomerDiagnostics(normalized.diagnostics);
+  if(customerClipboardStatus) customerClipboardStatus.textContent = "";
   setCustomerPanelState("data");
 }
 
@@ -1118,16 +1186,16 @@ function showCustomerPanelFailure(error){
   setCustomerPanelState("failure");
 }
 
-function loadCustomerDetails(email){
-  if(!currentAdminUser || !email) return null;
+function loadCustomerDetails(selector){
+  if(!currentAdminUser || (!selector?.uid && !selector?.email)) return null;
   const requestId = ++customerDetailsRequest;
-  currentCustomerEmail = email;
+  currentCustomerSelector = selector;
   currentCustomerDetails = null;
   customerClipboardStatus.textContent = "";
   customerRefresh.disabled = true;
   setCustomerPanelState("loading");
 
-  return callGetAdminUserDetails({ email })
+  return callGetAdminUserDetails(selector)
     .then(result => {
       if(requestId === customerDetailsRequest && currentAdminUser){
         renderCustomerDetails(result.data);
@@ -1143,14 +1211,14 @@ function loadCustomerDetails(email){
     });
 }
 
-function openCustomerSummary(email, trigger){
-  if(!currentAdminUser || !email) return;
+function openCustomerSummary(selector, trigger){
+  if(!currentAdminUser || (!selector?.uid && !selector?.email)) return;
   customerPanelTrigger = trigger || document.activeElement;
   customerPanel.hidden = false;
   customerPanelBackdrop.hidden = false;
   document.body.classList.add("customer-panel-open");
   customerPanel.focus();
-  loadCustomerDetails(email);
+  loadCustomerDetails(selector);
 }
 
 async function copyCustomerText(text){
@@ -1225,7 +1293,6 @@ retryCustomerAnalyticsButton.addEventListener("click", () => loadCustomerAnalyti
 seedDemoDataButton.addEventListener("click", () => {
   demoEnvironmentController.run(demoTargetUid.value);
 });
-customerSearch.addEventListener("input", handleSearchInput);
 customerSearchForm.addEventListener("submit", event => {
   event.preventDefault();
   runAdminUserSearch();
@@ -1233,9 +1300,9 @@ customerSearchForm.addEventListener("submit", event => {
 customerSearchClear.addEventListener("click", clearCustomerSearch);
 customerPanelClose.addEventListener("click", closeCustomerPanel);
 customerPanelBackdrop.addEventListener("click", closeCustomerPanel);
-customerRefresh.addEventListener("click", () => loadCustomerDetails(currentCustomerEmail));
+customerRefresh.addEventListener("click", () => loadCustomerDetails(currentCustomerSelector));
 customerCopyEmail.addEventListener("click", () => {
-  if(currentCustomerDetails?.email) copyCustomerText(currentCustomerDetails.email);
+  if(currentCustomerDetails?.account?.email) copyCustomerText(currentCustomerDetails.account.email);
 });
 customerCopySummary.addEventListener("click", () => {
   if(currentCustomerDetails) copyCustomerText(buildCustomerSummary(currentCustomerDetails));

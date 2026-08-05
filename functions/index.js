@@ -948,12 +948,14 @@ exports.getAdminUserDetails = onCall(
       maxInstances: 2,
       timeoutSeconds: 30,
       memory: "256MiB",
-      secrets: [adminUidsSecret],
+      secrets: [adminUidsSecret, demoIdentifiersSecret],
     },
     (request) => createAdminUserDetailsHandler({
       auth: admin.auth(),
       firestore: admin.firestore(),
       adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
+      proPriceId: simpleBooksProPriceId,
       logger: console,
     })(request),
 );

@@ -2,199 +2,128 @@ import { createRequire } from "node:module";
 import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
-const {
-  AdminUserNotFoundError,
-  buildAdminUserDetails
-} = require("../functions/lib/admin-user-details.js");
-const {
-  createAdminUserDetailsHandler
-} = require("../functions/lib/admin-user-details-handler.js");
+const { AdminUserNotFoundError, buildAdminUserDetails } = require("../functions/lib/admin-user-details.js");
+const { createAdminUserDetailsHandler, requestedUserSelector } = require("../functions/lib/admin-user-details-handler.js");
 
 const NOW = new Date("2026-07-31T20:00:00.000Z");
+const DEMO_CONFIGURATION = "uid:demo-user,email:demo@example.test";
+const snapshot = value => ({ exists: value !== undefined, data: () => value });
 
-function snapshot(value) {
-  return {
-    exists: value !== undefined,
-    data: () => value
-  };
-}
-
-function firestoreFor(profile, usage, reads = []) {
+function firestoreFor({ account, profile, usage, projectCount = 0, activity = [] } = {}) {
   return {
     collection(name) {
-      reads.push(name);
-      expect(name).toBe("userProfiles");
-      return {
-        doc(uid) {
-          expect(uid).toBe("customer-uid");
-          return {
-            get: async () => snapshot(profile),
-            collection(subcollection) {
-              expect(subcollection).toBe("usage");
-              return {
-                doc(monthKey) {
-                  expect(monthKey).toBe("2026-07");
-                  return { get: async () => snapshot(usage) };
-                }
-              };
-            }
-          };
-        }
+      if(name === "users") return {
+        doc: () => ({
+          get: async () => snapshot(account),
+          collection: () => ({
+            where: () => ({ count: () => ({ get: async () => ({ data: () => ({ count: projectCount }) }) }) })
+          })
+        })
       };
+      if(name === "userProfiles") return {
+        doc: () => ({
+          get: async () => snapshot(profile),
+          collection: () => ({ doc: () => ({ get: async () => snapshot(usage) }) })
+        })
+      };
+      if(name === "adminActivityEvents") return {
+        where: () => ({ orderBy: () => ({ limit: () => ({
+          select: () => ({ get: async () => ({ docs: activity.map(value => ({ data: () => value })) }) })
+        }) }) })
+      };
+      throw new Error(`Unexpected collection ${name}`);
     }
   };
 }
 
-function authFor(user) {
-  return { getUserByEmail: vi.fn(async () => user) };
-}
+const authUser = {
+  uid: "customer-uid", email: "customer@example.test", displayName: "Ada Customer",
+  emailVerified: true, disabled: false,
+  metadata: { creationTime: "2026-01-02T10:00:00.000Z", lastSignInTime: "2026-07-30T14:15:00.000Z" }
+};
 
-describe("getAdminUserDetails authorization", () => {
-  it("requires authentication and the configured backend allow-list", async () => {
+describe("Admin User Management detail authorization", () => {
+  it("requires backend authentication and the admin UID allow-list", async () => {
     const detailsBuilder = vi.fn();
     const handler = createAdminUserDetailsHandler({
-      adminUidConfiguration: "owner-uid",
-      detailsBuilder
+      adminUidConfiguration: "owner-uid", demoConfiguration: DEMO_CONFIGURATION, detailsBuilder
     });
-
-    await expect(handler({ data: { email: "customer@example.test" } }))
-      .rejects.toMatchObject({ code: "unauthenticated" });
-    await expect(handler({
-      auth: { uid: "not-owner" },
-      data: { email: "customer@example.test", admin: true }
-    })).rejects.toMatchObject({ code: "permission-denied" });
+    await expect(handler({ data: { uid: "customer-uid" } })).rejects.toMatchObject({ code: "unauthenticated" });
+    await expect(handler({ auth: { uid: "other" }, data: { uid: "customer-uid" } }))
+      .rejects.toMatchObject({ code: "permission-denied" });
     expect(detailsBuilder).not.toHaveBeenCalled();
   });
 
-  it("allows an authorised admin and accepts only the email input", async () => {
-    const response = { email: "customer@example.test" };
-    const detailsBuilder = vi.fn(async () => response);
+  it("accepts exactly one valid UID or normalized email selector", async () => {
+    expect(requestedUserSelector({ uid: " customer-uid " })).toEqual({ uid: "customer-uid" });
+    expect(requestedUserSelector({ email: " USER@EXAMPLE.TEST " })).toEqual({ email: "user@example.test" });
+    expect(requestedUserSelector({ uid: "x", email: "x@example.test" })).toBeNull();
+    const detailsBuilder = vi.fn(async () => ({ account: {} }));
     const handler = createAdminUserDetailsHandler({
-      auth: { server: "auth" },
-      firestore: { server: "firestore" },
-      adminUidConfiguration: "owner-uid",
-      now: () => NOW,
-      detailsBuilder
+      auth: {}, firestore: {}, adminUidConfiguration: "owner-uid",
+      demoConfiguration: DEMO_CONFIGURATION, detailsBuilder, now: () => NOW
     });
-
-    await expect(handler({
-      auth: { uid: "owner-uid" },
-      data: { email: " customer@example.test " }
-    })).resolves.toBe(response);
-    expect(detailsBuilder).toHaveBeenCalledWith({
-      auth: { server: "auth" },
-      firestore: { server: "firestore" },
-      email: "customer@example.test",
-      now: NOW
-    });
-    await expect(handler({
-      auth: { uid: "owner-uid" },
-      data: { email: "customer@example.test", admin: true }
-    })).rejects.toMatchObject({ code: "invalid-argument" });
+    await handler({ auth: { uid: "owner-uid" }, data: { uid: "customer-uid" } });
+    expect(detailsBuilder).toHaveBeenCalledWith(expect.objectContaining({
+      selector: { uid: "customer-uid" }, adminUids: new Set(["owner-uid"]), now: NOW
+    }));
   });
 
-  it("returns not-found for an unknown email", async () => {
+  it("returns not-found without exposing identifiers", async () => {
     const handler = createAdminUserDetailsHandler({
-      adminUidConfiguration: "owner-uid",
-      detailsBuilder: async () => {
-        throw new AdminUserNotFoundError();
-      }
+      adminUidConfiguration: "owner-uid", demoConfiguration: DEMO_CONFIGURATION,
+      detailsBuilder: async () => { throw new AdminUserNotFoundError(); }
     });
-    await expect(handler({
-      auth: { uid: "owner-uid" },
-      data: { email: "unknown@example.test" }
-    })).rejects.toMatchObject({ code: "not-found" });
+    await expect(handler({ auth: { uid: "owner-uid" }, data: { email: "missing@example.test" } }))
+      .rejects.toMatchObject({ code: "not-found", message: "User was not found." });
   });
 });
 
-describe("admin customer detail projection", () => {
-  const user = {
-    uid: "customer-uid",
-    email: "customer@example.test",
-    metadata: {
-      creationTime: "2026-01-02T10:00:00.000Z",
-      lastSignInTime: "2026-07-30T14:15:00.000Z"
-    }
-  };
-
-  it("maps Firebase Auth's unknown-email result to the lookup error", async () => {
-    const auth = {
-      getUserByEmail: vi.fn(async () => {
-        const error = new Error("Firebase user missing");
-        error.code = "auth/user-not-found";
-        throw error;
-      })
-    };
+describe("read-only account detail projection", () => {
+  it("maps Firebase Auth misses to the safe lookup error", async () => {
+    const auth = { getUser: vi.fn(async () => { throw Object.assign(new Error("missing"), { code: "auth/user-not-found" }); }) };
     await expect(buildAdminUserDetails({
-      auth,
-      firestore: firestoreFor(undefined, undefined),
-      email: "unknown@example.test",
-      now: NOW
+      auth, firestore: firestoreFor(), selector: { uid: "missing" },
+      adminUids: new Set(), demoIdentifiers: { uids: new Set(), emails: new Set() }, now: NOW
     })).rejects.toBeInstanceOf(AdminUserNotFoundError);
   });
 
-  it("returns safe defaults when the Firestore profile is missing", async () => {
+  it("returns account, plan, allowances, project count and only safe recent activity", async () => {
+    const auth = { getUser: vi.fn(async () => authUser) };
     const result = await buildAdminUserDetails({
-      auth: authFor(user),
-      firestore: firestoreFor(undefined, undefined),
-      email: user.email,
-      now: NOW
-    });
-    expect(result).toEqual({
-      email: user.email,
-      plan: "Starter",
-      subscriptionStatus: "",
-      createdDate: "2026-01-02T10:00:00.000Z",
-      lastSignInTime: "2026-07-30T14:15:00.000Z",
-      aiAssistantSuccessfulUses: 0,
-      invoiceScanningSuccessfulUses: 0,
-      stripeCustomerPresent: false,
-      currentPeriodEnd: null,
-      diagnostics: [
-        "missing-profile",
-        "plan-not-set",
-        "subscription-status-not-set",
-        "stripe-customer-not-linked",
-        "no-ai-usage-this-month",
-        "no-invoice-scan-usage-this-month"
-      ]
-    });
-  });
-
-  it("returns only the approved read-only customer summary", async () => {
-    const result = await buildAdminUserDetails({
-      auth: authFor(user),
+      auth,
       firestore: firestoreFor({
-        currentPlan: "Pro",
-        subscriptionStatus: "active",
-        stripeCustomerId: "cus_private",
-        stripeSubscriptionId: "sub_private",
-        subscriptionCurrentPeriodEnd: {
-          toDate: () => new Date("2026-08-31T00:00:00.000Z")
+        account: { businessName: "Ada Books", privateNote: "secret" },
+        profile: {
+          currentPlan: "Pro", subscriptionStatus: "active", stripePriceId: "price_pro",
+          stripeCustomerId: "cus_private", stripeSubscriptionId: "sub_private",
+          subscriptionCurrentPeriodEnd: { toDate: () => new Date("2026-08-31T00:00:00.000Z") }
         },
-        billingAddress: { line1: "private" },
-        tokens: ["private"]
-      }, {
-        aiAssistantSuccessfulUses: 7,
-        invoiceScanningSuccessfulUses: 3,
-        privateReservations: { value: true }
+        usage: { aiAssistantSuccessfulUses: 7, invoiceScanningSuccessfulUses: 3, token: "private" },
+        projectCount: 4,
+        activity: [
+          { eventType: "invoice_created", createdAt: new Date("2026-07-30T12:00:00.000Z"), metadata: { secret: true } },
+          { eventType: "unknown_private_event", createdAt: new Date("2026-07-30T11:00:00.000Z") }
+        ]
       }),
-      email: user.email,
-      now: NOW
+      selector: { uid: authUser.uid }, adminUids: new Set(),
+      demoIdentifiers: { uids: new Set(), emails: new Set() }, proPriceId: "price_pro", now: NOW
     });
-
-    expect(result).toEqual({
-      email: user.email,
-      plan: "Pro",
-      subscriptionStatus: "active",
-      createdDate: "2026-01-02T10:00:00.000Z",
-      lastSignInTime: "2026-07-30T14:15:00.000Z",
-      aiAssistantSuccessfulUses: 7,
-      invoiceScanningSuccessfulUses: 3,
-      stripeCustomerPresent: true,
-      currentPeriodEnd: "2026-08-31T00:00:00.000Z",
-      diagnostics: []
+    expect(result).toMatchObject({
+      account: {
+        uid: "customer-uid", email: "customer@example.test", fullName: "Ada Customer",
+        businessName: "Ada Books", emailVerified: true, disabled: false, badges: ["Active"]
+      },
+      plan: { currentPlan: "Pro", subscriptionStatus: "active", activePaidSubscription: true },
+      usage: {
+        monthKey: "2026-07", aiAssistantSuccessfulUses: 7, aiAssistantAllowance: 500,
+        invoiceScanningSuccessfulUses: 3, invoiceScanningAllowance: 500, activeProjects: 4
+      },
+      recentActivity: [{
+        eventType: "invoice_created", summary: "An invoice was successfully created.",
+        timestamp: "2026-07-30T12:00:00.000Z"
+      }]
     });
-    expect(JSON.stringify(result)).not.toMatch(/uid|cus_private|sub_private|billingAddress|tokens|Reservations/);
+    expect(JSON.stringify(result)).not.toMatch(/privateNote|secret|cus_private|sub_private|stripePriceId|metadata|token/);
   });
 });

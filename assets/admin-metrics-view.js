@@ -92,11 +92,11 @@ export function chartSummaryItems(labels, values, suffix){
 
 export function validateAdminUserSearchQuery(value){
   if(typeof value !== "string"){
-    return Object.freeze({ valid: false, query: "", message: "Enter at least 2 characters to search all users." });
+    return Object.freeze({ valid: false, query: "", message: "Enter an email, full name or exact Firebase UID." });
   }
   const query = value.trim();
-  if(query.length < 2){
-    return Object.freeze({ valid: false, query, message: "Enter at least 2 characters to search all users." });
+  if(query.length < 1){
+    return Object.freeze({ valid: false, query, message: "Enter an email, full name or exact Firebase UID." });
   }
   if(query.length > 320){
     return Object.freeze({ valid: false, query, message: "Search text must be 320 characters or fewer." });
@@ -138,19 +138,78 @@ export function supportDiagnosticMessages(codes){
     .map(code => diagnosticMessages[code]);
 }
 
+function firstDefined(...values){
+  return values.find(value => value !== undefined);
+}
+
+export function normalizeAdminUserDetailsPayload(payload){
+  const initial = payload && typeof payload === "object" ? payload : {};
+  const source = initial.data && typeof initial.data === "object" && !initial.account
+    ? initial.data
+    : initial;
+  const accountSource = source.account && typeof source.account === "object" ? source.account : {};
+  const planSource = source.plan && typeof source.plan === "object" ? source.plan : {};
+  const usageSource = source.usage && typeof source.usage === "object" ? source.usage : {};
+  return Object.freeze({
+    account: Object.freeze({
+      uid: firstDefined(accountSource.uid, source.uid, ""),
+      email: firstDefined(accountSource.email, source.email, ""),
+      fullName: firstDefined(accountSource.fullName, source.fullName, source.displayName, ""),
+      businessName: firstDefined(accountSource.businessName, source.businessName, ""),
+      signupDate: firstDefined(accountSource.signupDate, source.signupDate, source.createdDate, null),
+      lastSignInDate: firstDefined(accountSource.lastSignInDate, source.lastSignInDate, source.lastSignInTime, null),
+      disabled: firstDefined(accountSource.disabled, source.disabled, null),
+      emailVerified: firstDefined(accountSource.emailVerified, source.emailVerified, null),
+      demo: firstDefined(accountSource.demo, source.demo, null),
+      admin: firstDefined(accountSource.admin, source.admin, null),
+      badges: Array.isArray(accountSource.badges)
+        ? accountSource.badges.slice()
+        : (Array.isArray(source.accountStatus) ? source.accountStatus.slice() : [])
+    }),
+    plan: Object.freeze({
+      currentPlan: firstDefined(planSource.currentPlan, source.currentPlan,
+        typeof source.plan === "string" ? source.plan : undefined, ""),
+      subscriptionStatus: firstDefined(planSource.subscriptionStatus, source.subscriptionStatus, ""),
+      currentPeriodEnd: firstDefined(planSource.currentPeriodEnd, source.currentPeriodEnd, null),
+      activePaidSubscription: firstDefined(planSource.activePaidSubscription, source.activePaidSubscription, null)
+    }),
+    usage: Object.freeze({
+      monthKey: firstDefined(usageSource.monthKey, source.monthKey, ""),
+      aiAssistantSuccessfulUses: firstDefined(usageSource.aiAssistantSuccessfulUses, source.aiAssistantSuccessfulUses, null),
+      aiAssistantAllowance: firstDefined(usageSource.aiAssistantAllowance, source.aiAssistantAllowance, null),
+      invoiceScanningSuccessfulUses: firstDefined(usageSource.invoiceScanningSuccessfulUses, source.invoiceScanningSuccessfulUses, null),
+      invoiceScanningAllowance: firstDefined(usageSource.invoiceScanningAllowance, source.invoiceScanningAllowance, null),
+      activeProjects: firstDefined(usageSource.activeProjects, source.activeProjects, null)
+    }),
+    recentActivity: Array.isArray(source.recentActivity) ? source.recentActivity.slice(0, 20) : [],
+    diagnostics: Array.isArray(source.diagnostics) ? source.diagnostics.slice() : []
+  });
+}
+
 export function buildCustomerSummary(details){
-  const source = details || {};
+  const source = normalizeAdminUserDetailsPayload(details);
+  const account = source.account || {};
+  const plan = source.plan || {};
+  const usage = source.usage || {};
+  const visibleText = value => typeof value === "string" && value.trim() ? value.trim() : "Not available";
+  const visibleCount = value => typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? String(safeMetricCount(value))
+    : "Not available";
   return [
     "Simple Books customer summary",
     "",
-    `Email: ${String(source.email || "Not available")}`,
-    `Plan: ${source.plan === "Pro" ? "Pro" : "Starter"}`,
-    `Subscription status: ${formatSubscriptionStatus(source.subscriptionStatus)}`,
-    `Created: ${formatAdminDate(source.createdDate)}`,
-    `Last sign in: ${formatAdminDate(source.lastSignInTime)}`,
-    `AI Assistant usage this month: ${safeMetricCount(source.aiAssistantSuccessfulUses)}`,
-    `Invoice scans this month: ${safeMetricCount(source.invoiceScanningSuccessfulUses)}`,
-    `Stripe customer linked: ${source.stripeCustomerPresent === true ? "Yes" : "No"}`
+    `Firebase UID: ${visibleText(account.uid)}`,
+    `Email: ${visibleText(account.email)}`,
+    `Full name: ${visibleText(account.fullName)}`,
+    `Business name: ${visibleText(account.businessName)}`,
+    `Account status: ${Array.isArray(account.badges) && account.badges.length ? account.badges.join(", ") : "Not available"}`,
+    `Plan: ${visibleText(plan.currentPlan)}`,
+    `Subscription status: ${plan.subscriptionStatus ? formatSubscriptionStatus(plan.subscriptionStatus) : "Not available"}`,
+    `Created: ${formatAdminDate(account.signupDate)}`,
+    `Last sign in: ${formatAdminDate(account.lastSignInDate)}`,
+    `AI Assistant usage this month: ${visibleCount(usage.aiAssistantSuccessfulUses)} of ${visibleCount(usage.aiAssistantAllowance)}`,
+    `Invoice scans this month: ${visibleCount(usage.invoiceScanningSuccessfulUses)} of ${visibleCount(usage.invoiceScanningAllowance)}`,
+    `Active projects: ${visibleCount(usage.activeProjects)}`
   ].join("\n");
 }
 
@@ -166,7 +225,7 @@ export function adminUserDetailsErrorState(error){
     return Object.freeze({
       kind: "not-found",
       title: "No customer found",
-      message: "No customer account matches this email."
+      message: "No customer account matches this UID or email."
     });
   }
   return Object.freeze({

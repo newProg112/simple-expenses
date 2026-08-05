@@ -4,36 +4,46 @@ import { describe, expect, it, vi } from "vitest";
 const require = createRequire(import.meta.url);
 const { parseDemoIdentifiers } = require("../functions/lib/admin-authorization.js");
 const {
-  ADMIN_USER_SEARCH_PAGE_SIZE,
   ADMIN_USER_SEARCH_RESULT_LIMIT,
+  ADMIN_USER_SEARCH_SCAN_LIMIT,
   findMatchingAuthUsers,
   searchAdminUsers
 } = require("../functions/lib/admin-user-search.js");
 const {
-  ADMIN_USER_SEARCH_QUERY_MAX_LENGTH,
   createAdminUserSearchHandler,
   validSearchQuery
 } = require("../functions/lib/admin-user-search-handler.js");
 
-const NOW = new Date("2026-07-31T20:00:00.000Z");
 const DEMO_CONFIGURATION = "uid:demo-user,email:demo@example.test";
 const DEMO_IDENTIFIERS = parseDemoIdentifiers(DEMO_CONFIGURATION);
+const ADMIN_UIDS = new Set(["owner-uid"]);
 
-function authUser(uid, email, metadata = {}) {
+function authUser(uid, email, overrides = {}) {
   return {
     uid,
     email,
+    emailVerified: true,
+    disabled: false,
     metadata: {
-      creationTime: metadata.creationTime || "2026-01-02T10:00:00.000Z",
-      lastSignInTime: metadata.lastSignInTime || "2026-07-30T14:15:00.000Z"
-    }
+      creationTime: "2026-01-02T10:00:00.000Z",
+      lastSignInTime: "2026-07-30T14:15:00.000Z"
+    },
+    ...overrides
   };
 }
 
-function pagedAuth(pages) {
+function pagedAuth(pages, exactUsers = {}) {
   return {
-    listUsers: vi.fn(async (pageSize, pageToken) => {
-      expect(pageSize).toBe(ADMIN_USER_SEARCH_PAGE_SIZE);
+    getUser: vi.fn(async uid => {
+      if(exactUsers[uid]) return exactUsers[uid];
+      throw Object.assign(new Error("missing"), { code: "auth/user-not-found" });
+    }),
+    getUserByEmail: vi.fn(async email => {
+      const user = Object.values(exactUsers).find(candidate => candidate.email?.toLowerCase() === email);
+      if(user) return user;
+      throw Object.assign(new Error("missing"), { code: "auth/user-not-found" });
+    }),
+    listUsers: vi.fn(async (_pageSize, pageToken) => {
       const index = pageToken ? Number(pageToken) : 0;
       return {
         users: pages[index] || [],
@@ -43,240 +53,135 @@ function pagedAuth(pages) {
   };
 }
 
-function snapshot(value) {
-  return { exists: value !== undefined, data: () => value };
-}
+const snapshot = value => ({ exists: value !== undefined, data: () => value });
 
-function testFirestore({ profiles = {}, usage = {}, reads = [] } = {}) {
+function firestoreFor({ accounts = {}, profiles = {} } = {}) {
   return {
     collection(name) {
-      reads.push(`collection:${name}`);
-      if(name !== "userProfiles") throw new Error(`Unexpected collection ${name}`);
-      return {
-        doc(uid) {
-          return {
-            get: async () => {
-              reads.push(`userProfiles/${uid}`);
-              return snapshot(profiles[uid]);
-            },
-            collection(subcollection) {
-              if(subcollection !== "usage") throw new Error(`Unexpected subcollection ${subcollection}`);
-              return {
-                doc(monthKey) {
-                  return {
-                    get: async () => {
-                      reads.push(`userProfiles/${uid}/usage/${monthKey}`);
-                      return snapshot(usage[uid]);
-                    }
-                  };
-                }
-              };
-            }
-          };
-        }
+      if(name === "users") return {
+        doc: uid => ({ get: async () => snapshot(accounts[uid]) }),
+        where: (field, _operator, value) => ({
+          limit: maximum => ({
+            select: () => ({
+              get: async () => ({
+                docs: Object.entries(accounts)
+                  .filter(([, account]) => account?.[field] === value)
+                  .slice(0, maximum)
+                  .map(([id, account]) => ({ id, data: () => account }))
+              })
+            })
+          })
+        })
       };
+      if(name === "userProfiles") return { doc: uid => ({ get: async () => snapshot(profiles[uid]) }) };
+      throw new Error(`Unexpected collection ${name}`);
     }
   };
 }
 
-describe("searchAdminUsers callable authorization and validation", () => {
-  it("rejects unauthenticated and non-admin callers before searching", async () => {
+describe("Admin User Management search authorization", () => {
+  it("rejects signed-out and non-admin callers before any lookup", async () => {
     const searchBuilder = vi.fn();
     const handler = createAdminUserSearchHandler({
       adminUidConfiguration: "owner-uid",
       demoConfiguration: DEMO_CONFIGURATION,
       searchBuilder
     });
-    await expect(handler({ data: { query: "customer" } }))
-      .rejects.toMatchObject({ code: "unauthenticated" });
-    await expect(handler({
-      auth: { uid: "not-owner" },
-      data: { query: "customer", admin: true, uid: "owner-uid" }
-    })).rejects.toMatchObject({ code: "permission-denied" });
+    await expect(handler({ data: { query: "customer" } })).rejects.toMatchObject({ code: "unauthenticated" });
+    await expect(handler({ auth: { uid: "other" }, data: { query: "customer" } }))
+      .rejects.toMatchObject({ code: "permission-denied" });
     expect(searchBuilder).not.toHaveBeenCalled();
   });
 
-  it("allows a configured admin, trims the query, and ignores browser admin flags", async () => {
-    const response = { results: [] };
-    const searchBuilder = vi.fn(async () => response);
+  it("trims bounded input, permits short exact UIDs and ignores client admin flags", async () => {
+    const searchBuilder = vi.fn(async () => ({ results: [] }));
     const handler = createAdminUserSearchHandler({
-      auth: { server: "auth" },
-      firestore: { server: "firestore" },
-      adminUidConfiguration: "owner-uid",
-      demoConfiguration: DEMO_CONFIGURATION,
-      now: () => NOW,
-      searchBuilder
+      auth: {}, firestore: {}, adminUidConfiguration: "owner-uid",
+      demoConfiguration: DEMO_CONFIGURATION, searchBuilder
     });
-    await expect(handler({
-      auth: { uid: "owner-uid" },
-      data: { query: "  CUSTOMER  ", admin: false, uid: "someone-else" }
-    })).resolves.toBe(response);
+    await handler({ auth: { uid: "owner-uid" }, data: { query: " x " } });
     expect(searchBuilder).toHaveBeenCalledWith(expect.objectContaining({
-      auth: { server: "auth" },
-      firestore: { server: "firestore" },
-      query: "CUSTOMER",
-      now: NOW
+      query: "x", adminUids: new Set(["owner-uid"])
     }));
     expect(searchBuilder.mock.calls[0][0]).not.toHaveProperty("admin");
-  });
-
-  it("fails closed when either backend configuration value is missing", async () => {
-    const missingAdmin = createAdminUserSearchHandler({
-      adminUidConfiguration: "",
-      demoConfiguration: DEMO_CONFIGURATION
-    });
-    const missingDemo = createAdminUserSearchHandler({
-      adminUidConfiguration: "owner-uid",
-      demoConfiguration: ""
-    });
-    await expect(missingAdmin({ auth: { uid: "owner-uid" } }))
-      .rejects.toMatchObject({ code: "failed-precondition" });
-    await expect(missingDemo({ auth: { uid: "owner-uid" } }))
-      .rejects.toMatchObject({ code: "failed-precondition" });
-  });
-
-  it.each([
-    [undefined],
-    [{}],
-    [{ query: 12 }],
-    [{ query: "   " }],
-    [{ query: "a" }],
-    [{ query: "a".repeat(ADMIN_USER_SEARCH_QUERY_MAX_LENGTH + 1) }]
-  ])("rejects malformed search input: %j", async data => {
-    const handler = createAdminUserSearchHandler({
-      adminUidConfiguration: "owner-uid",
-      demoConfiguration: DEMO_CONFIGURATION
-    });
-    await expect(handler({ auth: { uid: "owner-uid" }, data }))
-      .rejects.toMatchObject({ code: "invalid-argument" });
-  });
-
-  it("normalises only valid bounded string queries", () => {
-    expect(validSearchQuery({ query: "  Ab " })).toBe("Ab");
-    expect(validSearchQuery({ query: "x" })).toBe("");
+    expect(validSearchQuery({ query: " x " })).toBe("x");
+    expect(validSearchQuery({ query: " " })).toBe("");
     expect(validSearchQuery({ query: "x".repeat(321) })).toBe("");
-    expect(validSearchQuery({ query: 22 })).toBe("");
   });
 
-  it("uses privacy-safe logging for search failures", async () => {
+  it("returns only privacy-safe failure information", async () => {
     const logger = { error: vi.fn(), info: vi.fn() };
     const handler = createAdminUserSearchHandler({
-      adminUidConfiguration: "owner-uid",
-      demoConfiguration: DEMO_CONFIGURATION,
-      searchBuilder: async () => {
-        throw new Error("private.customer@example.test cus_private");
-      },
-      logger
+      adminUidConfiguration: "owner-uid", demoConfiguration: DEMO_CONFIGURATION,
+      searchBuilder: async () => { throw new Error("private@example.test cus_private"); }, logger
     });
-    await expect(handler({
-      auth: { uid: "owner-uid" },
-      data: { query: "private.customer" }
-    })).rejects.toMatchObject({ code: "internal" });
-    const logged = JSON.stringify(logger.error.mock.calls);
-    expect(logged).not.toContain("private.customer@example.test");
-    expect(logged).not.toContain("cus_private");
+    await expect(handler({ auth: { uid: "owner-uid" }, data: { query: "private" } }))
+      .rejects.toMatchObject({ code: "internal" });
+    expect(JSON.stringify(logger.error.mock.calls)).not.toMatch(/private@example|cus_private/);
   });
 });
 
-describe("secure all-user search", () => {
-  it("matches partial emails case-insensitively across Auth pages", async () => {
+describe("bounded read-only user search", () => {
+  it("resolves an exact short UID without scanning Auth", async () => {
+    const user = authUser("x", "exact@example.test");
+    const auth = pagedAuth([], { x: user });
+    const result = await findMatchingAuthUsers(auth, "x");
+    expect(result).toEqual({ users: [user], truncated: false, exact: true });
+    expect(auth.listUsers).not.toHaveBeenCalled();
+  });
+
+  it("matches email and Auth display name case-insensitively across pages", async () => {
     const auth = pagedAuth([
-      [authUser("first", "other@example.test")],
-      [authUser("match", "Alice.Customer@Example.test")]
+      [authUser("one", "other@example.test")],
+      [authUser("two", "alice@example.test", { displayName: "Alice Example" })]
     ]);
-    const matches = await findMatchingAuthUsers(auth, "CUSTOMER@exa", DEMO_IDENTIFIERS);
-    expect(matches.map(user => user.email)).toEqual(["Alice.Customer@Example.test"]);
-    expect(auth.listUsers).toHaveBeenCalledTimes(2);
+    const email = await findMatchingAuthUsers(auth, "ALICE@EXA");
+    expect(email.users.map(user => user.uid)).toEqual(["two"]);
+    const byName = await findMatchingAuthUsers(pagedAuth([[authUser("two", "alice@example.test", { displayName: "Alice Example" })]]), "example");
+    expect(byName.users).toHaveLength(1);
   });
 
-  it("excludes demo users and safely ignores accounts without email", async () => {
-    const auth = pagedAuth([[
-      authUser("demo-user", "matching@example.test"),
-      authUser("demo-email", "DEMO@example.test"),
-      authUser("no-email", undefined),
-      authUser("customer", "matching.customer@example.test")
-    ]]);
-    const matches = await findMatchingAuthUsers(auth, "example", DEMO_IDENTIFIERS);
-    expect(matches.map(user => user.uid)).toEqual(["customer"]);
-  });
-
-  it("limits matching Auth users to 20", async () => {
-    const users = Array.from({ length: 25 }, (_, index) =>
-      authUser(`customer-${index}`, `customer-${index}@example.test`)
-    );
-    const matches = await findMatchingAuthUsers(
-      pagedAuth([users]),
-      "customer",
-      DEMO_IDENTIFIERS
-    );
-    expect(matches).toHaveLength(ADMIN_USER_SEARCH_RESULT_LIMIT);
-  });
-
-  it("normalises missing profiles and returns only approved fields", async () => {
-    const reads = [];
+  it("uses a bounded indexed equality query for stored full names", async () => {
+    const user = authUser("stored-name", "stored@example.test");
     const result = await searchAdminUsers({
-      auth: pagedAuth([[authUser("customer", "customer@example.test")]]),
-      firestore: testFirestore({
-        profiles: { orphan: { currentPlan: "Pro" } },
-        reads
-      }),
-      demoIdentifiers: DEMO_IDENTIFIERS,
-      query: "CUSTOMER",
-      now: NOW
+      auth: pagedAuth([[]], { "stored-name": user }),
+      firestore: firestoreFor({ accounts: { "stored-name": { fullName: "Stored Customer" } } }),
+      demoIdentifiers: DEMO_IDENTIFIERS, adminUids: ADMIN_UIDS, query: "Stored Customer"
     });
-    expect(result.results).toEqual([{
-      email: "customer@example.test",
-      plan: "Starter",
-      joinedAt: "2026-01-02T10:00:00.000Z",
-      lastSignInAt: "2026-07-30T14:15:00.000Z",
-      subscriptionStatus: "",
-      aiAssistantSuccessfulUses: 0,
-      invoiceScanningSuccessfulUses: 0,
-      stripeCustomerLinked: false
-    }]);
-    expect(reads).not.toContain("userProfiles/orphan");
-    expect(JSON.stringify(result)).not.toMatch(/uid|stripeCustomerId|stripeSubscriptionId|stripePriceId|path|token/);
+    expect(result.results[0]).toMatchObject({ uid: "stored-name", fullName: "Stored Customer" });
   });
 
-  it("projects approved profile and usage values without private identifiers", async () => {
+  it("caps both scanned accounts and returned matches", async () => {
+    const users = Array.from({ length: ADMIN_USER_SEARCH_SCAN_LIMIT + 50 }, (_, index) =>
+      authUser(`customer-${index}`, `customer-${index}@example.test`));
+    const auth = pagedAuth([users.slice(0, 1000), users.slice(1000, 2000)]);
+    const result = await findMatchingAuthUsers(auth, "customer");
+    expect(result.users).toHaveLength(ADMIN_USER_SEARCH_RESULT_LIMIT);
+    expect(result.truncated).toBe(true);
+    expect(auth.listUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it("projects only approved fields, badges demos, and documents the business-name limitation", async () => {
+    const user = authUser("demo-user", "demo@example.test", {
+      displayName: "Demo Person", emailVerified: false, disabled: true
+    });
     const result = await searchAdminUsers({
-      auth: pagedAuth([[authUser("customer", "customer@example.test")]]),
-      firestore: testFirestore({
-        profiles: { customer: {
-          currentPlan: "Pro",
-          subscriptionStatus: "active",
-          stripeCustomerId: "cus_private",
-          stripeSubscriptionId: "sub_private",
-          paymentMethodLast4: "4242",
-          billingAddress: "private"
-        } },
-        usage: { customer: {
-          aiAssistantSuccessfulUses: 5,
-          invoiceScanningSuccessfulUses: 2,
-          token: "private"
-        } }
-      }),
-      demoIdentifiers: DEMO_IDENTIFIERS,
-      query: "example",
-      now: NOW
+      auth: pagedAuth([[user]]), firestore: firestoreFor({
+        accounts: { "demo-user": { businessName: "Demo Books", demoMode: true, privateNote: "secret" } },
+        profiles: { "demo-user": { currentPlan: "Pro", stripeCustomerId: "cus_private" } }
+      }), demoIdentifiers: DEMO_IDENTIFIERS, adminUids: ADMIN_UIDS, query: "demo"
     });
-    expect(result.results[0]).toMatchObject({
-      plan: "Pro",
-      subscriptionStatus: "active",
-      aiAssistantSuccessfulUses: 5,
-      invoiceScanningSuccessfulUses: 2,
-      stripeCustomerLinked: true
+    expect(result).toEqual({
+      results: [{
+        uid: "demo-user", email: "demo@example.test", fullName: "Demo Person",
+        businessName: "Demo Books", plan: "Pro",
+        accountStatus: ["Disabled", "Demo", "Email unverified"],
+        signupDate: "2026-01-02T10:00:00.000Z",
+        lastActivityDate: "2026-07-30T14:15:00.000Z"
+      }],
+      truncated: false,
+      businessNameSearchSupported: false
     });
-    expect(Object.keys(result.results[0])).toEqual([
-      "email",
-      "plan",
-      "joinedAt",
-      "lastSignInAt",
-      "subscriptionStatus",
-      "aiAssistantSuccessfulUses",
-      "invoiceScanningSuccessfulUses",
-      "stripeCustomerLinked"
-    ]);
-    expect(JSON.stringify(result)).not.toMatch(/cus_private|sub_private|4242|billingAddress|token/);
+    expect(JSON.stringify(result)).not.toMatch(/privateNote|secret|cus_private|stripeCustomerId/);
   });
 });

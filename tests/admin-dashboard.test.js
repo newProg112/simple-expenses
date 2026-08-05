@@ -17,6 +17,7 @@ import {
   formatAdminDate,
   formatEstimatedMrr,
   formatSubscriptionStatus,
+  normalizeAdminUserDetailsPayload,
   safeMetricCount,
   supportDiagnosticMessages,
   validateAdminUserSearchQuery
@@ -59,8 +60,8 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(importedNames).toContain("buildAdminChartModel");
     expect(importedNames).toContain("chartSummaryItems");
     expect(importedNames.filter(name => !exportedNames.has(name))).toEqual([]);
-    expect(javascript).toContain('from "./admin-metrics-view.js?v=20260802-admin4b"');
-    expect(html).toContain('/assets/admin-dashboard.js?v=20260805-demo-analytics2');
+    expect(javascript).toContain('from "./admin-metrics-view.js?v=20260805-admin-users2"');
+    expect(html).toContain('/assets/admin-dashboard.js?v=20260805-admin-users2');
   });
 
   it("provides the admin page and exact clean hosting route", () => {
@@ -121,12 +122,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
 
     expect(html).not.toContain("Metrics coming in Phase 2");
     for(const heading of [
-      "User",
-      "Plan",
-      "Joined",
-      "Subscription status",
-      "AI usage",
-      "Scan usage"
+      "Customer", "Business", "Email", "Plan", "Status", "Signed up", "Last activity", "Details"
     ]){
       expect(html).toContain(`<th>${heading}</th>`);
     }
@@ -151,10 +147,9 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(javascript).not.toMatch(/stripeCustomerId|stripeSubscriptionId|billingOverrideReason/);
   });
 
-  it("places three Chart.js growth charts between KPIs and recent sign-ups", () => {
+  it("keeps the three existing Chart.js growth charts", () => {
     const growthPosition = html.indexOf('id="growthOverview"');
     expect(growthPosition).toBeGreaterThan(html.indexOf('class="kpi-grid"'));
-    expect(growthPosition).toBeLessThan(html.indexOf('id="recentSignupsTitle"'));
     expect(html).toContain("https://cdn.jsdelivr.net/npm/chart.js");
     for(const id of ["monthlySignupsChart", "cumulativeUsersChart", "planDistributionChart"]){
       expect(html).toContain(`id="${id}"`);
@@ -271,7 +266,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
       .toBe("general");
   });
 
-  it("filters recent signups locally with partial case-insensitive matches", () => {
+  it("does not issue user-management searches on every keystroke", () => {
     const signups = [
       { email: "Alice@example.test" },
       { email: "bob@example.test" }
@@ -279,19 +274,49 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(filterSignupsByEmail(signups, "ALI")).toEqual([signups[0]]);
     expect(filterSignupsByEmail(signups, "example")).toHaveLength(2);
     expect(filterSignupsByEmail(signups, "missing")).toEqual([]);
-    expect(javascript).toContain('customerSearch.addEventListener("input", handleSearchInput)');
-    expect(javascript).not.toMatch(/customerSearch\.addEventListener\("input"[\s\S]*?callSearchAdminUsers/);
+    expect(javascript).not.toContain('customerSearch.addEventListener("input"');
+    expect(javascript).toContain('customerSearchForm.addEventListener("submit"');
   });
 
   it("provides a read-only customer summary with loading and error states", () => {
-    expect(html).toContain('placeholder="Search by email..."');
+    expect(html).toContain('placeholder="Email, full name or exact UID"');
     expect(html).toContain('id="customerPanelLoading"');
     expect(html).toContain('id="customerPanelFailure"');
     expect(html).toContain('id="customerPanelData"');
-    expect(html).toContain("Customer Summary");
+    expect(html).toContain("User details");
     expect(javascript).toContain('httpsCallable(functions, "getAdminUserDetails")');
-    expect(javascript).toContain('callGetAdminUserDetails({ email })');
+    expect(javascript).toContain('callGetAdminUserDetails(selector)');
     expect(javascript).not.toMatch(/resetPassword|impersonat|deleteUser|updatePlan/);
+  });
+
+  it("normalizes the callable detail payload before rendering and tolerates optional fields", () => {
+    const current = normalizeAdminUserDetailsPayload({
+      account: {
+        uid: "customer-uid", email: "user@example.test", fullName: "Ada Customer",
+        businessName: "Ada Books", signupDate: "2026-01-02T10:00:00.000Z",
+        lastSignInDate: "2026-07-30T14:15:00.000Z", emailVerified: true,
+        badges: ["Active"]
+      },
+      plan: { currentPlan: "Pro", subscriptionStatus: "active", activePaidSubscription: true },
+      usage: { aiAssistantSuccessfulUses: 7, aiAssistantAllowance: 500 },
+      recentActivity: [{ summary: "Invoice created", timestamp: "2026-07-30T12:00:00.000Z" }]
+    });
+    expect(current.account.email).toBe("user@example.test");
+    expect(current.plan.currentPlan).toBe("Pro");
+    expect(current.usage.aiAssistantAllowance).toBe(500);
+    expect(current.recentActivity).toHaveLength(1);
+
+    const legacy = normalizeAdminUserDetailsPayload({
+      uid: "legacy-uid", email: "legacy@example.test", plan: "Starter",
+      createdDate: "2026-01-01T00:00:00.000Z", lastSignInTime: null,
+      aiAssistantSuccessfulUses: 2
+    });
+    expect(legacy.account).toMatchObject({ uid: "legacy-uid", email: "legacy@example.test" });
+    expect(legacy.plan.currentPlan).toBe("Starter");
+    expect(legacy.usage.aiAssistantSuccessfulUses).toBe(2);
+    expect(legacy.account.lastSignInDate).toBeNull();
+    expect(javascript).toContain("normalizeAdminUserDetailsPayload(details)");
+    expect(javascript).toContain('setCustomerPanelState("data")');
   });
 
   it("maps customer lookup errors to signed-out, denied, missing, and unavailable states", () => {
@@ -306,7 +331,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
   });
 
   it("validates full-user queries and maps structured search errors", () => {
-    expect(validateAdminUserSearchQuery("x").valid).toBe(false);
+    expect(validateAdminUserSearchQuery("x").valid).toBe(true);
     expect(validateAdminUserSearchQuery("  alice ")).toEqual({
       valid: true,
       query: "alice",
@@ -325,7 +350,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
 
   it("uses an explicit, single-request all-user search workflow", () => {
     expect(html).toContain('id="customerSearchForm"');
-    expect(html).toContain('id="customerSearchButton" type="submit">Search all users');
+    expect(html).toContain('id="customerSearchButton" type="submit">Search');
     expect(html).toContain('id="customerSearchClear"');
     expect(javascript).toContain('httpsCallable(functions, "searchAdminUsers")');
     expect(javascript).toContain('if(searchRequest || !currentAdminUser) return searchRequest;');
@@ -340,8 +365,8 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(javascript).toContain('button.className = "customer-open-button"');
     expect(javascript).toContain('button.type = "button"');
     expect(javascript).toContain("openCustomerSummary");
-    expect(html).toContain("<th>Last sign in</th>");
-    expect(javascript).toContain('createTableCell("Last sign in"');
+    expect(html).toContain("<th>Last activity</th>");
+    expect(javascript).toContain('createTableCell("Last activity"');
   });
 
   it("groups the customer summary and renders only supported diagnostics", () => {
@@ -362,21 +387,22 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
 
   it("builds a clipboard summary from approved visible fields only", () => {
     const summary = buildCustomerSummary({
-      email: "user@example.test",
-      plan: "Starter",
-      subscriptionStatus: "",
-      createdDate: "2026-07-31T00:00:00.000Z",
-      lastSignInTime: "2026-07-31T00:00:00.000Z",
-      aiAssistantSuccessfulUses: 0,
-      invoiceScanningSuccessfulUses: 0,
-      stripeCustomerPresent: false,
-      uid: "must-not-copy",
+      account: {
+        uid: "user-uid", email: "user@example.test", fullName: "User Name",
+        businessName: "User Books", badges: ["Active"],
+        signupDate: "2026-07-31T00:00:00.000Z",
+        lastSignInDate: "2026-07-31T00:00:00.000Z"
+      },
+      plan: { currentPlan: "Starter", subscriptionStatus: "" },
+      usage: { aiAssistantSuccessfulUses: 0, aiAssistantAllowance: 10,
+        invoiceScanningSuccessfulUses: 0, invoiceScanningAllowance: 10, activeProjects: 0 },
       stripeCustomerId: "cus_must_not_copy"
     });
     expect(summary).toContain("Simple Books customer summary");
     expect(summary).toContain("Email: user@example.test");
-    expect(summary).toContain("Stripe customer linked: No");
-    expect(summary).not.toMatch(/must-not-copy|cus_must_not_copy|uid/i);
+    expect(summary).toContain("Firebase UID: user-uid");
+    expect(summary).toContain("AI Assistant usage this month: 0 of 10");
+    expect(summary).not.toMatch(/cus_must_not_copy|stripe/i);
   });
 
   it("supports copy feedback, customer refresh, Escape, and focus return", () => {
@@ -387,7 +413,7 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(javascript).toContain('navigator.clipboard.writeText(text)');
     expect(javascript).toContain('customerClipboardStatus.textContent = "Copied"');
     expect(javascript).toContain("Copy failed.");
-    expect(javascript).toContain('customerRefresh.addEventListener("click", () => loadCustomerDetails(currentCustomerEmail))');
+    expect(javascript).toContain('customerRefresh.addEventListener("click", () => loadCustomerDetails(currentCustomerSelector))');
     expect(javascript).toContain('event.key === "Escape"');
     expect(javascript).toContain("returnFocus?.isConnected");
     expect(javascript).toContain("returnFocus.focus()");
