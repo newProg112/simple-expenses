@@ -37,6 +37,11 @@ import {
   formatDemoSessionDuration,
   normalizeDemoAnalyticsPayload
 } from "./admin-demo-analytics-view.js?v=20260805-demo-analytics2";
+import {
+  createCustomerAnalyticsLoader,
+  customerAnalyticsErrorState,
+  normalizeCustomerAnalyticsPayload
+} from "./admin-customer-analytics-view.js?v=20260805-customer-analytics1";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
@@ -112,6 +117,15 @@ const demoAnalyticsData = document.getElementById("demoAnalyticsData");
 const retryDemoAnalyticsButton = document.getElementById("retryDemoAnalyticsButton");
 const demoPagesTableBody = document.getElementById("demoPagesTableBody");
 const demoEventsTableBody = document.getElementById("demoEventsTableBody");
+const customerAnalyticsRange = document.getElementById("customerAnalyticsRange");
+const customerAnalyticsLoading = document.getElementById("customerAnalyticsLoading");
+const customerAnalyticsError = document.getElementById("customerAnalyticsError");
+const customerAnalyticsEmpty = document.getElementById("customerAnalyticsEmpty");
+const customerAnalyticsData = document.getElementById("customerAnalyticsData");
+const retryCustomerAnalyticsButton = document.getElementById("retryCustomerAnalyticsButton");
+const customerAdoptionTableBody = document.getElementById("customerAdoptionTableBody");
+const customerFeaturesTableBody = document.getElementById("customerFeaturesTableBody");
+const customerPlanTableBody = document.getElementById("customerPlanTableBody");
 const callGetAdminMetrics = httpsCallable(functions, "getAdminMetrics");
 const callGetAdminRecentActivity = httpsCallable(functions, "getAdminRecentActivity");
 const callGetAdminFeatureUsage = httpsCallable(functions, "getAdminFeatureUsage");
@@ -119,6 +133,7 @@ const callGetAdminUserDetails = httpsCallable(functions, "getAdminUserDetails");
 const callSearchAdminUsers = httpsCallable(functions, "searchAdminUsers");
 const callSeedAdminDemoEnvironment = httpsCallable(functions, "seedAdminDemoEnvironment");
 const callGetAdminDemoAnalytics = httpsCallable(functions, "getAdminDemoAnalytics");
+const callGetAdminCustomerAnalytics = httpsCallable(functions, "getAdminCustomerAnalytics");
 let metricsRequest = null;
 let searchRequest = null;
 let searchGeneration = 0;
@@ -137,6 +152,123 @@ let featureUsageRequest = null;
 let featureUsageChart = null;
 const adminCharts = new Map();
 const demoAnalyticsCharts = new Map();
+let customerAnalyticsChart = null;
+
+function setCustomerAnalyticsState(state){
+  customerAnalyticsLoading.hidden = state !== "loading";
+  customerAnalyticsError.hidden = state !== "error";
+  customerAnalyticsEmpty.hidden = state !== "empty";
+  customerAnalyticsData.hidden = !["loaded", "empty"].includes(state);
+}
+
+function renderCustomerTable(body, rows){
+  body.replaceChildren();
+  for(const values of rows){
+    const row = document.createElement("tr");
+    values.forEach((value, index) => {
+      const cell = document.createElement(index === 0 ? "th" : "td");
+      if(index === 0) cell.scope = "row";
+      cell.textContent = String(value);
+      row.append(cell);
+    });
+    body.append(row);
+  }
+}
+
+function renderCustomerAnalytics(payload){
+  customerAnalyticsChart?.destroy();
+  customerAnalyticsChart = null;
+  const model = normalizeCustomerAnalyticsPayload(payload);
+  const summary = model.summary;
+  document.getElementById("customerActiveAccountsValue").textContent = String(summary.activeCustomerAccounts);
+  document.getElementById("customerNewSignupsValue").textContent = String(summary.newSignUps);
+  document.getElementById("customerActiveStarterValue").textContent = String(summary.activeStarterAccounts);
+  document.getElementById("customerActiveProValue").textContent = String(summary.activeProAccounts);
+  document.getElementById("customerConversionValue").textContent = `${summary.starterToProConversionRate.toFixed(1)}%`;
+  document.getElementById("customerActionsValue").textContent = String(summary.totalTrackedCustomerActions);
+  renderCustomerTable(customerAdoptionTableBody, model.adoption.length
+    ? model.adoption.map(item => [item.label, item.count])
+    : [["No reliably tracked product actions", 0]]);
+  renderCustomerTable(customerFeaturesTableBody, model.features.length
+    ? model.features.map(item => [item.label, item.count, `${item.share.toFixed(1)}%`])
+    : [["No measured feature actions", 0, "0.0%"]]);
+  renderCustomerTable(customerPlanTableBody, [
+    ["Starter", model.planAdoption.starter.count, `${model.planAdoption.starter.percentageOfKnown.toFixed(1)}%`],
+    ["Pro", model.planAdoption.pro.count, `${model.planAdoption.pro.percentageOfKnown.toFixed(1)}%`],
+    ["Unknown or missing", model.planAdoption.unknown.count, "Excluded"]
+  ]);
+  document.getElementById("customerPlanConversion").textContent = `Current conversion rate: ${model.planAdoption.conversionRate.toFixed(1)}% of ${model.planAdoption.knownAccounts} known-plan accounts.`;
+  document.getElementById("customerAnalyticsUpdatedAt").textContent = model.generatedAt
+    ? `Updated ${formatAdminDate(model.generatedAt)} | UTC date range`
+    : "Customer Analytics loaded";
+  document.getElementById("customerAnalyticsCapped").hidden = !model.caps.incomplete;
+  const limitations = document.getElementById("customerAnalyticsLimitations");
+  limitations.replaceChildren(...model.limitations.map(text => {
+    const item = document.createElement("li");
+    item.textContent = text;
+    return item;
+  }));
+  setCustomerAnalyticsState(summary.totalTrackedCustomerActions === 0 ? "empty" : "loaded");
+  const ChartLibrary = window.Chart;
+  if(typeof ChartLibrary !== "function" || model.daily.length === 0){
+    showChartEmpty("customerActivityChart", "customerActivityChartEmpty", model.daily.length ? "Charts are unavailable. Aggregate values remain available." : "No customer activity dates to plot.");
+    return;
+  }
+  const options = baseChartOptions();
+  options.plugins.legend = {display: true};
+  customerAnalyticsChart = new ChartLibrary(prepareChart("customerActivityChart", "customerActivityChartEmpty"), {
+    type: "line",
+    data: {
+      labels: model.daily.map(item => formatDemoDay(item.date)),
+      datasets: [
+        {label: "Active accounts", data: model.daily.map(item => item.activeAccounts), borderColor: "#0077b6", backgroundColor: "rgba(0,119,182,.12)", tension: .2, fill: false},
+        {label: "Tracked actions", data: model.daily.map(item => item.trackedActions), borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,.12)", tension: .2, fill: false}
+      ]
+    },
+    options
+  });
+}
+
+function showCustomerAnalyticsFailure(error){
+  const state = customerAnalyticsErrorState(error);
+  if(state.kind === "unauthenticated"){
+    showState("signedOutState");
+    window.location.replace("/login.html");
+    return;
+  }
+  if(state.kind === "permission-denied"){
+    showState("deniedState");
+    return;
+  }
+  document.getElementById("customerAnalyticsErrorTitle").textContent = state.title;
+  document.getElementById("customerAnalyticsErrorMessage").textContent = state.message;
+  setCustomerAnalyticsState("error");
+}
+
+const customerAnalyticsLoader = createCustomerAnalyticsLoader({
+  request: async range => {
+    const requestGeneration = authGeneration;
+    const result = await callGetAdminCustomerAnalytics({range});
+    return {payload: result.data, requestGeneration};
+  },
+  onLoading: () => {
+    setCustomerAnalyticsState("loading");
+    customerAnalyticsRange.disabled = true;
+  },
+  onSuccess: result => {
+    customerAnalyticsRange.disabled = false;
+    if(result.requestGeneration === authGeneration && currentAdminUser) renderCustomerAnalytics(result.payload);
+  },
+  onError: error => {
+    customerAnalyticsRange.disabled = false;
+    showCustomerAnalyticsFailure(error);
+  }
+});
+
+function loadCustomerAnalytics({force = false} = {}){
+  if(!currentAdminUser) return Promise.resolve(null);
+  return customerAnalyticsLoader.load(customerAnalyticsRange.value, {force});
+}
 
 function destroyDemoAnalyticsCharts(){
   for(const chart of demoAnalyticsCharts.values()) chart.destroy();
@@ -1078,6 +1210,7 @@ refreshMetricsButton.addEventListener("click", () => {
   loadRecentActivity();
   loadFeatureUsage();
   loadDemoAnalytics({force: true});
+  loadCustomerAnalytics({force: true});
 });
 refreshActivityButton.addEventListener("click", () => loadRecentActivity());
 retryActivityButton.addEventListener("click", () => loadRecentActivity());
@@ -1087,6 +1220,8 @@ featureUsageRange.addEventListener("change", loadFeatureUsage);
 retryFeatureUsageButton.addEventListener("click", loadFeatureUsage);
 demoAnalyticsRange.addEventListener("change", () => loadDemoAnalytics());
 retryDemoAnalyticsButton.addEventListener("click", () => loadDemoAnalytics({force: true}));
+customerAnalyticsRange.addEventListener("change", () => loadCustomerAnalytics());
+retryCustomerAnalyticsButton.addEventListener("click", () => loadCustomerAnalytics({force: true}));
 seedDemoDataButton.addEventListener("click", () => {
   demoEnvironmentController.run(demoTargetUid.value);
 });
@@ -1113,9 +1248,11 @@ if(typeof ResizeObserver === "function"){
   const chartResizeObserver = new ResizeObserver(() => {
     for(const chart of adminCharts.values()) chart.resize();
     for(const chart of demoAnalyticsCharts.values()) chart.resize();
+    customerAnalyticsChart?.resize();
   });
   chartResizeObserver.observe(growthOverview);
   chartResizeObserver.observe(document.getElementById("demoAnalyticsSection"));
+  chartResizeObserver.observe(document.getElementById("customerAnalyticsSection"));
 }
 
 onAuthStateChanged(
@@ -1125,6 +1262,7 @@ onAuthStateChanged(
     if(nextAuthUid !== resolvedAuthUid){
       closeCustomerPanel();
       demoAnalyticsLoader.clear();
+      customerAnalyticsLoader.clear();
       searchGeneration += 1;
       authGeneration += 1;
       resolvedAuthUid = nextAuthUid;
@@ -1147,6 +1285,7 @@ onAuthStateChanged(
     loadRecentActivity();
     loadFeatureUsage();
     loadDemoAnalytics();
+    loadCustomerAnalytics();
   },
   error => {
     authGeneration += 1;

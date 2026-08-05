@@ -4,6 +4,8 @@
 
 - [x] Admin Dashboard Phase 5A — Recent activity feed
 - [x] Admin Dashboard Phase 5B — Top feature usage
+- [x] Customer Analytics Phase 1 — core adoption and activity metrics
+- [ ] Customer Analytics Phase 2 — retention, cohorts and conversion journeys
 
 > **Mission**
 >

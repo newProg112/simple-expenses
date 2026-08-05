@@ -43,6 +43,9 @@ const {
 const {
   createAdminDemoAnalyticsHandler,
 } = require("./lib/admin-demo-analytics-handler");
+const {
+  createAdminCustomerAnalyticsHandler,
+} = require("./lib/admin-customer-analytics-handler");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -913,6 +916,24 @@ exports.getAdminDemoAnalytics = onCall(
     (request) => createAdminDemoAnalyticsHandler({
       firestore: admin.firestore(),
       adminUidConfiguration: adminUidsSecret.value(),
+      timestampFactory: admin.firestore.Timestamp,
+      logger: console,
+    })(request),
+);
+
+exports.getAdminCustomerAnalytics = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 60,
+      memory: "256MiB",
+      secrets: [adminUidsSecret, demoIdentifiersSecret],
+    },
+    (request) => createAdminCustomerAnalyticsHandler({
+      auth: admin.auth(),
+      firestore: admin.firestore(),
+      adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
       timestampFactory: admin.firestore.Timestamp,
       logger: console,
     })(request),

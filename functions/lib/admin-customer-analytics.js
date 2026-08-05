@@ -1,0 +1,267 @@
+/* eslint-disable max-len, require-jsdoc */
+
+"use strict";
+
+const {isDemoAuthUser} = require("./admin-authorization");
+
+const DEFAULT_CUSTOMER_ANALYTICS_RANGE = "30d";
+const CUSTOMER_ANALYTICS_RANGES = Object.freeze({"7d": 7, "30d": 30, "all": null});
+const CUSTOMER_ACTIVITY_LIMIT = 10000;
+const CUSTOMER_ACCOUNT_LIMIT = 5000;
+const AUTH_PAGE_SIZE = 1000;
+const READ_BATCH_SIZE = 50;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const FEATURE_DEFINITIONS = Object.freeze([
+  {key: "invoices", label: "Invoices", events: ["invoice_created", "invoice_saved"]},
+  {key: "bills", label: "Bills", events: ["bill_created", "bill_saved"]},
+  {key: "expenses", label: "Expenses", events: ["expense_created", "expense_saved"]},
+  {key: "mileage", label: "Mileage", events: ["mileage_claim_created", "mileage_created"]},
+  {key: "projects", label: "Projects", events: ["project_created"]},
+  {key: "budgets", label: "Budgets", events: ["budget_created"]},
+  {key: "ai_assistant", label: "AI Assistant", events: ["ai_question_asked", "ai_assistant_used"]},
+  {key: "invoice_scanning", label: "Invoice Scanning", events: ["invoice_scanned", "document_scanned"]},
+  {key: "accountant_pack", label: "Accountant Pack", events: ["accountant_pack_generated", "accountant_pack_downloaded"]},
+  {key: "accounting_reports", label: "Accounting Reports", events: ["accounting_report_generated", "trial_balance_generated", "general_ledger_generated", "profit_loss_generated", "balance_sheet_generated"]},
+]);
+const EVENT_TO_FEATURE = new Map(FEATURE_DEFINITIONS.flatMap((feature) =>
+  feature.events.map((eventName) => [eventName, feature])));
+const QUALIFYING_NON_FEATURE_EVENTS = new Set([
+  "user_logged_in",
+  "checkout_started",
+  "upgraded_to_pro",
+  "subscription_cancelled",
+]);
+
+function parseCustomerAnalyticsRange(value) {
+  const range = value === undefined ? DEFAULT_CUSTOMER_ANALYTICS_RANGE : value;
+  if (typeof range !== "string" || !Object.hasOwn(CUSTOMER_ANALYTICS_RANGES, range)) {
+    const error = new Error("Invalid Customer Analytics range.");
+    error.code = "invalid-argument";
+    throw error;
+  }
+  return range;
+}
+
+function utcRangeStart(range, now) {
+  const days = CUSTOMER_ANALYTICS_RANGES[range];
+  if (days === null) return null;
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return new Date(today - (days - 1) * DAY_MS);
+}
+
+function safeDate(value) {
+  try {
+    const date = value && typeof value.toDate === "function" ? value.toDate() : new Date(value);
+    return Number.isFinite(date.getTime()) ? date : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function safeUid(value) {
+  return typeof value === "string" && value.length > 0 && value.length <= 128 &&
+    !value.includes("/") && !/\s/.test(value) ? value : "";
+}
+
+function normalizePlan(value) {
+  const plan = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (plan === "starter") return "starter";
+  if (plan === "pro") return "pro";
+  return "unknown";
+}
+
+function normalizeEventName(value) {
+  if (typeof value !== "string") return "";
+  const eventName = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return eventName.length <= 80 && /^[a-z][a-z0-9_]*$/.test(eventName) ? eventName : "";
+}
+
+function safeCreationDate(user) {
+  return safeDate(user && user.metadata ? user.metadata.creationTime : null);
+}
+
+async function listBoundedAuthUsers(auth) {
+  if (!auth || typeof auth.listUsers !== "function") throw new TypeError("Firebase Auth Admin is required.");
+  const users = [];
+  let pageToken;
+  let truncated = false;
+  const seen = new Set();
+  do {
+    const remaining = CUSTOMER_ACCOUNT_LIMIT + 1 - users.length;
+    const page = await auth.listUsers(Math.min(AUTH_PAGE_SIZE, remaining), pageToken);
+    users.push(...(Array.isArray(page.users) ? page.users : []));
+    pageToken = page.pageToken || undefined;
+    if (pageToken && seen.has(pageToken)) throw new Error("Repeated Auth page token.");
+    if (pageToken) seen.add(pageToken);
+  } while (pageToken && users.length <= CUSTOMER_ACCOUNT_LIMIT);
+  if (users.length > CUSTOMER_ACCOUNT_LIMIT || pageToken) truncated = true;
+  return {users: users.slice(0, CUSTOMER_ACCOUNT_LIMIT), truncated};
+}
+
+async function readAccount(firestore, user) {
+  const [accountSnapshot, profileSnapshot] = await Promise.all([
+    firestore.collection("users").doc(user.uid).get(),
+    firestore.collection("userProfiles").doc(user.uid).get(),
+  ]);
+  return {
+    user,
+    account: accountSnapshot.exists ? accountSnapshot.data() || {} : {},
+    profile: profileSnapshot.exists ? profileSnapshot.data() || {} : {},
+  };
+}
+
+async function readAccounts(firestore, users) {
+  const entries = [];
+  for (let index = 0; index < users.length; index += READ_BATCH_SIZE) {
+    entries.push(...await Promise.all(users.slice(index, index + READ_BATCH_SIZE)
+        .map((user) => readAccount(firestore, user))));
+  }
+  return entries;
+}
+
+function emptyDailyBuckets(range, now, events) {
+  const days = CUSTOMER_ANALYTICS_RANGES[range];
+  if (days !== null) {
+    const start = utcRangeStart(range, now);
+    return Array.from({length: days}, (_value, index) => ({
+      date: new Date(start.getTime() + index * DAY_MS).toISOString().slice(0, 10),
+      activeAccounts: 0,
+      trackedActions: 0,
+    }));
+  }
+  return [...new Set(events.map((event) => event.createdAt.toISOString().slice(0, 10)))]
+      .sort().map((date) => ({date, activeAccounts: 0, trackedActions: 0}));
+}
+
+function aggregateCustomerAnalytics({entries, events, range, now, activityTruncated, accountsTruncated}) {
+  const startDate = utcRangeStart(range, now);
+  const startTime = startDate ? startDate.getTime() : -Infinity;
+  const endTime = now.getTime();
+  const plans = new Map(entries.map((entry) => [entry.user.uid, normalizePlan(entry.profile.currentPlan)]));
+  const starterAccounts = [...plans.values()].filter((plan) => plan === "starter").length;
+  const proAccounts = [...plans.values()].filter((plan) => plan === "pro").length;
+  const unknownAccounts = plans.size - starterAccounts - proAccounts;
+  const knownAccounts = starterAccounts + proAccounts;
+  const validEvents = events.filter((event) => event.createdAt.getTime() >= startTime &&
+    event.createdAt.getTime() <= endTime && plans.has(event.uid));
+  const activeUids = new Set(validEvents.map((event) => event.uid));
+  const activeStarter = [...activeUids].filter((uid) => plans.get(uid) === "starter").length;
+  const activePro = [...activeUids].filter((uid) => plans.get(uid) === "pro").length;
+  const activeUnknown = activeUids.size - activeStarter - activePro;
+  const featureCounts = new Map(FEATURE_DEFINITIONS.map((feature) => [feature.key, 0]));
+  for (const event of validEvents) {
+    const feature = EVENT_TO_FEATURE.get(event.eventType);
+    if (feature) featureCounts.set(feature.key, featureCounts.get(feature.key) + 1);
+  }
+  const measuredFeatureActions = [...featureCounts.values()].reduce((sum, count) => sum + count, 0);
+  const features = FEATURE_DEFINITIONS.map(({key, label}) => ({
+    key,
+    label,
+    count: featureCounts.get(key),
+    share: measuredFeatureActions ? Math.round(featureCounts.get(key) / measuredFeatureActions * 1000) / 10 : 0,
+  })).filter((feature) => feature.count > 0)
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+  const daily = emptyDailyBuckets(range, now, validEvents);
+  const dailyMap = new Map(daily.map((bucket) => [bucket.date, {bucket, uids: new Set()}]));
+  for (const event of validEvents) {
+    const item = dailyMap.get(event.createdAt.toISOString().slice(0, 10));
+    if (!item) continue;
+    item.bucket.trackedActions += 1;
+    item.uids.add(event.uid);
+  }
+  for (const item of dailyMap.values()) item.bucket.activeAccounts = item.uids.size;
+  const newSignUps = entries.filter((entry) => {
+    const created = safeCreationDate(entry.user);
+    return created && created.getTime() >= startTime && created.getTime() <= endTime;
+  }).length;
+  return {
+    range,
+    generatedAt: now.toISOString(),
+    summary: {
+      activeCustomerAccounts: activeUids.size,
+      newSignUps,
+      activeStarterAccounts: activeStarter,
+      activeProAccounts: activePro,
+      activeUnknownPlanAccounts: activeUnknown,
+      starterToProConversionRate: knownAccounts ? Math.round(proAccounts / knownAccounts * 1000) / 10 : 0,
+      totalTrackedCustomerActions: validEvents.length,
+    },
+    adoption: FEATURE_DEFINITIONS.map(({key, label}) => ({key, label, count: featureCounts.get(key)}))
+        .filter((item) => item.count > 0),
+    features,
+    measuredFeatureActions,
+    daily,
+    planAdoption: {
+      starter: {count: starterAccounts, percentageOfKnown: knownAccounts ? Math.round(starterAccounts / knownAccounts * 1000) / 10 : 0},
+      pro: {count: proAccounts, percentageOfKnown: knownAccounts ? Math.round(proAccounts / knownAccounts * 1000) / 10 : 0},
+      unknown: {count: unknownAccounts, percentageOfKnown: null},
+      knownAccounts,
+      conversionRate: knownAccounts ? Math.round(proAccounts / knownAccounts * 1000) / 10 : 0,
+    },
+    caps: {
+      activityLimit: CUSTOMER_ACTIVITY_LIMIT,
+      accountLimit: CUSTOMER_ACCOUNT_LIMIT,
+      activityTruncated: Boolean(activityTruncated),
+      accountsTruncated: Boolean(accountsTruncated),
+      incomplete: Boolean(activityTruncated || accountsTruncated),
+    },
+    limitations: [
+      "Bills, expenses, mileage, projects, budgets, Accountant Packs and accounting reports are omitted unless a valid existing activity event supports them.",
+      "Plan adoption is a current plan snapshot and does not represent paid subscription status.",
+    ],
+  };
+}
+
+async function buildAdminCustomerAnalytics({auth, firestore, demoIdentifiers, adminUids, range, now, timestampFactory}) {
+  const approvedRange = parseCustomerAnalyticsRange(range);
+  const generatedAt = new Date(now);
+  if (!Number.isFinite(generatedAt.getTime())) throw new Error("Invalid generation time.");
+  const authResult = await listBoundedAuthUsers(auth);
+  const candidates = authResult.users.filter((user) =>
+    !adminUids.has(user.uid) && !isDemoAuthUser(user, demoIdentifiers));
+  const accountEntries = await readAccounts(firestore, candidates);
+  const entries = accountEntries.filter((entry) => entry.account.demoMode !== true);
+  const eligibleUids = new Set(entries.map((entry) => entry.user.uid));
+  const startDate = utcRangeStart(approvedRange, generatedAt);
+  let query = firestore.collection("adminActivityEvents");
+  if (startDate) query = query.where("createdAt", ">=", timestampFactory.fromDate(startDate));
+  query = query.where("createdAt", "<=", timestampFactory.fromDate(generatedAt))
+      .orderBy("createdAt", "desc")
+      .limit(CUSTOMER_ACTIVITY_LIMIT + 1)
+      .select("eventType", "createdAt", "uid");
+  const snapshot = await query.get();
+  const activityTruncated = snapshot.docs.length > CUSTOMER_ACTIVITY_LIMIT;
+  const documents = activityTruncated ? snapshot.docs.slice(0, CUSTOMER_ACTIVITY_LIMIT) : snapshot.docs;
+  const events = [];
+  for (const documentSnapshot of documents) {
+    const data = documentSnapshot.data() || {};
+    const uid = safeUid(data.uid);
+    const eventType = normalizeEventName(data.eventType);
+    const createdAt = safeDate(data.createdAt);
+    if (!uid || !eligibleUids.has(uid) || !createdAt ||
+      (!EVENT_TO_FEATURE.has(eventType) && !QUALIFYING_NON_FEATURE_EVENTS.has(eventType))) continue;
+    events.push({uid, eventType, createdAt});
+  }
+  return aggregateCustomerAnalytics({
+    entries,
+    events,
+    range: approvedRange,
+    now: generatedAt,
+    activityTruncated,
+    accountsTruncated: authResult.truncated,
+  });
+}
+
+module.exports = {
+  CUSTOMER_ACCOUNT_LIMIT,
+  CUSTOMER_ACTIVITY_LIMIT,
+  CUSTOMER_ANALYTICS_RANGES,
+  FEATURE_DEFINITIONS,
+  aggregateCustomerAnalytics,
+  buildAdminCustomerAnalytics,
+  normalizeEventName,
+  normalizePlan,
+  parseCustomerAnalyticsRange,
+  utcRangeStart,
+};
