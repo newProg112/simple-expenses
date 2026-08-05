@@ -54,7 +54,8 @@
 - [x] Google Analytics enabled
 - [x] Custom Analytics events Phase 1
 - [x] Demo Analytics Phase 1 — anonymous demo event collection
-- [ ] Demo Analytics Phase 2 — aggregate reporting and admin insights
+- [x] Demo Analytics Phase 2 — aggregate reporting and admin insights
+- [ ] Demo Analytics Phase 3 — feature interaction and conversion events
 - [x] Responsive navigation
 - [x] Guides / Help Centre
 - [x] Admin Dashboard – Phase 1 shell

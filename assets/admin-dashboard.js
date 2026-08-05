@@ -31,6 +31,12 @@ import {
   DEMO_COUNT_LABELS,
   DEMO_COUNT_ORDER
 } from "./admin-demo-environment.js?v=20260804-demo-admin1";
+import {
+  createDemoAnalyticsLoader,
+  demoAnalyticsErrorState,
+  formatDemoSessionDuration,
+  normalizeDemoAnalyticsPayload
+} from "./admin-demo-analytics-view.js?v=20260805-demo-analytics2";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
@@ -98,12 +104,21 @@ const demoTargetUid = document.getElementById("demoTargetUid");
 const seedDemoDataButton = document.getElementById("seedDemoDataButton");
 const demoEnvironmentFeedback = document.getElementById("demoEnvironmentFeedback");
 const demoEnvironmentCounts = document.getElementById("demoEnvironmentCounts");
+const demoAnalyticsRange = document.getElementById("demoAnalyticsRange");
+const demoAnalyticsLoading = document.getElementById("demoAnalyticsLoading");
+const demoAnalyticsError = document.getElementById("demoAnalyticsError");
+const demoAnalyticsEmpty = document.getElementById("demoAnalyticsEmpty");
+const demoAnalyticsData = document.getElementById("demoAnalyticsData");
+const retryDemoAnalyticsButton = document.getElementById("retryDemoAnalyticsButton");
+const demoPagesTableBody = document.getElementById("demoPagesTableBody");
+const demoEventsTableBody = document.getElementById("demoEventsTableBody");
 const callGetAdminMetrics = httpsCallable(functions, "getAdminMetrics");
 const callGetAdminRecentActivity = httpsCallable(functions, "getAdminRecentActivity");
 const callGetAdminFeatureUsage = httpsCallable(functions, "getAdminFeatureUsage");
 const callGetAdminUserDetails = httpsCallable(functions, "getAdminUserDetails");
 const callSearchAdminUsers = httpsCallable(functions, "searchAdminUsers");
 const callSeedAdminDemoEnvironment = httpsCallable(functions, "seedAdminDemoEnvironment");
+const callGetAdminDemoAnalytics = httpsCallable(functions, "getAdminDemoAnalytics");
 let metricsRequest = null;
 let searchRequest = null;
 let searchGeneration = 0;
@@ -121,6 +136,168 @@ let activityCursor = null;
 let featureUsageRequest = null;
 let featureUsageChart = null;
 const adminCharts = new Map();
+const demoAnalyticsCharts = new Map();
+
+function destroyDemoAnalyticsCharts(){
+  for(const chart of demoAnalyticsCharts.values()) chart.destroy();
+  demoAnalyticsCharts.clear();
+}
+
+function renderDemoAnalyticsChart(canvasId, emptyId, configuration){
+  const canvas = prepareChart(canvasId, emptyId);
+  const ChartLibrary = window.Chart;
+  if(typeof ChartLibrary !== "function"){
+    showChartEmpty(canvasId, emptyId, "Charts are unavailable. The accessible data tables remain available.");
+    return;
+  }
+  demoAnalyticsCharts.get(canvasId)?.destroy();
+  demoAnalyticsCharts.set(canvasId, new ChartLibrary(canvas, configuration));
+}
+
+function setDemoAnalyticsState(state){
+  demoAnalyticsLoading.hidden = state !== "loading";
+  demoAnalyticsError.hidden = state !== "error";
+  demoAnalyticsEmpty.hidden = state !== "empty";
+  demoAnalyticsData.hidden = state !== "loaded";
+}
+
+function renderDemoAnalyticsTable(body, items, cells){
+  body.replaceChildren();
+  for(const item of items){
+    const row = document.createElement("tr");
+    cells(item).forEach((value, index) => {
+      const cell = document.createElement(index === 0 ? "th" : "td");
+      if(index === 0) cell.scope = "row";
+      cell.textContent = String(value);
+      row.append(cell);
+    });
+    body.append(row);
+  }
+}
+
+function formatDemoDay(value){
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleDateString("en-GB", {day: "numeric", month: "short", timeZone: "UTC"})
+    : value;
+}
+
+function renderDemoAnalyticsCharts(model){
+  const dailyLabels = model.daily.map(item => formatDemoDay(item.date));
+  const activityOptions = baseChartOptions();
+  activityOptions.plugins.legend = {display: true};
+  renderDemoAnalyticsChart("demoActivityChart", "demoActivityChartEmpty", {
+    type: "line",
+    data: {
+      labels: dailyLabels,
+      datasets: [
+        {label: "Sessions", data: model.daily.map(item => item.sessions), borderColor: "#0077b6", backgroundColor: "rgba(0,119,182,.12)", tension: .25, fill: false},
+        {label: "Page views", data: model.daily.map(item => item.pageViews), borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,.12)", tension: .25, fill: false}
+      ]
+    },
+    options: activityOptions
+  });
+
+  if(model.pages.length === 0){
+    showChartEmpty("demoPagesChart", "demoPagesChartEmpty", "No demo page views in this time range.");
+    return;
+  }
+  renderDemoAnalyticsChart("demoPagesChart", "demoPagesChartEmpty", {
+    type: "bar",
+    data: {
+      labels: model.pages.map(item => item.label),
+      datasets: [{
+        label: "Page views",
+        data: model.pages.map(item => item.count),
+        backgroundColor: "#0077b6",
+        borderColor: "#075985",
+        borderWidth: 1
+      }]
+    },
+    options: {
+      ...baseChartOptions(),
+      indexAxis: "y",
+      plugins: {
+        legend: {display: false},
+        tooltip: {callbacks: {label: context => {
+          const page = model.pages[context.dataIndex];
+          return `${page.count} views (${page.percentage.toFixed(1)}%)`;
+        }}}
+      },
+      scales: {
+        x: {beginAtZero: true, ticks: {precision: 0, stepSize: 1}},
+        y: {grid: {display: false}}
+      }
+    }
+  });
+}
+
+function renderDemoAnalytics(payload){
+  destroyDemoAnalyticsCharts();
+  const model = normalizeDemoAnalyticsPayload(payload);
+  if(model.eventsProcessed === 0){
+    setDemoAnalyticsState("empty");
+    return;
+  }
+  const metrics = model.metrics;
+  document.getElementById("demoLoginsValue").textContent = String(metrics.demoLogins);
+  document.getElementById("demoSessionsValue").textContent = String(metrics.demoSessions);
+  document.getElementById("demoPageViewsValue").textContent = String(metrics.totalPageViews);
+  document.getElementById("demoAveragePagesValue").textContent = metrics.averagePagesPerSession.toFixed(2);
+  document.getElementById("demoAverageDurationValue").textContent = formatDemoSessionDuration(metrics.averageSessionDurationSeconds);
+  document.getElementById("demoSinglePageValue").textContent = String(metrics.singlePageSessions);
+  renderDemoAnalyticsTable(demoPagesTableBody, model.pages, item => [item.label, item.count, `${item.percentage.toFixed(1)}%`]);
+  renderDemoAnalyticsTable(demoEventsTableBody, model.eventBreakdown, item => [item.eventName, item.count]);
+  document.getElementById("demoAnalyticsUpdatedAt").textContent = model.generatedAt
+    ? `Updated ${formatAdminDate(model.generatedAt)} | ${model.eventsProcessed} validated events processed`
+    : `${model.eventsProcessed} validated events processed`;
+  document.getElementById("demoAnalyticsTruncated").hidden = !model.truncated;
+  setDemoAnalyticsState("loaded");
+  renderDemoAnalyticsCharts(model);
+}
+
+function showDemoAnalyticsFailure(error){
+  const state = demoAnalyticsErrorState(error);
+  if(state.kind === "unauthenticated"){
+    showState("signedOutState");
+    window.location.replace("/login.html");
+    return;
+  }
+  if(state.kind === "permission-denied"){
+    showState("deniedState");
+    return;
+  }
+  document.getElementById("demoAnalyticsErrorTitle").textContent = state.title;
+  document.getElementById("demoAnalyticsErrorMessage").textContent = state.message;
+  setDemoAnalyticsState("error");
+}
+
+const demoAnalyticsLoader = createDemoAnalyticsLoader({
+  request: async range => {
+    const requestGeneration = authGeneration;
+    const result = await callGetAdminDemoAnalytics({range});
+    return {payload: result.data, requestGeneration};
+  },
+  onLoading: () => {
+    setDemoAnalyticsState("loading");
+    demoAnalyticsRange.disabled = true;
+  },
+  onSuccess: result => {
+    demoAnalyticsRange.disabled = false;
+    if(result.requestGeneration === authGeneration && currentAdminUser){
+      renderDemoAnalytics(result.payload);
+    }
+  },
+  onError: error => {
+    demoAnalyticsRange.disabled = false;
+    showDemoAnalyticsFailure(error);
+  }
+});
+
+function loadDemoAnalytics({force = false} = {}){
+  if(!currentAdminUser) return Promise.resolve(null);
+  return demoAnalyticsLoader.load(demoAnalyticsRange.value, {force});
+}
 
 function renderDemoEnvironmentCounts(counts){
   demoEnvironmentCounts.replaceChildren();
@@ -900,6 +1077,7 @@ refreshMetricsButton.addEventListener("click", () => {
   loadAdminMetrics();
   loadRecentActivity();
   loadFeatureUsage();
+  loadDemoAnalytics({force: true});
 });
 refreshActivityButton.addEventListener("click", () => loadRecentActivity());
 retryActivityButton.addEventListener("click", () => loadRecentActivity());
@@ -907,6 +1085,8 @@ showMoreActivityButton.addEventListener("click", () => loadRecentActivity({appen
 activityFilter.addEventListener("change", renderActivity);
 featureUsageRange.addEventListener("change", loadFeatureUsage);
 retryFeatureUsageButton.addEventListener("click", loadFeatureUsage);
+demoAnalyticsRange.addEventListener("change", () => loadDemoAnalytics());
+retryDemoAnalyticsButton.addEventListener("click", () => loadDemoAnalytics({force: true}));
 seedDemoDataButton.addEventListener("click", () => {
   demoEnvironmentController.run(demoTargetUid.value);
 });
@@ -930,9 +1110,12 @@ document.addEventListener("keydown", event => {
 });
 
 if(typeof ResizeObserver === "function"){
-  new ResizeObserver(() => {
+  const chartResizeObserver = new ResizeObserver(() => {
     for(const chart of adminCharts.values()) chart.resize();
-  }).observe(growthOverview);
+    for(const chart of demoAnalyticsCharts.values()) chart.resize();
+  });
+  chartResizeObserver.observe(growthOverview);
+  chartResizeObserver.observe(document.getElementById("demoAnalyticsSection"));
 }
 
 onAuthStateChanged(
@@ -941,17 +1124,20 @@ onAuthStateChanged(
     const nextAuthUid = user?.uid || "";
     if(nextAuthUid !== resolvedAuthUid){
       closeCustomerPanel();
+      demoAnalyticsLoader.clear();
       searchGeneration += 1;
       authGeneration += 1;
       resolvedAuthUid = nextAuthUid;
     }
     const decision = adminAccessDecision(user);
     if(decision === "signed-out"){
+      currentAdminUser = null;
       showState("signedOutState");
       window.location.replace("/login.html");
       return;
     }
     if(decision === "denied"){
+      currentAdminUser = null;
       showState("deniedState");
       return;
     }
@@ -960,6 +1146,7 @@ onAuthStateChanged(
     loadAdminMetrics();
     loadRecentActivity();
     loadFeatureUsage();
+    loadDemoAnalytics();
   },
   error => {
     authGeneration += 1;
