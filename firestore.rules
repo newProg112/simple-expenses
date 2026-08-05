@@ -22,6 +22,41 @@ service cloud.firestore {
       allow read: if isOwner(uid);
     }
 
+    match /demoAnalyticsEvents/{eventId} {
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'timestamp',
+          'uid',
+          'eventName',
+          'page',
+          'userAgent'
+        ])
+        && request.resource.data.timestamp == request.time
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.eventName in [
+          'Login',
+          'Logout',
+          'Dashboard viewed',
+          'Invoices page viewed',
+          'Clients page viewed',
+          'Bills page viewed',
+          'Expenses page viewed',
+          'Projects page viewed',
+          'Budgets page viewed',
+          'Cashflow page viewed',
+          'Trial Balance viewed',
+          'General Ledger viewed',
+          'Profit & Loss viewed',
+          'Balance Sheet viewed'
+        ]
+        && request.resource.data.page is string
+        && request.resource.data.page.size() <= 256
+        && request.resource.data.userAgent is string
+        && request.resource.data.userAgent.size() <= 512
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.demoMode == true;
+      allow read, update, delete: if false;
+    }
+
     match /journals/{journalId} {
       allow get: if isSignedIn()
         && (

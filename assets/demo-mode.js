@@ -24,9 +24,9 @@ function updateDemoModeContext(user, accountData){
   currentAccountData = accountData || null;
 }
 
-function notifySafely(listener, value){
+function notifySafely(listener, value, user = null, accountData = null){
   try{
-    listener(Boolean(value));
+    listener(Boolean(value), user, accountData);
   }catch(_error){
     // A page-level rendering error must not affect authentication or account loading.
   }
@@ -79,7 +79,7 @@ export async function watchDemoMode(listener, services){
 
           const accountData = snapshot.exists() ? snapshot.data() : null;
           updateDemoModeContext(user, accountData);
-          notifySafely(listener, isDemoMode());
+          notifySafely(listener, isDemoMode(), user, accountData);
         }catch(_error){
           if(activeRequest !== requestVersion){
             return;

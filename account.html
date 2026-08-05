@@ -1037,6 +1037,7 @@
   <script type="module">
     import { app, auth, db } from "./firebase-config.js";
     import { trackBeginCheckout } from "./assets/analytics-events.js?v=20260802-analytics1";
+    import { trackDemoAnalyticsEvent } from "./assets/demo-analytics.js?v=20260805-demo-analytics1";
     import {
       buildMonthlyUsageView
     } from "./resources/js/monthly-usage.js?v=20260728-phase4d";
@@ -2080,6 +2081,7 @@
 
     if(accountLogoutBtn){
       accountLogoutBtn.addEventListener("click", async () => {
+        await trackDemoAnalyticsEvent("Logout", { user: auth.currentUser });
         await signOut(auth);
         window.location.href = "/";
       });

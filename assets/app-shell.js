@@ -3,6 +3,7 @@ import {
   handleDemoResetClick,
   watchDemoMode
 } from "./demo-mode.js";
+import { trackDemoPageView } from "./demo-analytics.js?v=20260805-demo-analytics1";
 
 export const NAVIGATION_GROUPS = Object.freeze([
   Object.freeze({
@@ -342,9 +343,12 @@ export function createDemoBanner(){
   return banner;
 }
 
-function watchDemoBannerAccess(banner){
-  watchDemoMode(visible => {
+function watchDemoBannerAccess(banner, activeKey){
+  watchDemoMode((visible, user, accountData) => {
     banner.hidden = !visible;
+    if(visible){
+      void trackDemoPageView(activeKey, { user, accountData });
+    }
   });
 }
 
@@ -416,7 +420,7 @@ function renderShell(mount){
   if(appContent){
     const demoBanner = createDemoBanner();
     appContent.prepend(demoBanner);
-    watchDemoBannerAccess(demoBanner);
+    watchDemoBannerAccess(demoBanner, activeKey);
   }
 
   function applyDesktopSidebarState(state, persist = false){

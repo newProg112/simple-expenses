@@ -295,6 +295,7 @@
     import { auth } from "./firebase-config.js";
     import { logActivityEvent } from "./assets/activity-logger.js?v=20260802-admin5a";
     import { trackLogin } from "./assets/analytics-events.js?v=20260802-analytics1";
+    import { trackDemoAnalyticsEvent } from "./assets/demo-analytics.js?v=20260805-demo-analytics1";
 
     import {
       sendPasswordResetEmail,
@@ -372,6 +373,7 @@
 
       try{
         const credential = await signInWithEmailAndPassword(auth, email, password);
+        await trackDemoAnalyticsEvent("Login", { user: credential.user });
         await trackLogin();
         await logActivityEvent("user_logged_in");
         clearAccountCacheForUserChange(credential.user);
@@ -428,6 +430,7 @@
           "demo@simple-books.co.uk",
           "demo123"
         );
+        await trackDemoAnalyticsEvent("Login", { user: credential.user });
         await trackLogin();
         await logActivityEvent("user_logged_in");
         clearAccountCacheForUserChange(credential.user);
