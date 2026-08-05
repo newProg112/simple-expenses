@@ -864,11 +864,14 @@ exports.logActivityEvent = onCall(
       maxInstances: 10,
       timeoutSeconds: 15,
       memory: "256MiB",
+      secrets: [adminUidsSecret, demoIdentifiersSecret],
     },
     (request) => createActivityLoggerHandler({
       auth: admin.auth(),
       firestore: admin.firestore(),
       fieldValue: admin.firestore.FieldValue,
+      adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
     })(request),
 );
 

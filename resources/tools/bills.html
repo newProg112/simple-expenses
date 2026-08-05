@@ -3322,6 +3322,7 @@
       const existingBill = editingBillId === null
         ? null
         : currentBills.find(bill => String(bill.id) === String(editingBillId));
+      const activityIdempotencyKey = existingBill ? "" : createActivityIdempotencyKey();
       const billId = existingBill?.id ?? Date.now();
       const project = selectedBillProject();
       const scannedAttachment = !existingBill && !selectedAttachment
@@ -3401,6 +3402,9 @@
         currentBills.unshift(bill);
       }
       saveBills(currentBills);
+      if (!existingBill) {
+        void logActivityEvent("bill_created", activityIdempotencyKey);
+      }
 
       clearForm();
       renderBills(currentBills);

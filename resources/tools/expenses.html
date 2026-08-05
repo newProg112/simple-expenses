@@ -3448,6 +3448,7 @@
       const scannedAttachment = !existingExpense && !isMileage && !selectedAttachment
         ? pendingScannedReceiptFile
         : null;
+      const activityIdempotencyKey = existingExpense ? "" : createActivityIdempotencyKey();
 
       let attachment = existingExpense
         ? {
@@ -3565,6 +3566,12 @@
         : [expense, ...expenses.filter(existing => String(existing.id) !== String(expenseId))];
 
       saveExpenses(nextExpenses);
+      if (!existingExpense) {
+        void logActivityEvent(
+          isMileage ? "mileage_created" : "expense_created",
+          activityIdempotencyKey
+        );
+      }
       clearForm();
       renderExpenses();
       saveButton.disabled = false;

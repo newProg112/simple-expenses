@@ -16,13 +16,28 @@ const FEATURE_DEFINITIONS = Object.freeze([
   {key: "invoices", label: "Invoices", events: ["invoice_created", "invoice_saved"]},
   {key: "bills", label: "Bills", events: ["bill_created", "bill_saved"]},
   {key: "expenses", label: "Expenses", events: ["expense_created", "expense_saved"]},
-  {key: "mileage", label: "Mileage", events: ["mileage_claim_created", "mileage_created"]},
+  {key: "mileage", label: "Mileage", events: ["mileage_created", "mileage_claim_created"]},
   {key: "projects", label: "Projects", events: ["project_created"]},
   {key: "budgets", label: "Budgets", events: ["budget_created"]},
   {key: "ai_assistant", label: "AI Assistant", events: ["ai_question_asked", "ai_assistant_used"]},
   {key: "invoice_scanning", label: "Invoice Scanning", events: ["invoice_scanned", "document_scanned"]},
   {key: "accountant_pack", label: "Accountant Pack", events: ["accountant_pack_generated", "accountant_pack_downloaded"]},
-  {key: "accounting_reports", label: "Accounting Reports", events: ["accounting_report_generated", "trial_balance_generated", "general_ledger_generated", "profit_loss_generated", "balance_sheet_generated"]},
+  {key: "accounting_reports", label: "Accounting Reports", events: ["trial_balance_viewed", "general_ledger_viewed", "profit_and_loss_viewed", "balance_sheet_viewed"]},
+]);
+const ADOPTION_DEFINITIONS = Object.freeze([
+  {key: "invoices", label: "Invoices", events: ["invoice_created", "invoice_saved"]},
+  {key: "bills", label: "Bills", events: ["bill_created", "bill_saved"]},
+  {key: "expenses", label: "Expenses", events: ["expense_created", "expense_saved"]},
+  {key: "mileage", label: "Mileage", events: ["mileage_created", "mileage_claim_created"]},
+  {key: "projects", label: "Projects", events: ["project_created"]},
+  {key: "budgets", label: "Budgets", events: ["budget_created"]},
+  {key: "ai_assistant", label: "AI Assistant", events: ["ai_question_asked", "ai_assistant_used"]},
+  {key: "invoice_scanning", label: "Invoice Scanning", events: ["invoice_scanned", "document_scanned"]},
+  {key: "accountant_pack", label: "Accountant Pack", events: ["accountant_pack_generated", "accountant_pack_downloaded"]},
+  {key: "trial_balance", label: "Trial Balance", events: ["trial_balance_viewed"]},
+  {key: "general_ledger", label: "General Ledger", events: ["general_ledger_viewed"]},
+  {key: "profit_and_loss", label: "Profit & Loss", events: ["profit_and_loss_viewed"]},
+  {key: "balance_sheet", label: "Balance Sheet", events: ["balance_sheet_viewed"]},
 ]);
 const EVENT_TO_FEATURE = new Map(FEATURE_DEFINITIONS.flatMap((feature) =>
   feature.events.map((eventName) => [eventName, feature])));
@@ -150,9 +165,14 @@ function aggregateCustomerAnalytics({entries, events, range, now, activityTrunca
   const activePro = [...activeUids].filter((uid) => plans.get(uid) === "pro").length;
   const activeUnknown = activeUids.size - activeStarter - activePro;
   const featureCounts = new Map(FEATURE_DEFINITIONS.map((feature) => [feature.key, 0]));
+  const adoptionCounts = new Map(ADOPTION_DEFINITIONS.map((item) => [item.key, 0]));
+  const eventToAdoption = new Map(ADOPTION_DEFINITIONS.flatMap((item) =>
+    item.events.map((eventName) => [eventName, item])));
   for (const event of validEvents) {
     const feature = EVENT_TO_FEATURE.get(event.eventType);
     if (feature) featureCounts.set(feature.key, featureCounts.get(feature.key) + 1);
+    const adoption = eventToAdoption.get(event.eventType);
+    if (adoption) adoptionCounts.set(adoption.key, adoptionCounts.get(adoption.key) + 1);
   }
   const measuredFeatureActions = [...featureCounts.values()].reduce((sum, count) => sum + count, 0);
   const features = FEATURE_DEFINITIONS.map(({key, label}) => ({
@@ -187,7 +207,7 @@ function aggregateCustomerAnalytics({entries, events, range, now, activityTrunca
       starterToProConversionRate: knownAccounts ? Math.round(proAccounts / knownAccounts * 1000) / 10 : 0,
       totalTrackedCustomerActions: validEvents.length,
     },
-    adoption: FEATURE_DEFINITIONS.map(({key, label}) => ({key, label, count: featureCounts.get(key)}))
+    adoption: ADOPTION_DEFINITIONS.map(({key, label}) => ({key, label, count: adoptionCounts.get(key)}))
         .filter((item) => item.count > 0),
     features,
     measuredFeatureActions,
@@ -207,7 +227,7 @@ function aggregateCustomerAnalytics({entries, events, range, now, activityTrunca
       incomplete: Boolean(activityTruncated || accountsTruncated),
     },
     limitations: [
-      "Bills, expenses, mileage, projects, budgets, Accountant Packs and accounting reports are omitted unless a valid existing activity event supports them.",
+      "Product adoption includes only valid successful activity events recorded by Simple Books.",
       "Plan adoption is a current plan snapshot and does not represent paid subscription status.",
     ],
   };
@@ -257,6 +277,7 @@ module.exports = {
   CUSTOMER_ACCOUNT_LIMIT,
   CUSTOMER_ACTIVITY_LIMIT,
   CUSTOMER_ANALYTICS_RANGES,
+  ADOPTION_DEFINITIONS,
   FEATURE_DEFINITIONS,
   aggregateCustomerAnalytics,
   buildAdminCustomerAnalytics,

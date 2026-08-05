@@ -608,6 +608,7 @@
 
   <script type="module">
     import { auth, db } from "../../firebase-config.js";
+    import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260805-customer-analytics1b";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
@@ -639,6 +640,7 @@
     const statusMeta = document.getElementById("statusMeta");
     const asAtDate = document.getElementById("asAtDate");
     const refreshButton = document.getElementById("refreshButton");
+    const reportActivityIdempotencyKey = createActivityIdempotencyKey();
     const filterFeedback = document.getElementById("filterFeedback");
     const pageError = document.getElementById("pageError");
     const statement = document.getElementById("statement");
@@ -808,7 +810,11 @@
         journals = ownerJournalsFromDocuments(snapshot.docs, ownerId);
         journalsLoaded = true;
         refreshButton.disabled = false;
-        renderView(balanceSheetViewFromJournals(journals));
+        const view = balanceSheetViewFromJournals(journals);
+        renderView(view);
+        if (view.state !== "error") {
+          void logActivityEvent("balance_sheet_viewed", reportActivityIdempotencyKey);
+        }
       } catch (error) {
         if (sequence !== loadSequence) return;
         journals = [];

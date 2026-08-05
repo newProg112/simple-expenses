@@ -6,6 +6,8 @@ const {HttpsError} = require("firebase-functions/v2/https");
 const {
   AdminConfigurationError,
   adminAuthorizationDecision,
+  isDemoAuthUser,
+  parseAdminUidAllowList,
   parseDemoIdentifiers,
 } = require("./admin-authorization");
 const {
@@ -30,12 +32,21 @@ function createActivityLoggerHandler(options) {
       throw new HttpsError("unauthenticated", "You must be signed in to record activity.");
     }
     try {
+      const adminUids = parseAdminUidAllowList(source.adminUidConfiguration);
+      const demoIdentifiers = parseDemoIdentifiers(source.demoConfiguration);
       const input = validateFrontendActivityRequest(request.data);
       const identity = await trustedActivityIdentity({
         auth: source.auth,
         firestore: source.firestore,
         uid: request.auth.uid,
       });
+      const accountSnapshot = await source.firestore.collection("users")
+          .doc(request.auth.uid).get();
+      const account = accountSnapshot.exists ? accountSnapshot.data() || {} : {};
+      if (adminUids.has(request.auth.uid) || account.demoMode === true ||
+        isDemoAuthUser({uid: identity.uid, email: identity.displayEmail}, demoIdentifiers)) {
+        return {created: false, excluded: true};
+      }
       return await writeActivityEvent({
         firestore: source.firestore,
         fieldValue: source.fieldValue,
@@ -45,6 +56,9 @@ function createActivityLoggerHandler(options) {
         now: source.now ? source.now() : new Date(),
       });
     } catch (error) {
+      if (error instanceof AdminConfigurationError) {
+        throw new HttpsError("failed-precondition", "Activity logging is not configured.");
+      }
       throw callableError(error, "Activity could not be recorded.");
     }
   };

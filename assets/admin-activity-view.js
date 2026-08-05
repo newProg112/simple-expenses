@@ -15,7 +15,17 @@ export const ACTIVITY_PRESENTATION = Object.freeze({
   ai_question_asked: { title: "AI Assistant used", marker: "AI" },
   checkout_started: { title: "Pro checkout started", marker: "B" },
   upgraded_to_pro: { title: "Upgraded to Pro", marker: "B" },
-  subscription_cancelled: { title: "Subscription cancelled", marker: "B" }
+  subscription_cancelled: { title: "Subscription cancelled", marker: "B" },
+  bill_created: { title: "Bill created", marker: "BL" },
+  expense_created: { title: "Expense created", marker: "E" },
+  mileage_created: { title: "Mileage claim created", marker: "M" },
+  project_created: { title: "Project created", marker: "P" },
+  budget_created: { title: "Budget created", marker: "BG" },
+  accountant_pack_generated: { title: "Accountant Pack generated", marker: "AP" },
+  trial_balance_viewed: { title: "Trial Balance opened", marker: "TB" },
+  general_ledger_viewed: { title: "General Ledger opened", marker: "GL" },
+  profit_and_loss_viewed: { title: "Profit & Loss opened", marker: "PL" },
+  balance_sheet_viewed: { title: "Balance Sheet opened", marker: "BS" }
 });
 
 export function filterActivityEvents(events, filter){

@@ -1195,6 +1195,7 @@
 
   <script type="module">
     import { auth, db } from "../../firebase-config.js";
+    import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260805-customer-analytics1b";
     import {
       PROJECT_STATUS,
       activeProjectLimitMessage,
@@ -1980,6 +1981,7 @@
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           });
+          void logActivityEvent("project_created", createActivityIdempotencyKey());
           showPageFeedback("Project created.");
         }
 

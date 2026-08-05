@@ -404,6 +404,7 @@
 
   <script type="module">
     import { auth, db } from "../../firebase-config.js";
+    import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260805-customer-analytics1b";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
@@ -439,6 +440,7 @@
     const reportContent = document.getElementById("financialReportContent");
     let loadedUserId = "";
     let loadSequence = 0;
+    const reportActivityIdempotencyKey = createActivityIdempotencyKey();
 
     function setStatus(status, className = "") {
       statusValue.textContent = status;
@@ -581,6 +583,9 @@
         }
 
         renderView(view);
+        if (view.state !== "error") {
+          void logActivityEvent("trial_balance_viewed", reportActivityIdempotencyKey);
+        }
       } catch (error) {
         if (sequence !== loadSequence) return;
         console.error("Trial Balance journal load failed", error);

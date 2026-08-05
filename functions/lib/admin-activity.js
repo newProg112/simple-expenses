@@ -14,6 +14,28 @@ const FRONTEND_EVENT_TYPES = new Set([
   "invoice_scanned",
   "ai_question_asked",
   "checkout_started",
+  "bill_created",
+  "expense_created",
+  "mileage_created",
+  "project_created",
+  "budget_created",
+  "accountant_pack_generated",
+  "trial_balance_viewed",
+  "general_ledger_viewed",
+  "profit_and_loss_viewed",
+  "balance_sheet_viewed",
+]);
+const CUSTOMER_ANALYTICS_EVENT_TYPES = new Set([
+  "bill_created",
+  "expense_created",
+  "mileage_created",
+  "project_created",
+  "budget_created",
+  "accountant_pack_generated",
+  "trial_balance_viewed",
+  "general_ledger_viewed",
+  "profit_and_loss_viewed",
+  "balance_sheet_viewed",
 ]);
 const EVENT_PRESENTATION = Object.freeze({
   user_signed_up: {summary: "A new Simple Books account was registered."},
@@ -24,6 +46,16 @@ const EVENT_PRESENTATION = Object.freeze({
   checkout_started: {summary: "A valid Pro checkout session was started."},
   upgraded_to_pro: {summary: "A customer upgraded to the Pro plan."},
   subscription_cancelled: {summary: "A Pro subscription was cancelled."},
+  bill_created: {summary: "A bill was successfully created."},
+  expense_created: {summary: "An expense was successfully created."},
+  mileage_created: {summary: "A mileage claim was successfully created."},
+  project_created: {summary: "A project was successfully created."},
+  budget_created: {summary: "A budget was successfully created."},
+  accountant_pack_generated: {summary: "An Accountant Pack was successfully generated."},
+  trial_balance_viewed: {summary: "The Trial Balance report was opened."},
+  general_ledger_viewed: {summary: "The General Ledger report was opened."},
+  profit_and_loss_viewed: {summary: "The Profit & Loss report was opened."},
+  balance_sheet_viewed: {summary: "The Balance Sheet report was opened."},
 });
 const ALLOWED_REQUEST_FIELDS = new Set(["eventType", "idempotencyKey"]);
 
@@ -107,14 +139,17 @@ async function writeActivityEvent({
       idempotencyKey,
       now,
   );
+  const customerAnalyticsOnly = CUSTOMER_ANALYTICS_EVENT_TYPES.has(eventType);
   const record = {
     eventType,
     createdAt: fieldValue.serverTimestamp(),
     uid: identity.uid,
-    displayEmail: normalizeEmail(identity.displayEmail),
-    plan: normalizePlan(identity.plan),
-    summary: EVENT_PRESENTATION[eventType].summary,
-    metadata: {},
+    ...(!customerAnalyticsOnly ? {
+      displayEmail: normalizeEmail(identity.displayEmail),
+      plan: normalizePlan(identity.plan),
+      summary: EVENT_PRESENTATION[eventType].summary,
+      metadata: {},
+    } : {}),
   };
   try {
     await firestore.collection(ACTIVITY_COLLECTION).doc(documentId).create(record);
@@ -241,6 +276,7 @@ async function getRecentActivity({
 
 module.exports = {
   ACTIVITY_COLLECTION,
+  CUSTOMER_ANALYTICS_EVENT_TYPES,
   DEFAULT_ACTIVITY_LIMIT,
   EVENT_PRESENTATION,
   FRONTEND_EVENT_TYPES,

@@ -513,6 +513,7 @@
 
   <script type="module">
     import { auth, db } from "../../firebase-config.js";
+    import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260805-customer-analytics1b";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
@@ -545,6 +546,7 @@
     const dateFrom = document.getElementById("dateFrom");
     const dateTo = document.getElementById("dateTo");
     const refreshButton = document.getElementById("refreshButton");
+    const reportActivityIdempotencyKey = createActivityIdempotencyKey();
     const filterFeedback = document.getElementById("filterFeedback");
     const journalEntriesTitle = document.getElementById("journalEntriesTitle");
     const journalEntriesSummary = document.getElementById("journalEntriesSummary");
@@ -734,6 +736,9 @@
         }
 
         renderView(view, { repopulateAccounts: true });
+        if (view.state !== "error") {
+          void logActivityEvent("general_ledger_viewed", reportActivityIdempotencyKey);
+        }
       } catch (error) {
         if (sequence !== loadSequence) return;
         journals = [];

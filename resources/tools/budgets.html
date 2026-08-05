@@ -589,6 +589,7 @@ select{display:none !important;}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module">
     import { auth, db } from "/firebase-config.js";
+    import { createActivityIdempotencyKey, logActivityEvent } from "/assets/activity-logger.js?v=20260805-customer-analytics1b";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       addDoc,
@@ -1632,6 +1633,7 @@ select{display:none !important;}
           showPageFeedback("Budget updated.");
         }else{
           await addDoc(collection(db, "users", currentUser.uid, "budgets"), { ...data, createdAt:serverTimestamp() });
+          void logActivityEvent("budget_created", createActivityIdempotencyKey());
           showPageFeedback("Budget created.");
         }
         closeBudgetFormAfterSave();

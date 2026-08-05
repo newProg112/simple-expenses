@@ -1223,6 +1223,7 @@
 
   <script type="module">
     import { app, auth, db } from "/firebase-config.js";
+    import { createActivityIdempotencyKey, logActivityEvent } from "/assets/activity-logger.js?v=20260805-customer-analytics1b";
     import {
       getAccountantPackAccess
     } from "/resources/js/accountant-pack-access.js";
@@ -1260,6 +1261,10 @@
       getBlob,
       getDownloadURL,
       storageRef
+    };
+    window.simpleBooksActivityLogger = {
+      createActivityIdempotencyKey,
+      logActivityEvent
     };
 
     window.simpleBooksBackupUserReady = new Promise((resolve) => {
@@ -5557,6 +5562,13 @@
         try{
           const result = await generateAccountantPackZip(period, updateGenerationStage);
           saveAccountantPackGeneratedAt(result.generatedAt);
+          const activityLogger = window.simpleBooksActivityLogger;
+          if(activityLogger){
+            void activityLogger.logActivityEvent(
+              "accountant_pack_generated",
+              activityLogger.createActivityIdempotencyKey()
+            );
+          }
 
           if(result.warnings?.length){
             showMessage(

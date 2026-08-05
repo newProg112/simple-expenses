@@ -43,12 +43,13 @@ function profileSnapshot(profile = {currentPlan: "Starter"}){
   return {exists: true, data: () => profile};
 }
 
-function loggerDependencies({create = vi.fn(async () => {})} = {}){
+function loggerDependencies({create = vi.fn(async () => {}), account = {demoMode: false}} = {}){
   return {
     auth: {getUser: vi.fn(async uid => authUser(uid))},
     firestore: {
       collection(name){
         if(name === "userProfiles") return {doc: () => ({get: async () => profileSnapshot()})};
+        if(name === "users") return {doc: () => ({get: async () => ({exists: true, data: () => account})})};
         if(name === "adminActivityEvents") return {doc: id => ({create: value => create(id, value)})};
         throw new Error(`Unexpected collection ${name}`);
       }
@@ -58,10 +59,13 @@ function loggerDependencies({create = vi.fn(async () => {})} = {}){
 }
 
 describe("Admin Dashboard Phase 5A backend activity policy", () => {
-  it("defines only the eight approved event types and fixed neutral summaries", () => {
+  it("defines the approved event types and fixed neutral summaries", () => {
     expect(Object.keys(EVENT_PRESENTATION)).toEqual([
       "user_signed_up", "user_logged_in", "invoice_created", "invoice_scanned",
-      "ai_question_asked", "checkout_started", "upgraded_to_pro", "subscription_cancelled"
+      "ai_question_asked", "checkout_started", "upgraded_to_pro", "subscription_cancelled",
+      "bill_created", "expense_created", "mileage_created", "project_created",
+      "budget_created", "accountant_pack_generated", "trial_balance_viewed",
+      "general_ledger_viewed", "profit_and_loss_viewed", "balance_sheet_viewed"
     ]);
     expect(JSON.stringify(EVENT_PRESENTATION)).not.toMatch(/amount|invoice number|prompt|stripe/i);
   });
@@ -121,7 +125,12 @@ describe("Admin Dashboard Phase 5A backend activity policy", () => {
 
   it("requires authentication and derives UID and email from trusted services", async () => {
     const deps = loggerDependencies();
-    const handler = createActivityLoggerHandler({...deps, now: () => new Date("2026-08-02T12:00:00.000Z")});
+    const handler = createActivityLoggerHandler({
+      ...deps,
+      adminUidConfiguration: "owner",
+      demoConfiguration: "uid:demo",
+      now: () => new Date("2026-08-02T12:00:00.000Z")
+    });
     await expect(handler({data: {eventType: "user_logged_in"}})).rejects.toMatchObject({code: "unauthenticated"});
     await expect(handler({
       auth: {uid: "trusted-user"},
@@ -220,7 +229,7 @@ describe("Admin Dashboard Phase 5A activity feed", () => {
     expect(Object.keys(ACTIVITY_FILTERS)).toEqual(["all", "accounts", "invoices", "ai", "scanning", "billing"]);
     expect(filterActivityEvents(records, "billing").map(item => item.eventType))
       .toEqual(["checkout_started", "upgraded_to_pro", "subscription_cancelled"]);
-    expect(filterActivityEvents(records, "all")).toHaveLength(8);
+    expect(filterActivityEvents(records, "all")).toHaveLength(18);
   });
 
   it("formats relative and exact accessible times", () => {

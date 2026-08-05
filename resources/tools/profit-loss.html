@@ -536,6 +536,7 @@
 
   <script type="module">
     import { auth, db } from "../../firebase-config.js";
+    import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260805-customer-analytics1b";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
@@ -568,6 +569,7 @@
     const dateFrom = document.getElementById("dateFrom");
     const dateTo = document.getElementById("dateTo");
     const refreshButton = document.getElementById("refreshButton");
+    const reportActivityIdempotencyKey = createActivityIdempotencyKey();
     const filterFeedback = document.getElementById("filterFeedback");
     const pageError = document.getElementById("pageError");
     const statement = document.getElementById("statement");
@@ -732,7 +734,11 @@
         );
         journalsLoaded = true;
         refreshButton.disabled = false;
-        renderView(profitLossViewFromJournals(journals));
+        const view = profitLossViewFromJournals(journals);
+        renderView(view);
+        if (view.state !== "error") {
+          void logActivityEvent("profit_and_loss_viewed", reportActivityIdempotencyKey);
+        }
       } catch (error) {
         if (sequence !== loadSequence) return;
         journals = [];
