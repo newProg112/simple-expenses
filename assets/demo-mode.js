@@ -1,5 +1,4 @@
-export const DEMO_RESET_PLACEHOLDER_MESSAGE =
-  "Demo reset will be added in a later phase.";
+import { effectiveProductPlan } from "../resources/js/plan-entitlements.js?v=20260806-demo-pro1";
 
 let currentUser = null;
 let currentAccountData = null;
@@ -17,6 +16,21 @@ export function isDemoMode(
 
 export function shouldShowDemoBanner(user, accountData){
   return isDemoMode(user, accountData);
+}
+
+export function resolveProductAccess(accountData = {}, billingProfile = {}){
+  const demo = accountData?.demoMode === true;
+  const effectivePlan = effectiveProductPlan(billingProfile?.currentPlan, demo);
+  return Object.freeze({
+    demo,
+    effectivePlan,
+    accessLabel: demo ? "Full Pro demo" : effectivePlan,
+    planLabel: demo ? "Pro Demo" : effectivePlan,
+    billingLabel: demo ? "Not billed" : "",
+    subscriptionLabel: demo ? "Demo account" : "",
+    source: demo ? "demo-entitlement" : "billing-profile",
+    paidSubscription: demo ? false : null
+  });
 }
 
 function updateDemoModeContext(user, accountData){
@@ -106,22 +120,4 @@ export async function watchDemoMode(listener, services){
     notifySafely(listener, false);
     return () => {};
   }
-}
-
-export function showDemoResetPlaceholder(notify){
-  const showMessage = typeof notify === "function"
-    ? notify
-    : message => {
-        if(typeof window !== "undefined" && typeof window.alert === "function"){
-          window.alert(message);
-        }
-      };
-
-  showMessage(DEMO_RESET_PLACEHOLDER_MESSAGE);
-  return DEMO_RESET_PLACEHOLDER_MESSAGE;
-}
-
-export function handleDemoResetClick(event, notify){
-  event?.preventDefault?.();
-  return showDemoResetPlaceholder(notify);
 }

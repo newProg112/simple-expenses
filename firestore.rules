@@ -11,7 +11,11 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read, write: if isOwner(uid);
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid);
+      // Shared demo business/account settings are immutable to the demo user.
+      // Nested transactional collections retain the separate owner rule below.
+      allow update, delete: if isOwner(uid) && resource.data.demoMode != true;
     }
 
     match /users/{uid}/{document=**} {

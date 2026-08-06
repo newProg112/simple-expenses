@@ -170,6 +170,10 @@ export function normalizeAdminUserDetailsPayload(payload){
     plan: Object.freeze({
       currentPlan: firstDefined(planSource.currentPlan, source.currentPlan,
         typeof source.plan === "string" ? source.plan : undefined, ""),
+      effectivePlan: firstDefined(planSource.effectivePlan, source.effectivePlan, ""),
+      accessLabel: firstDefined(planSource.accessLabel, source.accessLabel, ""),
+      billingLabel: firstDefined(planSource.billingLabel, source.billingLabel, ""),
+      subscriptionLabel: firstDefined(planSource.subscriptionLabel, source.subscriptionLabel, ""),
       subscriptionStatus: firstDefined(planSource.subscriptionStatus, source.subscriptionStatus, ""),
       currentPeriodEnd: firstDefined(planSource.currentPeriodEnd, source.currentPeriodEnd, null),
       activePaidSubscription: firstDefined(planSource.activePaidSubscription, source.activePaidSubscription, null)

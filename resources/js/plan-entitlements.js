@@ -64,6 +64,10 @@ export function normalisePlan(plan) {
   return plan === PLAN_IDS.PRO ? PLAN_IDS.PRO : PLAN_IDS.STARTER;
 }
 
+export function effectiveProductPlan(plan, demoMode = false) {
+  return demoMode === true ? PLAN_IDS.PRO : normalisePlan(plan);
+}
+
 export function getPlanEntitlements(plan) {
   return PLAN_ENTITLEMENTS[normalisePlan(plan)];
 }

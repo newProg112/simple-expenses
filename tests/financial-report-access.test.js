@@ -61,6 +61,10 @@ describe.each(reports)("$label access", ({ id, label }) => {
       upgradeLabel: "Upgrade to Pro"
     });
   });
+
+  it("allows an authoritative Starter-backed demo", () => {
+    expect(getFinancialReportAccess(PLAN_IDS.STARTER, id, true).allowed).toBe(true);
+  });
 });
 
 describe("Financial Reports page integration", () => {

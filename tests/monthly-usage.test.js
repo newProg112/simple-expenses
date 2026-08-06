@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   USAGE_ENFORCEMENT_DISABLED_MESSAGE,
+  USAGE_LOADING_MESSAGE,
   USAGE_TRACKING_DISABLED_MESSAGE,
   buildMonthlyUsageView,
   buildUsageMetric
@@ -18,8 +19,8 @@ const fixedMonth = "2026-07";
 describe("monthly usage presentation", () => {
   it("renders Starter allowances and remaining usage", () => {
     const view = buildMonthlyUsageView({
-      profile: { currentPlan: "Starter" },
       usage: {
+        effectivePlan: "Starter",
         aiAssistantSuccessfulUses: 3,
         invoiceScanningSuccessfulUses: 4
       },
@@ -43,8 +44,8 @@ describe("monthly usage presentation", () => {
 
   it("renders Pro allowances from the entitlement definitions", () => {
     const view = buildMonthlyUsageView({
-      profile: { currentPlan: "Pro" },
       usage: {
+        effectivePlan: "Pro",
         aiAssistantSuccessfulUses: 120,
         invoiceScanningSuccessfulUses: 25
       },
@@ -65,6 +66,19 @@ describe("monthly usage presentation", () => {
     });
   });
 
+  it("renders Pro demo allowances without describing them as billed", () => {
+    const view = buildMonthlyUsageView({
+      profile: { currentPlan: "Starter" },
+      usage: {effectivePlan: "Pro", demoMode: true, entitlementSource: "demo-entitlement"},
+      monthKey: fixedMonth,
+      trackingEnabled: true
+    });
+    expect(view).toMatchObject({plan: "Pro", demoMode: true, entitlementSource: "demo-entitlement"});
+    expect(view.aiAssistant.allowance).toBe(500);
+    expect(view.invoiceScanning.allowance).toBe(500);
+    expect(view.message).toContain("not billed");
+  });
+
   it("renders deliberate unlimited allowances as Unlimited", () => {
     expect(buildUsageMetric(null, 123)).toEqual({
       allowance: "Unlimited",
@@ -73,36 +87,43 @@ describe("monthly usage presentation", () => {
     });
   });
 
-  it("defaults a missing usage document to zero usage", () => {
+  it("keeps missing authoritative usage in a neutral loading state", () => {
     const view = buildMonthlyUsageView({
-      profile: { currentPlan: "Starter" },
       monthKey: fixedMonth
     });
 
     expect(view.aiAssistant.current).toBe(0);
-    expect(view.aiAssistant.remaining).toBe(10);
+    expect(view.aiAssistant.allowance).toBe("—");
+    expect(view.aiAssistant.remaining).toBe("—");
     expect(view.invoiceScanning.current).toBe(0);
-    expect(view.invoiceScanning.remaining).toBe(10);
+    expect(view.invoiceScanning.allowance).toBe("—");
+    expect(view.invoiceScanning.remaining).toBe("—");
+    expect(view.message).toBe(USAGE_LOADING_MESSAGE);
   });
 
-  it("fails a missing profile safely to Starter", () => {
+  it("does not infer Starter from a missing or cached profile", () => {
     const view = buildMonthlyUsageView({
+      profile: { currentPlan: "Starter" },
       usage: {},
       monthKey: fixedMonth
     });
 
-    expect(view.plan).toBe("Starter");
-    expect(view.aiAssistant.allowance).toBe(10);
-    expect(view.invoiceScanning.allowance).toBe(10);
+    expect(view.plan).toBe("");
+    expect(view.displayPlan).toBe("Checking access");
+    expect(view.aiAssistant.allowance).toBe("—");
+    expect(view.invoiceScanning.allowance).toBe("—");
   });
 
   it("distinguishes counting from enforcement", () => {
-    const disabled = buildMonthlyUsageView({ monthKey: fixedMonth });
+    const authoritativeUsage = { effectivePlan: "Starter" };
+    const disabled = buildMonthlyUsageView({ usage: authoritativeUsage, monthKey: fixedMonth });
     const counting = buildMonthlyUsageView({
+      usage: authoritativeUsage,
       monthKey: fixedMonth,
       trackingEnabled: true
     });
     const enforced = buildMonthlyUsageView({
+      usage: authoritativeUsage,
       monthKey: fixedMonth,
       trackingEnabled: true,
       enforcementEnabled: true
@@ -121,8 +142,8 @@ describe("monthly usage presentation", () => {
 
   it("normalises malformed usage values and never shows negative remaining", () => {
     const view = buildMonthlyUsageView({
-      profile: { currentPlan: "Starter" },
       usage: {
+        effectivePlan: "Starter",
         aiAssistantSuccessfulUses: -4,
         invoiceScanningSuccessfulUses: 999
       },
@@ -142,6 +163,12 @@ describe("read-only monthly usage source", () => {
     const firestore = {
       collection: collectionName => ({
         doc: uid => ({
+          get: async () => ({
+            exists: true,
+            data: () => collectionName === "users"
+              ? { demoMode: false }
+              : { currentPlan: "Starter" }
+          }),
           collection: subcollection => ({
             doc: monthKey => ({
               get: async () => {
@@ -171,8 +198,17 @@ describe("read-only monthly usage source", () => {
       .toBe("userProfiles/authenticated-user/usage/2026-12");
     expect(usage).toEqual({
       monthKey: "2026-12",
+      effectivePlan: "Starter",
+      displayPlan: "Starter",
+      entitlementSource: "billing-profile",
+      demoMode: false,
+      isDemo: false,
       aiAssistantSuccessfulUses: 4,
-      invoiceScanningSuccessfulUses: 0
+      aiAssistantAllowance: 10,
+      aiAssistantRemaining: 6,
+      invoiceScanningSuccessfulUses: 0,
+      invoiceScanningAllowance: 10,
+      invoiceScanningRemaining: 10
     });
     expect(buildMonthlyUsageView({
       profile: { currentPlan: "Starter" },
@@ -191,6 +227,7 @@ describe("read-only monthly usage source", () => {
     const firestore = {
       collection: () => ({
         doc: () => ({
+          get: async () => ({ exists: false }),
           collection: () => ({
             doc: () => ({
               get: async () => ({ exists: false })
@@ -206,9 +243,62 @@ describe("read-only monthly usage source", () => {
       new Date("2026-07-24T00:00:00.000Z")
     )).resolves.toEqual({
       monthKey: fixedMonth,
+      effectivePlan: "Starter",
+      displayPlan: "Starter",
+      entitlementSource: "billing-profile",
+      demoMode: false,
+      isDemo: false,
       aiAssistantSuccessfulUses: 0,
-      invoiceScanningSuccessfulUses: 0
+      aiAssistantAllowance: 10,
+      aiAssistantRemaining: 10,
+      invoiceScanningSuccessfulUses: 0,
+      invoiceScanningAllowance: 10,
+      invoiceScanningRemaining: 10
     });
+  });
+
+  it("returns authoritative Pro Demo allowances and remaining usage", async () => {
+    const firestore = {
+      collection: collectionName => ({
+        doc: () => ({
+          get: async () => ({
+            exists: true,
+            data: () => collectionName === "users"
+              ? { demoMode: true }
+              : { currentPlan: "Starter" }
+          }),
+          collection: () => ({
+            doc: () => ({
+              get: async () => ({
+                exists: true,
+                data: () => ({
+                  aiAssistantSuccessfulUses: 1,
+                  invoiceScanningSuccessfulUses: 0
+                })
+              })
+            })
+          })
+        })
+      })
+    };
+
+    const usage = await readMonthlyUsage(firestore, "official-demo", new Date("2026-07-24T00:00:00Z"));
+    expect(usage).toMatchObject({
+      effectivePlan: "Pro",
+      displayPlan: "Pro Demo",
+      demoMode: true,
+      isDemo: true,
+      aiAssistantSuccessfulUses: 1,
+      aiAssistantAllowance: 500,
+      aiAssistantRemaining: 499,
+      invoiceScanningSuccessfulUses: 0,
+      invoiceScanningAllowance: 500,
+      invoiceScanningRemaining: 500
+    });
+    const view = buildMonthlyUsageView({ usage, monthKey: usage.monthKey, trackingEnabled: true });
+    expect(view.displayPlan).toBe("Pro Demo");
+    expect(view.aiAssistant).toEqual({ allowance: 500, current: 1, remaining: 499 });
+    expect(view.invoiceScanning).toEqual({ allowance: 500, current: 0, remaining: 500 });
   });
 });
 
@@ -247,14 +337,12 @@ describe("Account page monthly usage integration", () => {
     ]) {
       expect(accountHtml).toContain(`id="${id}"`);
     }
-    expect(accountHtml).toContain(
-      "AI Assistant and Invoice Scanning usage are being counted. Monthly limits are not enforced yet."
-    );
+    expect(accountHtml).toContain("Checking authoritative monthly usage…");
   });
 
   it("uses the entitlement-backed presentation helper", () => {
     expect(accountHtml).toContain(
-      'from "./resources/js/monthly-usage.js?v=20260728-phase4d"'
+      'from "./resources/js/monthly-usage.js?v=20260806-demo-pro2"'
     );
     expect(accountHtml).toContain("buildMonthlyUsageView({");
     expect(accountHtml).toContain("MONTHLY_USAGE_FUNCTION_URL");
@@ -272,7 +360,7 @@ describe("Account page monthly usage integration", () => {
       expect(assistantHtml).toContain(`id="${id}"`);
     }
     expect(assistantHtml).toContain(
-      'import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260728-phase4d"'
+      'import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260806-demo-pro2"'
     );
     expect(assistantHtml).toContain(
       "cloudfunctions.net/getMonthlyUsage"
@@ -283,6 +371,9 @@ describe("Account page monthly usage integration", () => {
     );
     expect(assistantHtml).not.toContain("Preview data");
     expect(assistantHtml).not.toContain("Usage tracking is not yet enabled.");
+    expect(assistantHtml).not.toContain('max="10"');
+    expect(assistantHtml).not.toContain(">0 of 10</progress>");
+    expect(assistantHtml).toContain("usagePlan.textContent = view.displayPlan");
   });
 
   it("keeps the backend endpoint authenticated and read-only", () => {
@@ -298,6 +389,12 @@ describe("Account page monthly usage integration", () => {
     expect(functionsIndex).toContain(
       "enforcementEnabled: AI_USAGE_ENFORCEMENT_ENABLED"
     );
+    const monthlyUsageEndpoint = functionsIndex.slice(
+      functionsIndex.indexOf("exports.getMonthlyUsage = onRequest("),
+      functionsIndex.indexOf("exports.getAdminMetrics = onCall(")
+    );
+    expect(monthlyUsageEndpoint).toContain('"https://simple-books-office.web.app"');
+    expect(monthlyUsageEndpoint).toContain('"http://localhost:8000"');
     expect(usageReader).toContain(".get()");
     expect(usageReader).not.toMatch(/\.(set|create|update|delete)\(/);
   });

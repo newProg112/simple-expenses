@@ -1,9 +1,10 @@
 import {
   PLAN_IDS,
+  effectiveProductPlan,
   getPlanEntitlements,
   isUnlimited,
   normalisePlan
-} from "./plan-entitlements.js";
+} from "./plan-entitlements.js?v=20260806-demo-pro1";
 
 export const PROJECT_STATUS = Object.freeze({
   ACTIVE: "Active",
@@ -15,14 +16,15 @@ export function countActiveProjects(projects = []) {
   return projects.filter(project => project?.status === PROJECT_STATUS.ACTIVE).length;
 }
 
-export function canUseAnotherActiveProject(plan, projects = []) {
-  const { activeProjectsLimit } = getPlanEntitlements(plan);
+export function canUseAnotherActiveProject(plan, projects = [], demoMode = false) {
+  const { activeProjectsLimit } = getPlanEntitlements(effectiveProductPlan(plan, demoMode));
   return isUnlimited(activeProjectsLimit) ||
     countActiveProjects(projects) < activeProjectsLimit;
 }
 
 export function canSaveProjectStatus({
   plan,
+  demoMode = false,
   projects = [],
   projectId = null,
   nextStatus
@@ -36,11 +38,11 @@ export function canSaveProjectStatus({
     return true;
   }
 
-  return canUseAnotherActiveProject(plan, projects);
+  return canUseAnotherActiveProject(plan, projects, demoMode);
 }
 
-export function activeProjectLimitMessage(plan) {
-  const normalisedPlan = normalisePlan(plan);
+export function activeProjectLimitMessage(plan, demoMode = false) {
+  const normalisedPlan = effectiveProductPlan(normalisePlan(plan), demoMode);
   const { activeProjectsLimit } = getPlanEntitlements(normalisedPlan);
 
   if (isUnlimited(activeProjectsLimit)) {

@@ -460,8 +460,8 @@
     }
   </style>
 
-  <link rel="stylesheet" href="/assets/app-shell.css?v=20260723-shell1">
-  <script type="module" src="/assets/app-shell.js?v=20260723-shell1"></script>
+  <link rel="stylesheet" href="/assets/app-shell.css?v=20260806-demo-pro2">
+  <script type="module" src="/assets/app-shell.js?v=20260806-demo-pro2"></script>
 </head>
 
 <body>
@@ -618,11 +618,11 @@
       query,
       where
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { REPORT_IDS } from "../js/plan-entitlements.js";
+    import { REPORT_IDS } from "../js/plan-entitlements.js?v=20260806-demo-pro1";
     import {
       getFinancialReportAccess,
       renderFinancialReportAccess
-    } from "../js/financial-report-access.js";
+    } from "../js/financial-report-access.js?v=20260806-demo-pro1";
     import { requireJournalOwnerId } from "../js/trial-balance-view.js";
     import {
       balanceSheetErrorView,
@@ -829,7 +829,10 @@
 
     async function authoriseBalanceSheet(user) {
       try {
-        const profile = await getDoc(doc(db, "userProfiles", user.uid));
+        const [account, profile] = await Promise.all([
+          getDoc(doc(db, "users", user.uid)),
+          getDoc(doc(db, "userProfiles", user.uid))
+        ]);
         if (auth.currentUser?.uid !== user.uid) {
           return;
         }
@@ -838,7 +841,8 @@
           : undefined;
         const access = getFinancialReportAccess(
           profilePlan,
-          REPORT_IDS.BALANCE_SHEET
+          REPORT_IDS.BALANCE_SHEET,
+          account.exists() && account.data().demoMode === true
         );
         renderFinancialReportAccess(access, { gate: accessGate, reportContent });
 

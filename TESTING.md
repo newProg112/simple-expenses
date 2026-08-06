@@ -1,5 +1,117 @@
 # Testing
 
+## Demo Experience Phase — Full Pro showcase and protected account settings
+
+The authoritative `users/{uid}.demoMode === true` flag now layers an effective
+Pro product entitlement over the account's truthful stored billing plan. The
+official demo is labelled `Pro Demo`, `Full Pro demo`, `Not billed`, and `Demo
+account`; it is never treated as an active paid subscription, Pro conversion,
+or MRR. The canonical seed deliberately does not write `currentPlan` or Stripe
+fields. AI Assistant and Invoice Scanning use their existing Pro allowance
+values, projects use the existing Pro capacity, and all advanced reports and
+the Accountant Pack use the same calculations as ordinary Pro accounts.
+
+The Account page starts subscription actions hidden until authoritative access
+loads. Demo business fields, bank/VAT details, plan settings, and logo actions
+are disabled and guarded in client logic. Firestore rules reject updates and
+deletes to the demo's root `users/{uid}` business document while preserving
+owner writes to nested transactional collections. Checkout, Billing Portal,
+and Stripe webhook profile updates independently read authoritative demo mode
+and refuse billing mutations. Normal Starter and Pro paths are unchanged.
+
+Monthly usage is also authoritative: `getMonthlyUsage` reads the authenticated
+user's root account document and returns effective/display plan, demo status,
+current counters, allowances and remaining values. Clients stay in a neutral
+loading/unavailable state when that response is missing or stale; they do not
+fall back to a cached Starter profile. `resetDemoEnvironment` accepts no target
+UID, derives the account from `request.auth.uid`, verifies literal
+`demoMode: true`, and reuses the canonical clear-and-seed engine. The shared
+banner provides confirmation, one in-flight request, live status, safe errors,
+and a reload after success.
+
+Account plan and subscription presentation resolves independently from monthly
+usage. The direct `userProfiles/{uid}` read remains the billing source of truth;
+the root `users/{uid}` read supplies authoritative demo status and business
+details. A missing root account document is a valid non-demo empty profile, and
+a missing billing profile settles to Starter. Optional `ensureUserProfile`
+creation runs in the background and cannot block those reads. Genuine Firestore
+lookup failures settle to a recoverable `Unavailable` state, while a per-auth
+request version prevents an older response from overwriting a newer user's
+resolved access.
+
+Focused automated coverage:
+
+```powershell
+npm.cmd test -- tests/demo-pro-showcase.test.js tests/demo-mode.test.js tests/demo-reset.test.js tests/plan-entitlements.test.js tests/financial-report-access.test.js tests/accountant-pack-access.test.js tests/project-access.test.js tests/monthly-usage.test.js tests/ai-usage.test.js tests/admin-user-details.test.js tests/admin-metrics.test.js tests/admin-customer-analytics.test.js
+```
+
+Account access-state regression coverage:
+
+```powershell
+npm.cmd test -- tests/account-access-state.test.js tests/demo-mode.test.js tests/monthly-usage.test.js tests/analytics-events.test.js
+```
+
+Manual verification:
+
+1. Sign into the official demo account and confirm Account shows `Pro Demo` and
+   `Full Pro demo`, not Starter.
+2. Confirm Billing says `Not billed`, Subscription status says `Demo account`,
+   and no renewal, paid-subscription, or billing-period claim appears.
+3. Confirm Upgrade to Pro is absent.
+4. Confirm Manage Subscription is absent.
+5. Confirm protected identity, business, address, VAT, company, bank, website,
+   phone, payment-term, and plan controls cannot be edited or saved.
+6. Confirm the company logo cannot be uploaded, replaced, or removed.
+7. Open Trial Balance and confirm the report renders without an upgrade gate.
+8. Open General Ledger and confirm the report renders without an upgrade gate.
+9. Open Profit & Loss and confirm the report renders without an upgrade gate.
+10. Open Balance Sheet and confirm the report renders without an upgrade gate.
+11. Open Exports and generate the Accountant Pack.
+12. Confirm Account and AI Assistant show `Pro Demo`, AI usage `1 of 500` with
+    499 remaining for a one-use fixture, and no Starter/10 flash or billed-usage
+    wording.
+13. Confirm Account shows Invoice Scanning `0 of 500` with 500 remaining for a
+    zero-use fixture and that scan-limit responses use the same Pro allowance.
+14. Create and edit ordinary invoices, bills, expenses, mileage claims,
+    clients, projects, and budgets; confirm these transactional records remain
+    writable.
+15. Use Reset Demo, cancel once, then confirm once. Verify the button prevents
+    duplicate requests, reports loading/success, reloads canonical business
+    data, preserves `demoMode: true` and full Pro demo access, and creates no
+    Stripe subscription. Stop Functions locally and confirm the real callable
+    error appears instead of legacy placeholder text.
+16. Sign into a real Starter test account and confirm report, Accountant Pack,
+    AI/scanning allowance, and five-active-project gates still apply.
+17. Sign into a real paid Pro test account and confirm Pro access plus ordinary
+    Billing Portal controls still work.
+    Also test a Pro profile without active subscription evidence: it may show
+    the recorded Pro product plan, but must not show paid/renewal details or a
+    Manage Subscription action.
+18. Invoke the checkout and portal endpoints with the demo user's ID token and
+    confirm both return HTTP 409 without contacting Stripe; repeat with suitable
+    normal test accounts and confirm the usual flows remain available.
+19. Check Admin User Details shows `Demo account / Full Pro demo access`, and
+    confirm Demo Analytics still records activity while Customer Analytics,
+    Pro-conversion, active-paid, and MRR metrics exclude the official demo.
+20. Repeat on wide desktop, laptop, tablet, and mobile; verify the banner and
+    lock explanation remain readable, Reset Demo is keyboard accessible, no
+    upgrade action flashes during loading, and the browser console stays clear.
+21. Sign into an ordinary Starter fixture with no `users/{uid}` document and a
+    missing or Starter `userProfiles/{uid}` document. Confirm every Account plan
+    surface settles to Starter, shows the existing upgrade presentation, and
+    never remains on `Checking access`. Block the optional profile-creation
+    request and repeat; direct Firestore plan resolution must still complete.
+22. Deny one Account Firestore lookup and confirm plan surfaces settle to
+    `Unavailable` with refresh guidance rather than loading forever or using a
+    cached plan. Switch users while throttling the first lookup and confirm the
+    older response cannot overwrite the second user's plan.
+
+Production smoke testing requires Hosting, Functions (including
+`getMonthlyUsage` and `resetDemoEnvironment`), and Firestore rules to be
+deployed together. After deployment, repeat steps 1–4, 7–13, 15, and 18–20 with
+approved non-production/demo identities and verify no Stripe customer or
+subscription was created for the demo.
+
 ## Customer Analytics Phase 3 — Business Intelligence
 
 `getAdminCustomerAnalytics` now returns `schemaVersion: 3` and a privacy-limited `businessIntelligence` projection. It reuses the existing admin UID allow-list, demo identity filtering, `demoMode` exclusion and qualifying safe-event policy. The new projection contains only the fields rendered by the owner-only dashboard: sanitized business names and emails where support tables require them, current plan and supported subscription-status labels, monthly AI/scanning counters, safe-event counts and UTC timestamps. It does not return raw events, document paths, event metadata, private notes, Stripe identifiers, transaction amounts or financial records.

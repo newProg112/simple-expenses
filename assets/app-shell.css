@@ -80,6 +80,24 @@ body[data-sidebar-state="collapsed"]{
   transition:background-color .16s ease, color .16s ease, transform .16s ease;
 }
 
+.sb-demo-reset-actions{
+  display:grid;
+  flex:0 0 auto;
+  gap:5px;
+  justify-items:end;
+}
+
+.sb-demo-banner .sb-demo-reset-status{
+  max-width:280px;
+  text-align:right;
+}
+
+.sb-demo-reset-button:disabled{
+  cursor:wait;
+  opacity:.72;
+  transform:none;
+}
+
 .sb-demo-reset-button:hover{
   background:#0284c7;
   color:#fff;
@@ -474,6 +492,15 @@ body[data-sidebar-state="collapsed"]{
 
   .sb-demo-reset-button{
     width:100%;
+  }
+
+  .sb-demo-reset-actions{
+    justify-items:stretch;
+  }
+
+  .sb-demo-banner .sb-demo-reset-status{
+    max-width:none;
+    text-align:left;
   }
 }
 

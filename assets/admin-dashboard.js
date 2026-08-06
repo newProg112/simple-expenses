@@ -1403,10 +1403,14 @@ function renderCustomerDetails(details){
   setCustomerText("customerLastSignInValue", formatAdminDate(account.lastSignInDate));
   setCustomerText("customerEmailVerifiedValue", friendlyBoolean(account.emailVerified));
   renderCustomerAccountBadges(account.badges);
-  setCustomerText("customerPlanValue", friendlyText(plan.currentPlan));
-  setCustomerText("customerSubscriptionValue", plan.subscriptionStatus
+  setCustomerText("customerPlanValue", account.demo
+    ? `${friendlyText(plan.currentPlan)} stored / ${friendlyText(plan.accessLabel)}`
+    : friendlyText(plan.currentPlan));
+  setCustomerText("customerSubscriptionValue", plan.subscriptionLabel
+    ? `${plan.subscriptionLabel} / ${plan.billingLabel || "Not billed"}`
+    : (plan.subscriptionStatus
     ? formatSubscriptionStatus(plan.subscriptionStatus)
-    : "Not available");
+    : "Not available"));
   setCustomerText("customerPeriodEndValue", formatAdminDate(plan.currentPeriodEnd));
   setCustomerText("customerActivePaidValue", friendlyBoolean(plan.activePaidSubscription));
   setCustomerText("customerAiUsageValue", formatUsageWithAllowance(usage.aiAssistantSuccessfulUses, usage.aiAssistantAllowance));

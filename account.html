@@ -655,8 +655,8 @@
       }
     }
   </style>
-  <link rel="stylesheet" href="/assets/app-shell.css?v=20260723-shell1">
-  <script type="module" src="/assets/app-shell.js?v=20260723-shell1"></script>
+  <link rel="stylesheet" href="/assets/app-shell.css?v=20260806-demo-pro2">
+  <script type="module" src="/assets/app-shell.js?v=20260806-demo-pro2"></script>
 </head>
 
 <body>
@@ -683,7 +683,7 @@
         <div class="account-summary">
           <div>
             <span class="summary-label">Plan</span>
-            <strong id="summaryPlan">Starter</strong>
+            <strong id="summaryPlan">Checking access</strong>
           </div>
 
           <div>
@@ -708,7 +708,7 @@
         <div class="mini-card">
           <div class="mini-title">Current plan</div>
           <div class="muted">Active subscription</div>
-          <strong id="planStatus">Starter</strong>
+          <strong id="planStatus">Checking access</strong>
         </div>
 
         <div class="mini-card">
@@ -815,13 +815,13 @@
             <h2>Subscription</h2>
             <div class="muted" id="subscriptionKicker">Current plan</div>
           </div>
-          <span class="plan-badge" id="subscriptionPlan">Starter</span>
+          <span class="plan-badge" id="subscriptionPlan">Checking access</span>
         </div>
 
         <div>
-          <div class="subscription-price" id="subscriptionPrice">Starter</div>
+          <div class="subscription-price" id="subscriptionPrice">Loading</div>
           <p class="muted" id="subscriptionMessage">
-            Upgrade to Pro for £15/month.
+            Verifying account access and billing status.
           </p>
           <div class="subscription-meta" id="subscriptionMeta" hidden>
             <div id="subscriptionRenewal"></div>
@@ -830,10 +830,10 @@
         </div>
 
         <div class="subscription-actions">
-          <button class="btn btn-primary" id="upgradePlanBtn" type="button">
+          <button class="btn btn-primary" id="upgradePlanBtn" type="button" hidden style="display:none;">
             Upgrade to Pro
           </button>
-          <button class="btn btn-primary" id="manageSubscriptionBtn" type="button" style="display:none;">
+          <button class="btn btn-primary" id="manageSubscriptionBtn" type="button" hidden style="display:none;">
             Manage Subscription
           </button>
           <div class="checkout-status" id="checkoutStatus" role="status" aria-live="polite"></div>
@@ -852,7 +852,7 @@
           id="monthlyUsageStatus"
           role="status"
           aria-live="polite"
-        >AI Assistant and Invoice Scanning usage are being counted. Monthly limits are not enforced yet.</p>
+        >Checking authoritative monthly usage…</p>
       </div>
 
       <div class="monthly-usage-grid">
@@ -896,6 +896,11 @@
           </dl>
         </article>
       </div>
+    </section>
+
+    <section class="card" id="demoAccountLockNotice" role="status" aria-live="polite" hidden style="margin-top:18px;">
+      <h2>Shared demo settings are locked</h2>
+      <p class="muted">You can explore business features and reset demo data, but identity, business, logo and subscription settings cannot be changed.</p>
     </section>
 
     <div class="grid">
@@ -1038,9 +1043,14 @@
     import { app, auth, db } from "./firebase-config.js";
     import { trackBeginCheckout } from "./assets/analytics-events.js?v=20260802-analytics1";
     import { trackDemoAnalyticsEvent } from "./assets/demo-analytics.js?v=20260805-demo-analytics1";
+    import { resolveProductAccess } from "./assets/demo-mode.js?v=20260806-demo-pro3";
+    import {
+      createAccountAccessRequestTracker,
+      resolveAccountAccessSnapshot
+    } from "./assets/account-access-state.js?v=20260806-demo-pro3";
     import {
       buildMonthlyUsageView
-    } from "./resources/js/monthly-usage.js?v=20260728-phase4d";
+    } from "./resources/js/monthly-usage.js?v=20260806-demo-pro2";
 
     import {
       onAuthStateChanged,
@@ -1084,12 +1094,21 @@
 
     let currentUser = null;
     let billingProfile = {};
+    let productAccess = null;
+    let accountAccessError = false;
+    const accountAccessRequests = createAccountAccessRequestTracker();
     let checkoutOpening = false;
     let billingPortalOpening = false;
     const storage = getStorage(app);
     const companyLogoPath = uid => `users/${uid}/branding/company-logo`;
     const allowedLogoTypes = ["image/png", "image/jpeg", "image/webp"];
     const allowedLogoExtensions = [".png", ".jpg", ".jpeg", ".webp"];
+    const protectedDemoFieldIds = [
+      "fullName", "email", "role", "businessName", "businessEmail", "phoneNumber",
+      "businessType", "addressLine1", "addressLine2", "townCity", "postcode",
+      "vatRegistered", "vatNumber", "businessWebsite", "companyNumber",
+      "paymentTermsDefault", "accountName", "sortCode", "accountNumber"
+    ];
 
     let companyLogoUrl = "";
     let usageCounts = {
@@ -1157,6 +1176,27 @@
         paymentMethodBrand: profile.paymentMethodBrand,
         paymentMethodLast4: profile.paymentMethodLast4
       };
+    }
+
+    function demoSettingsLocked(){
+      return productAccess?.demo === true;
+    }
+
+    function setProtectedSettingsDisabled(disabled){
+      protectedDemoFieldIds.forEach(id => {
+        const field = document.getElementById(id);
+        if(field) field.disabled = disabled;
+      });
+      document.getElementById("currentPlan").disabled = true;
+      saveBtn.disabled = disabled;
+      companyLogoInput.disabled = disabled;
+      removeLogoBtn.disabled = disabled || !companyLogoUrl;
+    }
+
+    function applyProductAccessState(){
+      const locked = demoSettingsLocked();
+      setProtectedSettingsDisabled(locked || (Boolean(currentUser) && productAccess === null));
+      document.getElementById("demoAccountLockNotice").hidden = !locked;
     }
 
     function clearAccountCacheForUserChange(user){
@@ -1379,9 +1419,8 @@
       setText("usageExpenses", usageCounts.expenses);
     }
 
-    function renderMonthlyUsage(account = {}){
+    function renderMonthlyUsage(){
       const view = buildMonthlyUsageView({
-        profile: account,
         usage: monthlyUsage,
         monthKey: monthlyUsage.monthKey,
         trackingEnabled: monthlyUsage.trackingEnabled,
@@ -1400,7 +1439,7 @@
 
     function resetMonthlyUsage(){
       monthlyUsage = {};
-      renderMonthlyUsage(accountWithBilling(currentAccountSnapshot()));
+      renderMonthlyUsage();
     }
 
     async function loadMonthlyUsageFromBackend(){
@@ -1429,7 +1468,7 @@
         monthlyUsage = {};
       }
 
-      renderMonthlyUsage(accountWithBilling(currentAccountSnapshot()));
+      renderMonthlyUsage();
     }
 
     function resetUsageStats(){
@@ -1483,11 +1522,11 @@
       renderUsageStats();
     }
 
-    async function ensureUserProfile(){
-      if(!currentUser) return;
+    async function ensureUserProfile(user = currentUser){
+      if(!user) return;
 
       try {
-        const idToken = await currentUser.getIdToken();
+        const idToken = await user.getIdToken();
         const response = await fetch(ENSURE_PROFILE_FUNCTION_URL, {
           method: "POST",
           headers: {
@@ -1505,6 +1544,42 @@
     }
 
     function renderSubscriptionCard(account){
+      if(productAccess === null && currentUser){
+        setText("subscriptionPlan", accountAccessError ? "Unavailable" : "Checking access");
+        setText("subscriptionKicker", "Current access");
+        setText("subscriptionPrice", accountAccessError ? "Unavailable" : "Loading");
+        setText(
+          "subscriptionMessage",
+          accountAccessError
+            ? "Plan and billing details could not be loaded. Refresh to try again."
+            : "Verifying account access and billing status."
+        );
+        setCheckoutStatus(
+          accountAccessError ? "Account access is temporarily unavailable." : "",
+          accountAccessError
+        );
+        upgradePlanBtn.style.display = "none";
+        upgradePlanBtn.hidden = true;
+        manageSubscriptionBtn.style.display = "none";
+        manageSubscriptionBtn.hidden = true;
+        renderSubscriptionMeta(account, false);
+        return;
+      }
+
+      if(productAccess?.demo){
+        setText("subscriptionPlan", productAccess.planLabel);
+        setText("subscriptionKicker", "Current access");
+        setText("subscriptionPrice", productAccess.accessLabel);
+        setText("subscriptionMessage", "Billing: Not billed. Subscription status: Demo account.");
+        setCheckoutStatus("This demo includes full Pro access. Subscription management is unavailable in the shared demo account.");
+        upgradePlanBtn.style.display = "none";
+        upgradePlanBtn.hidden = true;
+        manageSubscriptionBtn.style.display = "none";
+        manageSubscriptionBtn.hidden = true;
+        renderSubscriptionMeta(account, false);
+        return;
+      }
+
       const currentPlan = normalizePlan(account.currentPlan);
       const subscriptionStatus = normalizeSubscriptionStatus(account.subscriptionStatus);
       const overrideReason = account.billingOverrideReason
@@ -1562,12 +1637,14 @@
         upgradePlanBtn.textContent = checkoutOpening ? "Opening..." : "Upgrade to Pro";
         upgradePlanBtn.disabled = checkoutOpening;
         upgradePlanBtn.style.display = canUpgrade ? "" : "none";
+        upgradePlanBtn.hidden = !canUpgrade;
       }
 
       if(manageSubscriptionBtn){
         manageSubscriptionBtn.textContent = billingPortalOpening ? "Opening..." : "Manage Subscription";
         manageSubscriptionBtn.disabled = billingPortalOpening;
         manageSubscriptionBtn.style.display = canManageSubscription ? "" : "none";
+        manageSubscriptionBtn.hidden = !canManageSubscription;
       }
 
       renderSubscriptionMeta(account, canManageSubscription);
@@ -1580,6 +1657,19 @@
     }
 
     async function startStripeCheckout(){
+      if(productAccess === null){
+        setCheckoutStatus(
+          accountAccessError
+            ? "Account access is unavailable. Refresh and try again."
+            : "Account access is still loading. Please wait.",
+          true
+        );
+        return;
+      }
+      if(demoSettingsLocked()){
+        setCheckoutStatus("Subscription changes are unavailable in the shared demo account.", true);
+        return;
+      }
       if(checkoutOpening){
         return;
       }
@@ -1649,6 +1739,19 @@
     }
 
     async function openBillingPortal(){
+      if(productAccess === null){
+        setCheckoutStatus(
+          accountAccessError
+            ? "Account access is unavailable. Refresh and try again."
+            : "Account access is still loading. Please wait.",
+          true
+        );
+        return;
+      }
+      if(demoSettingsLocked()){
+        setCheckoutStatus("Subscription management is unavailable in the shared demo account.", true);
+        return;
+      }
       if(billingPortalOpening){
         return;
       }
@@ -1717,7 +1820,7 @@
     function renderAccountInsightCards(account){
       renderSetupCard(account);
       renderUsageStats();
-      renderMonthlyUsage(account);
+      renderMonthlyUsage();
       renderSubscriptionCard(account);
     }
 
@@ -1774,21 +1877,29 @@
       writeAccountCache(saved);
     }
 
-    async function loadAccount(){
+    async function loadAccount(user = currentUser, accessRequest){
 
-      let saved = currentUser ? {} : readAccountCache(null);
+      const activeUid = user?.uid || "";
+      const request = accessRequest || accountAccessRequests.begin(activeUid);
+      const requestIsCurrent = () =>
+        accountAccessRequests.isCurrent(request, currentUser?.uid || "");
+      let saved = user ? {} : readAccountCache(null);
       billingProfile = readBillingProfile();
+      productAccess = user ? null : resolveProductAccess(saved, billingProfile);
+      accountAccessError = false;
+      applyProductAccessState();
 
-      if(currentUser){
+      if(user){
         try{
-          const uid = currentUser.uid;
-          await ensureUserProfile();
+          const uid = user.uid;
+          void ensureUserProfile(user);
           const userRef = doc(db, "users", uid);
           const userProfileRef = doc(db, "userProfiles", uid);
           const [snap, userProfileSnap] = await Promise.all([
             getDoc(userRef),
             getDoc(userProfileRef)
           ]);
+          if(!requestIsCurrent()) return;
           const userData = snap.exists() ? snap.data() : {};
           const userProfileData = userProfileSnap.exists()
             ? userProfileSnap.data()
@@ -1799,7 +1910,7 @@
           console.log("Loaded userProfiles account data", userProfileData);
 
           if(snap.exists()){
-            saved = userData;
+            saved = { ...userData };
             delete saved.currentPlan;
             delete saved.subscriptionStatus;
             delete saved.billingOverride;
@@ -1817,13 +1928,25 @@
             saved = accountWithBilling(saved);
           }
 
+          productAccess = resolveAccountAccessSnapshot(
+            snap,
+            billingProfile
+          ).productAccess;
+          accountAccessError = false;
+
           console.log("Merged account data before render", saved);
           writeAccountCache(saved);
         }catch(error){
+          if(!requestIsCurrent()) return;
           console.error("Could not load account from Firestore", error);
-          saved = readAccountCache();
+          saved = { email: user.email || "" };
+          billingProfile = readBillingProfile();
+          productAccess = null;
+          accountAccessError = true;
         }
       }
+
+      if(!requestIsCurrent()) return;
 
       setField("fullName", saved.fullName);
       setField("email", saved.email || currentUser?.email || "");
@@ -1849,6 +1972,7 @@
       setField("accountNumber", saved.accountNumber);
       companyLogoUrl = saved.companyLogoUrl || "";
       renderLogoPreview();
+      applyProductAccessState();
 
       document.getElementById("welcomeTitle").textContent =
         "Account settings";
@@ -1856,10 +1980,14 @@
       const renderedAccount = accountWithBilling(saved);
 
       document.getElementById("summaryPlan").textContent =
-        renderedAccount.currentPlan || "Starter";
+        productAccess?.planLabel || (currentUser
+          ? accountAccessError ? "Unavailable" : "Checking access"
+          : renderedAccount.currentPlan || "Starter");
 
       document.getElementById("planStatus").textContent =
-        renderedAccount.currentPlan || "Starter";
+        productAccess?.accessLabel || (currentUser
+          ? accountAccessError ? "Unavailable" : "Checking access"
+          : renderedAccount.currentPlan || "Starter");
 
       document.getElementById("summaryEmail").textContent =
         saved.email || currentUser?.email || "Not signed in";
@@ -1887,6 +2015,19 @@
     }
 
     async function saveAccount(){
+
+      if(productAccess === null && currentUser){
+        successMessage.textContent = accountAccessError
+          ? "Account access is unavailable. Refresh and try again."
+          : "Account access is still loading. Please wait.";
+        successMessage.style.display = "block";
+        return;
+      }
+      if(demoSettingsLocked()){
+        successMessage.textContent = "Shared demo account settings are locked and were not changed.";
+        successMessage.style.display = "block";
+        return;
+      }
 
       const data = currentAccountSnapshot();
 
@@ -1929,7 +2070,7 @@
 
       const isVatRegistered = vatRegistered.value === "Yes";
 
-      vatNumber.disabled = !isVatRegistered;
+      vatNumber.disabled = demoSettingsLocked() || !isVatRegistered;
       vatNumber.placeholder = isVatRegistered
         ? "GB123456789"
         : "Not required unless VAT registered";
@@ -1943,6 +2084,7 @@
 
     async function saveLogoUrlToFirestore(){
       if(!currentUser) return;
+      if(demoSettingsLocked()) throw new Error("Shared demo logo settings are locked.");
 
       await setDoc(
         doc(db, "users", currentUser.uid),
@@ -1964,6 +2106,11 @@
     }
 
     async function handleLogoUpload(event){
+      if(productAccess === null || demoSettingsLocked()){
+        alert("Company logo changes are unavailable in the shared demo account.");
+        event.target.value = "";
+        return;
+      }
       const file = event.target.files[0];
 
       if(!file) return;
@@ -2018,6 +2165,10 @@
     }
 
     async function removeLogo(){
+      if(productAccess === null || demoSettingsLocked()){
+        alert("Company logo changes are unavailable in the shared demo account.");
+        return;
+      }
       const previousLogoUrl = companyLogoUrl;
       companyLogoUrl = "";
       companyLogoInput.value = "";
@@ -2098,10 +2249,11 @@
     saveBtn.addEventListener("click", saveAccount);
 
     onAuthStateChanged(auth, async (user) => {
+      const accessRequest = accountAccessRequests.begin(user?.uid || "");
       currentUser = user;
       resetUsageStats();
       clearAccountCacheForUserChange(user);
-      await loadAccount();
+      await loadAccount(user, accessRequest);
     });
   </script>
   </div>

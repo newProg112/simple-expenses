@@ -5,6 +5,7 @@
 const {
   MONTHLY_LIMIT_IDS,
   PLAN_IDS,
+  effectiveProductPlan,
   calendarMonthKey,
   getMonthlyLimit,
   hasProAccess,
@@ -72,11 +73,16 @@ function remainingAllowance(limit, successfulUses, pendingUses = 0) {
 /**
  * Resolves an authoritative effective plan from a billing profile.
  * @param {*} profile Billing profile data.
+ * @param {*} account Authoritative business account data.
  * @return {string} Starter or Pro plan identifier.
  */
-function resolveAuthoritativePlan(profile) {
+function resolveAuthoritativePlan(profile, account = {}) {
   const source = profile && typeof profile === "object" ? profile : {};
   const plan = normalisePlan(source.currentPlan);
+
+  if (account && account.demoMode === true) {
+    return effectiveProductPlan(plan, true);
+  }
 
   if (source.billingOverride === true && plan === PLAN_IDS.PRO) {
     return PLAN_IDS.PRO;
@@ -200,6 +206,7 @@ function usageWrite(state, serverTimestamp) {
 function documentReferences(firestore, uid, monthKey) {
   const profile = firestore.collection("userProfiles").doc(uid);
   return {
+    account: firestore.collection("users").doc(uid),
     profile,
     usage: profile.collection("usage").doc(monthKey),
   };
@@ -234,13 +241,16 @@ function createAiUsageManager(options) {
     const configuration = usageConfiguration(usageType);
 
     return firestore.runTransaction(async (transaction) => {
-      const [profileSnapshot, usageSnapshot] = await Promise.all([
-        transaction.get(refs.profile),
-        transaction.get(refs.usage),
-      ]);
+      const [accountSnapshot, profileSnapshot, usageSnapshot] =
+        await Promise.all([
+          transaction.get(refs.account),
+          transaction.get(refs.profile),
+          transaction.get(refs.usage),
+        ]);
       const profile = profileSnapshot.exists ? profileSnapshot.data() : {};
+      const account = accountSnapshot.exists ? accountSnapshot.data() : {};
       const limit = getMonthlyLimit(
-          resolveAuthoritativePlan(profile),
+          resolveAuthoritativePlan(profile, account),
           configuration.limitId,
       );
       const state = usageState(

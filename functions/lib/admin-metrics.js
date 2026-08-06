@@ -131,15 +131,18 @@ function qualifiesAsActivePaidSubscription(profile, proPriceId) {
 }
 
 async function readAdminUserData(firestore, user, monthKey) {
+  const accountReference = firestore.collection("users").doc(user.uid);
   const profileReference = firestore.collection("userProfiles").doc(user.uid);
   const usageReference = profileReference.collection("usage").doc(monthKey);
-  const [profileSnapshot, usageSnapshot] = await Promise.all([
+  const [accountSnapshot, profileSnapshot, usageSnapshot] = await Promise.all([
+    accountReference.get(),
     profileReference.get(),
     usageReference.get(),
   ]);
 
   return {
     user,
+    account: accountSnapshot.exists ? accountSnapshot.data() : {},
     profile: profileSnapshot.exists ? profileSnapshot.data() : {},
     usage: usageSnapshot.exists ? usageSnapshot.data() : {},
   };
@@ -204,14 +207,16 @@ async function buildAdminMetrics({
   const allAuthUsers = await listAllAuthUsers(auth);
   // Disabled Auth accounts remain registered accounts and are included. Only
   // configured demo identities are excluded from Phase 2A business metrics.
-  const users = allAuthUsers.filter((user) =>
+  const configuredCustomerUsers = allAuthUsers.filter((user) =>
     !isDemoAuthUser(user, demoIdentifiers),
   );
-  const entries = await readAdminUserDataInBatches(
+  const loadedEntries = await readAdminUserDataInBatches(
       firestore,
-      users,
+      configuredCustomerUsers,
       monthKey,
   );
+  const entries = loadedEntries.filter((entry) => entry.account.demoMode !== true);
+  const users = entries.map((entry) => entry.user);
 
   let starterUsers = 0;
   let proUsers = 0;

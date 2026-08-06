@@ -79,6 +79,12 @@ describe("active project limits", () => {
     })).toBe(true);
   });
 
+  it("gives an authoritative demo the unlimited Pro project entitlement", () => {
+    const projects = projectsByStatus(Array(50).fill(PROJECT_STATUS.ACTIVE));
+    expect(canUseAnotherActiveProject(PLAN_IDS.STARTER, projects, true)).toBe(true);
+    expect(activeProjectLimitMessage(PLAN_IDS.STARTER, true)).toBe("");
+  });
+
   it("prevents reopening a Completed project when Starter is at the limit", () => {
     const projects = projectsByStatus([
       ...Array(5).fill(PROJECT_STATUS.ACTIVE),
@@ -156,13 +162,14 @@ describe("Projects page integration", () => {
   );
 
   it("loads the billing profile and the entitlement-backed project policy", () => {
-    expect(html).toContain('from "../js/project-access.js"');
+    expect(html).toContain('from "../js/project-access.js?v=20260806-demo-pro1"');
+    expect(html).toContain('doc(db, "users", user.uid)');
     expect(html).toContain('doc(db, "userProfiles", user.uid)');
   });
 
   it("disables both project-creation buttons when capacity is exhausted", () => {
     expect(html).toContain(
-      "const limitReached = !canUseAnotherActiveProject(currentPlan, projects)"
+      "const limitReached = !canUseAnotherActiveProject(currentPlan, projects, currentDemoMode)"
     );
     expect(html).toContain("button.disabled = limitReached");
   });

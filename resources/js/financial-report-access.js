@@ -1,8 +1,9 @@
 import {
   PLAN_IDS,
   REPORT_IDS,
+  effectiveProductPlan,
   isReportIncluded
-} from "./plan-entitlements.js";
+} from "./plan-entitlements.js?v=20260806-demo-pro1";
 
 const REPORT_LABELS = Object.freeze({
   [REPORT_IDS.TRIAL_BALANCE]: "Trial Balance",
@@ -11,9 +12,9 @@ const REPORT_LABELS = Object.freeze({
   [REPORT_IDS.BALANCE_SHEET]: "Balance Sheet"
 });
 
-export function getFinancialReportAccess(plan, reportId) {
+export function getFinancialReportAccess(plan, reportId, demoMode = false) {
   const reportLabel = REPORT_LABELS[reportId] || "Financial report";
-  const allowed = isReportIncluded(plan, reportId);
+  const allowed = isReportIncluded(effectiveProductPlan(plan, demoMode), reportId);
 
   return Object.freeze({
     allowed,

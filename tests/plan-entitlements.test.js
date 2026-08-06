@@ -79,6 +79,13 @@ describe.each(adapters)("%s plan entitlements", (_name, entitlements) => {
     }
   });
 
+  it("layers authoritative demo product access over the stored billing plan", () => {
+    expect(entitlements.effectiveProductPlan("Starter", true)).toBe(entitlements.PLAN_IDS.PRO);
+    expect(entitlements.effectiveProductPlan("Starter", false)).toBe(entitlements.PLAN_IDS.STARTER);
+    expect(entitlements.effectiveProductPlan("Pro", false)).toBe(entitlements.PLAN_IDS.PRO);
+    expect(entitlements.effectiveProductPlan("Starter", "true")).toBe(entitlements.PLAN_IDS.STARTER);
+  });
+
   it("retrieves named monthly limits and fails closed for unknown limits", () => {
     expect(entitlements.getMonthlyLimit(
       "Starter",
@@ -224,6 +231,8 @@ describe("frontend and backend parity", () => {
       ["normalisePlan", []],
       ["normalisePlan", ["Pro"]],
       ["normalisePlan", ["pro"]],
+      ["effectiveProductPlan", ["Starter", true]],
+      ["effectiveProductPlan", ["Starter", false]],
       ["getPlanEntitlements", ["Enterprise"]],
       ["getMonthlyLimit", ["Starter", "aiAssistantMonthlyLimit"]],
       ["getMonthlyLimit", ["Pro", "unknownLimit"]],

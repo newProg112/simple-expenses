@@ -10,7 +10,8 @@ const runtimeFiles = Object.freeze([
   "assets/demo-seed-engine.js",
   "resources/js/business-logic.js",
   "resources/js/ledger-engine.js",
-  "resources/js/ledger-firestore.js"
+  "resources/js/ledger-firestore.js",
+  "resources/js/plan-entitlements.js"
 ]);
 
 await Promise.all(runtimeFiles.map(async relativePath => {

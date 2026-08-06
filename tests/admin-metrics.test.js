@@ -51,10 +51,22 @@ function createAuthPages(pages) {
   return { listUsers };
 }
 
-function createFirestore({ profiles = {}, usage = {}, reads = [] } = {}) {
+function createFirestore({ accounts = {}, profiles = {}, usage = {}, reads = [] } = {}) {
   return {
     collection(collectionName) {
       reads.push(`collection:${collectionName}`);
+      if(collectionName === "users"){
+        return {
+          doc(uid) {
+            return {
+              async get() {
+                reads.push(`users/${uid}`);
+                return snapshot(accounts[uid]);
+              }
+            };
+          }
+        };
+      }
       if(collectionName !== "userProfiles"){
         throw new Error(`Unexpected collection: ${collectionName}`);
       }
@@ -97,6 +109,7 @@ async function metricsFor(users, options = {}) {
   const result = await buildAdminMetrics({
     auth: createAuthPages([users]),
     firestore: createFirestore({
+      accounts: options.accounts,
       profiles: options.profiles,
       usage: options.usage,
       reads
@@ -325,6 +338,28 @@ describe("admin metrics aggregation", () => {
     expect(reads.join("|")).not.toContain("demo-user");
   });
 
+  it("excludes authoritative demoMode accounts from Pro, paid, and MRR metrics", async () => {
+    const { result } = await metricsFor([
+      authUser("flagged-demo"),
+      authUser("customer")
+    ], {
+      accounts: { "flagged-demo": { demoMode: true } },
+      profiles: {
+        "flagged-demo": activeProfile(),
+        customer: { currentPlan: "Starter" }
+      }
+    });
+
+    expect(result.metrics).toMatchObject({
+      totalUsers: 1,
+      starterUsers: 1,
+      proUsers: 0,
+      activePaidSubscriptions: 0,
+      estimatedMrrPence: 0
+    });
+    expect(result.recentSignups).toHaveLength(1);
+  });
+
   it.each([undefined, null, "", "pro", "Enterprise", {}, []])(
     "normalises malformed or legacy plan %j to Starter",
     async currentPlan => {
@@ -418,14 +453,15 @@ describe("admin metrics aggregation", () => {
     expect(reads).toContain("userProfiles/three/usage/2026-12");
   });
 
-  it("reads only userProfiles and the current usage subcollection", async () => {
+  it("reads only authoritative account, profile, and current usage documents", async () => {
     const { reads } = await metricsFor([authUser("customer")]);
     expect(reads).toEqual([
+      "collection:users",
       "collection:userProfiles",
+      "users/customer",
       "userProfiles/customer",
       "userProfiles/customer/usage/2026-07"
     ]);
-    expect(reads.join("|")).not.toContain("users/");
   });
 });
 
@@ -496,7 +532,12 @@ describe("admin growth chart data", () => {
     const { result, reads } = await metricsFor([authUser("private-user")]);
     const serialized = JSON.stringify(result.charts);
     expect(serialized).not.toMatch(/uid|email|stripe|business|address/i);
-    expect(reads.every(read => read.includes("userProfiles") || read.startsWith("collection:userProfiles"))).toBe(true);
+    expect(reads.every(read =>
+      read.includes("userProfiles") ||
+      read.startsWith("collection:userProfiles") ||
+      read.includes("users/") ||
+      read.startsWith("collection:users")
+    )).toBe(true);
   });
 });
 

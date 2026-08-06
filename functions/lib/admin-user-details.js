@@ -5,6 +5,7 @@
 const {
   MONTHLY_LIMIT_IDS,
   calendarMonthKey,
+  effectiveProductPlan,
   getMonthlyLimit,
   normalisePlan,
   normaliseUsageCount,
@@ -126,6 +127,8 @@ async function buildAdminUserDetails({auth, firestore, selector, adminUids, demo
   const profile = profileSnapshot.exists ? profileSnapshot.data() || {} : {};
   const usage = usageSnapshot.exists ? usageSnapshot.data() || {} : {};
   const plan = normalisePlan(profile.currentPlan);
+  const demo = account.demoMode === true || isDemoAuthUser(user, demoIdentifiers);
+  const effectivePlan = effectiveProductPlan(plan, demo);
   const subscriptionStatus = stripeSubscriptionStatus({status: profile.subscriptionStatus});
   const metadata = user.metadata || {};
   return {
@@ -138,23 +141,27 @@ async function buildAdminUserDetails({auth, firestore, selector, adminUids, demo
       lastSignInDate: safeIsoDate(metadata.lastSignInTime),
       disabled: user.disabled === true,
       emailVerified: user.emailVerified === true,
-      demo: account.demoMode === true || isDemoAuthUser(user, demoIdentifiers),
+      demo,
       admin: adminUids.has(user.uid),
       suspended: user.disabled === true || account.suspended === true || profile.suspended === true,
       badges: detailBadges(user, account, adminUids, demoIdentifiers, profile),
     },
     plan: {
       currentPlan: plan,
-      subscriptionStatus,
-      currentPeriodEnd: safeIsoDate(profile.subscriptionCurrentPeriodEnd),
-      activePaidSubscription: qualifiesAsActivePaidSubscription(profile, proPriceId),
+      effectivePlan,
+      accessLabel: demo ? "Full Pro demo" : effectivePlan,
+      billingLabel: demo ? "Not billed" : "",
+      subscriptionStatus: demo ? "" : subscriptionStatus,
+      subscriptionLabel: demo ? "Demo account" : "",
+      currentPeriodEnd: demo ? null : safeIsoDate(profile.subscriptionCurrentPeriodEnd),
+      activePaidSubscription: demo ? false : qualifiesAsActivePaidSubscription(profile, proPriceId),
     },
     usage: {
       monthKey,
       aiAssistantSuccessfulUses: normaliseUsageCount(usage.aiAssistantSuccessfulUses),
-      aiAssistantAllowance: getMonthlyLimit(plan, MONTHLY_LIMIT_IDS.AI_ASSISTANT),
+      aiAssistantAllowance: getMonthlyLimit(effectivePlan, MONTHLY_LIMIT_IDS.AI_ASSISTANT),
       invoiceScanningSuccessfulUses: normaliseUsageCount(usage.invoiceScanningSuccessfulUses),
-      invoiceScanningAllowance: getMonthlyLimit(plan, MONTHLY_LIMIT_IDS.INVOICE_SCANNING),
+      invoiceScanningAllowance: getMonthlyLimit(effectivePlan, MONTHLY_LIMIT_IDS.INVOICE_SCANNING),
       activeProjects,
     },
     recentActivity,

@@ -31,15 +31,20 @@ describe("Accountant Pack access", () => {
       upgradeLabel: "Upgrade to Pro"
     });
   });
+
+  it("allows an authoritative Starter-backed demo without weakening Starter", () => {
+    expect(getAccountantPackAccess(PLAN_IDS.STARTER, true).allowed).toBe(true);
+    expect(getAccountantPackAccess(PLAN_IDS.STARTER, false).allowed).toBe(false);
+  });
 });
 
 describe("Accountant Pack Exports integration", () => {
   it("loads the authoritative billing profile through the access adapter", () => {
     expect(exportsHtml).toContain(
-      'from "/resources/js/accountant-pack-access.js"'
+      'from "/resources/js/accountant-pack-access.js?v=20260806-demo-pro1"'
     );
     expect(exportsHtml).toContain('doc(db, "userProfiles", user.uid)');
-    expect(exportsHtml).toContain("getAccountantPackAccess(profilePlan)");
+    expect(exportsHtml).toContain("getAccountantPackAccess(profilePlan, demoMode)");
   });
 
   it("guards the generation handler before resolving a period or creating a ZIP", () => {

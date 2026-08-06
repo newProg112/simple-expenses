@@ -1,4 +1,4 @@
-import { isDemoMode } from "./demo-mode.js";
+import { isDemoMode } from "./demo-mode.js?v=20260806-demo-pro2";
 import { DEMO_SEED, DEMO_SEED_VERSION } from "./demo-seed.js";
 import {
   prepareBillJournal,

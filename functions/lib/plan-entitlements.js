@@ -70,6 +70,16 @@ function normalisePlan(plan) {
 }
 
 /**
+ * Resolves product access independently from billing for an authoritative demo.
+ * @param {*} plan Stored billing plan.
+ * @param {*} demoMode Authoritative users/{uid}.demoMode value.
+ * @return {string} Effective Starter or Pro product plan.
+ */
+function effectiveProductPlan(plan, demoMode = false) {
+  return demoMode === true ? PLAN_IDS.PRO : normalisePlan(plan);
+}
+
+/**
  * Returns the entitlement definition for a plan.
  * @param {*} plan Stored plan value.
  * @return {object} Frozen plan entitlement definition.
@@ -204,6 +214,7 @@ module.exports = {
   PRO_ELIGIBLE_SUBSCRIPTION_STATUSES,
   PLAN_ENTITLEMENTS,
   normalisePlan,
+  effectiveProductPlan,
   getPlanEntitlements,
   getMonthlyLimit,
   isUnlimited,

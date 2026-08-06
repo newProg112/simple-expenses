@@ -16,6 +16,7 @@ const {
 const { PLAN_IDS } = require("../functions/lib/plan-entitlements.js");
 
 const uid = "usage-test-user";
+const accountPath = `users/${uid}`;
 const profilePath = `userProfiles/${uid}`;
 const monthKey = "2026-07";
 const usagePath = `${profilePath}/usage/${monthKey}`;
@@ -117,11 +118,13 @@ class FakeFirestore {
 }
 
 function createFixture({
+  account,
   profile = { currentPlan: "Starter", subscriptionStatus: "" },
   usage,
   clock = now
 } = {}) {
   const firestore = new FakeFirestore({
+    ...(account === undefined ? {} : { [accountPath]: account }),
     [profilePath]: profile,
     ...(usage === undefined ? {} : { [usagePath]: usage })
   });
@@ -187,6 +190,33 @@ describe("authoritative AI allowances", () => {
       subscriptionStatus: "past_due",
       billingOverride: "true"
     })).toBe(PLAN_IDS.STARTER);
+  });
+
+  it("uses authoritative demo mode for Pro AI and scanning allowances", async () => {
+    expect(resolveAuthoritativePlan(
+      { currentPlan: "Starter", subscriptionStatus: "" },
+      { demoMode: true }
+    )).toBe(PLAN_IDS.PRO);
+
+    const { manager } = createFixture({
+      account: { demoMode: true },
+      usage: {
+        aiAssistantSuccessfulUses: 10,
+        invoiceScanningSuccessfulUses: 10
+      }
+    });
+    const aiReservation = await manager.reserve({
+      uid,
+      requestId: requestIds[0]
+    });
+    const scanningReservation = await manager.reserve({
+      uid,
+      requestId: requestIds[1],
+      usageType: USAGE_TYPES.INVOICE_SCANNING
+    });
+
+    expect(aiReservation).toMatchObject({ state: "reserved", limit: 500 });
+    expect(scanningReservation).toMatchObject({ state: "reserved", limit: 500 });
   });
 });
 

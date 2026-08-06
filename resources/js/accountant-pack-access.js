@@ -1,11 +1,12 @@
 import {
   FEATURE_IDS,
   PLAN_IDS,
+  effectiveProductPlan,
   isFeatureIncluded
-} from "./plan-entitlements.js";
+} from "./plan-entitlements.js?v=20260806-demo-pro1";
 
-export function getAccountantPackAccess(plan) {
-  const allowed = isFeatureIncluded(plan, FEATURE_IDS.ACCOUNTANT_PACK);
+export function getAccountantPackAccess(plan, demoMode = false) {
+  const allowed = isFeatureIncluded(effectiveProductPlan(plan, demoMode), FEATURE_IDS.ACCOUNTANT_PACK);
 
   return Object.freeze({
     allowed,

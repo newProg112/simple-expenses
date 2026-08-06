@@ -46,6 +46,9 @@ const {
   createAdminDemoSeedHandler,
 } = require("./lib/admin-demo-seed-handler");
 const {
+  createDemoResetHandler,
+} = require("./lib/demo-reset-handler");
+const {
   createAdminDemoAnalyticsHandler,
 } = require("./lib/admin-demo-analytics-handler");
 const {
@@ -74,6 +77,7 @@ const successUrl = "https://simple-books.co.uk/account.html?checkout=success";
 const cancelUrl = "https://simple-books.co.uk/account.html?checkout=cancelled";
 const billingPortalReturnUrl = "https://simple-books.co.uk/account.html";
 const userProfiles = admin.firestore().collection("userProfiles");
+const users = admin.firestore().collection("users");
 
 /**
  * Builds the default Simple Books billing profile for a Firebase user.
@@ -136,8 +140,11 @@ exports.ensureUserProfile = onRequest(
     {
       cors: [
         "http://127.0.0.1:5500",
+        "http://127.0.0.1:8000",
         "http://localhost:5500",
+        "http://localhost:8000",
         "https://simple-books.co.uk",
+        "https://simple-books-office.web.app",
       ],
       invoker: "public",
     },
@@ -387,6 +394,11 @@ async function findUidForSubscription(subscription) {
  * @return {Promise<void>} Resolves when Firestore has been updated.
  */
 async function updateSubscriptionProfile(uid, data) {
+  const accountSnapshot = await users.doc(uid).get();
+  if (accountSnapshot.exists && accountSnapshot.data().demoMode === true) {
+    console.warn("Ignoring subscription update for demo account", {uid});
+    return;
+  }
   console.log("Writing subscription billing fields", {
     uid,
     subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd || null,
@@ -435,6 +447,15 @@ exports.createCheckoutSession = onRequest(
 
       try {
         const decodedToken = await admin.auth().verifyIdToken(match[1]);
+        const accountSnapshot = await users.doc(decodedToken.uid).get();
+        if (accountSnapshot.exists &&
+          accountSnapshot.data().demoMode === true) {
+          response.status(409).json({
+            error: "Subscription changes are unavailable in the shared " +
+              "demo account.",
+          });
+          return;
+        }
 
         const stripe = new Stripe(stripeSecretKey.value());
         console.log("Stripe account:", await stripe.accounts.retrieve());
@@ -564,7 +585,17 @@ exports.createBillingPortalSession = onRequest(
 
       try {
         const decodedToken = await admin.auth().verifyIdToken(match[1]);
-        const profileSnap = await userProfiles.doc(decodedToken.uid).get();
+        const [accountSnap, profileSnap] = await Promise.all([
+          users.doc(decodedToken.uid).get(),
+          userProfiles.doc(decodedToken.uid).get(),
+        ]);
+        if (accountSnap.exists && accountSnap.data().demoMode === true) {
+          response.status(409).json({
+            error: "Subscription management is unavailable in the shared " +
+              "demo account.",
+          });
+          return;
+        }
         const profile = profileSnap.exists ? profileSnap.data() : {};
         const customerId = profile.stripeCustomerId || "";
         const hasPortalAccess = profile.currentPlan === "Pro" &&
@@ -797,8 +828,11 @@ exports.getMonthlyUsage = onRequest(
     {
       cors: [
         "http://127.0.0.1:5500",
+        "http://127.0.0.1:8000",
         "http://localhost:5500",
+        "http://localhost:8000",
         "https://simple-books.co.uk",
+        "https://simple-books-office.web.app",
       ],
       invoker: "public",
     },
@@ -1037,6 +1071,19 @@ exports.seedAdminDemoEnvironment = onCall(
     (request) => createAdminDemoSeedHandler({
       firestore: admin.firestore(),
       adminUidConfiguration: adminUidsSecret.value(),
+      logger: console,
+    })(request),
+);
+
+exports.resetDemoEnvironment = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 1,
+      timeoutSeconds: 300,
+      memory: "512MiB",
+    },
+    (request) => createDemoResetHandler({
+      firestore: admin.firestore(),
       logger: console,
     })(request),
 );

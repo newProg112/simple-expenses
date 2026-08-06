@@ -1,8 +1,11 @@
 import { isAdminUid } from "./admin-access.js";
 import {
-  handleDemoResetClick,
   watchDemoMode
-} from "./demo-mode.js";
+} from "./demo-mode.js?v=20260806-demo-pro2";
+import {
+  callCurrentDemoReset,
+  createDemoResetController
+} from "./demo-reset.js?v=20260806-demo-pro2";
 import { trackDemoPageView } from "./demo-analytics.js?v=20260805-demo-analytics1";
 
 export const NAVIGATION_GROUPS = Object.freeze([
@@ -330,21 +333,46 @@ export function createDemoBanner(){
 
   const explanation = document.createElement("p");
   explanation.textContent =
-    "You are exploring a sample Simple Books business. Changes and restrictions will be introduced in later phases.";
+    "You are exploring the full Pro version of Simple Books. Business and subscription settings are locked, and demo data can be reset.";
 
   const resetButton = document.createElement("button");
   resetButton.className = "sb-demo-reset-button";
   resetButton.type = "button";
   resetButton.textContent = "Reset Demo";
-  resetButton.addEventListener("click", event => handleDemoResetClick(event));
 
+  const resetStatus = document.createElement("p");
+  resetStatus.className = "sb-demo-reset-status";
+  resetStatus.setAttribute("role", "status");
+  resetStatus.setAttribute("aria-live", "polite");
+
+  const resetController = createDemoResetController({
+    isDemo: () => banner.dataset.demoMode === "true",
+    confirmAction: message => window.confirm(message),
+    execute: callCurrentDemoReset,
+    onState: state => {
+      const running = state.state === "running";
+      resetButton.disabled = running;
+      resetButton.textContent = running ? "Resetting…" : "Reset Demo";
+      resetStatus.textContent = state.message || "";
+    },
+    reload: () => window.location.reload()
+  });
+  resetButton.addEventListener("click", event => {
+    event.preventDefault();
+    void resetController.run();
+  });
+
+  const resetActions = document.createElement("div");
+  resetActions.className = "sb-demo-reset-actions";
+  resetActions.append(resetButton, resetStatus);
   copy.append(label, explanation);
-  banner.append(copy, resetButton);
+  banner.append(copy, resetActions);
   return banner;
 }
 
 function watchDemoBannerAccess(banner, activeKey){
   watchDemoMode((visible, user, accountData) => {
+    banner.dataset.demoMode = String(visible);
     banner.hidden = !visible;
     if(visible){
       void trackDemoPageView(activeKey, { user, accountData });

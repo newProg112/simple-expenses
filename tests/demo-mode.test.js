@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  DEMO_RESET_PLACEHOLDER_MESSAGE,
-  handleDemoResetClick,
   isDemoMode,
+  resolveProductAccess,
   shouldShowDemoBanner,
   watchDemoMode
 } from "../assets/demo-mode.js";
@@ -42,6 +41,29 @@ async function flushAsyncWork(){
 }
 
 describe("demo-mode detection", () => {
+  it("layers truthful full Pro access over the stored demo billing plan", () => {
+    expect(resolveProductAccess(
+      { demoMode: true },
+      { currentPlan: "Starter", subscriptionStatus: "" }
+    )).toEqual({
+      demo: true,
+      effectivePlan: "Pro",
+      accessLabel: "Full Pro demo",
+      planLabel: "Pro Demo",
+      billingLabel: "Not billed",
+      subscriptionLabel: "Demo account",
+      source: "demo-entitlement",
+      paidSubscription: false
+    });
+  });
+
+  it("leaves normal Starter and Pro product plans unchanged", () => {
+    expect(resolveProductAccess({}, { currentPlan: "Starter" }).effectivePlan)
+      .toBe("Starter");
+    expect(resolveProductAccess({}, { currentPlan: "Pro" }).effectivePlan)
+      .toBe("Pro");
+  });
+
   it("returns true only when demoMode is the literal boolean true", () => {
     expect(isDemoMode(user, { demoMode: true })).toBe(true);
   });
@@ -112,30 +134,10 @@ describe("demo banner", () => {
 
     expect(shell).toContain('label.textContent = "Demo Account"');
     expect(shell).toContain('resetButton.textContent = "Reset Demo"');
+    expect(shell).toContain("You are exploring the full Pro version of Simple Books.");
+    expect(shell).toContain("Business and subscription settings are locked");
+    expect(shell).not.toContain("restrictions will be introduced in later phases");
     expect(shell).toContain("watchDemoMode");
-  });
-});
-
-describe("Reset Demo Phase 1 placeholder", () => {
-  it("shows the temporary message without writing, deleting, or changing data", () => {
-    const notify = vi.fn();
-    const preventDefault = vi.fn();
-    const setDoc = vi.fn();
-    const updateDoc = vi.fn();
-    const deleteDoc = vi.fn();
-    const originalAccount = Object.freeze({ demoMode: true, invoices: 3 });
-
-    expect(handleDemoResetClick({ preventDefault }, notify))
-      .toBe(DEMO_RESET_PLACEHOLDER_MESSAGE);
-    expect(notify).toHaveBeenCalledOnce();
-    expect(notify).toHaveBeenCalledWith(
-      "Demo reset will be added in a later phase."
-    );
-    expect(preventDefault).toHaveBeenCalledOnce();
-    expect(setDoc).not.toHaveBeenCalled();
-    expect(updateDoc).not.toHaveBeenCalled();
-    expect(deleteDoc).not.toHaveBeenCalled();
-    expect(originalAccount).toEqual({ demoMode: true, invoices: 3 });
   });
 });
 

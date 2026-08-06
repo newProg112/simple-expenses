@@ -719,8 +719,8 @@
       *,*::before,*::after{scroll-behavior:auto !important;animation-duration:.01ms !important;animation-iteration-count:1 !important}
     }
   </style>
-  <link rel="stylesheet" href="/assets/app-shell.css?v=20260723-shell1">
-  <script type="module" src="/assets/app-shell.js?v=20260723-shell1"></script>
+  <link rel="stylesheet" href="/assets/app-shell.css?v=20260806-demo-pro2">
+  <script type="module" src="/assets/app-shell.js?v=20260806-demo-pro2"></script>
 </head>
 <body>
   <div data-app-navigation></div>
@@ -811,7 +811,7 @@
             <span>AI questions this month</span>
             <span class="preview-label" id="usageDataLabel">Loading</span>
           </div>
-          <progress id="usageProgress" value="0" max="10" aria-label="AI question usage: loading" aria-describedby="usageDescription">0 of 10</progress>
+          <progress id="usageProgress" value="0" max="1" aria-label="AI question usage: loading" aria-describedby="usageDescription">Loading</progress>
           <dl class="usage-details">
             <dt>Plan</dt><dd id="usagePlan">â€”</dd>
             <dt>Questions used</dt><dd id="usageUsed">â€”</dd>
@@ -838,16 +838,11 @@
     import {
       auth,
       businessAssistantMode,
-      db,
       functions
     } from "../../firebase-config.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import {
-      doc,
-      getDoc
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
-    import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260728-phase4d";
+    import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260806-demo-pro2";
     import { trackAiQuestionAsked } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
 
@@ -891,10 +886,25 @@
       ]);
       let isResponding = false;
       let currentUsageUser = null;
-      let currentAnalyticsPlan = "Starter";
+      let currentAnalyticsPlan = "";
       let activeRequestToken = 0;
 
       function renderMonthlyUsage(view){
+        if(!view.loaded){
+          currentAnalyticsPlan = "";
+          usageDataLabel.textContent = "Loading";
+          usageProgress.max = 1;
+          usageProgress.value = 0;
+          usageProgress.textContent = "Loading";
+          usageProgress.setAttribute("aria-label", "AI question usage: loading");
+          usagePlan.textContent = view.displayPlan;
+          usageUsed.textContent = "—";
+          usageRemaining.textContent = "—";
+          usageReset.textContent = view.monthKey;
+          usageDescription.textContent = view.message;
+          return;
+        }
+
         currentAnalyticsPlan = view.plan;
         const allowance = view.aiAssistant.allowance;
         const current = view.aiAssistant.current;
@@ -906,7 +916,7 @@
           "aria-label",
           `AI question usage: ${current} of ${allowance} used`
         );
-        usagePlan.textContent = view.plan;
+        usagePlan.textContent = view.displayPlan;
         usageUsed.textContent = `${current} of ${allowance}`;
         usageRemaining.textContent = String(view.aiAssistant.remaining);
         usageReset.textContent = view.monthKey;
@@ -916,11 +926,7 @@
 
       async function loadMonthlyUsage(user){
         try{
-          const [idToken, profile] = await Promise.all([
-            user.getIdToken(),
-            getDoc(doc(db, "userProfiles", user.uid))
-          ]);
-          currentAnalyticsPlan = profile.exists() ? profile.data()?.currentPlan : "Starter";
+          const idToken = await user.getIdToken();
           const response = await fetch(monthlyUsageFunctionUrl, {
             method: "POST",
             headers: {
@@ -934,7 +940,6 @@
           const usage = await response.json();
           if(auth.currentUser?.uid !== user.uid) return;
           renderMonthlyUsage(buildMonthlyUsageView({
-            profile: profile.exists() ? profile.data() : {},
             usage,
             monthKey: usage.monthKey,
             trackingEnabled: usage.trackingEnabled,

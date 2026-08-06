@@ -889,8 +889,8 @@
     }
   </style>
 
-  <link rel="stylesheet" href="/assets/app-shell.css?v=20260723-shell1">
-  <script type="module" src="/assets/app-shell.js?v=20260723-shell1"></script>
+  <link rel="stylesheet" href="/assets/app-shell.css?v=20260806-demo-pro2">
+  <script type="module" src="/assets/app-shell.js?v=20260806-demo-pro2"></script>
 </head>
 
 <body>
@@ -1201,7 +1201,7 @@
       activeProjectLimitMessage,
       canSaveProjectStatus,
       canUseAnotherActiveProject
-    } from "../js/project-access.js";
+    } from "../js/project-access.js?v=20260806-demo-pro1";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -1261,6 +1261,8 @@
     let portfolioExpenses = [];
     let portfolioDataLoaded = false;
     let currentPlan;
+    let currentDemoMode = false;
+    let productAccessLoaded = false;
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -1767,11 +1769,18 @@
 
     async function loadCurrentPlan(user) {
       try {
-        const profile = await getDoc(doc(db, "userProfiles", user.uid));
+        const [account, profile] = await Promise.all([
+          getDoc(doc(db, "users", user.uid)),
+          getDoc(doc(db, "userProfiles", user.uid))
+        ]);
         currentPlan = profile.exists() ? profile.data().currentPlan : undefined;
+        currentDemoMode = account.exists() && account.data().demoMode === true;
       } catch (error) {
         console.error("Firestore billing profile load failed", error);
         currentPlan = undefined;
+        currentDemoMode = false;
+      } finally {
+        productAccessLoaded = true;
       }
     }
 
@@ -1839,8 +1848,18 @@
     }
 
     function renderProjectCreationAvailability() {
-      const limitReached = !canUseAnotherActiveProject(currentPlan, projects);
-      const message = limitReached ? activeProjectLimitMessage(currentPlan) : "";
+      if (!productAccessLoaded) {
+        [elements.newProjectButton, elements.emptyNewProjectButton].forEach(button => {
+          button.disabled = true;
+          button.title = "Checking project access";
+        });
+        elements.projectLimitMessage.textContent = "Checking project access…";
+        elements.projectLimitMessage.hidden = false;
+        return;
+      }
+
+      const limitReached = !canUseAnotherActiveProject(currentPlan, projects, currentDemoMode);
+      const message = limitReached ? activeProjectLimitMessage(currentPlan, currentDemoMode) : "";
 
       [elements.newProjectButton, elements.emptyNewProjectButton].forEach(button => {
         button.disabled = limitReached;
@@ -1866,8 +1885,8 @@
     }
 
     function openProjectForm(project = null) {
-      if (!project && !canUseAnotherActiveProject(currentPlan, projects)) {
-        showPageFeedback(activeProjectLimitMessage(currentPlan), true);
+      if (!project && !canUseAnotherActiveProject(currentPlan, projects, currentDemoMode)) {
+        showPageFeedback(activeProjectLimitMessage(currentPlan, currentDemoMode), true);
         return;
       }
 
@@ -1924,11 +1943,12 @@
 
       if (!canSaveProjectStatus({
         plan: currentPlan,
+        demoMode: currentDemoMode,
         projects,
         projectId: editingProjectId,
         nextStatus: data.status
       })) {
-        setFormFeedback(activeProjectLimitMessage(currentPlan));
+        setFormFeedback(activeProjectLimitMessage(currentPlan, currentDemoMode));
         return;
       }
 
@@ -1938,26 +1958,29 @@
 
       try {
         if (needsActiveCapacity) {
-          const [profileSnapshot, projectsSnapshot] = await Promise.all([
+          const [accountSnapshot, profileSnapshot, projectsSnapshot] = await Promise.all([
+            getDoc(doc(db, "users", user.uid)),
             getDoc(doc(db, "userProfiles", user.uid)),
             getDocs(collection(db, "users", user.uid, "projects"))
           ]);
           currentPlan = profileSnapshot.exists()
             ? profileSnapshot.data().currentPlan
             : undefined;
+          currentDemoMode = accountSnapshot.exists() && accountSnapshot.data().demoMode === true;
           projects = projectsSnapshot.docs
             .map(normaliseProject)
             .sort((a, b) => projectSortValue(b) - projectSortValue(a));
 
           if (!canSaveProjectStatus({
             plan: currentPlan,
+            demoMode: currentDemoMode,
             projects,
             projectId: editingProjectId,
             nextStatus: data.status
           })) {
             renderProjects();
             renderPortfolio();
-            setFormFeedback(activeProjectLimitMessage(currentPlan));
+            setFormFeedback(activeProjectLimitMessage(currentPlan, currentDemoMode));
             return;
           }
         }

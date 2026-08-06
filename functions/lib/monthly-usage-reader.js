@@ -2,7 +2,11 @@
 
 const {
   calendarMonthKey,
+  effectiveProductPlan,
+  getMonthlyLimit,
+  MONTHLY_LIMIT_IDS,
   normaliseUsageCount,
+  remainingMonthlyAllowance,
 } = require("./plan-entitlements");
 
 /**
@@ -21,20 +25,50 @@ async function readMonthlyUsage(firestore, uid, date = new Date()) {
   }
 
   const monthKey = calendarMonthKey(date);
-  const snapshot = await firestore
-      .collection("userProfiles")
-      .doc(uid)
-      .collection("usage")
-      .doc(monthKey)
-      .get();
-  const usage = snapshot.exists ? snapshot.data() : {};
+  const accountReference = firestore.collection("users").doc(uid);
+  const profileReference = firestore.collection("userProfiles").doc(uid);
+  const [accountSnapshot, profileSnapshot, usageSnapshot] = await Promise.all([
+    accountReference.get(),
+    profileReference.get(),
+    profileReference.collection("usage").doc(monthKey).get(),
+  ]);
+  const account = accountSnapshot.exists ? accountSnapshot.data() : {};
+  const profile = profileSnapshot.exists ? profileSnapshot.data() : {};
+  const usage = usageSnapshot.exists ? usageSnapshot.data() : {};
+  const demoMode = account.demoMode === true;
+  const effectivePlan = effectiveProductPlan(profile.currentPlan, demoMode);
+  const aiAssistantSuccessfulUses =
+    normaliseUsageCount(usage.aiAssistantSuccessfulUses);
+  const invoiceScanningSuccessfulUses =
+    normaliseUsageCount(usage.invoiceScanningSuccessfulUses);
+  const aiAssistantAllowance = getMonthlyLimit(
+      effectivePlan,
+      MONTHLY_LIMIT_IDS.AI_ASSISTANT,
+  );
+  const invoiceScanningAllowance = getMonthlyLimit(
+      effectivePlan,
+      MONTHLY_LIMIT_IDS.INVOICE_SCANNING,
+  );
 
   return Object.freeze({
     monthKey,
-    aiAssistantSuccessfulUses:
-      normaliseUsageCount(usage.aiAssistantSuccessfulUses),
-    invoiceScanningSuccessfulUses:
-      normaliseUsageCount(usage.invoiceScanningSuccessfulUses),
+    effectivePlan,
+    displayPlan: demoMode ? "Pro Demo" : effectivePlan,
+    entitlementSource: demoMode ? "demo-entitlement" : "billing-profile",
+    demoMode,
+    isDemo: demoMode,
+    aiAssistantSuccessfulUses,
+    aiAssistantAllowance,
+    aiAssistantRemaining: remainingMonthlyAllowance(
+        aiAssistantAllowance,
+        aiAssistantSuccessfulUses,
+    ),
+    invoiceScanningSuccessfulUses,
+    invoiceScanningAllowance,
+    invoiceScanningRemaining: remainingMonthlyAllowance(
+        invoiceScanningAllowance,
+        invoiceScanningSuccessfulUses,
+    ),
   });
 }
 

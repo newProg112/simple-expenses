@@ -84,6 +84,41 @@ describe("Admin User Management detail authorization", () => {
 });
 
 describe("read-only account detail projection", () => {
+  it("shows demo access truthfully without a paid-subscription claim", async () => {
+    const auth = { getUser: vi.fn(async () => authUser) };
+    const result = await buildAdminUserDetails({
+      auth,
+      firestore: firestoreFor({
+        account: { businessName: "Demo Books", demoMode: true },
+        profile: {
+          currentPlan: "Starter",
+          subscriptionStatus: "active",
+          stripePriceId: "price_pro",
+          stripeCustomerId: "cus_demo",
+          stripeSubscriptionId: "sub_demo"
+        }
+      }),
+      selector: { uid: authUser.uid },
+      adminUids: new Set(),
+      demoIdentifiers: { uids: new Set(), emails: new Set() },
+      proPriceId: "price_pro",
+      now: NOW
+    });
+
+    expect(result.plan).toMatchObject({
+      currentPlan: "Starter",
+      effectivePlan: "Pro",
+      accessLabel: "Full Pro demo",
+      billingLabel: "Not billed",
+      subscriptionStatus: "",
+      subscriptionLabel: "Demo account",
+      activePaidSubscription: false
+    });
+    expect(result.plan.currentPeriodEnd).toBeNull();
+    expect(result.usage.aiAssistantAllowance).toBe(500);
+    expect(result.usage.invoiceScanningAllowance).toBe(500);
+  });
+
   it("intentionally keeps admin support actions out of Recent Safe Activity", async () => {
     const activity = [
       {eventType: "admin_ai_usage_reset", createdAt: NOW},
