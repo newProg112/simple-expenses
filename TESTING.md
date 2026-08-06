@@ -179,6 +179,51 @@ Manual QA checklist:
 Deployment requires updated Hosting assets and Firebase Functions for the activity allow-list/presentation and Customer Analytics normalisation. No Firestore rules/index, Stripe, plan, Demo-seed, scheduled job or environment change is required.
 
 
+## Business Insights Phase 3 — Forecasts & Projections
+
+Forecasts are deterministic, calculated on page load, and are not stored. They reuse the existing owned journal loader, Profit & Loss view, Phase 2 VAT logic, operational bills/invoices, and budget allocation helper. They introduce no collection read, Firestore write, AI/OpenAI request, forecast Cloud Function, Stripe change, or plan mutation. The existing activity logger remains the only server request associated with forecast presentation.
+
+Exact definitions:
+
+- Revenue and expenses use validated current-calendar-month Profit & Loss journal totals. When the relevant report contains at least one income/expense row, the total is divided by elapsed calendar days and multiplied by all calendar days in the month. This handles short months and leap years. A previous comparison exists only when the equivalent elapsed days of the immediately previous month contain the same qualifying activity; it never substitutes a full previous month.
+- Projected profit is projected journal revenue less projected journal expenses and is unavailable unless both inputs qualify.
+- Obligations use positive gross unpaid bills. Overdue means before today; the first future bucket is today through day 7 inclusive; the second is days 8–30 inclusive. The non-overlapping buckets exclude Paid and invalid records.
+- VAT reuses validated current-period account 2100 output VAT less account 1200 input VAT. It requires recorded VAT registration, a successful journal source, and a qualifying VAT line. Payable, reclaimable and approximately-nil states are estimates from recorded transactions, not a VAT return or HMRC-ready figure, and must be reviewed before filing.
+- Budget forecasts reuse the existing bill/expense/mileage allocation rules, limited to records dated on or before the reference date. An active budget requires valid inclusive start/end dates, a positive planned amount, positive spend, and a reference date inside its period. Projected spend is spend-to-date divided by inclusive elapsed days, multiplied by inclusive total budget days. Difference is projected spend less planned amount. Ranking is difference and projection descending, then normalised name and internal ID. IDs are not displayed. Underlying percentages are not capped; CSS protects presentation from pathological values.
+- Payment behaviour requires a named customer and at least two Paid invoices with valid issue/paid dates and non-negative durations. Average days to pay uses calendar days. Average days after due date uses only invoices with valid due dates. `Frequently late` means at least two currently overdue invoices, or at least two due-date histories with 50% or more paid late. `Sometimes late` means any other late-paid or currently overdue invoice. Otherwise the label is `Usually on time`. Ranking is label severity, current overdue count, average days after due, average days to pay, normalised name, then ID.
+- Cash outlook is deliberately unavailable. The Cashflow page opening balance is an unsaved per-view form input, and current invoice/bill workflows do not provide authoritative bank settlement movements. Account 1000 or retained earnings cannot safely be treated as a current bank balance. No receivable is treated as received and no payable as paid.
+
+Pro and Demo see eight ordered cards—revenue, expenses, profit, obligations, VAT, budget, payment behaviour and cash—and the collapsible methodology. Source-specific failures render unavailable cards without hiding other forecasts or Phase 1/2. Genuine zero obligations are shown as zero; missing/failed sources are never represented as £0.00. Demo retains `Pro Demo · Not billed` with no billing controls.
+
+Starter sees at most two fixed, non-sensitive teaser headings immediately before the existing single upgrade panel. It receives no detailed cards, customer/budget names, projections, VAT breakdown, rankings or methodology. An empty Starter account gets the add-records forecast prompt. Access remains hidden until authoritative entitlement resolution; failure retains the existing retry state.
+
+`business_insights_forecasts_viewed` is requested once at most, only after an available detailed forecast or Starter teaser renders. The payload remains event type plus idempotency key only. Existing server policy excludes Demo/admin accounts and Customer Analytics groups the event under Business Insights.
+
+Focused verification:
+
+```powershell
+npm.cmd test -- --run tests/business-insights-forecasts.test.js tests/business-insights-actionable.test.js tests/business-insights.test.js
+npm.cmd test -- --run tests/admin-activity.test.js tests/customer-analytics-instrumentation.test.js
+```
+
+Manual QA checklist:
+
+1. Official populated Demo: confirm all eight cards, methodology, Pro Demo/Not billed label, Review links, and no upgrade/subscription controls.
+2. Populated Starter: confirm no more than two generic teasers immediately before the one upgrade panel, no sensitive detail in DOM, and Stripe Checkout still launches from its existing button.
+3. Empty Starter: confirm add-records forecast text and one upgrade control. Empty Pro/Demo: confirm truthful unavailable/insufficient states, genuine zero obligations and cash unavailability.
+4. Genuine Pro: reconcile month-to-date journal totals with Profit & Loss, manually extend them by elapsed/total calendar days, and compare equivalent elapsed previous-month movement.
+5. Check a leap-year February, the first and last day of a month, no-current-month journals, partially malformed journals and a denied journal read.
+6. Check bills due yesterday, today, day 7, day 8, day 30 and day 31 plus Paid/invalid bills; confirm no overlap and separate overdue totals.
+7. VAT-registered and non-VAT accounts: reconcile 2100 less 1200 and confirm payable, reclaimable, nil, disclaimer and unavailable states.
+8. Test projected-over, projected-under, zero/negative-amount, future, expired and invalid-date budgets against the Budgets page allocations.
+9. Test named customers with two or more valid paid dates, mixed due dates, currently overdue invoices and invalid/negative durations. Confirm Starter never sees names or rankings.
+10. Force invoice, bill, budget and journal failures independently; confirm only dependent cards become unavailable and Phase 1/2 remains visible.
+11. At desktop, laptop/tablet and narrow mobile widths, confirm balanced two-column then one-column behavior, safe long-name wrapping, no empty tracks/overflow, and visible keyboard focus on Review links, methodology summary and upgrade button.
+12. Inspect network/data writes: no AI/OpenAI or forecast request, no financial mutation, one privacy-safe bounded forecast event for eligible customers, and no Demo/admin customer event.
+
+Deployment requires updated Firebase Hosting assets and Firebase Functions for the activity event allow-list/presentation and Customer Analytics normalisation. No Firestore rule/index, Stripe product/price, stored plan, Demo seed, scheduled job or environment change is required.
+
+
 ## Demo Experience Phase — Full Pro showcase and protected account settings
 
 The authoritative `users/{uid}.demoMode === true` flag now layers an effective

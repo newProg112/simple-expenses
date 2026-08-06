@@ -44,8 +44,9 @@
 - [x] Business Insights Phase 1 — deterministic health, priorities, trends and snapshot
 - [x] Business Insights Phase 1 Polish and Pro Gating — Starter preview, complete Pro insights and concise trends
 - [x] Business Insights Phase 2 — deterministic actionable customer, expense, project, payment, bill and VAT recommendations
-- [ ] Business Insights Phase 3 — Pro AI Business Review
-- [ ] Business Insights Phase 4 — follow-up AI conversation
+- [x] Business Insights Phase 3 — deterministic Forecasts & Projections; cash outlook intentionally unavailable until authoritative saved bank balances and settlement movements exist
+- [ ] Business Insights Phase 4 — Pro AI Business Review
+- [ ] Business Insights Phase 5 — follow-up AI conversation
 
 ## AI
 

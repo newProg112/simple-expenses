@@ -65,7 +65,9 @@ export function businessInsightsVisibility(access){
     upgradePrompt: access.starterPreview,
     billingActions: access.starterPreview && !access.demo,
     actionableDetails: access.fullAccess,
-    actionablePreview: access.starterPreview
+    actionablePreview: access.starterPreview,
+    forecastDetails: access.fullAccess,
+    forecastPreview: access.starterPreview
   });
 }
 
@@ -76,6 +78,8 @@ export function businessInsightsPresentation(model, access){
     visibility,
     actionable: visibility.actionableDetails ? Object.freeze((model?.actionable?.recommendations || []).slice(0, 6)) : Object.freeze([]),
     actionableTeasers: visibility.actionablePreview ? Object.freeze((model?.actionable?.teasers || []).slice(0, 2)) : Object.freeze([]),
+    forecasts: visibility.forecastDetails ? Object.freeze(model?.forecasts?.cards || []) : Object.freeze([]),
+    forecastTeasers: visibility.forecastPreview ? Object.freeze((model?.forecasts?.teasers || []).slice(0, 2)) : Object.freeze([]),
     priorities: Object.freeze((model?.priorities || []).slice(0, visibility.priorityLimit)),
     snapshot: visibility.fullSnapshot ? snapshot : Object.freeze({
       outstandingInvoiceTotal: snapshot.outstandingInvoiceTotal,

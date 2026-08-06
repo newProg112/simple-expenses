@@ -4,7 +4,7 @@ import { collection, doc, getDoc, getDocs, query, where } from "https://www.gsta
 import {
   buildBusinessInsights,
   trendSentence
-} from "./business-insights-calculations.js?v=20260806-insights-phase2";
+} from "./business-insights-calculations.js?v=20260806-insights-phase3";
 import { createActivityIdempotencyKey, logActivityEvent } from "./activity-logger.js";
 import { trackBeginCheckout } from "./analytics-events.js?v=20260802-analytics1";
 import {
@@ -25,6 +25,7 @@ let checkoutOpening = false;
 let upgradePromptLogged = false;
 let upgradeClickLogged = false;
 let actionableViewLogged = false;
+let forecastsViewLogged = false;
 
 function escapeHtml(value){
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -44,12 +45,12 @@ export async function loadBusinessInsightsData(user, services = { db, collection
   const requests = COLLECTIONS.map(name => services.getDocs(services.collection(services.db, "users", user.uid, name)));
   requests.push(loadOwnedJournals(services.db, user.uid, services));
   const results = await Promise.allSettled(requests);
-  const data = {};
+  const data = { sourceAvailability:{} };
   const failures = [];
   const notices = [];
   COLLECTIONS.forEach((name, index) => {
-    if(results[index].status === "fulfilled") data[name] = rows(results[index].value);
-    else { data[name] = []; failures.push(name); }
+    if(results[index].status === "fulfilled") { data[name] = rows(results[index].value); data.sourceAvailability[name] = true; }
+    else { data[name] = []; data.sourceAvailability[name] = false; failures.push(name); }
   });
   const journalResult = results[COLLECTIONS.length];
   if(journalResult.status === "fulfilled"){
@@ -115,6 +116,30 @@ function renderActionable(presentation){
   }
 }
 
+function renderForecasts(presentation){
+  const detailedSection = document.getElementById("forecastsSection");
+  const previewSection = document.getElementById("forecastPreviewSection");
+  detailedSection.hidden = !presentation.visibility.forecastDetails;
+  previewSection.hidden = !presentation.visibility.forecastPreview;
+  let meaningful = false;
+  if(presentation.visibility.forecastDetails){
+    const cards = presentation.forecasts;
+    document.getElementById("forecastsContent").innerHTML = `<div class="forecast-grid">${cards.map(card => `<article class="forecast-card forecast-${escapeHtml(card.status)}"><span class="forecast-label">${escapeHtml(card.label)}</span><h3>${escapeHtml(card.title)}</h3><strong class="forecast-value">${escapeHtml(card.value)}</strong><p>${escapeHtml(card.explanation)}</p><small>${escapeHtml(card.basis)}</small>${card.href ? `<a href="${escapeHtml(card.href)}">Review <span class="sr-only">${escapeHtml(card.title)}</span></a>` : ""}</article>`).join("")}</div>`;
+    meaningful = cards.some(card => card.available);
+  }
+  if(presentation.visibility.forecastPreview){
+    const teasers = presentation.forecastTeasers;
+    document.getElementById("forecastPreviewContent").innerHTML = teasers.length
+      ? `<ul class="teaser-list">${teasers.map(teaser => `<li>${escapeHtml(teaser)}</li>`).join("")}</ul>`
+      : `<p class="teaser-empty">Add more current records to unlock forecast projections.</p>`;
+    meaningful = teasers.length > 0;
+  }
+  if(meaningful && !forecastsViewLogged){
+    forecastsViewLogged = true;
+    void logActivityEvent("business_insights_forecasts_viewed", createActivityIdempotencyKey());
+  }
+}
+
 function trendCard(label, trend, helper){
   const sentence = trendSentence(trend);
   return `<article class="trend-card trend-${trend.favourability}" aria-label="${escapeHtml(label)}: ${escapeHtml(money(trend.current))}. ${escapeHtml(sentence)} ${escapeHtml(trend.favourability)} movement."><h3>${escapeHtml(label)}</h3><strong>${escapeHtml(money(trend.current))}</strong><p class="trend-direction">${escapeHtml(sentence)}</p><small>${escapeHtml(helper)}</small></article>`;
@@ -174,13 +199,17 @@ export function renderBusinessInsights(model, access, failures = [], notices = [
   if(!model.hasData){
     renderEmpty();
     renderActionable(presentation);
+    renderForecasts(presentation);
     const empty = document.getElementById("emptyState");
     const upgrade = document.getElementById("insightsUpgradePanel");
     upgrade.hidden = !visibility.upgradePrompt;
     const actionable = visibility.actionableDetails
       ? document.getElementById("actionableSection")
       : document.getElementById("actionablePreviewSection");
-    empty.after(actionable, ...(visibility.upgradePrompt ? [upgrade] : []));
+    const forecasts = visibility.forecastDetails
+      ? document.getElementById("forecastsSection")
+      : document.getElementById("forecastPreviewSection");
+    empty.after(actionable, forecasts, ...(visibility.upgradePrompt ? [upgrade] : []));
     const partialMessage = partialJournalDataMessage(failures, notices);
     if(partialMessage){
       const warning = document.getElementById("partialWarning");
@@ -194,6 +223,7 @@ export function renderBusinessInsights(model, access, failures = [], notices = [
   renderHealth(model.health, visibility.scoreBreakdown);
   renderPriorities(presentation.priorities);
   renderActionable(presentation);
+  renderForecasts(presentation);
   renderSnapshot(presentation.snapshot, visibility);
   document.getElementById("prioritiesIntro").textContent = visibility.fullAccess
     ? "Up to five current items, ordered by severity and value."

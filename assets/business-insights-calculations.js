@@ -2,6 +2,7 @@ import { normaliseInvoiceDate, roundMoney } from "/resources/js/business-logic.j
 import { profitLossViewFromJournals } from "/resources/js/profit-loss-view.js";
 import { formatTrialBalanceGbp } from "/resources/js/trial-balance-view.js";
 import { buildActionableInsights } from "./business-insights-actionable.js";
+import { buildForecasts } from "./business-insights-forecasts.js";
 
 const DAY_MS = 86400000;
 const PRIORITY_ORDER = Object.freeze({ high: 0, medium: 1, positive: 2 });
@@ -123,7 +124,7 @@ function budgetTransaction(record, source){
   };
 }
 
-export function calculateBudgetSummaries(budgets = [], bills = [], expenses = []){
+export function calculateBudgetSummaries(budgets = [], bills = [], expenses = [], asOfDate = null){
   const transactions = [
     ...(Array.isArray(bills) ? bills : []).map(item => budgetTransaction(item, "bill")),
     ...(Array.isArray(expenses) ? expenses : []).map(item => budgetTransaction(item, "expense"))
@@ -133,6 +134,7 @@ export function calculateBudgetSummaries(budgets = [], bills = [], expenses = []
     const category = String(budget?.category || "").trim().toLowerCase();
     const actual = transactions.filter(transaction => {
       if(!inRange(transaction.date, budget?.startDate, budget?.endDate)) return false;
+      if(asOfDate && dayNumber(transaction.date) > dayNumber(asOfDate)) return false;
       if(budget?.projectId && transaction.projectId !== String(budget.projectId)) return false;
       if(budget?.budgetType === "category") return transaction.source !== "bill" && category && transaction.category === category;
       return true;
@@ -277,6 +279,13 @@ export function buildBusinessInsights(data = {}, referenceDate = new Date()){
       referenceDate,
       period:comparisonPeriods(referenceDate),
       projectSummaries:snapshot.projects,
+      vatRegistered:data.vatRegistered === true,
+      formatMoney:formatInsightsGbp
+    }),
+    forecasts:buildForecasts(data, {
+      referenceDate,
+      period:comparisonPeriods(referenceDate),
+      budgetSummaries:calculateBudgetSummaries(data.budgets, data.bills, data.expenses, referenceDate),
       vatRegistered:data.vatRegistered === true,
       formatMoney:formatInsightsGbp
     })
