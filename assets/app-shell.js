@@ -12,7 +12,8 @@ export const NAVIGATION_GROUPS = Object.freeze([
   Object.freeze({
     label: "",
     items: Object.freeze([
-      Object.freeze({ key: "dashboard", label: "Dashboard", href: "/dashboard.html" })
+      Object.freeze({ key: "dashboard", label: "Dashboard", href: "/dashboard.html" }),
+      Object.freeze({ key: "business-insights", label: "Business Insights", href: "/business-insights.html" })
     ])
   }),
   Object.freeze({
@@ -72,6 +73,7 @@ export const SIDEBAR_SCROLL_STORAGE_KEY = "simple-books:app-shell:sidebar-scroll
 
 export const NAVIGATION_ICONS = Object.freeze({
   dashboard: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  "business-insights": '<path d="M4 19V5M4 19h16M7 15l4-4 3 2 5-6"/><circle cx="7" cy="15" r="1"/><circle cx="11" cy="11" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="7" r="1"/>',
   invoices: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   clients: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   bills: '<path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21V3Z"/><path d="M10 8h4M10 12h4M10 16h4"/>',

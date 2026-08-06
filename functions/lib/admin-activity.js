@@ -24,6 +24,7 @@ const FRONTEND_EVENT_TYPES = new Set([
   "general_ledger_viewed",
   "profit_and_loss_viewed",
   "balance_sheet_viewed",
+  "business_insights_viewed",
 ]);
 const CUSTOMER_ANALYTICS_EVENT_TYPES = new Set([
   "bill_created",
@@ -36,6 +37,7 @@ const CUSTOMER_ANALYTICS_EVENT_TYPES = new Set([
   "general_ledger_viewed",
   "profit_and_loss_viewed",
   "balance_sheet_viewed",
+  "business_insights_viewed",
 ]);
 const EVENT_PRESENTATION = Object.freeze({
   user_signed_up: {summary: "A new Simple Books account was registered."},
@@ -56,6 +58,7 @@ const EVENT_PRESENTATION = Object.freeze({
   general_ledger_viewed: {summary: "The General Ledger report was opened."},
   profit_and_loss_viewed: {summary: "The Profit & Loss report was opened."},
   balance_sheet_viewed: {summary: "The Balance Sheet report was opened."},
+  business_insights_viewed: {summary: "Business Insights was opened."},
 });
 const ALLOWED_REQUEST_FIELDS = new Set(["eventType", "idempotencyKey"]);
 

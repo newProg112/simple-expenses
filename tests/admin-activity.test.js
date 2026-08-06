@@ -65,7 +65,8 @@ describe("Admin Dashboard Phase 5A backend activity policy", () => {
       "ai_question_asked", "checkout_started", "upgraded_to_pro", "subscription_cancelled",
       "bill_created", "expense_created", "mileage_created", "project_created",
       "budget_created", "accountant_pack_generated", "trial_balance_viewed",
-      "general_ledger_viewed", "profit_and_loss_viewed", "balance_sheet_viewed"
+      "general_ledger_viewed", "profit_and_loss_viewed", "balance_sheet_viewed",
+      "business_insights_viewed"
     ]);
     expect(JSON.stringify(EVENT_PRESENTATION)).not.toMatch(/amount|invoice number|prompt|stripe/i);
   });

@@ -1,5 +1,110 @@
 # Testing
 
+## Business Insights Phase 1
+
+Business Insights is an authenticated customer page available without an
+upgrade gate to Starter, Pro and Demo accounts. It reads the user's invoices,
+bills, combined expense/mileage records, projects and budgets, plus the user's
+validated accounting journals. It does not write insight results or financial
+records and makes no OpenAI or other AI API call.
+
+The accounting source is the top-level `journals` collection filtered by the
+authenticated account's `userId`, matching Trial Balance, General Ledger and
+Profit & Loss and the journal security rules. Business Insights normalises the
+loaded documents with the shared journal adapter and calculates the period with
+the shared Profit & Loss helper. A successful empty journal query is zero
+activity, not a load failure. Invalid individual journals are skipped with a
+partial-data note while valid journals remain available; permission, network or
+query failures retain the accounting-journal warning and make only the
+journal-dependent values unavailable.
+
+Revenue, expenses and profit use the shared journal-based Profit & Loss
+calculation. The comparison is current calendar month to date against the same
+number of elapsed days in the previous calendar month. Outstanding invoice
+movement uses invoice source records dated in those same periods. Operational
+project profitability is invoiced gross value less allocated bill, expense and
+mileage gross values, matching the Projects implementation. Budget usage uses
+the existing supported date, project and category allocation rules.
+
+The health score starts at 60. Capped components are overdue invoices (−15 to
++12), revenue trend (−10 to +10), expense trend (−8 to +8), current journal
+profitability (−12 to +12), active project profitability (−10 to +8), and
+active budget pressure (−10 to +8). The final score is clamped to 0–100. An
+account with no relevant records receives `Not enough data yet` instead of a
+zero score. Bands are 80–100 Strong, 60–79 Healthy, 40–59 Needs attention and
+0–39 At risk.
+
+Automated verification:
+
+```powershell
+npm.cmd test
+npm.cmd --prefix functions run lint
+node --check assets/business-insights-calculations.js
+node --check assets/business-insights.js
+node -e "JSON.parse(require('fs').readFileSync('firebase.json','utf8'))"
+git diff --check
+```
+
+Manual verification:
+
+1. Sign into the canonical Demo account and open Business Insights directly
+   below Dashboard in the navigation. Confirm a populated score, multiple
+   ordered priorities, non-flat trends and snapshot values appear naturally
+   from the seeded records.
+2. Sign into a brand-new empty Starter account. Confirm there is no score,
+   invented trend or recommendation; confirm the onboarding links to invoices,
+   expenses and projects are usable.
+3. Sign into a populated Starter account and confirm the page loads with no Pro
+   gate, upgrade prompt or brief entitlement flash.
+4. Sign into a Pro account and confirm the same deterministic sections load;
+   no AI review or chat control is present.
+5. Check the score is between 0 and 100, its visible status matches its band,
+   and the keyboard-accessible breakdown totals from a neutral 60 before the
+   clamp.
+6. Confirm priorities show no more than five entries, high severity precedes
+   medium and positive, links open the appropriate record page, and a healthy
+   fixture shows the positive no-urgent-issues state.
+7. Compare revenue, expenses and profit to Profit & Loss journals for the shown
+   month-to-date periods. Confirm a zero previous value never displays infinity
+   and missing periods say `No comparison available`.
+   For the canonical demo on 6 August 2026, compare 1–6 August with 1–6 July.
+   The expected source-of-truth values are £5,450.00 revenue, £879.70 expenses
+   and £4,570.30 profit for August, versus £2,800.00, £378.50 and £2,421.50 for
+   July. Profit & Loss must reconcile when those inclusive dates are selected.
+   The health breakdown should include +10 revenue, −8 expenses and +12 current
+   profitability, with all components producing a final clamped score of 82.
+8. Compare outstanding/overdue invoices and unpaid bills with Dashboard and
+   source lists; compare project loss and budget-pressure counts with Projects
+   and Budgets.
+9. At wide desktop, laptop, tablet and mobile widths, confirm cards wrap without
+   horizontal overflow, the health score remains readable, the drawer and
+   sidebar scroll state are unchanged, and controls have comfortable touch
+   targets.
+10. Navigate by keyboard through links and the score breakdown. With a screen
+    reader, confirm loading/error announcements, score/status wording and trend
+    direction/favourability are conveyed without relying on colour.
+11. For a normal non-admin, non-demo account, confirm one
+    `business_insights_viewed` safe customer activity event follows a successful
+    load and Business Insights appears in aggregate feature adoption. Confirm a
+    forced logging failure does not hide or break the page.
+12. Confirm the Demo and admin exclusions still prevent customer activity
+    logging, while generic Demo page-view tracking continues through the shared
+    shell.
+13. Inspect browser network activity and confirm the page makes no OpenAI or AI
+    API request and writes no insight or customer financial document.
+
+Production smoke test after deployment:
+
+1. Open `/business-insights.html` signed out and confirm redirect to Login.
+2. Repeat Demo, empty Starter, populated Starter and Pro checks above.
+3. Verify the navigation active state and mobile drawer on the production host.
+4. Reconcile one period against Profit & Loss and one project/budget against
+   their existing pages.
+5. Confirm the safe event appears once for an eligible customer and contains no
+   financial values or insight text.
+6. Review browser console/network for load errors, overflow and any AI call.
+
+
 ## Demo Experience Phase — Full Pro showcase and protected account settings
 
 The authoritative `users/{uid}.demoMode === true` flag now layers an effective

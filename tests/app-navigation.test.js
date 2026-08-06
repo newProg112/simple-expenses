@@ -20,6 +20,7 @@ import {
 const items = NAVIGATION_GROUPS.flatMap(group => group.items);
 const expectedRoutes = [
   "/dashboard.html",
+  "/business-insights.html",
   "/resources/tools/invoice-generator.html",
   "/resources/tools/client-tracker.html",
   "/resources/tools/bills.html",
@@ -38,6 +39,7 @@ const expectedRoutes = [
 const shellPages = [
   "admin.html",
   "dashboard.html",
+  "business-insights.html",
   "account.html",
   "exports.html",
   "resources/tools/ai-assistant.html",
@@ -69,7 +71,7 @@ describe("application navigation", () => {
   it("defines every application route once", () => {
     const routes = items.map(item => item.href);
 
-    expect(items).toHaveLength(15);
+    expect(items).toHaveLength(16);
     expect(new Set(routes).size).toBe(routes.length);
     expect(routes).toEqual(expectedRoutes);
   });
