@@ -30,7 +30,7 @@ const FEATURE_DEFINITIONS = Object.freeze([
   {key: "invoice_scanning", label: "Invoice Scanning", events: ["invoice_scanned", "document_scanned"]},
   {key: "accountant_pack", label: "Accountant Pack", events: ["accountant_pack_generated", "accountant_pack_downloaded"]},
   {key: "accounting_reports", label: "Accounting Reports", events: ["trial_balance_viewed", "general_ledger_viewed", "profit_and_loss_viewed", "balance_sheet_viewed"]},
-  {key: "business_insights", label: "Business Insights", events: ["business_insights_viewed"]},
+  {key: "business_insights", label: "Business Insights", events: ["business_insights_viewed", "business_insights_actionable_viewed"]},
 ]);
 const ADOPTION_DEFINITIONS = Object.freeze([
   {key: "invoices", label: "Invoices", events: ["invoice_created", "invoice_saved"]},
@@ -46,7 +46,7 @@ const ADOPTION_DEFINITIONS = Object.freeze([
   {key: "general_ledger", label: "General Ledger", events: ["general_ledger_viewed"]},
   {key: "profit_and_loss", label: "Profit & Loss", events: ["profit_and_loss_viewed"]},
   {key: "balance_sheet", label: "Balance Sheet", events: ["balance_sheet_viewed"]},
-  {key: "business_insights", label: "Business Insights", events: ["business_insights_viewed"]},
+  {key: "business_insights", label: "Business Insights", events: ["business_insights_viewed", "business_insights_actionable_viewed"]},
 ]);
 const EVENT_TO_FEATURE = new Map(FEATURE_DEFINITIONS.flatMap((feature) =>
   feature.events.map((eventName) => [eventName, feature])));

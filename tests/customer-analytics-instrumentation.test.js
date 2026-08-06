@@ -30,7 +30,7 @@ const NOW = new Date("2026-08-05T12:00:00.000Z");
 const canonicalEvents = [
   "bill_created", "expense_created", "mileage_created", "project_created",
   "budget_created", "accountant_pack_generated", "trial_balance_viewed",
-  "general_ledger_viewed", "profit_and_loss_viewed", "balance_sheet_viewed", "business_insights_viewed",
+  "general_ledger_viewed", "profit_and_loss_viewed", "balance_sheet_viewed", "business_insights_viewed", "business_insights_actionable_viewed",
   "business_insights_upgrade_prompt_viewed", "business_insights_upgrade_clicked"
 ];
 
@@ -167,13 +167,14 @@ describe("Customer Analytics Phase 1B aggregation", () => {
       uid: "customer", eventType, createdAt: new Date(NOW.getTime() - index * 1000)
     }));
     const result = aggregateCustomerAnalytics({entries: [entry], events, range: "30d", now: NOW});
-    for(const label of ["Bills", "Expenses", "Mileage", "Projects", "Budgets", "Accountant Pack", "Trial Balance", "General Ledger", "Profit & Loss", "Balance Sheet", "Business Insights"]){
+    for(const label of ["Bills", "Expenses", "Mileage", "Projects", "Budgets", "Accountant Pack", "Trial Balance", "General Ledger", "Profit & Loss", "Balance Sheet"]){
       expect(result.adoption).toContainEqual(expect.objectContaining({label, count: 1}));
     }
-    expect(result.features).toContainEqual({key: "accounting_reports", label: "Accounting Reports", count: 4, share: 36.4});
-    expect(result.features).toContainEqual({key: "business_insights", label: "Business Insights", count: 1, share: 9.1});
-    expect(result.summary.totalTrackedCustomerActions).toBe(13);
-    expect(result.daily.reduce((sum, day) => sum + day.trackedActions, 0)).toBe(13);
+    expect(result.adoption).toContainEqual({key: "business_insights", label: "Business Insights", count: 2});
+    expect(result.features).toContainEqual({key: "accounting_reports", label: "Accounting Reports", count: 4, share: 33.3});
+    expect(result.features).toContainEqual({key: "business_insights", label: "Business Insights", count: 2, share: 16.7});
+    expect(result.summary.totalTrackedCustomerActions).toBe(14);
+    expect(result.daily.reduce((sum, day) => sum + day.trackedActions, 0)).toBe(14);
   });
 
   it("leaves Demo Analytics implementation untouched by instrumentation", () => {

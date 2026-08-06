@@ -303,7 +303,8 @@ describe("Business Insights Phase 1", () => {
     expect(source).toContain('void logActivityEvent("business_insights_viewed", createActivityIdempotencyKey())');
     expect(source.match(/logActivityEvent\("business_insights_upgrade_prompt_viewed"/g)).toHaveLength(1);
     expect(source.match(/logActivityEvent\("business_insights_upgrade_clicked"/g)).toHaveLength(1);
-    expect(source).toContain("if(visibility.upgradePrompt && !upgradePromptLogged)");
+    expect(source).toContain("if(upgradePromptLogged) return");
+    expect(source).toContain("if(visibility.upgradePrompt) logUpgradePromptView()");
     expect(source).toContain("if(!upgradeClickLogged)");
     expect(source).toContain("CHECKOUT_FUNCTION_URL");
     expect(source).toContain("await trackBeginCheckout()");

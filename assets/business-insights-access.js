@@ -24,12 +24,14 @@ function snapshotData(snapshot){
 }
 
 export function resolveBusinessInsightsAccess(accountSnapshot, profileSnapshot){
+  const account = snapshotData(accountSnapshot);
   const productAccess = resolveProductAccess(
-    snapshotData(accountSnapshot),
+    account,
     snapshotData(profileSnapshot)
   );
   return Object.freeze({
     ...productAccess,
+    vatRegistered: String(account.vatRegistered || "").trim().toLowerCase() === "yes" || account.vatRegistered === true,
     fullAccess: productAccess.effectivePlan === PLAN_IDS.PRO,
     starterPreview: productAccess.effectivePlan === PLAN_IDS.STARTER
   });
@@ -61,7 +63,9 @@ export function businessInsightsVisibility(access){
       : STARTER_SNAPSHOT_METRIC_IDS,
     methodology: access.fullAccess,
     upgradePrompt: access.starterPreview,
-    billingActions: access.starterPreview && !access.demo
+    billingActions: access.starterPreview && !access.demo,
+    actionableDetails: access.fullAccess,
+    actionablePreview: access.starterPreview
   });
 }
 
@@ -70,6 +74,8 @@ export function businessInsightsPresentation(model, access){
   const snapshot = model?.snapshot || {};
   return Object.freeze({
     visibility,
+    actionable: visibility.actionableDetails ? Object.freeze((model?.actionable?.recommendations || []).slice(0, 6)) : Object.freeze([]),
+    actionableTeasers: visibility.actionablePreview ? Object.freeze((model?.actionable?.teasers || []).slice(0, 2)) : Object.freeze([]),
     priorities: Object.freeze((model?.priorities || []).slice(0, visibility.priorityLimit)),
     snapshot: visibility.fullSnapshot ? snapshot : Object.freeze({
       outstandingInvoiceTotal: snapshot.outstandingInvoiceTotal,

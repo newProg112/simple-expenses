@@ -25,6 +25,7 @@ const FRONTEND_EVENT_TYPES = new Set([
   "profit_and_loss_viewed",
   "balance_sheet_viewed",
   "business_insights_viewed",
+  "business_insights_actionable_viewed",
   "business_insights_upgrade_prompt_viewed",
   "business_insights_upgrade_clicked",
 ]);
@@ -40,6 +41,7 @@ const CUSTOMER_ANALYTICS_EVENT_TYPES = new Set([
   "profit_and_loss_viewed",
   "balance_sheet_viewed",
   "business_insights_viewed",
+  "business_insights_actionable_viewed",
   "business_insights_upgrade_prompt_viewed",
   "business_insights_upgrade_clicked",
 ]);
@@ -63,6 +65,7 @@ const EVENT_PRESENTATION = Object.freeze({
   profit_and_loss_viewed: {summary: "The Profit & Loss report was opened."},
   balance_sheet_viewed: {summary: "The Balance Sheet report was opened."},
   business_insights_viewed: {summary: "Business Insights was opened."},
+  business_insights_actionable_viewed: {summary: "Actionable Business Insights were shown."},
   business_insights_upgrade_prompt_viewed: {summary: "Business Insights Pro information was shown."},
   business_insights_upgrade_clicked: {summary: "The Business Insights Pro upgrade was selected."},
 });

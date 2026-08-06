@@ -140,6 +140,45 @@ Production smoke test after deployment:
 6. Review browser console/network for load errors, overflow and any AI call.
 
 
+## Business Insights Phase 2 — Actionable Insights
+
+Actionable Insights is calculated locally on each authenticated page load. It adds no collection reads beyond the Phase 1 invoices, bills, combined expense/mileage, projects, budgets and validated owned-journal reads. Recommendation calculation makes no AI/OpenAI or new Cloud Function request, persists no generated text, and never writes financial data; the privacy-safe activity event continues through the existing logger.
+
+Recommendation definitions and qualification thresholds:
+
+- Top customer groups positive current-calendar-month-to-date invoice net revenue by a non-empty customer name. Net uses the stored net/amount, or a valid gross less VAT fallback. Ranking is revenue descending, then normalised name and internal document ID. The percentage denominator is all qualifying named-customer revenue in the period.
+- Largest expense category groups positive gross operational expense records in the same current period. Mileage records use the claim amount and `Mileage`; journals are not added, preventing derived-journal double counting. Ranking is amount descending, then normalised category and internal ID.
+- Project recommendations reuse Phase 1 project summaries. A meaningful active project requires a name, positive revenue, positive cost and a finite margin. Best ranks margin, profit and revenue descending. Lowest selects the lowest-margin loss first; otherwise the lowest non-loss margin only when at least two projects qualify. Remaining ties use name and ID; IDs are never visible.
+- Slowest payer uses Paid invoices with a name, valid issue date and stored `paidAt`, `paidDate`, `paymentDate` or `datePaid`. Negative/malformed durations are skipped and at least two invoices are required. Ranking is average calendar days descending, invoice count, name and ID.
+- Upcoming bills includes positive unpaid totals due today through exactly seven calendar days ahead, inclusive. Paid and overdue bills are excluded.
+- VAT appears only for `users/{uid}.vatRegistered` `Yes`/true when the journal load succeeded and the current period has a valid VAT line. It totals account `2100` VAT Output credit less debit, minus account `1200` VAT Input debit less credit. Positive is payable, negative reclaimable and under one penny approximately nil. This is not a VAT return or HMRC-ready figure and must be reviewed before filing.
+
+Detailed order is upcoming bills, slowest payer, lowest project, VAT, top customer, expense category, best project, capped at six. Pro and Demo receive details; Demo retains `Pro Demo · Not billed` and no billing controls. Starter receives at most two fixed safe teaser headings immediately before the existing single upgrade panel, with no names, values, percentages, payment days, VAT amounts, recommendation prose or IDs. Empty Starter shows the personalisation prompt; empty Pro/Demo shows the actionable empty state.
+
+`business_insights_actionable_viewed` is requested at most once only after a detailed recommendation or teaser renders. Its request contains event type and idempotency key only. Existing server policy excludes Demo/admin accounts; Customer Analytics groups it under Business Insights. Partial failures leave other recommendations visible and reuse the partial-data notice.
+
+Focused checks:
+
+```powershell
+npm.cmd test -- --run tests/business-insights-actionable.test.js tests/business-insights.test.js
+npm.cmd test -- --run tests/admin-activity.test.js tests/customer-analytics-instrumentation.test.js
+```
+
+Manual QA checklist:
+
+1. Populated Demo: detailed ordered cards, working Invoices/Bills/Expenses/Projects/Profit & Loss links, Pro Demo/Not billed, no billing controls.
+2. Populated Starter: no more than two generic teasers immediately before the single upgrade panel; no sensitive detail in text/DOM; Stripe launches only from that existing button.
+3. Empty Starter: personalisation prompt and one upgrade control. Empty Pro/Demo: actionable empty message and no upgrade control.
+4. Genuine Pro: up to six cards in documented order; reconcile project recommendations with Projects.
+5. VAT-registered/non-VAT: reconcile accounts 2100/1200; check payable, reclaimable, nil, disclaimer and suppression states.
+6. Desktop, tablet and narrow mobile: clean two/one-column stacking, no overflow, keyboard-visible Review/upgrade focus.
+7. Bill boundary: today and day seven included; yesterday, day eight and Paid excluded.
+8. Partial collection failure: remaining cards and partial notice render without hiding Phase 1; entitlement failure remains an honest retry.
+9. Network/data audit: no AI/OpenAI request, generated text persistence, financial write or new broad read; event is bounded, private and Demo/admin-excluded.
+
+Deployment requires updated Hosting assets and Firebase Functions for the activity allow-list/presentation and Customer Analytics normalisation. No Firestore rules/index, Stripe, plan, Demo-seed, scheduled job or environment change is required.
+
+
 ## Demo Experience Phase — Full Pro showcase and protected account settings
 
 The authoritative `users/{uid}.demoMode === true` flag now layers an effective

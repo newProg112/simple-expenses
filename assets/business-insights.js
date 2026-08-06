@@ -4,7 +4,7 @@ import { collection, doc, getDoc, getDocs, query, where } from "https://www.gsta
 import {
   buildBusinessInsights,
   trendSentence
-} from "./business-insights-calculations.js?v=20260806-insights-polish1";
+} from "./business-insights-calculations.js?v=20260806-insights-phase2";
 import { createActivityIdempotencyKey, logActivityEvent } from "./activity-logger.js";
 import { trackBeginCheckout } from "./analytics-events.js?v=20260802-analytics1";
 import {
@@ -24,9 +24,16 @@ let currentUser = null;
 let checkoutOpening = false;
 let upgradePromptLogged = false;
 let upgradeClickLogged = false;
+let actionableViewLogged = false;
 
 function escapeHtml(value){
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+function logUpgradePromptView(){
+  if(upgradePromptLogged) return;
+  upgradePromptLogged = true;
+  void logActivityEvent("business_insights_upgrade_prompt_viewed", createActivityIdempotencyKey());
 }
 
 function rows(snapshot){
@@ -82,6 +89,32 @@ function renderPriorities(priorities){
   target.innerHTML = `<ol class="priority-list">${priorities.map(item => `<li class="priority priority-${item.severity}"><span class="severity">${escapeHtml(item.severity)}</span><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.explanation)}</p></div>${item.href ? `<a href="${escapeHtml(item.href)}">Review <span class="sr-only">${escapeHtml(item.title)}</span></a>` : ""}</li>`).join("")}</ol>`;
 }
 
+function renderActionable(presentation){
+  const detailedSection = document.getElementById("actionableSection");
+  const previewSection = document.getElementById("actionablePreviewSection");
+  detailedSection.hidden = !presentation.visibility.actionableDetails;
+  previewSection.hidden = !presentation.visibility.actionablePreview;
+  let rendered = false;
+  if(presentation.visibility.actionableDetails){
+    const recommendations = presentation.actionable;
+    document.getElementById("actionableContent").innerHTML = recommendations.length
+      ? `<div class="actionable-grid">${recommendations.map(item => `<article class="actionable-card actionable-${escapeHtml(item.status)}"><span class="insight-category">${escapeHtml(item.category)}</span><h3>${escapeHtml(item.headline)}</h3><p>${escapeHtml(item.supporting)}</p>${item.href ? `<a href="${escapeHtml(item.href)}">Review <span class="sr-only">${escapeHtml(item.headline)}</span></a>` : ""}</article>`).join("")}</div>`
+      : `<div class="insights-neutral"><strong>No actionable recommendations are available yet.</strong><p>Add more invoices, bills, expenses, projects or VAT data.</p></div>`;
+    rendered = recommendations.length > 0;
+  }
+  if(presentation.visibility.actionablePreview){
+    const teasers = presentation.actionableTeasers;
+    document.getElementById("actionablePreviewContent").innerHTML = teasers.length
+      ? `<ul class="teaser-list">${teasers.map(teaser => `<li>${escapeHtml(teaser)}</li>`).join("")}</ul>`
+      : `<p class="teaser-empty">Add more records to unlock personalised recommendations.</p>`;
+    rendered = teasers.length > 0;
+  }
+  if(rendered && !actionableViewLogged){
+    actionableViewLogged = true;
+    void logActivityEvent("business_insights_actionable_viewed", createActivityIdempotencyKey());
+  }
+}
+
 function trendCard(label, trend, helper){
   const sentence = trendSentence(trend);
   return `<article class="trend-card trend-${trend.favourability}" aria-label="${escapeHtml(label)}: ${escapeHtml(money(trend.current))}. ${escapeHtml(sentence)} ${escapeHtml(trend.favourability)} movement."><h3>${escapeHtml(label)}</h3><strong>${escapeHtml(money(trend.current))}</strong><p class="trend-direction">${escapeHtml(sentence)}</p><small>${escapeHtml(helper)}</small></article>`;
@@ -133,14 +166,34 @@ function renderEmpty(){
 }
 
 export function renderBusinessInsights(model, access, failures = [], notices = []){
-  if(!model.hasData){ renderEmpty(); return; }
   const presentation = businessInsightsPresentation(model, access);
   const visibility = presentation.visibility;
   const accessLabel = document.getElementById("pageAccessLabel");
   accessLabel.hidden = !access.demo;
   accessLabel.textContent = access.demo ? "Pro Demo · Not billed" : "";
+  if(!model.hasData){
+    renderEmpty();
+    renderActionable(presentation);
+    const empty = document.getElementById("emptyState");
+    const upgrade = document.getElementById("insightsUpgradePanel");
+    upgrade.hidden = !visibility.upgradePrompt;
+    const actionable = visibility.actionableDetails
+      ? document.getElementById("actionableSection")
+      : document.getElementById("actionablePreviewSection");
+    empty.after(actionable, ...(visibility.upgradePrompt ? [upgrade] : []));
+    const partialMessage = partialJournalDataMessage(failures, notices);
+    if(partialMessage){
+      const warning = document.getElementById("partialWarning");
+      warning.hidden = false;
+      warning.textContent = partialMessage;
+      empty.before(warning);
+    }
+    if(visibility.upgradePrompt) logUpgradePromptView();
+    return;
+  }
   renderHealth(model.health, visibility.scoreBreakdown);
   renderPriorities(presentation.priorities);
+  renderActionable(presentation);
   renderSnapshot(presentation.snapshot, visibility);
   document.getElementById("prioritiesIntro").textContent = visibility.fullAccess
     ? "Up to five current items, ordered by severity and value."
@@ -157,10 +210,7 @@ export function renderBusinessInsights(model, access, failures = [], notices = [
     warning.hidden = false;
     warning.textContent = partialMessage;
   }
-  if(visibility.upgradePrompt && !upgradePromptLogged){
-    upgradePromptLogged = true;
-    void logActivityEvent("business_insights_upgrade_prompt_viewed", createActivityIdempotencyKey());
-  }
+  if(visibility.upgradePrompt) logUpgradePromptView();
 }
 
 async function startBusinessInsightsCheckout(){
@@ -221,7 +271,7 @@ async function initialise(){
       accessPromise
     ]);
     if(notices.length) console.warn("Business Insights skipped malformed accounting journal records.");
-    renderBusinessInsights(buildBusinessInsights(data), access, failures, notices);
+    renderBusinessInsights(buildBusinessInsights({ ...data, vatRegistered:access.vatRegistered }), access, failures, notices);
     loading.hidden = true;
     status.textContent = failures.length || notices.length ? "Business Insights loaded with some partial data." : "Business Insights loaded.";
     void logActivityEvent("business_insights_viewed", createActivityIdempotencyKey());

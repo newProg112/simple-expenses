@@ -1,6 +1,7 @@
 import { normaliseInvoiceDate, roundMoney } from "/resources/js/business-logic.js";
 import { profitLossViewFromJournals } from "/resources/js/profit-loss-view.js";
 import { formatTrialBalanceGbp } from "/resources/js/trial-balance-view.js";
+import { buildActionableInsights } from "./business-insights-actionable.js";
 
 const DAY_MS = 86400000;
 const PRIORITY_ORDER = Object.freeze({ high: 0, medium: 1, positive: 2 });
@@ -265,11 +266,19 @@ export function generatePriorities(data = {}, referenceDate = new Date()){
 
 export function buildBusinessInsights(data = {}, referenceDate = new Date()){
   const recordCount = ["invoices", "bills", "expenses", "projects", "budgets", "journals"].reduce((sum, key) => sum + (Array.isArray(data[key]) ? data[key].length : 0), 0);
+  const snapshot = calculateSnapshot(data, referenceDate);
   return {
     hasData: recordCount > 0,
     health: calculateHealthScore(data, referenceDate),
     priorities: generatePriorities(data, referenceDate),
     trends: calculateTrends(data, referenceDate),
-    snapshot: calculateSnapshot(data, referenceDate)
+    snapshot,
+    actionable: buildActionableInsights(data, {
+      referenceDate,
+      period:comparisonPeriods(referenceDate),
+      projectSummaries:snapshot.projects,
+      vatRegistered:data.vatRegistered === true,
+      formatMoney:formatInsightsGbp
+    })
   };
 }
