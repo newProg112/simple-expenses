@@ -43,7 +43,7 @@ import {
   createCustomerAnalyticsLoader,
   customerAnalyticsErrorState,
   normalizeCustomerAnalyticsPayload
-} from "./admin-customer-analytics-view.js?v=20260805-customer-analytics2-cohorts-fix1";
+} from "./admin-customer-analytics-view.js?v=20260806-customer-analytics3-bi1";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
@@ -188,6 +188,7 @@ const adminCharts = new Map();
 const demoAnalyticsCharts = new Map();
 let customerAnalyticsChart = null;
 let customerSignupCohortsChart = null;
+let activeCustomerTrendsChart = null;
 
 function setCustomerAnalyticsState(state){
   customerAnalyticsLoading.hidden = state !== "loading";
@@ -197,6 +198,10 @@ function setCustomerAnalyticsState(state){
   document.getElementById("customerAnalyticsSection")?.setAttribute("aria-busy", String(state === "loading"));
   document.getElementById("customerAnalyticsRange").disabled = state === "loading";
   retryCustomerAnalyticsButton.disabled = state === "loading";
+  if(state === "loading"){
+    document.getElementById("businessIntelligenceStatus").hidden = false;
+    document.getElementById("businessIntelligenceStatusMessage").textContent = "Loading Business Intelligence…";
+  }
 }
 
 function renderTableEmptyState(body, columnCount, message){
@@ -227,11 +232,107 @@ function renderCustomerTable(body, rows, emptyMessage = "No aggregate data is av
   }
 }
 
+function formatAllowanceUsage(value){
+  return value === null ? "Unavailable" : `${Number(value).toFixed(1)}%`;
+}
+
+function renderBusinessIntelligence(model){
+  activeCustomerTrendsChart?.destroy();
+  activeCustomerTrendsChart = null;
+  const status = document.getElementById("businessIntelligenceStatus");
+  const statusMessage = document.getElementById("businessIntelligenceStatusMessage");
+  const data = document.getElementById("businessIntelligenceData");
+  if(model.schemaVersion < 3){
+    status.hidden = false;
+    statusMessage.textContent = "Business Intelligence is unavailable because the Customer Analytics backend is out of date.";
+    data.hidden = true;
+    return;
+  }
+  status.hidden = true;
+  data.hidden = false;
+  const business = model.businessIntelligence;
+  const kpis = business.kpis;
+  document.getElementById("businessNearAiValue").textContent = String(kpis.starterNearAiLimit);
+  document.getElementById("businessNearScanningValue").textContent = String(kpis.starterNearInvoiceScanningLimit);
+  document.getElementById("businessNearProjectsValue").textContent = business.availability.activeProjectUsage
+    ? String(kpis.starterNearActiveProjectLimit) : "Unavailable";
+  document.getElementById("businessInactiveProValue").textContent = String(kpis.inactiveProAccounts);
+  document.getElementById("businessInactive60Value").textContent = String(kpis.customersInactive60Days);
+  document.getElementById("businessAverageEventsValue").textContent = kpis.averageSafeEventsPerActiveCustomer.toFixed(1);
+  renderCustomerTable(document.getElementById("businessUpgradeCandidatesBody"), business.upgradeCandidates.map(item => [
+    item.businessName || "Business name not set",
+    item.email || "Email not available",
+    `${item.aiAssistantSuccessfulUses} (${formatAllowanceUsage(item.aiAllowanceUsage)})`,
+    `${item.invoiceScanningSuccessfulUses} (${formatAllowanceUsage(item.invoiceScanningAllowanceUsage)})`,
+    item.activeProjects === null ? "Unavailable" : item.activeProjects,
+    formatAllowanceUsage(item.highestAllowanceUsage),
+    item.lastActive ? formatActivityExactTime(item.lastActive) : "No recorded activity",
+    item.suggestedReason || "Measured Starter allowance approaching"
+  ]), "No Starter accounts are at or above 70% of a measured allowance.");
+  renderCustomerTable(document.getElementById("businessInactiveProBody"), business.inactiveProAccounts.map(item => [
+    item.businessName || "Business name not set",
+    item.email || "Email not available",
+    item.lastActive ? formatActivityExactTime(item.lastActive) : "No recorded activity",
+    item.daysInactive === null ? "No recorded activity" : item.daysInactive,
+    formatSubscriptionStatus(item.plan),
+    item.subscriptionStatus ? formatSubscriptionStatus(item.subscriptionStatus) : "Not recorded",
+    item.aiAssistantSuccessfulUses,
+    item.invoiceScanningSuccessfulUses
+  ]), "No current Pro accounts have been inactive for 30 days.");
+  renderCustomerTable(document.getElementById("businessRecentlyActiveBody"), business.recentlyActiveBusinesses.map(item => [
+    item.businessName || "Business name not set",
+    formatSubscriptionStatus(item.plan),
+    formatActivityExactTime(item.lastActive),
+    item.safeEvents,
+    item.aiAssistantSuccessfulUses,
+    item.invoiceScanningSuccessfulUses
+  ]), "No recent qualifying customer activity is available.");
+  renderCustomerTable(customerTopEngagedTableBody, business.engagementLeaders.map(item => [
+    item.businessName || "Business name not set",
+    formatSubscriptionStatus(item.plan),
+    item.safeEvents,
+    item.activeDays,
+    formatActivityExactTime(item.lastActive),
+    item.averageEventsPerActiveDay.toFixed(1)
+  ]), "No customer engagement data is available in this range.");
+  replaceSummaryList("activeCustomerTrendsSummary", business.activeCustomerTrends.map(item =>
+    `${formatDemoDay(item.date)}: DAU ${item.dau}, trailing 7-day WAU ${item.wau}, trailing 30-day MAU ${item.mau}`
+  ));
+  const hasTrendData = business.activeCustomerTrends.some(item => item.dau || item.wau || item.mau);
+  if(!business.activeCustomerTrends.length || !hasTrendData){
+    showChartEmpty("activeCustomerTrendsChart", "activeCustomerTrendsEmpty", "No DAU, WAU or MAU activity is available in this time range.");
+    return;
+  }
+  const ChartLibrary = window.Chart;
+  if(typeof ChartLibrary !== "function"){
+    showChartEmpty("activeCustomerTrendsChart", "activeCustomerTrendsEmpty", "Charts are unavailable. The accessible active-customer summary remains available.");
+    return;
+  }
+  const options = baseChartOptions();
+  options.plugins.legend = {display: true};
+  options.elements = {line: {tension: 0}};
+  options.scales.x.ticks = {autoSkip: true, maxTicksLimit: window.innerWidth < 640 ? 6 : 12, maxRotation: 0};
+  activeCustomerTrendsChart = new ChartLibrary(prepareChart("activeCustomerTrendsChart", "activeCustomerTrendsEmpty"), {
+    type: "line",
+    data: {
+      labels: business.activeCustomerTrends.map(item => formatDemoDay(item.date)),
+      datasets: [
+        {label: "DAU", data: business.activeCustomerTrends.map(item => item.dau), borderColor: "#0077b6", pointRadius: 1, fill: false},
+        {label: "WAU (trailing 7 days)", data: business.activeCustomerTrends.map(item => item.wau), borderColor: "#16a34a", pointRadius: 1, fill: false},
+        {label: "MAU (trailing 30 days)", data: business.activeCustomerTrends.map(item => item.mau), borderColor: "#7c3aed", pointRadius: 1, fill: false}
+      ]
+    },
+    options
+  });
+}
+
 function renderCustomerAnalytics(payload){
   customerAnalyticsChart?.destroy();
   customerAnalyticsChart = null;
   customerSignupCohortsChart?.destroy();
   customerSignupCohortsChart = null;
+  activeCustomerTrendsChart?.destroy();
+  activeCustomerTrendsChart = null;
   const model = normalizeCustomerAnalyticsPayload(payload);
   const summary = model.summary;
   document.getElementById("customerActiveAccountsValue").textContent = String(summary.activeCustomerAccounts);
@@ -270,14 +371,6 @@ function renderCustomerAnalytics(payload){
   renderCustomerTable(customerConversionJourneyTableBody, model.conversionJourney.length
     ? model.conversionJourney.map((item, index) => [index === 0 ? item.label : `↓ ${item.label}`, item.count, index === 0 ? "Baseline" : `${item.percentageFromPrevious.toFixed(1)}%`])
     : [["Account Created", 0, "Baseline"]]);
-  renderCustomerTable(customerTopEngagedTableBody, model.topEngagedCustomers.map(item => [
-      item.businessName || "Business name not set",
-      formatSubscriptionStatus(item.plan),
-      formatActivityExactTime(item.lastActive),
-      item.totalSafeActivityEvents,
-      item.aiAssistantSuccessfulUses,
-      item.invoiceScanningSuccessfulUses
-    ]), "No engaged customers are available for this time range.");
   const cohortSummary = document.getElementById("customerSignupCohortsSummary");
   cohortSummary.replaceChildren(...model.signupCohorts.map(item => {
     const row = document.createElement("li");
@@ -298,6 +391,14 @@ function renderCustomerAnalytics(payload){
     item.textContent = text;
     return item;
   }));
+  try{
+    renderBusinessIntelligence(model);
+  }catch(error){
+    console.error("Business Intelligence rendering failed", error);
+    document.getElementById("businessIntelligenceStatus").hidden = false;
+    document.getElementById("businessIntelligenceStatusMessage").textContent = "Business Intelligence could not be rendered. Existing Customer Analytics remains available; refresh to retry.";
+    document.getElementById("businessIntelligenceData").hidden = true;
+  }
   setCustomerAnalyticsState(summary.totalTrackedCustomerActions === 0 ? "empty" : "loaded");
   const ChartLibrary = window.Chart;
   if(typeof ChartLibrary !== "function"){
@@ -1676,6 +1777,7 @@ if(typeof ResizeObserver === "function"){
     for(const chart of demoAnalyticsCharts.values()) chart.resize();
     customerAnalyticsChart?.resize();
     customerSignupCohortsChart?.resize();
+    activeCustomerTrendsChart?.resize();
   });
   chartResizeObserver.observe(growthOverview);
   chartResizeObserver.observe(document.getElementById("demoAnalyticsSection"));

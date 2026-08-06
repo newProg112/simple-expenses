@@ -3,10 +3,11 @@
 "use strict";
 
 const {isDemoAuthUser} = require("./admin-authorization");
-const {calendarMonthKey, normaliseUsageCount} = require("./plan-entitlements");
+const {calendarMonthKey, getPlanEntitlements, normaliseUsageCount} = require("./plan-entitlements");
+const {stripeSubscriptionStatus} = require("./stripe-subscription-status");
 
 const DEFAULT_CUSTOMER_ANALYTICS_RANGE = "30d";
-const CUSTOMER_ANALYTICS_SCHEMA_VERSION = 2;
+const CUSTOMER_ANALYTICS_SCHEMA_VERSION = 3;
 const CUSTOMER_ANALYTICS_RANGES = Object.freeze({"7d": 7, "30d": 30, "all": null});
 const CUSTOMER_ACTIVITY_LIMIT = 10000;
 const CUSTOMER_ACCOUNT_LIMIT = 5000;
@@ -14,6 +15,9 @@ const AUTH_PAGE_SIZE = 1000;
 const READ_BATCH_SIZE = 50;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TOP_ENGAGED_CUSTOMER_LIMIT = 20;
+const BUSINESS_INTELLIGENCE_TABLE_LIMIT = 20;
+const UPGRADE_CANDIDATE_THRESHOLD = 70;
+const NEAR_LIMIT_THRESHOLD = 80;
 
 const FEATURE_DEFINITIONS = Object.freeze([
   {key: "invoices", label: "Invoices", events: ["invoice_created", "invoice_saved"]},
@@ -113,6 +117,12 @@ function safeBusinessName(value) {
   if (typeof value !== "string") return "";
   return [...value].filter((character) => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127)
       .join("").trim().slice(0, 160);
+}
+
+function safeEmail(value) {
+  if (typeof value !== "string") return "";
+  return [...value].filter((character) => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127)
+      .join("").trim().slice(0, 254);
 }
 
 function percentage(count, total) {
@@ -322,6 +332,175 @@ function emptyDailyBuckets(range, now, events) {
       .sort().map((date) => ({date, activeAccounts: 0, trackedActions: 0}));
 }
 
+function allowanceUsage(usage, allowance) {
+  if (typeof allowance !== "number" || allowance <= 0) return null;
+  return Math.round(normaliseUsageCount(usage) / allowance * 1000) / 10;
+}
+
+function uniqueBusinessEvents(events) {
+  const seen = new Set();
+  return events.filter((event) => {
+    const key = `${event.uid}\u0000${event.eventType}\u0000${event.createdAt.toISOString()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function businessTrendBuckets(range, now, events) {
+  let start = utcRangeStart(range, now);
+  if (!start) {
+    const earliest = events.reduce((value, event) => !value || event.createdAt < value ? event.createdAt : value, null);
+    start = earliest ? new Date(Date.UTC(earliest.getUTCFullYear(), earliest.getUTCMonth(), earliest.getUTCDate())) : null;
+  }
+  if (!start) return [];
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const eventsByDay = new Map();
+  for (const event of events) {
+    const day = event.createdAt.toISOString().slice(0, 10);
+    if (!eventsByDay.has(day)) eventsByDay.set(day, new Set());
+    eventsByDay.get(day).add(event.uid);
+  }
+  const buckets = [];
+  for (let cursor = start.getTime(); cursor <= end.getTime(); cursor += DAY_MS) {
+    const date = new Date(cursor).toISOString().slice(0, 10);
+    const windowCount = (days) => {
+      const uids = new Set();
+      for (let offset = 0; offset < days; offset += 1) {
+        const key = new Date(cursor - offset * DAY_MS).toISOString().slice(0, 10);
+        for (const uid of eventsByDay.get(key) || []) uids.add(uid);
+      }
+      return uids.size;
+    };
+    buckets.push({date, dau: (eventsByDay.get(date) || new Set()).size, wau: windowCount(7), mau: windowCount(30)});
+  }
+  return buckets;
+}
+
+function businessIntelligenceAnalytics({entries, events, range, now, usageByUid = new Map()}) {
+  const uniqueEvents = uniqueBusinessEvents(events.filter((event) => event.createdAt <= now));
+  const startDate = utcRangeStart(range, now);
+  const rangeEvents = uniqueEvents.filter((event) => !startDate || event.createdAt >= startDate);
+  const eventsByUid = new Map(entries.map((entry) => [entry.user.uid, []]));
+  const rangeEventsByUid = new Map(entries.map((entry) => [entry.user.uid, []]));
+  for (const event of uniqueEvents) if (eventsByUid.has(event.uid)) eventsByUid.get(event.uid).push(event);
+  for (const event of rangeEvents) if (rangeEventsByUid.has(event.uid)) rangeEventsByUid.get(event.uid).push(event);
+  const starterEntitlements = getPlanEntitlements("Starter");
+  const customers = entries.map((entry) => {
+    const uid = entry.user.uid;
+    const customerEvents = eventsByUid.get(uid) || [];
+    const selectedEvents = rangeEventsByUid.get(uid) || [];
+    const activeDays = new Set(selectedEvents.map((event) => event.createdAt.toISOString().slice(0, 10))).size;
+    const lastActive = customerEvents.reduce((value, event) => !value || event.createdAt > value ? event.createdAt : value, null);
+    const usage = usageByUid.get(uid) || {};
+    const plan = normalizePlan(entry.profile && entry.profile.currentPlan);
+    const aiUsage = normaliseUsageCount(usage.aiAssistantSuccessfulUses);
+    const scanUsage = normaliseUsageCount(usage.invoiceScanningSuccessfulUses);
+    return {
+      uid,
+      businessName: safeBusinessName(entry.account && entry.account.businessName),
+      email: safeEmail(entry.user.email),
+      plan,
+      subscriptionStatus: stripeSubscriptionStatus({status: entry.profile && entry.profile.subscriptionStatus}),
+      createdAt: safeCreationDate(entry.user),
+      lastActive,
+      safeEvents: selectedEvents.length,
+      activeDays,
+      aiUsage,
+      scanUsage,
+      aiPercentage: plan === "starter" ? allowanceUsage(aiUsage, starterEntitlements.aiAssistantMonthlyLimit) : null,
+      scanPercentage: plan === "starter" ? allowanceUsage(scanUsage, starterEntitlements.invoiceScanningMonthlyLimit) : null,
+    };
+  });
+  const starters = customers.filter((customer) => customer.plan === "starter");
+  const upgradeCandidates = starters.map((customer) => {
+    const percentages = [customer.aiPercentage, customer.scanPercentage].filter((value) => value !== null);
+    const approaching = percentages.filter((value) => value >= UPGRADE_CANDIDATE_THRESHOLD).length;
+    const highest = percentages.length ? Math.max(...percentages) : 0;
+    let suggestedReason = "";
+    if (approaching > 1) suggestedReason = "Multiple Starter limits approaching";
+    else if (customer.aiPercentage >= UPGRADE_CANDIDATE_THRESHOLD) suggestedReason = `AI Assistant usage at ${Math.round(customer.aiPercentage)}%`;
+    else if (customer.scanPercentage >= UPGRADE_CANDIDATE_THRESHOLD) suggestedReason = `Invoice scanning usage at ${Math.round(customer.scanPercentage)}%`;
+    return {...customer, highestAllowanceUsage: highest, suggestedReason};
+  }).filter((customer) => customer.highestAllowanceUsage >= UPGRADE_CANDIDATE_THRESHOLD)
+      .sort((left, right) => right.highestAllowanceUsage - left.highestAllowanceUsage ||
+        (right.aiPercentage || 0) - (left.aiPercentage || 0) ||
+        (right.scanPercentage || 0) - (left.scanPercentage || 0) || left.uid.localeCompare(right.uid))
+      .slice(0, BUSINESS_INTELLIGENCE_TABLE_LIMIT);
+  const inactivePro = customers.filter((customer) => customer.plan === "pro" &&
+    (!customer.lastActive || now.getTime() - customer.lastActive.getTime() >= 30 * DAY_MS))
+      .map((customer) => ({...customer, daysInactive: customer.lastActive ? Math.floor((now - customer.lastActive) / DAY_MS) : null}))
+      .sort((left, right) => {
+        if (left.lastActive === null && right.lastActive !== null) return -1;
+        if (left.lastActive !== null && right.lastActive === null) return 1;
+        return (right.daysInactive || 0) - (left.daysInactive || 0) || left.uid.localeCompare(right.uid);
+      }).slice(0, BUSINESS_INTELLIGENCE_TABLE_LIMIT);
+  const inactive60Days = customers.filter((customer) => {
+    const reference = customer.lastActive || customer.createdAt;
+    return reference && now.getTime() - reference.getTime() >= 60 * DAY_MS;
+  }).length;
+  const recentlyActive = customers.filter((customer) => customer.lastActive)
+      .sort((left, right) => right.lastActive - left.lastActive || left.uid.localeCompare(right.uid))
+      .slice(0, BUSINESS_INTELLIGENCE_TABLE_LIMIT);
+  const engagementLeaders = customers.filter((customer) => customer.safeEvents > 0)
+      .sort((left, right) => right.safeEvents - left.safeEvents || right.activeDays - left.activeDays ||
+        right.lastActive - left.lastActive || left.uid.localeCompare(right.uid))
+      .slice(0, BUSINESS_INTELLIGENCE_TABLE_LIMIT);
+  const activeCustomers = new Set(rangeEvents.map((event) => event.uid)).size;
+  const lastActiveIso = (customer) => customer.lastActive ? customer.lastActive.toISOString() : null;
+  return {
+    kpis: {
+      starterNearAiLimit: starters.filter((customer) => customer.aiPercentage >= NEAR_LIMIT_THRESHOLD).length,
+      starterNearInvoiceScanningLimit: starters.filter((customer) => customer.scanPercentage >= NEAR_LIMIT_THRESHOLD).length,
+      starterNearActiveProjectLimit: null,
+      inactiveProAccounts: inactivePro.length,
+      customersInactive60Days: inactive60Days,
+      averageSafeEventsPerActiveCustomer: activeCustomers ? Math.round(rangeEvents.length / activeCustomers * 10) / 10 : 0,
+    },
+    availability: {activeProjectUsage: false},
+    upgradeCandidates: upgradeCandidates.map((customer) => ({
+      businessName: customer.businessName,
+      email: customer.email,
+      lastActive: lastActiveIso(customer),
+      aiAssistantSuccessfulUses: customer.aiUsage,
+      invoiceScanningSuccessfulUses: customer.scanUsage,
+      aiAllowanceUsage: customer.aiPercentage,
+      invoiceScanningAllowanceUsage: customer.scanPercentage,
+      activeProjects: null,
+      activeProjectAllowanceUsage: null,
+      highestAllowanceUsage: customer.highestAllowanceUsage,
+      suggestedReason: customer.suggestedReason,
+    })),
+    inactiveProAccounts: inactivePro.map((customer) => ({
+      businessName: customer.businessName,
+      email: customer.email,
+      lastActive: lastActiveIso(customer),
+      daysInactive: customer.daysInactive,
+      plan: customer.plan,
+      subscriptionStatus: customer.subscriptionStatus,
+      aiAssistantSuccessfulUses: customer.aiUsage,
+      invoiceScanningSuccessfulUses: customer.scanUsage,
+    })),
+    recentlyActiveBusinesses: recentlyActive.map((customer) => ({
+      businessName: customer.businessName,
+      plan: customer.plan,
+      lastActive: lastActiveIso(customer),
+      safeEvents: customer.safeEvents,
+      aiAssistantSuccessfulUses: customer.aiUsage,
+      invoiceScanningSuccessfulUses: customer.scanUsage,
+    })),
+    engagementLeaders: engagementLeaders.map((customer) => ({
+      businessName: customer.businessName,
+      plan: customer.plan,
+      safeEvents: customer.safeEvents,
+      activeDays: customer.activeDays,
+      lastActive: lastActiveIso(customer),
+      averageEventsPerActiveDay: customer.activeDays ? Math.round(customer.safeEvents / customer.activeDays * 10) / 10 : 0,
+    })),
+    activeCustomerTrends: businessTrendBuckets(range, now, uniqueEvents),
+  };
+}
+
 function aggregateCustomerAnalytics({entries, events, range, now, activityTruncated, accountsTruncated, usageByUid = new Map()}) {
   const startDate = utcRangeStart(range, now);
   const startTime = startDate ? startDate.getTime() : -Infinity;
@@ -394,9 +573,12 @@ function aggregateCustomerAnalytics({entries, events, range, now, activityTrunca
       conversionRate: knownAccounts ? Math.round(proAccounts / knownAccounts * 1000) / 10 : 0,
     },
     ...phaseTwoCustomerAnalytics({entries, events: eligibleEvents, now, usageByUid}),
+    businessIntelligence: businessIntelligenceAnalytics({entries, events: eligibleEvents, range, now, usageByUid}),
     caps: {
       activityLimit: CUSTOMER_ACTIVITY_LIMIT,
       accountLimit: CUSTOMER_ACCOUNT_LIMIT,
+      usageDocumentLimit: CUSTOMER_ACCOUNT_LIMIT,
+      usageDocumentsRead: usageByUid.size,
       activityTruncated: Boolean(activityTruncated),
       accountsTruncated: Boolean(accountsTruncated),
       incomplete: Boolean(activityTruncated || accountsTruncated),
@@ -406,6 +588,10 @@ function aggregateCustomerAnalytics({entries, events, range, now, activityTrunca
       "Plan adoption is a current plan snapshot and does not represent paid subscription status.",
       "Retention, journeys and engagement use the most recent bounded safe activity events; capped results may understate historical progression.",
       "Subscribed to Pro in the journey uses the current recorded plan after prior funnel stages and does not expose billing data.",
+      "Business Intelligence uses current monthly usage counters; current plan alone does not confirm payment.",
+      "Active Project opportunity usage is unavailable because it would require broad per-customer project collection scans.",
+      "Accounts with no activity count as inactive for 60+ days only when their Auth creation date is at least 60 days old.",
+      "WAU and MAU are trailing 7-day and trailing 30-day unique-account windows for each UTC chart date.",
     ],
   };
 }
@@ -419,6 +605,23 @@ async function readTopCustomerUsage(firestore, entries, events, now) {
         .collection("usage").doc(monthKey).get();
     usage.set(customer.uid, snapshot.exists ? snapshot.data() || {} : {});
   }));
+  return usage;
+}
+
+async function readBusinessIntelligenceUsage(firestore, entries, now) {
+  const monthKey = calendarMonthKey(now);
+  const references = entries.map((entry) => firestore.collection("userProfiles").doc(entry.user.uid)
+      .collection("usage").doc(monthKey));
+  const usage = new Map();
+  for (let index = 0; index < references.length; index += READ_BATCH_SIZE) {
+    const referenceBatch = references.slice(index, index + READ_BATCH_SIZE);
+    const snapshots = typeof firestore.getAll === "function" ?
+      await firestore.getAll(...referenceBatch) : await Promise.all(referenceBatch.map((reference) => reference.get()));
+    snapshots.forEach((snapshot, offset) => {
+      const uid = entries[index + offset].user.uid;
+      usage.set(uid, snapshot.exists ? snapshot.data() || {} : {});
+    });
+  }
   return usage;
 }
 
@@ -450,7 +653,7 @@ async function buildAdminCustomerAnalytics({auth, firestore, demoIdentifiers, ad
       (!EVENT_TO_FEATURE.has(eventType) && !QUALIFYING_NON_FEATURE_EVENTS.has(eventType))) continue;
     events.push({uid, eventType, createdAt});
   }
-  const usageByUid = await readTopCustomerUsage(firestore, entries, events, generatedAt);
+  const usageByUid = await readBusinessIntelligenceUsage(firestore, entries, generatedAt);
   const result = aggregateCustomerAnalytics({
     entries,
     events,
@@ -481,6 +684,7 @@ async function buildAdminCustomerAnalytics({auth, firestore, demoIdentifiers, ad
 }
 
 module.exports = {
+  BUSINESS_INTELLIGENCE_TABLE_LIMIT,
   CUSTOMER_ACCOUNT_LIMIT,
   CUSTOMER_ACTIVITY_LIMIT,
   CUSTOMER_ANALYTICS_RANGES,
@@ -490,11 +694,14 @@ module.exports = {
   RETENTION_ADOPTION_DEFINITIONS,
   TOP_ENGAGED_CUSTOMER_LIMIT,
   aggregateCustomerAnalytics,
+  businessIntelligenceAnalytics,
+  businessTrendBuckets,
   buildAdminCustomerAnalytics,
   normalizeEventName,
   normalizePlan,
   phaseTwoCustomerAnalytics,
   rankEngagedCustomers,
+  readBusinessIntelligenceUsage,
   readTopCustomerUsage,
   parseCustomerAnalyticsRange,
   utcRangeStart,

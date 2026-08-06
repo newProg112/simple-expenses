@@ -8,6 +8,13 @@ const safePercent = value => {
   return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : 0;
 };
 
+const safeNumber = value => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : 0;
+};
+
+const safeNullableNumber = value => value === null ? null : safeNumber(value);
+
 const safeText = (value, maximum = 100) => typeof value === "string"
   ? value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, maximum)
   : "";
@@ -32,6 +39,22 @@ export function normalizeCustomerAnalyticsPayload(payload){
     count: safeCount(item?.count),
     share: safePercent(item?.share)
   });
+  const normalizeBusinessCustomer = item => ({
+    businessName: safeText(item?.businessName, 160),
+    email: safeText(item?.email, 254),
+    plan: ["starter", "pro", "unknown"].includes(item?.plan) ? item.plan : "unknown",
+    subscriptionStatus: safeText(item?.subscriptionStatus, 30),
+    lastActive: item?.lastActive === null ? null : safeIsoDate(item?.lastActive),
+    daysInactive: safeNullableNumber(item?.daysInactive),
+    safeEvents: safeCount(item?.safeEvents),
+    activeDays: safeCount(item?.activeDays),
+    averageEventsPerActiveDay: safeNumber(item?.averageEventsPerActiveDay),
+    aiAssistantSuccessfulUses: safeCount(item?.aiAssistantSuccessfulUses),
+    invoiceScanningSuccessfulUses: safeCount(item?.invoiceScanningSuccessfulUses)
+  });
+  const business = source.businessIntelligence && typeof source.businessIntelligence === "object"
+    ? source.businessIntelligence : {};
+  const businessKpis = business.kpis && typeof business.kpis === "object" ? business.kpis : {};
   return {
     schemaVersion: safeCount(source.schemaVersion),
     range: ["7d", "30d", "all"].includes(source.range) ? source.range : "30d",
@@ -96,9 +119,43 @@ export function normalizeCustomerAnalyticsPayload(payload){
       aiAssistantSuccessfulUses: safeCount(item?.aiAssistantSuccessfulUses),
       invoiceScanningSuccessfulUses: safeCount(item?.invoiceScanningSuccessfulUses)
     })).filter(item => item.lastActive).slice(0, 20) : [],
+    businessIntelligence: {
+      kpis: {
+        starterNearAiLimit: safeCount(businessKpis.starterNearAiLimit),
+        starterNearInvoiceScanningLimit: safeCount(businessKpis.starterNearInvoiceScanningLimit),
+        starterNearActiveProjectLimit: safeNullableNumber(businessKpis.starterNearActiveProjectLimit),
+        inactiveProAccounts: safeCount(businessKpis.inactiveProAccounts),
+        customersInactive60Days: safeCount(businessKpis.customersInactive60Days),
+        averageSafeEventsPerActiveCustomer: safeNumber(businessKpis.averageSafeEventsPerActiveCustomer)
+      },
+      availability: {activeProjectUsage: business.availability?.activeProjectUsage === true},
+      upgradeCandidates: Array.isArray(business.upgradeCandidates) ? business.upgradeCandidates.map(item => ({
+        ...normalizeBusinessCustomer(item),
+        aiAllowanceUsage: safeNullableNumber(item?.aiAllowanceUsage),
+        invoiceScanningAllowanceUsage: safeNullableNumber(item?.invoiceScanningAllowanceUsage),
+        activeProjects: safeNullableNumber(item?.activeProjects),
+        activeProjectAllowanceUsage: safeNullableNumber(item?.activeProjectAllowanceUsage),
+        highestAllowanceUsage: safeNumber(item?.highestAllowanceUsage),
+        suggestedReason: safeText(item?.suggestedReason, 100)
+      })).slice(0, 20) : [],
+      inactiveProAccounts: Array.isArray(business.inactiveProAccounts)
+        ? business.inactiveProAccounts.map(normalizeBusinessCustomer).slice(0, 20) : [],
+      recentlyActiveBusinesses: Array.isArray(business.recentlyActiveBusinesses)
+        ? business.recentlyActiveBusinesses.map(normalizeBusinessCustomer).filter(item => item.lastActive).slice(0, 20) : [],
+      engagementLeaders: Array.isArray(business.engagementLeaders)
+        ? business.engagementLeaders.map(normalizeBusinessCustomer).filter(item => item.lastActive && item.safeEvents).slice(0, 20) : [],
+      activeCustomerTrends: Array.isArray(business.activeCustomerTrends) ? business.activeCustomerTrends.map(item => ({
+        date: /^\d{4}-\d{2}-\d{2}$/.test(item?.date) ? item.date : "",
+        dau: safeCount(item?.dau),
+        wau: safeCount(item?.wau),
+        mau: safeCount(item?.mau)
+      })).filter(item => item.date) : []
+    },
     caps: {
       activityLimit: safeCount(source.caps?.activityLimit),
       accountLimit: safeCount(source.caps?.accountLimit),
+      usageDocumentLimit: safeCount(source.caps?.usageDocumentLimit),
+      usageDocumentsRead: safeCount(source.caps?.usageDocumentsRead),
       activityTruncated: source.caps?.activityTruncated === true,
       accountsTruncated: source.caps?.accountsTruncated === true,
       incomplete: source.caps?.incomplete === true

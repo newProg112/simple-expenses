@@ -12,6 +12,8 @@ const {
   CUSTOMER_ACTIVITY_LIMIT,
   CUSTOMER_ANALYTICS_SCHEMA_VERSION,
   aggregateCustomerAnalytics,
+  businessIntelligenceAnalytics,
+  businessTrendBuckets,
   buildAdminCustomerAnalytics,
   normalizeEventName,
   normalizePlan,
@@ -109,9 +111,12 @@ describe("Customer Analytics core aggregation", () => {
     expect(result.daily).toHaveLength(30);
     expect(result.caps).toEqual({
       activityLimit: CUSTOMER_ACTIVITY_LIMIT, accountLimit: CUSTOMER_ACCOUNT_LIMIT,
+      usageDocumentLimit: CUSTOMER_ACCOUNT_LIMIT, usageDocumentsRead: 0,
       activityTruncated: true, accountsTruncated: false, incomplete: true
     });
-    expect(JSON.stringify(result)).not.toMatch(/uid|email|business(name)?|useragent/i);
+    expect(result.businessIntelligence).toMatchObject({
+      upgradeCandidates: [], inactiveProAccounts: [], recentlyActiveBusinesses: [], engagementLeaders: []
+    });
   });
 });
 
@@ -205,6 +210,107 @@ describe("Customer Analytics Phase 2 aggregation", () => {
   });
 });
 
+describe("Customer Analytics Phase 3 Business Intelligence", () => {
+  const businessUser = (uid, plan, creationTime = "2026-01-01T00:00:00Z", email = `${uid}@example.test`) => ({
+    user: {uid, email, metadata: {creationTime}},
+    account: {businessName: uid === "missing-name" ? undefined : `${uid} Books`},
+    profile: {currentPlan: plan}
+  });
+
+  it("uses shared Starter allowances, applies 80% KPIs and ranks 70% candidates deterministically", () => {
+    const entries = [businessUser("multi", "Starter"), businessUser("scan", "Starter"),
+      businessUser("exact-ai", "Starter"), businessUser("exact-scan", "Starter"), businessUser("low", "Starter")];
+    const usageByUid = new Map([
+      ["multi", {aiAssistantSuccessfulUses: 9, invoiceScanningSuccessfulUses: 7}],
+      ["scan", {aiAssistantSuccessfulUses: 1, invoiceScanningSuccessfulUses: 10}],
+      ["exact-ai", {aiAssistantSuccessfulUses: 8, invoiceScanningSuccessfulUses: 0}],
+      ["exact-scan", {aiAssistantSuccessfulUses: 0, invoiceScanningSuccessfulUses: 8}],
+      ["low", {aiAssistantSuccessfulUses: 6, invoiceScanningSuccessfulUses: 6}]
+    ]);
+    const result = businessIntelligenceAnalytics({entries, events: [], range: "30d", now: NOW, usageByUid});
+    expect(result.kpis).toMatchObject({
+      starterNearAiLimit: 2, starterNearInvoiceScanningLimit: 2, starterNearActiveProjectLimit: null
+    });
+    expect(result.availability.activeProjectUsage).toBe(false);
+    expect(result.upgradeCandidates.map(item => item.businessName)).toEqual([
+      "scan Books", "multi Books", "exact-ai Books", "exact-scan Books"
+    ]);
+    expect(result.upgradeCandidates[1].suggestedReason).toBe("Multiple Starter limits approaching");
+    expect(result.upgradeCandidates[0]).toMatchObject({highestAllowanceUsage: 100, activeProjects: null});
+  });
+
+  it("distinguishes inactive Pro accounts, no activity and verified versus missing subscription status", () => {
+    const old = businessUser("old-pro", "Pro");
+    old.profile.subscriptionStatus = "active";
+    const never = businessUser("never-pro", "Pro");
+    const recent = businessUser("recent-pro", "Pro");
+    const result = businessIntelligenceAnalytics({
+      entries: [old, never, recent],
+      events: [
+        action("old-pro", "user_logged_in", "2026-06-01T00:00:00Z"),
+        action("recent-pro", "user_logged_in", "2026-08-05T00:00:00Z")
+      ], range: "30d", now: NOW
+    });
+    expect(result.kpis.inactiveProAccounts).toBe(2);
+    expect(result.inactiveProAccounts.map(item => item.businessName)).toEqual(["never-pro Books", "old-pro Books"]);
+    expect(result.inactiveProAccounts[0]).toMatchObject({lastActive: null, daysInactive: null, subscriptionStatus: ""});
+    expect(result.inactiveProAccounts[1]).toMatchObject({daysInactive: 65, subscriptionStatus: "active"});
+    expect(result.inactiveProAccounts.every(item => !Object.hasOwn(item, "stripeSubscriptionId"))).toBe(true);
+  });
+
+  it("counts 60-day inactivity using account age for no-activity accounts and safely handles missing fields", () => {
+    const oldNever = businessUser("missing-name", undefined, "2026-01-01T00:00:00Z", undefined);
+    oldNever.user.email = undefined;
+    const newNever = businessUser("new", "Starter", "2026-08-01T00:00:00Z");
+    const oldActivity = businessUser("old", "legacy");
+    const result = businessIntelligenceAnalytics({
+      entries: [oldNever, newNever, oldActivity],
+      events: [action("old", "invoice_created", "2026-06-01T00:00:00Z")],
+      range: "30d", now: NOW
+    });
+    expect(result.kpis.customersInactive60Days).toBe(2);
+    expect(JSON.stringify(result)).not.toMatch(/undefined|NaN|Infinity/);
+  });
+
+  it("deduplicates equivalent safe events for BI averages and engagement without changing existing aggregation", () => {
+    const entries = [businessUser("a", "Starter"), businessUser("b", "Starter")];
+    const duplicate = action("a", "invoice_created", "2026-08-05T10:00:00Z");
+    const events = [duplicate, {...duplicate}, action("a", "ai_question_asked", "2026-08-04T10:00:00Z"),
+      action("b", "invoice_scanned", "2026-08-05T11:00:00Z")];
+    const business = businessIntelligenceAnalytics({entries, events, range: "30d", now: NOW});
+    const existing = aggregateCustomerAnalytics({entries, events, range: "30d", now: NOW});
+    expect(business.kpis.averageSafeEventsPerActiveCustomer).toBe(1.5);
+    expect(business.engagementLeaders[0]).toMatchObject({businessName: "a Books", safeEvents: 2, activeDays: 2});
+    expect(existing.summary.totalTrackedCustomerActions).toBe(4);
+  });
+
+  it("calculates DAU and trailing WAU/MAU at UTC boundaries with zero-filled selected dates", () => {
+    const trends = businessTrendBuckets("7d", NOW, [
+      action("a", "user_logged_in", "2026-07-29T23:59:59Z"),
+      action("b", "user_logged_in", "2026-08-05T00:00:00Z"),
+      action("b", "invoice_created", "2026-08-05T23:59:59Z")
+    ]);
+    expect(trends).toHaveLength(7);
+    expect(trends[0]).toEqual({date: "2026-07-30", dau: 0, wau: 1, mau: 1});
+    expect(trends.at(-1)).toEqual({date: "2026-08-05", dau: 1, wau: 1, mau: 2});
+    expect(trends.slice(1, -1).every(item => item.dau === 0)).toBe(true);
+    expect(businessTrendBuckets("30d", NOW, [])).toHaveLength(30);
+  });
+
+  it("normalizes schema v3 BI data and discards unapproved nested customer data", () => {
+    const model = normalizeCustomerAnalyticsPayload({schemaVersion: 3, businessIntelligence: {
+      kpis: {starterNearAiLimit: 1, starterNearActiveProjectLimit: null},
+      upgradeCandidates: [{businessName: "Safe\u0000 Books", email: "owner@example.test", aiAllowanceUsage: 90,
+        invoices: [{amount: 1000}], uid: "private", suggestedReason: "AI Assistant usage at 90%"}],
+      activeCustomerTrends: [{date: "2026-08-05", dau: 1, wau: 2, mau: 3}]
+    }});
+    expect(model.businessIntelligence.upgradeCandidates[0]).toMatchObject({businessName: "Safe Books", aiAllowanceUsage: 90});
+    expect(model.businessIntelligence.upgradeCandidates[0]).not.toHaveProperty("invoices");
+    expect(model.businessIntelligence.upgradeCandidates[0]).not.toHaveProperty("uid");
+    expect(model.businessIntelligence.activeCustomerTrends[0]).toEqual({date: "2026-08-05", dau: 1, wau: 2, mau: 3});
+  });
+});
+
 function backendServices(){
   const accountData = new Map([
     ["real", {demoMode: false}], ["flagged-demo", {demoMode: true}], ["official-demo", {}], ["owner", {}]
@@ -241,7 +347,8 @@ describe("Customer Analytics protected data access", () => {
       timestampFactory: {fromDate: date => date}, diagnosticsLogger
     });
     expect(result.summary).toMatchObject({activeCustomerAccounts: 1, newSignUps: 1, totalTrackedCustomerActions: 1});
-    expect(JSON.stringify(result)).not.toMatch(/real|flagged-demo|official-demo|owner@example/i);
+    expect(JSON.stringify(result)).not.toMatch(/flagged-demo|official-demo|owner@example/i);
+    expect(result.businessIntelligence.recentlyActiveBusinesses[0].businessName).toBe("");
     expect(diagnosticsLogger).toHaveBeenCalledWith({
       authAccountsLoaded: 4,
       excludedAdminAccounts: 1,
@@ -294,6 +401,24 @@ describe("Customer Analytics Admin Dashboard", () => {
     expect(html).not.toMatch(/Customer Analytics[\s\S]{0,500}unique people/i);
   });
 
+  it("renders responsive accessible Business Intelligence states, KPIs, tables and trend summary", () => {
+    for(const id of ["businessIntelligenceSection", "businessIntelligenceStatus", "businessNearAiValue",
+      "businessNearScanningValue", "businessNearProjectsValue", "businessInactiveProValue",
+      "businessInactive60Value", "businessAverageEventsValue", "businessUpgradeCandidatesBody",
+      "businessInactiveProBody", "businessRecentlyActiveBody", "customerTopEngagedTableBody",
+      "activeCustomerTrendsChart", "activeCustomerTrendsEmpty", "activeCustomerTrendsSummary"]){
+      expect(html).toContain(`id="${id}"`);
+    }
+    expect(html).toContain("Identify upgrade opportunities, disengaged customers and account activity patterns.");
+    expect(html).toMatch(/class="table-scroll" role="region" aria-label="Top upgrade candidates" tabindex="0"/);
+    expect(html).toContain("business-intelligence-table");
+    expect(html).toContain("DAU, trailing 7-day WAU and trailing 30-day MAU by UTC date");
+    expect(dashboard).toContain("Business Intelligence rendering failed");
+    expect(dashboard).toContain("Existing Customer Analytics remains available");
+    expect(dashboard).toContain("No recorded activity");
+    expect(dashboard).not.toMatch(/confirmed paid|will upgrade|automatically contact/i);
+  });
+
   it("normalizes hostile payloads without retaining customer identifiers", () => {
     const model = normalizeCustomerAnalyticsPayload({
       summary: {activeCustomerAccounts: -2, starterToProConversionRate: 900},
@@ -321,15 +446,16 @@ describe("Customer Analytics Admin Dashboard", () => {
 
   it("distinguishes an outdated backend contract from a genuinely empty cohort dataset", () => {
     const legacy = normalizeCustomerAnalyticsPayload({summary: {}, signupCohorts: undefined});
-    const currentEmpty = normalizeCustomerAnalyticsPayload({schemaVersion: 2, summary: {}, signupCohorts: []});
+    const currentEmpty = normalizeCustomerAnalyticsPayload({schemaVersion: 3, summary: {}, signupCohorts: []});
     const currentPopulated = normalizeCustomerAnalyticsPayload({
-      schemaVersion: 2,
+      schemaVersion: 3,
       signupCohorts: [{monthKey: "2026-08", label: "Aug 2026", count: 2}]
     });
     expect(legacy).toMatchObject({schemaVersion: 0, signupCohorts: []});
-    expect(currentEmpty).toMatchObject({schemaVersion: 2, signupCohorts: []});
+    expect(currentEmpty).toMatchObject({schemaVersion: 3, signupCohorts: []});
     expect(currentPopulated.signupCohorts).toHaveLength(1);
     expect(dashboard).toContain("if(model.schemaVersion < 2)");
+    expect(dashboard).toContain("if(model.schemaVersion < 3)");
     expect(dashboard).toContain("Customer Analytics backend is out of date");
     expect(dashboard.indexOf("model.schemaVersion < 2")).toBeLessThan(dashboard.indexOf("else if(model.signupCohorts.length)"));
   });

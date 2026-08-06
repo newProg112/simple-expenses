@@ -1,5 +1,47 @@
 # Testing
 
+## Customer Analytics Phase 3 — Business Intelligence
+
+`getAdminCustomerAnalytics` now returns `schemaVersion: 3` and a privacy-limited `businessIntelligence` projection. It reuses the existing admin UID allow-list, demo identity filtering, `demoMode` exclusion and qualifying safe-event policy. The new projection contains only the fields rendered by the owner-only dashboard: sanitized business names and emails where support tables require them, current plan and supported subscription-status labels, monthly AI/scanning counters, safe-event counts and UTC timestamps. It does not return raw events, document paths, event metadata, private notes, Stripe identifiers, transaction amounts or financial records.
+
+AI Assistant and Invoice Scanning opportunity percentages use the shared current Starter entitlements. Near-limit KPIs use an inclusive 80% threshold; upgrade candidates use an inclusive 70% threshold and are sorted by highest measured allowance usage, then AI percentage, scanning percentage and internal UID (the UID is used only as a server-side tie-break and is never returned). The top 20 are returned. Active Project opportunity usage is intentionally unavailable: the current architecture obtains that count from each customer's projects collection, so calculating it for the analytics population would add broad per-customer collection scans.
+
+Inactive Pro means a current Pro-plan account with no qualifying safe event in the preceding 30 days; this wording does not claim verified payment. The table returns a supported recorded subscription status when present and `Not recorded` in the UI otherwise. Customers inactive for 60+ days use latest qualifying activity; an account with no recorded activity qualifies only when its Firebase Auth creation time is at least 60 days old. Average safe events per active customer is the selected-range deduplicated safe-event count divided by unique active customer accounts, or zero when there are none.
+
+DAU is unique qualifying customer accounts per UTC calendar day. WAU is the unique account count in the trailing seven UTC dates ending on each chart date. MAU is the equivalent trailing 30-date count. The selected range controls the displayed dates, missing dates are zero-filled, exact duplicate `(uid, eventType, timestamp)` records are counted once in Business Intelligence, and Chart.js line tension is disabled to avoid implying activity between measured dates. The accessible text summary contains every displayed date.
+
+The callable remains bounded to 5,000 Firebase Auth accounts and the most recent 10,000 activity events. Existing account/profile reads remain batched in groups of 50. At most one current-month usage document is read per eligible account (5,000 maximum), using Firestore `getAll` batches when available; these reads cannot be limited to a preselected shortlist because the near-limit population cannot be known before reading authoritative counters. No detailed invoice, bill, expense, mileage, ledger or project collections are read. `caps` reports the activity/account limits, usage document limit, actual usage documents read and whether account/activity results are incomplete.
+
+Run the focused automated contracts with:
+
+```sh
+npm.cmd test -- tests/admin-customer-analytics.test.js tests/admin-dashboard.test.js
+```
+
+Local manual checklist:
+
+- Confirm each KPI against controlled Starter/Pro profiles and current UTC-month usage documents, including exactly 70% and 80% boundaries.
+- Confirm Active Project opportunity values read `Unavailable` and do not imply a zero count.
+- Confirm upgrade candidates are capped at 20, show safe missing-name/date fallbacks and never imply an automatic contact or expected upgrade.
+- Confirm inactive Pro rows distinguish `No recorded activity` from dated activity older than 30 days and do not describe current plan as confirmed payment.
+- Confirm recently active businesses are newest first and Highest customer activity follows selected-range event count, active days, latest activity and deterministic tie handling.
+- Switch between 7 days, 30 days and all time; verify DAU, trailing WAU and trailing MAU, zero dates, UTC boundaries, accessible summary text and all-zero chart state.
+- Exercise empty upgrade, inactive, recent, engagement and trend datasets; capped results; schema mismatch; callable error; retry; and an isolated Business Intelligence render failure.
+- At wide desktop, laptop, tablet and narrow mobile widths, verify KPI wrapping, horizontal table scrolling, keyboard focus, long name/email wrapping and unclipped chart labels.
+- Inspect the callable response to confirm there are no UIDs, raw events, document paths, arbitrary metadata, admin notes, Stripe IDs/secrets, financial records or amounts.
+- Sign out and sign in as a non-admin to confirm unauthenticated redirect and permission denial remain enforced.
+
+Production smoke-test checklist after an authorised deployment:
+
+- Sign in as the configured owner, load `/admin`, select every Customer Analytics range and compare one known account's displayed counters with its current usage document.
+- Confirm excluded configured demo identities, `demoMode === true` accounts and configured admin identities never appear or contribute.
+- Confirm capped/partial diagnostics and the generated-at UTC label are truthful; inspect Functions logs for read failures or unexpected latency.
+- Confirm a non-admin callable request receives `permission-denied` and an unauthenticated request receives `unauthenticated`.
+- Test desktop and narrow mobile rendering, keyboard-scroll each table, inspect the chart's accessible summary and retry a simulated/offline failure.
+- Recheck Demo Analytics, existing Customer Analytics, User Management, details drawer, admin notes, usage resets and activity timelines for regressions.
+
+Deployment scope is Firebase Hosting for `admin.html` and the two changed admin JavaScript assets, plus the `getAdminCustomerAnalytics` Cloud Function. No Firestore rules, indexes, scheduled jobs or additional callable resources are introduced.
+
 ## Admin Dashboard Polish Phase 1
 
 This phase standardises the existing Admin dashboard presentation without changing analytics calculations, callable permissions or customer data. It adds truthful aggregate table empty rows, recovery guidance, consistent busy labels and disabled controls, visible success/error semantics, numeric table alignment, sticky drawer context, clearer separation for audited usage resets, mobile dialog improvements, and screen-reader data summaries for the Demo and Customer activity charts.
@@ -16,7 +58,7 @@ Before production release, manually verify the authenticated Admin page at deskt
 
 ## Customer Analytics Phase 2
 
-`getAdminCustomerAnalytics` extends the existing bounded, admin-only projection with rolling 24-hour, 7-day and 30-day retention; 30-day dormancy; 12 monthly signup cohorts; current-month new and returning users; six unique-customer adoption milestones; a prerequisite conversion journey; and the top 20 engaged non-demo customers. Activity calculations use only approved safe event types. The response never includes UIDs, email addresses, invoices, balances, journals, payment amounts or other customer financial values. Monthly AI and scanning counters are read only for the internally ranked top 20 accounts. Phase 2 responses carry `schemaVersion: 2`; the dashboard reports an outdated backend contract separately from a genuinely empty cohort dataset.
+Phase 2 extended `getAdminCustomerAnalytics` with rolling 24-hour, 7-day and 30-day retention; 30-day dormancy; 12 monthly signup cohorts; current-month new and returning users; six unique-customer adoption milestones; a prerequisite conversion journey; and the top 20 engaged non-demo customers. Activity calculations use only approved safe event types. Phase 2 introduced `schemaVersion: 2`; Phase 3 now supersedes that contract with version 3 while preserving these calculations and their frontend compatibility handling.
 
 ## Admin User Management Phase 2
 
