@@ -30,7 +30,8 @@ const NOW = new Date("2026-08-05T12:00:00.000Z");
 const canonicalEvents = [
   "bill_created", "expense_created", "mileage_created", "project_created",
   "budget_created", "accountant_pack_generated", "trial_balance_viewed",
-  "general_ledger_viewed", "profit_and_loss_viewed", "balance_sheet_viewed", "business_insights_viewed"
+  "general_ledger_viewed", "profit_and_loss_viewed", "balance_sheet_viewed", "business_insights_viewed",
+  "business_insights_upgrade_prompt_viewed", "business_insights_upgrade_clicked"
 ];
 
 function handlerDependencies({uid = "customer", account = {demoMode: false}, email = "customer@example.test"} = {}){
@@ -171,8 +172,8 @@ describe("Customer Analytics Phase 1B aggregation", () => {
     }
     expect(result.features).toContainEqual({key: "accounting_reports", label: "Accounting Reports", count: 4, share: 36.4});
     expect(result.features).toContainEqual({key: "business_insights", label: "Business Insights", count: 1, share: 9.1});
-    expect(result.summary.totalTrackedCustomerActions).toBe(11);
-    expect(result.daily.reduce((sum, day) => sum + day.trackedActions, 0)).toBe(11);
+    expect(result.summary.totalTrackedCustomerActions).toBe(13);
+    expect(result.daily.reduce((sum, day) => sum + day.trackedActions, 0)).toBe(13);
   });
 
   it("leaves Demo Analytics implementation untouched by instrumentation", () => {

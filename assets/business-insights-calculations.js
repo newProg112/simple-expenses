@@ -9,6 +9,11 @@ export function formatInsightsGbp(value){
   return formatTrialBalanceGbp(Number(value) || 0);
 }
 
+export function trendSentence(trend){
+  const text = String(trend?.comparisonText || "No comparison available");
+  return `${text}${/[.!?]$/.test(text) ? "" : "."}`;
+}
+
 function finite(value){
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;

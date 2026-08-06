@@ -2,11 +2,26 @@
 
 ## Business Insights Phase 1
 
-Business Insights is an authenticated customer page available without an
-upgrade gate to Starter, Pro and Demo accounts. It reads the user's invoices,
-bills, combined expense/mileage records, projects and budgets, plus the user's
-validated accounting journals. It does not write insight results or financial
-records and makes no OpenAI or other AI API call.
+Business Insights is an authenticated customer page with a useful Starter
+preview and complete Pro intelligence. Starter sees the Business Health score
+and a short explanation, up to two priorities, and snapshot values for
+outstanding invoices, overdue invoices, unpaid bills and active projects. One
+Pro panel replaces the score breakdown, all remaining priorities, Key Trends,
+month-to-date accounting values, extended snapshot metrics and detailed
+methodology. Its button uses the existing authenticated Stripe Checkout flow.
+
+Genuine Pro accounts see every deterministic section. An authoritative
+`demoMode === true` account receives the same full effective Pro access while
+remaining labelled `Pro Demo` and `Not billed` by the shared shell/account
+presentation; Business Insights exposes no upgrade or subscription-management
+action to Demo. Access resolves from `users/{uid}.demoMode` and
+`userProfiles/{uid}.currentPlan` through the existing product-access helper.
+Both content variants remain hidden until those reads settle, and a genuine
+access failure shows a retry state instead of assuming Starter.
+
+The page reads invoices, bills, combined expense/mileage records, projects and
+budgets, plus the user's validated accounting journals. It does not write
+insight results or financial records and makes no OpenAI or other AI API call.
 
 The accounting source is the top-level `journals` collection filtered by the
 authenticated account's `userId`, matching Trial Balance, General Ledger and
@@ -41,6 +56,7 @@ npm.cmd test
 npm.cmd --prefix functions run lint
 node --check assets/business-insights-calculations.js
 node --check assets/business-insights.js
+node --check assets/business-insights-access.js
 node -e "JSON.parse(require('fs').readFileSync('firebase.json','utf8'))"
 git diff --check
 ```
@@ -54,17 +70,33 @@ Manual verification:
 2. Sign into a brand-new empty Starter account. Confirm there is no score,
    invented trend or recommendation; confirm the onboarding links to invoices,
    expenses and projects are usable.
-3. Sign into a populated Starter account and confirm the page loads with no Pro
-   gate, upgrade prompt or brief entitlement flash.
-4. Sign into a Pro account and confirm the same deterministic sections load;
-   no AI review or chat control is present.
-5. Check the score is between 0 and 100, its visible status matches its band,
-   and the keyboard-accessible breakdown totals from a neutral 60 before the
-   clamp.
-6. Confirm priorities show no more than five entries, high severity precedes
-   medium and positive, links open the appropriate record page, and a healthy
-   fixture shows the positive no-urgent-issues state.
-7. Compare revenue, expenses and profit to Profit & Loss journals for the shown
+3. Sign into a populated Starter account. Confirm the score/status and short
+   explanation, no more than two priorities, and only Outstanding invoices,
+   Overdue invoices, Unpaid bills and Active projects in the snapshot. Confirm
+   the four equal-height tiles form a balanced 2 × 2 grid with no grey empty
+   tracks or placeholder cells, then stack to one column on narrow mobile.
+   Confirm there is no entitlement-content flash while access loads.
+4. Confirm Starter sees one panel labelled `Pro feature`, headed `Unlock
+   complete Business Insights`, with one `Upgrade to Pro` button. Confirm the
+   detailed score breakdown, Key Trends, extended snapshot values and detailed
+   methodology are not visible.
+5. Select Upgrade to Pro and confirm the button becomes busy, authenticated
+   Stripe Checkout opens, and a recoverable inline error appears if checkout
+   fails. Confirm prompt-view and click activity each log at most once and carry
+   no financial values, insight text or record identifiers.
+6. Sign into a genuine Pro account. Confirm the full score breakdown, up to five
+   priorities, all four trends, all nine snapshot facts and calculation
+   methodology appear, with no upgrade panel.
+7. Sign into Demo. Confirm the same full content appears with the shared Pro
+   Demo/non-billed labelling and no Upgrade to Pro or Manage Subscription
+   action.
+8. Check the score is between 0 and 100, its visible Pro breakdown totals from
+   a neutral 60 before the clamp, and Starter shows the same score without the
+   component table.
+9. Confirm trend cards contain one sentence such as `Up 94.6% from the
+   comparison period.` rather than repeating the direction. Confirm zero
+   comparisons retain formatted GBP and never show infinity.
+10. Compare revenue, expenses and profit to Profit & Loss journals for the shown
    month-to-date periods. Confirm a zero previous value never displays infinity
    and missing periods say `No comparison available`.
    For the canonical demo on 6 August 2026, compare 1–6 August with 1–6 July.
@@ -73,25 +105,27 @@ Manual verification:
    July. Profit & Loss must reconcile when those inclusive dates are selected.
    The health breakdown should include +10 revenue, −8 expenses and +12 current
    profitability, with all components producing a final clamped score of 82.
-8. Compare outstanding/overdue invoices and unpaid bills with Dashboard and
+11. Compare outstanding/overdue invoices and unpaid bills with Dashboard and
    source lists; compare project loss and budget-pressure counts with Projects
    and Budgets.
-9. At wide desktop, laptop, tablet and mobile widths, confirm cards wrap without
+12. At wide desktop, laptop, tablet and mobile widths, confirm cards wrap without
    horizontal overflow, the health score remains readable, the drawer and
    sidebar scroll state are unchanged, and controls have comfortable touch
    targets.
-10. Navigate by keyboard through links and the score breakdown. With a screen
-    reader, confirm loading/error announcements, score/status wording and trend
+13. Navigate by keyboard through links, the upgrade button and score breakdown.
+    With a screen reader, confirm loading/error announcements, score/status wording and trend
     direction/favourability are conveyed without relying on colour.
-11. For a normal non-admin, non-demo account, confirm one
+14. For a normal non-admin, non-demo account, confirm one
     `business_insights_viewed` safe customer activity event follows a successful
     load and Business Insights appears in aggregate feature adoption. Confirm a
     forced logging failure does not hide or break the page.
-12. Confirm the Demo and admin exclusions still prevent customer activity
+15. Confirm the Demo and admin exclusions still prevent customer activity
     logging, while generic Demo page-view tracking continues through the shared
     shell.
-13. Inspect browser network activity and confirm the page makes no OpenAI or AI
-    API request and writes no insight or customer financial document.
+16. Force either access document read to fail. Confirm an honest access retry
+    state appears rather than Starter content. Then inspect browser network
+    activity and confirm the page makes no OpenAI or AI API request and writes
+    no insight or customer financial document.
 
 Production smoke test after deployment:
 
@@ -100,8 +134,9 @@ Production smoke test after deployment:
 3. Verify the navigation active state and mobile drawer on the production host.
 4. Reconcile one period against Profit & Loss and one project/budget against
    their existing pages.
-5. Confirm the safe event appears once for an eligible customer and contains no
-   financial values or insight text.
+5. Confirm the page-view, Starter prompt-view and Starter upgrade-click events
+   are bounded, eligible-customer-only, and contain no financial values or
+   insight text.
 6. Review browser console/network for load errors, overflow and any AI call.
 
 

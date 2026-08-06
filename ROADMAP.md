@@ -42,6 +42,7 @@
 ## Business Insights
 
 - [x] Business Insights Phase 1 — deterministic health, priorities, trends and snapshot
+- [x] Business Insights Phase 1 Polish and Pro Gating — Starter preview, complete Pro insights and concise trends
 - [ ] Business Insights Phase 2 — risks, opportunities and deeper forecasts
 - [ ] Business Insights Phase 3 — Pro AI Business Review
 - [ ] Business Insights Phase 4 — follow-up AI conversation

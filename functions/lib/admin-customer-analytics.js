@@ -55,6 +55,8 @@ const QUALIFYING_NON_FEATURE_EVENTS = new Set([
   "checkout_started",
   "upgraded_to_pro",
   "subscription_cancelled",
+  "business_insights_upgrade_prompt_viewed",
+  "business_insights_upgrade_clicked",
 ]);
 const RETENTION_ADOPTION_DEFINITIONS = Object.freeze([
   {key: "first_invoice", label: "Created first invoice", events: ["invoice_created"]},

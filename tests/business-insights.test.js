@@ -10,8 +10,15 @@ import {
   comparisonPeriods,
   formatInsightsGbp,
   generatePriorities,
-  healthStatus
+  healthStatus,
+  trendSentence
 } from "../assets/business-insights-calculations.js";
+import {
+  businessInsightsPresentation,
+  businessInsightsVisibility,
+  loadBusinessInsightsAccess,
+  resolveBusinessInsightsAccess
+} from "../assets/business-insights-access.js";
 import { DEMO_SEED } from "../assets/demo-seed.js";
 import { buildDemoJournalRecords } from "../assets/demo-seed-engine.js";
 import { profitLossViewFromJournals } from "../resources/js/profit-loss-view.js";
@@ -34,21 +41,66 @@ const journal = (id, date, income, expense = 0) => ({
 });
 
 describe("Business Insights Phase 1", () => {
-  it("is authenticated, ungated, and exposes all required sections", () => {
+  it("is authenticated and defines the complete page plus one Starter Pro panel", () => {
     const html = readFileSync(new URL("../business-insights.html", import.meta.url), "utf8");
     expect(html).toContain('/auth-guard.js');
-    expect(html).not.toMatch(/upgrade|pro-gate|requires pro/i);
+    expect(html.match(/Unlock complete Business Insights/g)).toHaveLength(1);
+    expect(html).toContain("Pro feature");
+    expect(html).toContain("Upgrade to Pro");
     for(const title of ["Business Health", "Today’s Priorities", "Key Trends", "Business Snapshot", "How this is calculated"]) expect(html).toContain(title);
     expect(html).toContain("No AI is used");
     const javascript = readFileSync(new URL("../assets/business-insights.js", import.meta.url), "utf8");
     expect(javascript).not.toMatch(/openai|ai-assistant|httpsCallable\([^)]*ai/i);
   });
 
-  it.each(["Starter", "Pro", "Demo"])("loads for %s without a plan-specific gate", plan => {
-    const html = readFileSync(new URL("../business-insights.html", import.meta.url), "utf8");
+  it("resolves Starter preview, Pro full access, and Demo full Pro access", () => {
+    const snapshot = data => ({ exists:() => true, data:() => data });
+    const starter = resolveBusinessInsightsAccess(snapshot({demoMode:false}), snapshot({currentPlan:"Starter"}));
+    const pro = resolveBusinessInsightsAccess(snapshot({demoMode:false}), snapshot({currentPlan:"Pro"}));
+    const demo = resolveBusinessInsightsAccess(snapshot({demoMode:true}), snapshot({currentPlan:"Starter"}));
+    expect(businessInsightsVisibility(starter)).toEqual(expect.objectContaining({scoreBreakdown:false, priorityLimit:2, trends:false, fullSnapshot:false, methodology:false, upgradePrompt:true, billingActions:true}));
+    expect(businessInsightsVisibility(pro)).toEqual(expect.objectContaining({scoreBreakdown:true, priorityLimit:5, trends:true, fullSnapshot:true, methodology:true, upgradePrompt:false}));
+    expect(demo).toMatchObject({fullAccess:true, demo:true, planLabel:"Pro Demo", billingLabel:"Not billed", paidSubscription:false});
+    expect(businessInsightsVisibility(demo)).toEqual(expect.objectContaining({upgradePrompt:false, billingActions:false}));
+    const model = {priorities:[1,2,3], snapshot:{outstandingInvoiceTotal:1, overdueInvoiceCount:2, overdueInvoiceValue:3, unpaidBillsTotal:4, activeProjects:5, currentMonthRevenue:6}};
+    const starterPresentation = businessInsightsPresentation(model, starter);
+    expect(businessInsightsVisibility(starter).snapshotMetricIds).toEqual([
+      "outstandingInvoices", "overdueInvoices", "unpaidBills", "activeProjects"
+    ]);
+    expect(businessInsightsVisibility(starter).snapshotLayout).toBe("compact");
+    expect(starterPresentation.priorities).toEqual([1,2]);
+    expect(starterPresentation.snapshot).toEqual({outstandingInvoiceTotal:1, overdueInvoiceCount:2, overdueInvoiceValue:3, unpaidBillsTotal:4, activeProjects:5});
+    expect(starterPresentation.snapshot).not.toHaveProperty("currentMonthRevenue");
+    expect(businessInsightsPresentation(model, pro).priorities).toEqual([1,2,3]);
+    expect(businessInsightsPresentation(model, pro).snapshot).toBe(model.snapshot);
+    expect(businessInsightsVisibility(pro).snapshotMetricIds).toHaveLength(9);
+    expect(businessInsightsVisibility(pro).snapshotLayout).toBe("full");
+    expect(businessInsightsVisibility(demo).snapshotMetricIds).toHaveLength(9);
     const javascript = readFileSync(new URL("../assets/business-insights.js", import.meta.url), "utf8");
-    expect(`${html}\n${javascript}`).not.toMatch(/getPlanEntitlements|financialReportAccess|upgradeGate|currentPlan/);
-    expect(plan).toMatch(/Starter|Pro|Demo/);
+    expect(javascript).toContain('access.demo ? "Pro Demo · Not billed" : ""');
+  });
+
+  it("uses both authoritative access documents and rejects genuine resolution failure", async () => {
+    const paths = [];
+    const services = {
+      db:{},
+      doc:(_db, collectionName, uid) => { paths.push(`${collectionName}/${uid}`); return `${collectionName}/${uid}`; },
+      getDoc:async reference => ({exists:() => true, data:() => reference.startsWith("users/") ? {demoMode:false} : {currentPlan:"Starter"}})
+    };
+    await expect(loadBusinessInsightsAccess({uid:"customer"}, services)).resolves.toMatchObject({starterPreview:true});
+    expect(paths).toEqual(["users/customer", "userProfiles/customer"]);
+    await expect(loadBusinessInsightsAccess({uid:"customer"}, {...services, getDoc:async () => { throw new Error("offline"); }})).rejects.toThrow("offline");
+  });
+
+  it("keeps entitlement-controlled content hidden during neutral loading", () => {
+    const html = readFileSync(new URL("../business-insights.html", import.meta.url), "utf8");
+    expect(html).toMatch(/id="insightsMain"[^>]*hidden/);
+    expect(html).toMatch(/id="trendsSection"[^>]*hidden/);
+    expect(html).toMatch(/id="insightsUpgradePanel"[^>]*hidden/);
+    expect(html).toMatch(/id="methodologySection"[^>]*hidden/);
+    const javascript = readFileSync(new URL("../assets/business-insights.js", import.meta.url), "utf8");
+    expect(javascript).toContain("We could not confirm your Business Insights access");
+    expect(javascript).toContain('error.code = "business-insights-access-unavailable"');
   });
 
   it.each([[0,"At risk"],[39,"At risk"],[40,"Needs attention"],[59,"Needs attention"],[60,"Healthy"],[79,"Healthy"],[80,"Strong"],[100,"Strong"]])("maps %i to %s", (score, status) => expect(healthStatus(score)).toBe(status));
@@ -182,6 +234,13 @@ describe("Business Insights Phase 1", () => {
     expect(calculateTrend(10, 20, "down", true).favourability).toBe("favourable");
   });
 
+  it("renders concise trend sentences without duplicated direction wording", () => {
+    expect(trendSentence(calculateTrend(1946, 1000, "up", true, "revenue"))).toBe("Up 94.6% from the comparison period.");
+    expect(trendSentence(calculateTrend(900, 1000, "down", true, "expenses"))).toBe("Down 10% from the comparison period.");
+    expect(trendSentence(calculateTrend(1000, 1000, "up", true))).toBe("No change from the comparison period.");
+    expect(trendSentence(calculateTrend(6540, 0, "down", true, "outstanding balance"))).toBe("£6,540.00 higher; no outstanding balance was recorded in the comparison period.");
+  });
+
   it("snapshot totals match shared project and budget helpers", () => {
     const data = empty();
     data.invoices = [{ id:"i", projectId:"p", total:120, status:"Unpaid", date:"2026-08-02", dueDate:"2026-08-03" }];
@@ -240,7 +299,26 @@ describe("Business Insights Phase 1", () => {
   it("logs the safe event once after successful loading and keeps analytics failure non-blocking", () => {
     const source = readFileSync(new URL("../assets/business-insights.js", import.meta.url), "utf8");
     expect(source.match(/logActivityEvent\("business_insights_viewed"/g)).toHaveLength(1);
-    expect(source.indexOf("await loadBusinessInsightsData(user)")).toBeLessThan(source.indexOf('logActivityEvent("business_insights_viewed"'));
-    expect(source).toContain('void logActivityEvent("business_insights_viewed", eventKey)');
+    expect(source.indexOf("loadBusinessInsightsData(user)")).toBeLessThan(source.indexOf('logActivityEvent("business_insights_viewed"'));
+    expect(source).toContain('void logActivityEvent("business_insights_viewed", createActivityIdempotencyKey())');
+    expect(source.match(/logActivityEvent\("business_insights_upgrade_prompt_viewed"/g)).toHaveLength(1);
+    expect(source.match(/logActivityEvent\("business_insights_upgrade_clicked"/g)).toHaveLength(1);
+    expect(source).toContain("if(visibility.upgradePrompt && !upgradePromptLogged)");
+    expect(source).toContain("if(!upgradeClickLogged)");
+    expect(source).toContain("CHECKOUT_FUNCTION_URL");
+    expect(source).toContain("await trackBeginCheckout()");
+  });
+
+  it("keeps the responsive no-overflow structure and visible focus treatment", () => {
+    const html = readFileSync(new URL("../business-insights.html", import.meta.url), "utf8");
+    const javascript = readFileSync(new URL("../assets/business-insights.js", import.meta.url), "utf8");
+    expect(html).toContain("grid-template-columns:repeat(2,minmax(0,1fr))");
+    expect(html).toContain(".snapshot-grid.snapshot-grid-starter{grid-template-columns:repeat(2,minmax(0,1fr))}");
+    expect(html).toMatch(/@media\(max-width:700px\)[\s\S]*\.snapshot-grid\.snapshot-grid-starter\{grid-template-columns:1fr\}/);
+    expect(html).toContain("minmax(0,1fr)");
+    expect(html).toContain("a:focus-visible,button:focus-visible,summary:focus-visible");
+    expect(javascript).toContain('target.classList.toggle("snapshot-grid-starter", visibility.snapshotLayout === "compact")');
+    expect(javascript).toMatch(/if\(!visibility\.fullSnapshot\)\{\s*target\.innerHTML = preview\.join\(""\);\s*return;/);
+    expect(javascript).toContain('document.getElementById("upgradeInsightsButton")?.addEventListener("click", startBusinessInsightsCheckout)');
   });
 });

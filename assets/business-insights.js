@@ -1,16 +1,29 @@
 import { auth, db } from "/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { buildBusinessInsights } from "./business-insights-calculations.js?v=20260806-insights2";
+import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  buildBusinessInsights,
+  trendSentence
+} from "./business-insights-calculations.js?v=20260806-insights-polish1";
 import { createActivityIdempotencyKey, logActivityEvent } from "./activity-logger.js";
+import { trackBeginCheckout } from "./analytics-events.js?v=20260802-analytics1";
+import {
+  businessInsightsPresentation,
+  loadBusinessInsightsAccess
+} from "./business-insights-access.js?v=20260806-insights-polish1";
 import {
   loadOwnedJournals,
   partialJournalDataMessage
 } from "/resources/js/journal-source.js?v=20260806-insights2";
 
 const COLLECTIONS = Object.freeze(["invoices", "bills", "expenses", "projects", "budgets"]);
+const CHECKOUT_FUNCTION_URL = "https://us-central1-simple-books-office.cloudfunctions.net/createCheckoutSession";
 const money = value => value === null ? "Not available" : new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(Number(value) || 0);
 const number = value => new Intl.NumberFormat("en-GB").format(Number(value) || 0);
+let currentUser = null;
+let checkoutOpening = false;
+let upgradePromptLogged = false;
+let upgradeClickLogged = false;
 
 function escapeHtml(value){
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -48,7 +61,7 @@ export async function loadBusinessInsightsData(user, services = { db, collection
   return { data, failures, notices };
 }
 
-function renderHealth(health){
+function renderHealth(health, showBreakdown){
   const target = document.getElementById("healthContent");
   if(health.score === null){
     target.innerHTML = `<div class="insights-neutral"><strong>Not enough data yet</strong><p>${escapeHtml(health.explanation)}</p></div>`;
@@ -56,9 +69,8 @@ function renderHealth(health){
   }
   target.innerHTML = `<div class="score-layout">
     <div class="score-ring" role="img" aria-label="Business Health score ${health.score} out of 100, ${escapeHtml(health.status)}"><strong>${health.score}</strong><span>/ 100</span></div>
-    <div><span class="status-badge status-${health.status.toLowerCase().replace(/\s+/g, "-")}">${escapeHtml(health.status)}</span><p>${escapeHtml(health.explanation)}</p></div>
-  </div>
-  <details class="calculation-details"><summary>View score breakdown</summary><ul>${health.components.map(item => `<li><span>${escapeHtml(item.label)}</span><strong>${item.points > 0 ? "+" : ""}${item.points} points</strong></li>`).join("")}</ul><p>The score starts at 60. Each component adds or deducts capped points, and the result is limited to 0–100.</p></details>`;
+    <div><span class="status-badge status-${health.status.toLowerCase().replace(/\s+/g, "-")}">${escapeHtml(health.status)}</span><p>${escapeHtml(health.explanation)}</p><p class="score-affects">Your score reflects overdue invoices, recent income and costs, profitability, projects and budget pressure.</p></div>
+  </div>${showBreakdown ? `<details class="calculation-details"><summary>View score breakdown</summary><ul>${health.components.map(item => `<li><span>${escapeHtml(item.label)}</span><strong>${item.points > 0 ? "+" : ""}${item.points} points</strong></li>`).join("")}</ul><p>The score starts at 60. Each component adds or deducts capped points, and the result is limited to 0–100.</p></details>` : ""}`;
 }
 
 function renderPriorities(priorities){
@@ -71,8 +83,8 @@ function renderPriorities(priorities){
 }
 
 function trendCard(label, trend, helper){
-  const movement = trend.direction === "none" ? "No comparison" : trend.direction === "flat" ? "No change" : `${trend.direction === "up" ? "Up" : "Down"}${trend.percentage === null ? "" : ` ${trend.percentage}%`}`;
-  return `<article class="trend-card trend-${trend.favourability}" aria-label="${escapeHtml(label)}: ${escapeHtml(money(trend.current))}. ${escapeHtml(trend.comparisonText)}. ${escapeHtml(trend.favourability)} movement."><h3>${escapeHtml(label)}</h3><strong>${escapeHtml(money(trend.current))}</strong><p><span class="trend-direction">${escapeHtml(movement)}</span> — ${escapeHtml(trend.comparisonText)}</p><small>${escapeHtml(helper)}</small></article>`;
+  const sentence = trendSentence(trend);
+  return `<article class="trend-card trend-${trend.favourability}" aria-label="${escapeHtml(label)}: ${escapeHtml(money(trend.current))}. ${escapeHtml(sentence)} ${escapeHtml(trend.favourability)} movement."><h3>${escapeHtml(label)}</h3><strong>${escapeHtml(money(trend.current))}</strong><p class="trend-direction">${escapeHtml(sentence)}</p><small>${escapeHtml(helper)}</small></article>`;
 }
 
 function renderTrends(trends){
@@ -88,18 +100,29 @@ function metric(label, value, note = ""){
   return `<div class="snapshot-metric"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>${note ? `<small>${escapeHtml(note)}</small>` : ""}</div>`;
 }
 
-function renderSnapshot(snapshot){
-  document.getElementById("snapshotContent").innerHTML = [
+function renderSnapshot(snapshot, visibility){
+  const target = document.getElementById("snapshotContent");
+  target.classList.toggle("snapshot-grid-starter", visibility.snapshotLayout === "compact");
+  const preview = [
     metric("Outstanding invoices", money(snapshot.outstandingInvoiceTotal)),
     metric("Overdue invoices", number(snapshot.overdueInvoiceCount), money(snapshot.overdueInvoiceValue)),
     metric("Unpaid bills", money(snapshot.unpaidBillsTotal)),
+    metric("Active projects", number(snapshot.activeProjects))
+  ];
+  if(!visibility.fullSnapshot){
+    target.innerHTML = preview.join("");
+    return;
+  }
+  const full = [
+    ...preview.slice(0, 3),
     metric("Month-to-date revenue", money(snapshot.currentMonthRevenue)),
     metric("Month-to-date expenses", money(snapshot.currentMonthExpenses)),
     metric(snapshot.currentMonthProfit !== null && snapshot.currentMonthProfit < 0 ? "Month-to-date loss" : "Month-to-date profit", money(snapshot.currentMonthProfit)),
-    metric("Active projects", number(snapshot.activeProjects)),
+    preview[3],
     metric("Loss-making active projects", number(snapshot.lossMakingProjects)),
     metric("Budgets near or over limit", number(snapshot.pressuredBudgets))
-  ].join("");
+  ];
+  target.innerHTML = full.join("");
 }
 
 function renderEmpty(){
@@ -109,18 +132,73 @@ function renderEmpty(){
   empty.innerHTML = `<h2>Start building your business picture</h2><p>Add invoices, bills, expenses or projects to start seeing business insights.</p><div class="empty-actions"><a class="button" href="/resources/tools/invoice-generator.html">Add an invoice</a><a class="button secondary" href="/resources/tools/expenses.html">Add an expense</a><a class="button secondary" href="/resources/tools/projects.html">Add a project</a></div>`;
 }
 
-export function renderBusinessInsights(model, failures = [], notices = []){
+export function renderBusinessInsights(model, access, failures = [], notices = []){
   if(!model.hasData){ renderEmpty(); return; }
-  renderHealth(model.health);
-  renderPriorities(model.priorities);
-  renderTrends(model.trends);
-  renderSnapshot(model.snapshot);
+  const presentation = businessInsightsPresentation(model, access);
+  const visibility = presentation.visibility;
+  const accessLabel = document.getElementById("pageAccessLabel");
+  accessLabel.hidden = !access.demo;
+  accessLabel.textContent = access.demo ? "Pro Demo · Not billed" : "";
+  renderHealth(model.health, visibility.scoreBreakdown);
+  renderPriorities(presentation.priorities);
+  renderSnapshot(presentation.snapshot, visibility);
+  document.getElementById("prioritiesIntro").textContent = visibility.fullAccess
+    ? "Up to five current items, ordered by severity and value."
+    : "Your two highest-priority items from the available data.";
+  document.getElementById("trendsSection").hidden = !visibility.trends;
+  document.getElementById("methodologySection").hidden = !visibility.methodology;
+  const upgradePanel = document.getElementById("insightsUpgradePanel");
+  upgradePanel.hidden = !visibility.upgradePrompt;
+  if(visibility.trends) renderTrends(model.trends);
   document.getElementById("insightsMain").hidden = false;
   const partialMessage = partialJournalDataMessage(failures, notices);
   if(partialMessage){
     const warning = document.getElementById("partialWarning");
     warning.hidden = false;
     warning.textContent = partialMessage;
+  }
+  if(visibility.upgradePrompt && !upgradePromptLogged){
+    upgradePromptLogged = true;
+    void logActivityEvent("business_insights_upgrade_prompt_viewed", createActivityIdempotencyKey());
+  }
+}
+
+async function startBusinessInsightsCheckout(){
+  if(checkoutOpening || !currentUser) return;
+  const button = document.getElementById("upgradeInsightsButton");
+  const checkoutStatus = document.getElementById("upgradeCheckoutStatus");
+  checkoutOpening = true;
+  button.disabled = true;
+  button.textContent = "Opening…";
+  checkoutStatus.classList.remove("error");
+  checkoutStatus.textContent = "Opening secure Stripe Checkout. Please wait…";
+  if(!upgradeClickLogged){
+    upgradeClickLogged = true;
+    void logActivityEvent("business_insights_upgrade_clicked", createActivityIdempotencyKey());
+  }
+  let redirecting = false;
+  try{
+    const idToken = await currentUser.getIdToken();
+    const response = await fetch(CHECKOUT_FUNCTION_URL, {
+      method:"POST",
+      headers:{ "Authorization":`Bearer ${idToken}`, "Content-Type":"application/json" }
+    });
+    if(!response.ok) throw new Error("Checkout session could not be created.");
+    const session = await response.json();
+    if(!session.url) throw new Error("Checkout session URL was missing.");
+    await trackBeginCheckout();
+    redirecting = true;
+    window.location.href = session.url;
+  }catch(error){
+    console.error("Business Insights Stripe Checkout start failed", error);
+    checkoutStatus.textContent = "Sorry, checkout could not be started. Please try again.";
+    checkoutStatus.classList.add("error");
+  }finally{
+    if(!redirecting){
+      checkoutOpening = false;
+      button.disabled = false;
+      button.textContent = "Upgrade to Pro";
+    }
   }
 }
 
@@ -132,21 +210,37 @@ async function initialise(){
       const unsubscribe = onAuthStateChanged(auth, current => { unsubscribe(); resolve(current); });
     });
     if(!user) return;
-    const { data, failures, notices } = await loadBusinessInsightsData(user);
+    currentUser = user;
+    const accessPromise = loadBusinessInsightsAccess(user, { db, doc, getDoc }).catch(cause => {
+      const error = new Error("Business Insights access could not be resolved.", { cause });
+      error.code = "business-insights-access-unavailable";
+      throw error;
+    });
+    const [{ data, failures, notices }, access] = await Promise.all([
+      loadBusinessInsightsData(user),
+      accessPromise
+    ]);
     if(notices.length) console.warn("Business Insights skipped malformed accounting journal records.");
-    renderBusinessInsights(buildBusinessInsights(data), failures, notices);
+    renderBusinessInsights(buildBusinessInsights(data), access, failures, notices);
     loading.hidden = true;
     status.textContent = failures.length || notices.length ? "Business Insights loaded with some partial data." : "Business Insights loaded.";
-    const eventKey = createActivityIdempotencyKey();
-    void logActivityEvent("business_insights_viewed", eventKey);
+    void logActivityEvent("business_insights_viewed", createActivityIdempotencyKey());
   }catch(error){
-    console.error("Could not load Business Insights", error);
+    console.error("Could not resolve Business Insights access or data", error);
     loading.hidden = true;
     const errorState = document.getElementById("errorState");
+    const accessFailure = error?.code === "business-insights-access-unavailable";
+    document.getElementById("errorTitle").textContent = accessFailure
+      ? "We could not confirm your Business Insights access"
+      : "We could not load Business Insights";
+    document.getElementById("errorMessage").textContent = accessFailure
+      ? "Your plan access could not be confirmed. Check your connection and try again."
+      : "Your records have not been changed. Check your connection and try again.";
     errorState.hidden = false;
-    status.textContent = "Business Insights could not be loaded.";
+    status.textContent = "Business Insights access or data could not be loaded.";
   }
 }
 
 document.getElementById("retryInsights")?.addEventListener("click", () => window.location.reload());
+document.getElementById("upgradeInsightsButton")?.addEventListener("click", startBusinessInsightsCheckout);
 void initialise();
