@@ -26,6 +26,12 @@ import {
   prepareBankTransactionRecords,
   readyMappedTransactions
 } from "../resources/js/bank-transaction-import.js";
+import {
+  MATCH_CONFIDENCE_MINIMUM,
+  buildMatchCandidates,
+  scoreBankMatch,
+  suggestBankMatches
+} from "../resources/js/bank-match-suggestions.js";
 import { DEMO_MANAGED_USER_COLLECTIONS } from "../assets/demo-seed-engine.js";
 import { DEMO_SEED } from "../assets/demo-seed.js";
 
@@ -520,5 +526,108 @@ describe("Banking Phase 5 import page", () => {
 
   it("does not add matching, accounting, Open Banking, or subscription behavior", () => {
     expect(html).not.toMatch(/matchInvoice|matchBill|matchExpense|createJournal|ledgerEntry|plaid|truelayer|plan-entitlements|starterPreview/);
+  });
+});
+
+describe("Banking Phase 7A matching suggestions", () => {
+  const incoming = Object.freeze({
+    id:"bank-in",
+    transactionDate:"07/08/26",
+    description:"Payment from ACME LTD",
+    moneyIn:850,
+    moneyOut:null,
+    status:"unmatched"
+  });
+  const invoice = Object.freeze({
+    id:"invoice-1",
+    invoiceNo:"INV-1023",
+    client:"ACME LTD",
+    date:"07/08/2026",
+    total:850,
+    status:"Unpaid"
+  });
+
+  it("creates a 100% exact amount, date, and customer-name match", () => {
+    const [suggestion] = suggestBankMatches([incoming],{ invoices:[invoice] });
+    expect(suggestion).toMatchObject({
+      confidence:100,
+      candidate:{ documentType:"Invoice",label:"INV-1023" },
+      reasons:["Amount matches","Date matches","Customer name found"]
+    });
+  });
+
+  it("does not suggest an amount-only match outside the seven-day window", () => {
+    const candidates = buildMatchCandidates({ invoices:[{ ...invoice,date:"20/08/2026" }] });
+    expect(scoreBankMatch(incoming,candidates[0])).toEqual({ confidence:0,reasons:["Amount matches"] });
+    expect(suggestBankMatches([incoming],{ invoices:[{ ...invoice,date:"20/08/2026" }] })).toEqual([]);
+  });
+
+  it("does not suggest a date-only match when the amount differs", () => {
+    expect(suggestBankMatches([incoming],{ invoices:[{ ...invoice,total:851 }] })).toEqual([]);
+  });
+
+  it("returns no match for paid documents, invalid dates, or non-Unmatched transactions", () => {
+    expect(suggestBankMatches([incoming],{ invoices:[{ ...invoice,status:"Paid" }] })).toEqual([]);
+    expect(suggestBankMatches([incoming],{ invoices:[{ ...invoice,date:"ambiguous" }] })).toEqual([]);
+    expect(suggestBankMatches([{ ...incoming,status:"matched" }],{ invoices:[invoice] })).toEqual([]);
+  });
+
+  it("returns every qualifying candidate when multiple documents could match", () => {
+    const suggestions = suggestBankMatches([incoming],{
+      invoices:[invoice,{ ...invoice,id:"invoice-2",invoiceNo:"INV-1024",client:"Other customer",date:"09/08/2026" }]
+    });
+    expect(suggestions.map(suggestion => [suggestion.candidate.label,suggestion.confidence]))
+      .toEqual([["INV-1023",100],["INV-1024",90]]);
+  });
+
+  it("calculates 90% within three days and 75% within seven days", () => {
+    const candidates = buildMatchCandidates({
+      bills:[
+        { id:"bill-3",billNumber:"B-3",supplier:"Supplier",billDate:"2026-08-10",total:62.5,status:"Unpaid" },
+        { id:"bill-7",billNumber:"B-7",supplier:"Supplier",billDate:"2026-08-14",total:62.5,status:"Unpaid" }
+      ]
+    });
+    const outgoing = { transactionDate:"07/08/26",description:"Card payment",moneyIn:null,moneyOut:62.5,status:"unmatched" };
+    expect(scoreBankMatch(outgoing,candidates[0]).confidence).toBe(90);
+    expect(scoreBankMatch(outgoing,candidates[1]).confidence).toBe(MATCH_CONFIDENCE_MINIMUM);
+  });
+
+  it("supports expenses and mileage claims as outgoing candidates", () => {
+    const suggestions = suggestBankMatches([
+      { transactionDate:"07/08/26",description:"Paper Shop",moneyOut:24,status:"unmatched" },
+      { transactionDate:"08/08/26",description:"Mileage",moneyOut:44,status:"unmatched" }
+    ],{
+      expenses:[
+        { id:"expense-1",type:"expense",date:"2026-08-07",merchant:"Paper Shop",gross:24 },
+        { id:"mileage-1",type:"mileage",date:"2026-08-08",businessPurpose:"Client visit",amount:44 }
+      ]
+    });
+    expect(suggestions.map(suggestion => suggestion.candidate.documentType)).toEqual(["Expense","Mileage claim"]);
+  });
+});
+
+describe("Banking Phase 7A suggestions page", () => {
+  it("loads existing documents and renders read-only suggestion details", () => {
+    expect(html).toContain('<h2 id="suggestedMatchesTitle">Suggested matches</h2>');
+    for(const collectionName of ["invoices","bills","expenses"]){
+      expect(html).toContain(`getDocs(collection(db,"users",user.uid,"${collectionName}"))`);
+    }
+    expect(html).toContain("suggestBankMatches(transactions,matchSources)");
+    expect(html).toContain('transactionLabel.textContent = "Bank transaction"');
+    expect(html).toContain('documentLabel.textContent = "Suggested document"');
+    expect(html).toContain('confidence.textContent = `Confidence ${suggestion.confidence}%`');
+    expect(html).toContain("suggestion.reasons.forEach");
+  });
+
+  it("does not write suggestions or change Unmatched statuses", () => {
+    const suggestionSection = html.match(/<section class="card mapping-card" aria-labelledby="suggestedMatchesTitle">([\s\S]*?)<\/section>/)?.[1] || "";
+    expect(suggestionSection).not.toMatch(/button|data-action|edit|save|confirm/i);
+    expect(html).not.toMatch(/updateMatchSuggestion|saveMatchSuggestion|suggestionBatch|status:\s*"matched"/);
+    expect(html).toContain('badge.textContent = "Unmatched"');
+  });
+
+  it("keeps suggestion cards usable on mobile", () => {
+    expect(html).toContain(".suggestion-record{grid-template-columns:1fr auto}");
+    expect(html).toContain(".suggestion-reasons{grid-column:1/-1}");
   });
 });
