@@ -7,6 +7,14 @@ import {
   validateBankAccountInput
 } from "../resources/js/bank-account-view.js";
 import { CSV_PREVIEW_LIMIT, formatFileSize, parseCsvPreview } from "../resources/js/csv-preview.js";
+import {
+  MAPPED_PREVIEW_LIMIT,
+  normaliseStatementRows,
+  parseMoneyValue,
+  statementMappingData,
+  suggestColumnMappings,
+  validateColumnMappings
+} from "../resources/js/bank-statement-mapping.js";
 import { DEMO_MANAGED_USER_COLLECTIONS } from "../assets/demo-seed-engine.js";
 import { DEMO_SEED } from "../assets/demo-seed.js";
 
@@ -97,7 +105,7 @@ describe("Banking Phase 2 page", () => {
   it("remains responsive without horizontal fixed-width content", () => {
     expect(html).toContain("grid-template-columns:repeat(4,minmax(0,1fr))");
     expect(html).toMatch(/@media\(max-width:820px\)[\s\S]*?\.kpi-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/);
-    expect(html).toMatch(/@media\(max-width:640px\)[\s\S]*?\.kpi-grid,\.form-grid,\.preview-meta\{grid-template-columns:1fr\}/);
+    expect(html).toMatch(/@media\(max-width:640px\)[\s\S]*?\.kpi-grid,\.form-grid,\.preview-meta,\.mapping-grid,\.mapped-summary\{grid-template-columns:1fr\}/);
     expect(html).toContain(".app-content{min-width:0}");
     expect(html).toContain(".card{min-width:0");
   });
@@ -118,14 +126,16 @@ describe("Banking Phase 2 page", () => {
 
 describe("Banking Phase 3 CSV preview parser", () => {
   it("parses commas, quoted values, escaped quotes, empty cells, and CRLF rows", () => {
+    const records = [
+      ["Date","Description","Amount"],
+      ["2026-08-01","Coffee, lunch","-12.50"],
+      ["2026-08-02",'He said "thanks"',""]
+    ];
     expect(parseCsvPreview('\uFEFFDate,Description,Amount\r\n2026-08-01,"Coffee, lunch",-12.50\r\n2026-08-02,"He said ""thanks""",\r\n')).toEqual({
       rowCount:3,
       columnCount:3,
-      rows:[
-        ["Date","Description","Amount"],
-        ["2026-08-01","Coffee, lunch","-12.50"],
-        ["2026-08-02",'He said "thanks"',""]
-      ]
+      rows:records,
+      records
     });
   });
 
@@ -168,7 +178,7 @@ describe("Banking Phase 3 statement preview page", () => {
     expect(html).toContain("preview.rows.forEach");
     expect(html).toContain("cell.textContent = row[columnIndex]");
     expect(html).toContain("Column mapping will be completed in the next step before any transactions are imported.");
-    expect(html).toContain('<button class="btn" type="button" disabled>Continue to column mapping</button>');
+    expect(html).toContain('id="continueMappingButton" type="button" disabled>Continue to column mapping</button>');
   });
 
   it("keeps the raw table responsive and displays parsing failures without crashing", () => {
@@ -176,5 +186,142 @@ describe("Banking Phase 3 statement preview page", () => {
     expect(html).toContain('aria-label="CSV statement preview table, horizontally scrollable"');
     expect(html).toContain("This CSV could not be previewed. Check the file formatting and try again.");
     expect(html).toContain('id="importFeedback" role="alert" hidden');
+  });
+});
+
+describe("Banking Phase 4 mapping and normalisation", () => {
+  it("uses the first CSV record as headers and all remaining records as transaction data", () => {
+    const parsed = parseCsvPreview("Date,Details,Credit\n01/08/26,Sale,100\n02/08/26,Refund,25");
+    expect(statementMappingData(parsed)).toEqual({
+      headers:["Date","Details","Credit"],
+      rows:[["01/08/26","Sale","100"],["02/08/26","Refund","25"]]
+    });
+  });
+
+  it("auto-maps common headings case-insensitively after trimming whitespace", () => {
+    expect(suggestColumnMappings([" BOOKING DATE ","merchant"," PAID IN","Withdrawals","Account Balance"])).toEqual({
+      transactionDate:0,
+      description:1,
+      moneyIn:2,
+      moneyOut:3,
+      balance:4
+    });
+  });
+
+  it("leaves unknown or ambiguous headings unselected", () => {
+    expect(suggestColumnMappings(["When","Memo text","Amount"])).toEqual({
+      transactionDate:null,
+      description:null,
+      moneyIn:null,
+      moneyOut:null,
+      balance:null
+    });
+    expect(suggestColumnMappings(["Date","Posting Date","Description","Credit"])).toMatchObject({ transactionDate:null });
+  });
+
+  it("requires date, description, and at least one separate amount column", () => {
+    expect(validateColumnMappings({},5)).toMatchObject({
+      valid:false,
+      errors:{
+        transactionDate:"Select the transaction date column.",
+        description:"Select the description column.",
+        amount:"Select at least one Money in or Money out column."
+      }
+    });
+    expect(validateColumnMappings({ transactionDate:0,description:1,moneyIn:2 },5).valid).toBe(true);
+    expect(validateColumnMappings({ transactionDate:0,description:1,moneyOut:3 },5).valid).toBe(true);
+  });
+
+  it("rejects assigning one CSV column to incompatible banking fields", () => {
+    const result = validateColumnMappings({ transactionDate:0,description:0,moneyIn:2 },3);
+    expect(result.valid).toBe(false);
+    expect(result.errors.transactionDate).toMatch(/different CSV column/i);
+    expect(result.errors.description).toMatch(/different CSV column/i);
+  });
+
+  it("parses supported currency formats and preserves empty values as null", () => {
+    for(const [source,value] of [["850",850],["850.00",850],["1,250.00",1250],["£850.00",850],[" £1,250.00 ",1250],["-62.50",-62.5]]){
+      expect(parseMoneyValue(source)).toEqual({ value,error:null });
+    }
+    expect(parseMoneyValue("")).toEqual({ value:null,error:null });
+    expect(parseMoneyValue("   ")).toEqual({ value:null,error:null });
+  });
+
+  it("flags malformed monetary values instead of coercing them", () => {
+    expect(parseMoneyValue("12.3.4")).toEqual({ value:null,error:"Invalid monetary value" });
+    expect(parseMoneyValue("1,25.00")).toEqual({ value:null,error:"Invalid monetary value" });
+    expect(parseMoneyValue("1 250.00")).toEqual({ value:null,error:"Invalid monetary value" });
+    expect(parseMoneyValue("free")).toEqual({ value:null,error:"Invalid monetary value" });
+  });
+
+  it("marks valid rows Ready while preserving raw dates without interpretation", () => {
+    const result = normaliseStatementRows([["07/08/26","Customer payment","£1,250.00","","9000"]],{
+      transactionDate:0,description:1,moneyIn:2,moneyOut:3,balance:4
+    });
+    expect(result).toMatchObject({ transactionCount:1,readyCount:1,attentionCount:0 });
+    expect(result.rows[0]).toEqual({
+      transactionDate:"07/08/26",
+      description:"Customer payment",
+      moneyIn:1250,
+      moneyOut:null,
+      balance:9000,
+      status:"Ready",
+      errors:[]
+    });
+  });
+
+  it("marks missing required data and malformed money as Needs attention", () => {
+    const result = normaliseStatementRows([["","","bad",""]],{
+      transactionDate:0,description:1,moneyIn:2,moneyOut:3,balance:null
+    });
+    expect(result).toMatchObject({ transactionCount:1,readyCount:0,attentionCount:1 });
+    expect(result.rows[0].status).toBe("Needs attention");
+    expect(result.rows[0].errors).toEqual(["Missing date","Missing description","Invalid money in"]);
+  });
+
+  it("counts every transaction while limiting only the mapped DOM preview data", () => {
+    const rows = Array.from({ length:25 },(_,index) => [String(index),`Row ${index}`,"1"]);
+    const result = normaliseStatementRows(rows,{ transactionDate:0,description:1,moneyIn:2,moneyOut:null,balance:null });
+    expect(result.transactionCount).toBe(25);
+    expect(result.readyCount).toBe(25);
+    expect(result.rows).toHaveLength(MAPPED_PREVIEW_LIMIT);
+  });
+});
+
+describe("Banking Phase 4 mapping page", () => {
+  it("enables mapping after parsing and displays the chosen active bank account", () => {
+    expect(html).toContain('id="columnMapping" aria-labelledby="columnMappingTitle" hidden');
+    expect(html).toContain("elements.continueMapping.disabled = false");
+    expect(html).toContain('for="mappingBankAccount">Importing into:</label>');
+    expect(html).toContain("elements.mappingBankName.textContent = selected?.bankName");
+  });
+
+  it("provides all five mapping controls and the mapped preview summary/table", () => {
+    for(const field of ["transactionDate","description","moneyIn","moneyOut","balance"]){
+      expect(html).toContain(`data-mapping-field="${field}"`);
+    }
+    for(const label of ["Transactions detected","Ready","Needs attention"]){
+      expect(html).toContain(`<span>${label}</span>`);
+    }
+    expect(html).toContain("normaliseStatementRows(currentMappingData.rows,validation.value)");
+    expect(html).toContain('aria-label="Mapped transaction preview table, horizontally scrollable"');
+  });
+
+  it("keeps import disabled and performs no bank-transaction persistence", () => {
+    expect(html).toContain('id="importTransactionsButton" type="button" disabled>Import transactions</button>');
+    expect(html).toContain("Transaction importing will be enabled in the next phase.");
+    expect(html).not.toMatch(/bankTransactions|addBankTransaction|saveMappedTransaction|importMappedTransaction/);
+  });
+
+  it("clears stale mapping and mapped preview state when a different file is selected", () => {
+    expect(html).toMatch(/async function previewStatementFile[\s\S]*?clearStatementData\(\)/);
+    expect(html).toMatch(/function clearStatementData[\s\S]*?currentMappingData = null[\s\S]*?clearMappedPreview\(\)/);
+    expect(html).toContain('id="backToStatementButton" type="button">Back to statement preview</button>');
+  });
+
+  it("stacks controls and actions on mobile without losing horizontal table scrolling", () => {
+    expect(html).toContain(".mapping-grid,.mapped-summary{grid-template-columns:1fr}");
+    expect(html).toContain(".mapping-actions{flex-direction:column-reverse}");
+    expect(html).toContain(".preview-table-wrap{width:100%;overflow-x:auto");
   });
 });

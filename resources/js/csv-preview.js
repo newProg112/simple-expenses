@@ -51,7 +51,8 @@ export function parseCsvPreview(source, limit = CSV_PREVIEW_LIMIT){
   return Object.freeze({
     rowCount:records.length,
     columnCount:records.reduce((maximum, current) => Math.max(maximum, current.length), 0),
-    rows:Object.freeze(records.slice(0, safeLimit).map(current => Object.freeze(current.slice())))
+    rows:Object.freeze(records.slice(0, safeLimit).map(current => Object.freeze(current.slice()))),
+    records:Object.freeze(records.map(current => Object.freeze(current.slice())))
   });
 }
 
