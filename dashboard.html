@@ -199,6 +199,138 @@
     .summary-kpi-teal{ --kpi-accent:#0f9f9a; }
     .summary-kpi-slate{ --kpi-accent:#475569; }
 
+    .business-health-card{
+      grid-column:span 2;
+      min-width:0;
+      padding:18px 20px;
+      border-top:4px solid #0077B6;
+      box-shadow:0 14px 30px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
+    }
+
+    .business-health-card h2{
+      margin:0;
+      font-size:20px;
+    }
+
+    .business-health-content{
+      min-height:112px;
+      display:flex;
+      align-items:center;
+    }
+
+    .business-health-loading,
+    .business-health-state{
+      margin:0;
+      color:#5b6b7c;
+      line-height:1.5;
+    }
+
+    .business-health-layout{
+      display:grid;
+      grid-template-columns:minmax(190px, .8fr) minmax(0, 1.7fr);
+      gap:22px;
+      align-items:center;
+      width:100%;
+    }
+
+    .business-health-score-row{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .business-health-score{
+      display:flex;
+      align-items:baseline;
+      gap:4px;
+      color:#102033;
+      white-space:nowrap;
+    }
+
+    .business-health-score strong{
+      font-size:34px;
+      line-height:1;
+    }
+
+    .business-health-score span{
+      color:#64748b;
+      font-weight:750;
+    }
+
+    .business-health-status{
+      display:inline-flex;
+      border-radius:999px;
+      padding:5px 9px;
+      background:#eef2f7;
+      color:#475569;
+      font-size:12px;
+      font-weight:850;
+    }
+
+    .business-health-status.status-strong,
+    .business-health-status.status-healthy{ background:#dcfce7; color:#166534; }
+    .business-health-status.status-needs-attention{ background:#fff2cf; color:#825100; }
+    .business-health-status.status-at-risk{ background:#fee2e2; color:#991b1b; }
+
+    .business-health-explanation{
+      margin:9px 0 0;
+      color:#5b6b7c;
+      font-size:13px;
+      line-height:1.45;
+    }
+
+    .business-health-signals{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:8px;
+      margin:0 0 12px;
+    }
+
+    .business-health-signal{
+      min-width:0;
+      padding:10px;
+      border:1px solid #e2e8f0;
+      border-radius:11px;
+      background:#f8fbff;
+    }
+
+    .business-health-signal dt{
+      color:#64748b;
+      font-size:11px;
+      font-weight:750;
+      line-height:1.3;
+    }
+
+    .business-health-signal dd{
+      margin:5px 0 0;
+      color:#102033;
+      font-size:16px;
+      font-weight:850;
+      overflow-wrap:anywhere;
+    }
+
+    .business-health-link{
+      display:inline-flex;
+      align-items:center;
+      min-height:44px;
+      color:#0077B6;
+      border-radius:7px;
+      font-weight:800;
+      text-decoration:none;
+    }
+
+    .business-health-link:focus-visible{
+      outline:3px solid rgba(0,119,182,.16);
+      outline-offset:3px;
+    }
+
+    .business-health-partial{
+      margin:8px 0 0;
+      color:#825100;
+      font-size:12px;
+    }
+
     .chart-card{
       display:flex;
       flex-direction:column;
@@ -476,6 +608,19 @@
         grid-template-columns:1fr;
       }
 
+      .business-health-card{
+        grid-column:span 1;
+      }
+
+      .business-health-layout{
+        grid-template-columns:1fr;
+        gap:16px;
+      }
+
+      .business-health-signals{
+        grid-template-columns:1fr;
+      }
+
       .trend-badge{
         white-space:normal;
       }
@@ -649,23 +794,12 @@
           </div>
         </a>
 
-        <a class="card dashboard-link-card summary-kpi-teal" href="./resources/tools/trial-balance.html">
-          <span class="kpi-icon kpi-teal" aria-hidden="true">TB</span>
-          <div class="summary-content">
-            <div class="muted">Accounting reports</div>
-            <h2>Trial Balance</h2>
-            <div class="trend-badge trend-neutral">Open report</div>
+        <section class="card business-health-card" aria-labelledby="dashboardBusinessHealthTitle">
+          <h2 id="dashboardBusinessHealthTitle">Business Health</h2>
+          <div class="business-health-content" id="dashboardBusinessHealthContent" aria-live="polite" aria-busy="true">
+            <p class="business-health-loading" role="status">Loading your Business Health summary&hellip;</p>
           </div>
-        </a>
-
-        <a class="card dashboard-link-card summary-kpi-blue" href="./resources/tools/balance-sheet.html">
-          <span class="kpi-icon kpi-blue" aria-hidden="true">BS</span>
-          <div class="summary-content">
-            <div class="muted">Accounting reports</div>
-            <h2>Balance Sheet</h2>
-            <div class="trend-badge trend-neutral">Open report</div>
-          </div>
-        </a>
+        </section>
 
       </div>
 
@@ -707,6 +841,10 @@
   <script type="module">
     import { auth, db } from "./firebase-config.js";
     import { buildReceivablesAgeing } from "./resources/js/business-logic.js";
+    import { buildBusinessInsights } from "./assets/business-insights-calculations.js?v=20260806-insights-phase3";
+    import { loadBusinessInsightsAccess } from "./assets/business-insights-access.js?v=20260806-insights-polish1";
+    import { loadBusinessInsightsData } from "./assets/business-insights-data.js?v=20260807-dashboard-health1";
+    import { buildDashboardBusinessHealth } from "./assets/dashboard-business-health.js?v=20260807-dashboard-health1";
 
     import {
       onAuthStateChanged
@@ -718,6 +856,7 @@
       collection,
       getDocs,
       query,
+      where,
       limit
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -760,6 +899,54 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+    }
+
+    function businessHealthStatusClass(status){
+      return String(status || "").toLowerCase().replace(/\s+/g, "-");
+    }
+
+    function renderDashboardBusinessHealth(summary){
+      const target = document.getElementById("dashboardBusinessHealthContent");
+      if(!target) return;
+      target.setAttribute("aria-busy", "false");
+      if(summary.state === "empty"){
+        target.innerHTML = `<div><p class="business-health-state"><strong>${escapeDashboardHtml(summary.health.status)}</strong><br>${escapeDashboardHtml(summary.health.explanation)}</p>${summary.partial ? `<p class="business-health-partial">Some source records are currently unavailable.</p>` : ""}<a class="business-health-link" href="/business-insights.html">View Business Insights <span aria-hidden="true">&rarr;</span></a></div>`;
+        return;
+      }
+      const signals = summary.signals.length
+        ? `<dl class="business-health-signals">${summary.signals.map(item => `<div class="business-health-signal"><dt>${escapeDashboardHtml(item.label)}</dt><dd>${escapeDashboardHtml(item.value)}</dd></div>`).join("")}</dl>`
+        : `<p class="business-health-state">No additional high-level signals are available.</p>`;
+      target.innerHTML = `<div class="business-health-layout">
+        <div>
+          <div class="business-health-score-row">
+            <div class="business-health-score" role="img" aria-label="Business Health score ${summary.health.score} out of 100"><strong>${summary.health.score}</strong><span>/ 100</span></div>
+            <span class="business-health-status status-${businessHealthStatusClass(summary.health.status)}">${escapeDashboardHtml(summary.health.status)}</span>
+          </div>
+          <p class="business-health-explanation">${escapeDashboardHtml(summary.health.explanation)}</p>
+          ${summary.partial ? `<p class="business-health-partial">Calculated from the records currently available.</p>` : ""}
+        </div>
+        <div>${signals}<a class="business-health-link" href="/business-insights.html">View Business Insights <span aria-hidden="true">&rarr;</span></a></div>
+      </div>`;
+    }
+
+    async function loadDashboardBusinessHealth(){
+      const target = document.getElementById("dashboardBusinessHealthContent");
+      try{
+        const user = await getDashboardUser();
+        if(!user) throw new Error("An authenticated user is required.");
+        const [{ data, failures, notices }, access] = await Promise.all([
+          loadBusinessInsightsData(user, { db, collection, getDocs, query, where }),
+          loadBusinessInsightsAccess(user, { db, doc, getDoc })
+        ]);
+        if(notices.length) console.warn("Dashboard Business Health skipped malformed accounting journal records.");
+        const model = buildBusinessInsights({ ...data, vatRegistered:access.vatRegistered });
+        renderDashboardBusinessHealth(buildDashboardBusinessHealth(model, access, failures, notices));
+      }catch(error){
+        console.error("Could not load Dashboard Business Health", error);
+        if(!target) return;
+        target.setAttribute("aria-busy", "false");
+        target.innerHTML = `<div><p class="business-health-state" role="alert"><strong>Business Health is temporarily unavailable.</strong><br>Your Dashboard can still be used normally.</p><a class="business-health-link" href="/business-insights.html">View Business Insights <span aria-hidden="true">&rarr;</span></a></div>`;
+      }
     }
 
     function formatDashboardDate(value) {
@@ -1560,6 +1747,7 @@
       });
     }
 
+    void loadDashboardBusinessHealth();
     await loadAccountSummary();
     await loadDashboard();
     await updateOnboardingChecklist();

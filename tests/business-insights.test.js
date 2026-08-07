@@ -299,7 +299,7 @@ describe("Business Insights Phase 1", () => {
   it("logs the safe event once after successful loading and keeps analytics failure non-blocking", () => {
     const source = readFileSync(new URL("../assets/business-insights.js", import.meta.url), "utf8");
     expect(source.match(/logActivityEvent\("business_insights_viewed"/g)).toHaveLength(1);
-    expect(source.indexOf("loadBusinessInsightsData(user)")).toBeLessThan(source.indexOf('logActivityEvent("business_insights_viewed"'));
+    expect(source.indexOf("loadBusinessInsightsData(user,")).toBeLessThan(source.indexOf('logActivityEvent("business_insights_viewed"'));
     expect(source).toContain('void logActivityEvent("business_insights_viewed", createActivityIdempotencyKey())');
     expect(source.match(/logActivityEvent\("business_insights_upgrade_prompt_viewed"/g)).toHaveLength(1);
     expect(source.match(/logActivityEvent\("business_insights_upgrade_clicked"/g)).toHaveLength(1);

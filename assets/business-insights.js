@@ -11,12 +11,11 @@ import {
   businessInsightsPresentation,
   loadBusinessInsightsAccess
 } from "./business-insights-access.js?v=20260806-insights-polish1";
+import { loadBusinessInsightsData } from "./business-insights-data.js?v=20260807-dashboard-health1";
 import {
-  loadOwnedJournals,
   partialJournalDataMessage
 } from "/resources/js/journal-source.js?v=20260806-insights2";
 
-const COLLECTIONS = Object.freeze(["invoices", "bills", "expenses", "projects", "budgets"]);
 const CHECKOUT_FUNCTION_URL = "https://us-central1-simple-books-office.cloudfunctions.net/createCheckoutSession";
 const money = value => value === null ? "Not available" : new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(Number(value) || 0);
 const number = value => new Intl.NumberFormat("en-GB").format(Number(value) || 0);
@@ -35,38 +34,6 @@ function logUpgradePromptView(){
   if(upgradePromptLogged) return;
   upgradePromptLogged = true;
   void logActivityEvent("business_insights_upgrade_prompt_viewed", createActivityIdempotencyKey());
-}
-
-function rows(snapshot){
-  return snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
-}
-
-export async function loadBusinessInsightsData(user, services = { db, collection, getDocs, query, where }){
-  const requests = COLLECTIONS.map(name => services.getDocs(services.collection(services.db, "users", user.uid, name)));
-  requests.push(loadOwnedJournals(services.db, user.uid, services));
-  const results = await Promise.allSettled(requests);
-  const data = { sourceAvailability:{} };
-  const failures = [];
-  const notices = [];
-  COLLECTIONS.forEach((name, index) => {
-    if(results[index].status === "fulfilled") { data[name] = rows(results[index].value); data.sourceAvailability[name] = true; }
-    else { data[name] = []; data.sourceAvailability[name] = false; failures.push(name); }
-  });
-  const journalResult = results[COLLECTIONS.length];
-  if(journalResult.status === "fulfilled"){
-    data.journals = journalResult.value.journals;
-    data.accountingAvailable = true;
-    if(journalResult.value.skippedCount){
-      const count = journalResult.value.skippedCount;
-      notices.push(`${count} malformed accounting ${count === 1 ? "journal was" : "journals were"} skipped`);
-    }
-  }else{
-    data.journals = [];
-    data.accountingAvailable = false;
-    failures.push("accounting journals");
-  }
-  if(failures.length === results.length) throw new Error("No Business Insights data could be loaded.");
-  return { data, failures, notices };
 }
 
 function renderHealth(health, showBreakdown){
@@ -297,7 +264,7 @@ async function initialise(){
       throw error;
     });
     const [{ data, failures, notices }, access] = await Promise.all([
-      loadBusinessInsightsData(user),
+      loadBusinessInsightsData(user, { db, collection, getDocs, query, where }),
       accessPromise
     ]);
     if(notices.length) console.warn("Business Insights skipped malformed accounting journal records.");
