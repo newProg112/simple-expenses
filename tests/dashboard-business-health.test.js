@@ -117,8 +117,8 @@ describe("Dashboard Business Health summary", () => {
     expect(dashboard).toContain("Loading your Business Health summary&hellip;");
     expect(dashboard).toContain('href="/business-insights.html"');
     expect(dashboard).toContain("Business Health score ${summary.health.score} out of 100");
-    expect(dashboard).toContain(".business-health-card{\n      grid-column:span 2;");
-    expect(dashboard).toMatch(/@media\(max-width:800px\)[\s\S]*?\.business-health-card\{\s*grid-column:span 1/);
+    expect(dashboard).toContain(".business-health-card{\n      grid-column:1 / -1;");
+    expect(dashboard).toMatch(/@media\(max-width:800px\)[\s\S]*?\.business-health-card\{\s*grid-column:1 \/ -1/);
     expect(dashboard).toMatch(/@media\(max-width:800px\)[\s\S]*?\.business-health-signals\{\s*grid-template-columns:1fr/);
     expect(dashboard).toContain(".business-health-link:focus-visible");
   });
