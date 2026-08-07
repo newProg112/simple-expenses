@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   BANK_ACCOUNT_STATUS,
   activeBankAccounts,
@@ -15,6 +15,16 @@ import {
   suggestColumnMappings,
   validateColumnMappings
 } from "../resources/js/bank-statement-mapping.js";
+import {
+  BANK_TRANSACTION_SOURCE,
+  BANK_TRANSACTION_STATUS,
+  createSingleFlightImport,
+  newestBankTransactions,
+  normaliseBankTransaction,
+  persistBankTransactions,
+  prepareBankTransactionRecords,
+  readyMappedTransactions
+} from "../resources/js/bank-transaction-import.js";
 import { DEMO_MANAGED_USER_COLLECTIONS } from "../assets/demo-seed-engine.js";
 import { DEMO_SEED } from "../assets/demo-seed.js";
 
@@ -58,11 +68,11 @@ describe("Banking Phase 2 page", () => {
     expect(html).not.toMatch(/plan-entitlements|financial-report-access|upgrade to pro|starterPreview/i);
   });
 
-  it("retains Phase 1 KPIs and makes the active-account count dynamic", () => {
+  it("retains Phase 1 KPIs and makes Banking counts dynamic", () => {
     expect(html).toContain('<div class="kpi-label">Bank accounts</div><div class="kpi-value" id="bankAccountCount">0</div>');
-    for(const label of ["Transactions","Needs review","Matched"]){
-      expect(html).toContain(`<div class="kpi-label">${label}</div><div class="kpi-value">0</div>`);
-    }
+    expect(html).toContain('<div class="kpi-label">Transactions</div><div class="kpi-value" id="bankTransactionCount">0</div>');
+    expect(html).toContain('<div class="kpi-label">Needs review</div><div class="kpi-value" id="bankNeedsReviewCount">0</div>');
+    expect(html).toContain('<div class="kpi-label">Matched</div><div class="kpi-value" id="bankMatchedCount">0</div>');
     expect(html).toContain("elements.count.textContent = String(active.length)");
   });
 
@@ -110,9 +120,9 @@ describe("Banking Phase 2 page", () => {
     expect(html).toContain(".card{min-width:0");
   });
 
-  it("adds no transaction importing, matching, reconciliation, journals, or accounting changes", () => {
+  it("adds no matching, reconciliation, journals, or accounting changes", () => {
     expect(html).not.toMatch(/open banking|plaid|truelayer|reconcil|journal|general ledger|trial balance|profit & loss|balance sheet/i);
-    expect(html).not.toMatch(/bankTransactions|matchTransaction|transactionImport/);
+    expect(html).not.toMatch(/matchTransaction|invoiceMatch|billMatch|expenseMatch/);
   });
 
   it("keeps the inline module syntactically valid", () => {
@@ -307,10 +317,10 @@ describe("Banking Phase 4 mapping page", () => {
     expect(html).toContain('aria-label="Mapped transaction preview table, horizontally scrollable"');
   });
 
-  it("keeps import disabled and performs no bank-transaction persistence", () => {
+  it("keeps import disabled until a mapped preview contains Ready rows", () => {
     expect(html).toContain('id="importTransactionsButton" type="button" disabled>Import transactions</button>');
-    expect(html).toContain("Transaction importing will be enabled in the next phase.");
-    expect(html).not.toMatch(/bankTransactions|addBankTransaction|saveMappedTransaction|importMappedTransaction/);
+    expect(html).toContain("elements.importTransactions.disabled = result.readyCount === 0");
+    expect(html).toContain("Only transactions marked Ready will be imported.");
   });
 
   it("clears stale mapping and mapped preview state when a different file is selected", () => {
@@ -323,5 +333,141 @@ describe("Banking Phase 4 mapping page", () => {
     expect(html).toContain(".mapping-grid,.mapped-summary{grid-template-columns:1fr}");
     expect(html).toContain(".mapping-actions{flex-direction:column-reverse}");
     expect(html).toContain(".preview-table-wrap{width:100%;overflow-x:auto");
+  });
+});
+
+describe("Banking Phase 5 transaction import model", () => {
+  const timestamp = Object.freeze({ serverTimestamp:true });
+  const ready = Object.freeze({
+    transactionDate:"07/08/26",
+    description:"Customer payment",
+    moneyIn:1250,
+    moneyOut:null,
+    balance:9000,
+    status:"Ready",
+    errors:[]
+  });
+  const attention = Object.freeze({
+    transactionDate:"",
+    description:"Incomplete",
+    moneyIn:null,
+    moneyOut:null,
+    balance:null,
+    status:"Needs attention",
+    errors:["Missing date","Missing amount"]
+  });
+  const mappedResult = Object.freeze({ allRows:Object.freeze([ready,attention]),readyCount:1,attentionCount:1 });
+
+  it("selects Ready rows and never includes Needs attention rows", () => {
+    expect(readyMappedTransactions(mappedResult)).toEqual([ready]);
+    expect(readyMappedTransactions({ allRows:[attention] })).toEqual([]);
+  });
+
+  it("creates only the required initial CSV transaction fields", () => {
+    expect(prepareBankTransactionRecords(mappedResult,{
+      bankAccountId:"account-1",importId:"import-1",timestamp
+    })).toEqual([{
+      bankAccountId:"account-1",
+      transactionDate:"07/08/26",
+      description:"Customer payment",
+      moneyIn:1250,
+      moneyOut:null,
+      balance:9000,
+      status:BANK_TRANSACTION_STATUS.UNMATCHED,
+      source:BANK_TRANSACTION_SOURCE.CSV,
+      importId:"import-1",
+      createdAt:timestamp,
+      updatedAt:timestamp
+    }]);
+  });
+
+  it("writes Ready rows successfully to the authenticated user collection", async () => {
+    const writes = [];
+    const commits = [];
+    let nextId = 0;
+    const services = {
+      collection:vi.fn((_db,...parts) => ({ path:parts.join("/") })),
+      doc:vi.fn(parent => ({ path:`${parent.path}/auto-${++nextId}` })),
+      writeBatch:vi.fn(() => ({
+        set:(reference,data) => writes.push({ reference,data }),
+        commit:async () => { commits.push("committed"); }
+      }))
+    };
+    await expect(persistBankTransactions({
+      db:{},services,userId:"user-1",bankAccountId:"account-1",mappedResult,importId:"import-1",timestamp
+    })).resolves.toEqual({ importedCount:1,committedBatches:1 });
+    expect(services.collection).toHaveBeenCalledWith({},"users","user-1","bankTransactions");
+    expect(writes).toHaveLength(1);
+    expect(writes[0].reference.path).toBe("users/user-1/bankTransactions/auto-1");
+    expect(writes[0].data.status).toBe("unmatched");
+    expect(commits).toEqual(["committed"]);
+  });
+
+  it("uses a single-flight guard to prevent double-click writes", async () => {
+    let finish;
+    const execute = vi.fn(() => new Promise(resolve => { finish = resolve; }));
+    const guarded = createSingleFlightImport(execute);
+    const first = guarded("first");
+    const second = guarded("second");
+    expect(second).toBe(first);
+    await Promise.resolve();
+    expect(execute).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledWith("first");
+    finish({ importedCount:1 });
+    await expect(first).resolves.toEqual({ importedCount:1 });
+  });
+
+  it("normalises persisted rows as Unmatched and orders newest transaction date first", () => {
+    const older = normaliseBankTransaction("older",{ transactionDate:"01/08/26",description:"Older",createdAt:"2026-08-03" });
+    const newer = normaliseBankTransaction("newer",{ transactionDate:"02/08/26",description:"Newer",createdAt:"2026-08-01" });
+    expect(older.status).toBe(BANK_TRANSACTION_STATUS.UNMATCHED);
+    expect(newestBankTransactions([older,newer]).map(row => row.id)).toEqual(["newer","older"]);
+  });
+
+  it("sorts UK DD/MM/YY transaction dates in descending calendar order", () => {
+    const transactions = ["05/08/26","07/08/26","04/08/26","06/08/26"]
+      .map((transactionDate,index) => normaliseBankTransaction(String(index),{ transactionDate,description:transactionDate }));
+    expect(newestBankTransactions(transactions).map(row => row.transactionDate))
+      .toEqual(["07/08/26","06/08/26","05/08/26","04/08/26"]);
+  });
+});
+
+describe("Banking Phase 5 import page", () => {
+  it("confirms the Ready count and disables controls while importing", () => {
+    expect(html).toContain('role="alertdialog" aria-modal="true" aria-labelledby="importModalTitle"');
+    expect(html).toContain('id="confirmedImportCount">0</strong> validated transactions?');
+    expect(html).toContain("elements.confirmImport.disabled = loading");
+    expect(html).toContain("elements.importTransactions.disabled = loading || !readyMappedTransactions(mappedResult).length");
+    expect(html).toContain("const runTransactionImport = createSingleFlightImport(importReadyTransactions)");
+  });
+
+  it("loads and writes the authenticated bankTransactions subcollection", () => {
+    expect(html).toContain('collection(db,"users",user.uid,"bankTransactions")');
+    expect(html).toContain("persistBankTransactions({");
+    expect(html).toContain("services:{ collection,doc,writeBatch }");
+    expect(html).toContain("serverTimestamp()");
+  });
+
+  it("updates transaction KPIs and renders a responsive newest-first list", () => {
+    expect(html).toContain("newestBankTransactions(transactions)");
+    expect(html).toContain("elements.transactionCount.textContent = String(ordered.length)");
+    expect(html).toContain("elements.needsReviewCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.UNMATCHED).length)");
+    expect(html).toContain('id="transactionList" tabindex="0" aria-label="Imported bank transactions table, horizontally scrollable"');
+    expect(html).toContain('badge.textContent = "Unmatched"');
+    expect(html).not.toMatch(/data-transaction-action|deleteBankTransaction|editBankTransaction/);
+  });
+
+  it("clears temporary CSV state only after successful import", () => {
+    expect(html).toMatch(/await persistBankTransactions\([\s\S]*?resetStatementPreview\(\)[\s\S]*?Successfully imported/);
+    expect(html).toMatch(/function resetStatementPreview[\s\S]*?elements\.fileInput\.value = ""[\s\S]*?clearStatementData\(\)/);
+  });
+
+  it("includes imported bank transactions in canonical Demo reset storage", () => {
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransactions");
+    expect(DEMO_SEED).not.toHaveProperty("bankTransactions");
+  });
+
+  it("does not add matching, accounting, Open Banking, or subscription behavior", () => {
+    expect(html).not.toMatch(/matchInvoice|matchBill|matchExpense|createJournal|ledgerEntry|plaid|truelayer|plan-entitlements|starterPreview/);
   });
 });

@@ -1,0 +1,119 @@
+export const BANK_TRANSACTION_STATUS = Object.freeze({ UNMATCHED:"unmatched" });
+export const BANK_TRANSACTION_SOURCE = Object.freeze({ CSV:"csv" });
+export const BANK_TRANSACTION_BATCH_LIMIT = 450;
+
+function transactionDateValue(value){
+  const raw = String(value || "").trim();
+  const uk = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  let day;
+  let month;
+  let year;
+  if(uk){
+    day = Number(uk[1]);
+    month = Number(uk[2]);
+    year = Number(uk[3]);
+    if(uk[3].length === 2) year += 2000;
+  }else if(iso){
+    year = Number(iso[1]);
+    month = Number(iso[2]);
+    day = Number(iso[3]);
+  }else{
+    return null;
+  }
+  const timestamp = Date.UTC(year,month - 1,day);
+  const date = new Date(timestamp);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? timestamp
+    : null;
+}
+
+function nullableMoney(value){
+  if(value === null || value === undefined || value === "") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+export function readyMappedTransactions(mappedResult = {}){
+  const rows = Array.isArray(mappedResult.allRows) ? mappedResult.allRows : [];
+  return rows.filter(row => row?.status === "Ready");
+}
+
+export function prepareBankTransactionRecords(mappedResult = {}, options = {}){
+  const bankAccountId = String(options.bankAccountId || "").trim();
+  const importId = String(options.importId || "").trim();
+  if(!bankAccountId) throw new Error("A bank account is required for transaction import.");
+  if(!importId) throw new Error("An import ID is required for transaction import.");
+  const timestamp = options.timestamp;
+  return Object.freeze(readyMappedTransactions(mappedResult).map(row => Object.freeze({
+    bankAccountId,
+    transactionDate:String(row.transactionDate || "").trim(),
+    description:String(row.description || "").trim(),
+    moneyIn:nullableMoney(row.moneyIn),
+    moneyOut:nullableMoney(row.moneyOut),
+    balance:nullableMoney(row.balance),
+    status:BANK_TRANSACTION_STATUS.UNMATCHED,
+    source:BANK_TRANSACTION_SOURCE.CSV,
+    importId,
+    createdAt:timestamp,
+    updatedAt:timestamp
+  })));
+}
+
+export async function persistBankTransactions(options = {}){
+  const { db,services = {},userId } = options;
+  const ownerId = String(userId || "").trim();
+  if(!ownerId) throw new Error("An authenticated user is required for transaction import.");
+  for(const helper of ["collection","doc","writeBatch"]){
+    if(typeof services[helper] !== "function") throw new Error(`Firestore ${helper} helper is required.`);
+  }
+  const records = prepareBankTransactionRecords(options.mappedResult,options);
+  let committedBatches = 0;
+  for(let start = 0; start < records.length; start += BANK_TRANSACTION_BATCH_LIMIT){
+    const batch = services.writeBatch(db);
+    const chunk = records.slice(start,start + BANK_TRANSACTION_BATCH_LIMIT);
+    chunk.forEach(record => {
+      const reference = services.doc(services.collection(db,"users",ownerId,"bankTransactions"));
+      batch.set(reference,record);
+    });
+    await batch.commit();
+    committedBatches += 1;
+  }
+  return Object.freeze({ importedCount:records.length,committedBatches });
+}
+
+export function createSingleFlightImport(execute){
+  if(typeof execute !== "function") throw new Error("An import function is required.");
+  let active = null;
+  return (...args) => {
+    if(active) return active;
+    active = Promise.resolve().then(() => execute(...args)).finally(() => { active = null; });
+    return active;
+  };
+}
+
+export function normaliseBankTransaction(id,data = {}){
+  return Object.freeze({
+    id:String(id || ""),
+    bankAccountId:String(data.bankAccountId || ""),
+    transactionDate:String(data.transactionDate || "").trim(),
+    description:String(data.description || "").trim(),
+    moneyIn:nullableMoney(data.moneyIn),
+    moneyOut:nullableMoney(data.moneyOut),
+    balance:nullableMoney(data.balance),
+    status:BANK_TRANSACTION_STATUS.UNMATCHED,
+    source:BANK_TRANSACTION_SOURCE.CSV,
+    importId:String(data.importId || ""),
+    createdAt:data.createdAt || null,
+    updatedAt:data.updatedAt || null
+  });
+}
+
+export function newestBankTransactions(transactions = []){
+  return (Array.isArray(transactions) ? transactions : []).slice().sort((left,right) =>
+    (transactionDateValue(right.transactionDate) === null ? -1 : transactionDateValue(right.transactionDate)) -
+      (transactionDateValue(left.transactionDate) === null ? -1 : transactionDateValue(left.transactionDate)) ||
+    String(right.transactionDate || "").localeCompare(String(left.transactionDate || "")) ||
+    String(right.id || "").localeCompare(String(left.id || ""))
+  );
+}

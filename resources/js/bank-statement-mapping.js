@@ -101,6 +101,7 @@ export function normaliseStatementRows(rows = [], mapping = {}, limit = MAPPED_P
     transactionCount:normalised.length,
     readyCount,
     attentionCount:normalised.length - readyCount,
-    rows:Object.freeze(normalised.slice(0,safeLimit))
+    rows:Object.freeze(normalised.slice(0,safeLimit)),
+    allRows:Object.freeze(normalised)
   });
 }
