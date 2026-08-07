@@ -6,6 +6,7 @@ import {
   normaliseBankAccount,
   validateBankAccountInput
 } from "../resources/js/bank-account-view.js";
+import { CSV_PREVIEW_LIMIT, formatFileSize, parseCsvPreview } from "../resources/js/csv-preview.js";
 import { DEMO_MANAGED_USER_COLLECTIONS } from "../assets/demo-seed-engine.js";
 import { DEMO_SEED } from "../assets/demo-seed.js";
 
@@ -96,22 +97,84 @@ describe("Banking Phase 2 page", () => {
   it("remains responsive without horizontal fixed-width content", () => {
     expect(html).toContain("grid-template-columns:repeat(4,minmax(0,1fr))");
     expect(html).toMatch(/@media\(max-width:820px\)[\s\S]*?\.kpi-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/);
-    expect(html).toMatch(/@media\(max-width:640px\)[\s\S]*?\.kpi-grid,\.form-grid\{grid-template-columns:1fr\}/);
+    expect(html).toMatch(/@media\(max-width:640px\)[\s\S]*?\.kpi-grid,\.form-grid,\.preview-meta\{grid-template-columns:1fr\}/);
     expect(html).toContain(".app-content{min-width:0}");
     expect(html).toContain(".card{min-width:0");
   });
 
-  it("adds no imports, matching, reconciliation, journals, or accounting changes", () => {
-    expect(html).not.toMatch(/csv|open banking|plaid|truelayer|reconcil|journal|general ledger|trial balance|profit & loss|balance sheet/i);
+  it("adds no transaction importing, matching, reconciliation, journals, or accounting changes", () => {
+    expect(html).not.toMatch(/open banking|plaid|truelayer|reconcil|journal|general ledger|trial balance|profit & loss|balance sheet/i);
     expect(html).not.toMatch(/bankTransactions|matchTransaction|transactionImport/);
-    expect(html).toContain('disabled aria-describedby="importPhaseNote">Import bank statement</button>');
   });
 
   it("keeps the inline module syntactically valid", () => {
     const source = html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1] || "";
-    const withoutImports = source.replace(/import[\s\S]*?;\s*/g, "");
+    const withoutImports = source.replace(/^\s*import .*?;\s*$/gm, "");
     const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
     expect(source).not.toBe("");
     expect(() => new AsyncFunction(withoutImports)).not.toThrow();
+  });
+});
+
+describe("Banking Phase 3 CSV preview parser", () => {
+  it("parses commas, quoted values, escaped quotes, empty cells, and CRLF rows", () => {
+    expect(parseCsvPreview('\uFEFFDate,Description,Amount\r\n2026-08-01,"Coffee, lunch",-12.50\r\n2026-08-02,"He said ""thanks""",\r\n')).toEqual({
+      rowCount:3,
+      columnCount:3,
+      rows:[
+        ["Date","Description","Amount"],
+        ["2026-08-01","Coffee, lunch","-12.50"],
+        ["2026-08-02",'He said "thanks"',""]
+      ]
+    });
+  });
+
+  it("ignores trailing blank lines, preserves embedded newlines, and limits the preview only", () => {
+    const rows = Array.from({ length:25 }, (_, index) => `${index},"line ${index}\ncontinued"`).join("\n") + "\n\n";
+    const preview = parseCsvPreview(rows);
+    expect(preview.rowCount).toBe(25);
+    expect(preview.columnCount).toBe(2);
+    expect(preview.rows).toHaveLength(CSV_PREVIEW_LIMIT);
+    expect(preview.rows[0][1]).toBe("line 0\ncontinued");
+  });
+
+  it("reports malformed or empty CSV content without returning a partial preview", () => {
+    expect(() => parseCsvPreview('Date,"Unclosed')).toThrow(/unclosed quoted value/i);
+    expect(() => parseCsvPreview("\r\n\n")).toThrow(/does not contain any rows/i);
+  });
+
+  it("formats common file sizes for preview metadata", () => {
+    expect(formatFileSize(850)).toBe("850 B");
+    expect(formatFileSize(1536)).toBe("1.5 KB");
+    expect(formatFileSize(2 * 1024 * 1024)).toBe("2.0 MB");
+  });
+});
+
+describe("Banking Phase 3 statement preview page", () => {
+  it("offers only CSV selection after active accounts load and keeps files local", () => {
+    expect(html).toContain('id="statementFileInput" type="file" accept=".csv,text/csv" hidden');
+    expect(html).toContain('elements.fileInput.click()');
+    expect(html).toContain('activeBankAccounts(accounts).length');
+    expect(html).toContain("Please create a bank account before importing a statement.");
+    expect(html).toContain("await file.text()");
+    expect(html).not.toMatch(/uploadBytes|storageRef|FileReader\([^)]*readAsDataURL/);
+  });
+
+  it("renders raw preview metadata, at most 20 rows, a notice, and a disabled next-step button", () => {
+    for(const label of ["Filename","File size","Rows detected","Columns detected"]){
+      expect(html).toContain(`<dt>${label}</dt>`);
+    }
+    expect(html).toContain('id="previewTableBody"');
+    expect(html).toContain("preview.rows.forEach");
+    expect(html).toContain("cell.textContent = row[columnIndex]");
+    expect(html).toContain("Column mapping will be completed in the next step before any transactions are imported.");
+    expect(html).toContain('<button class="btn" type="button" disabled>Continue to column mapping</button>');
+  });
+
+  it("keeps the raw table responsive and displays parsing failures without crashing", () => {
+    expect(html).toContain(".preview-table-wrap{width:100%;overflow-x:auto");
+    expect(html).toContain('aria-label="CSV statement preview table, horizontally scrollable"');
+    expect(html).toContain("This CSV could not be previewed. Check the file formatting and try again.");
+    expect(html).toContain('id="importFeedback" role="alert" hidden');
   });
 });
