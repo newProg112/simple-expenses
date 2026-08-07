@@ -18,6 +18,7 @@ import {
 import {
   BANK_TRANSACTION_SOURCE,
   BANK_TRANSACTION_STATUS,
+  bankTransactionDuplicateKey,
   createSingleFlightImport,
   newestBankTransactions,
   normaliseBankTransaction,
@@ -358,6 +359,33 @@ describe("Banking Phase 5 transaction import model", () => {
   });
   const mappedResult = Object.freeze({ allRows:Object.freeze([ready,attention]),readyCount:1,attentionCount:1 });
 
+  function memoryFirestore(){
+    const documents = new Map();
+    const commits = [];
+    const services = {
+      collection:vi.fn((_db,...parts) => ({ path:parts.join("/") })),
+      doc:vi.fn((parent,id) => ({ path:`${parent.path}/${id}` })),
+      where:vi.fn((field,operator,value) => ({ field,operator,value })),
+      query:vi.fn((reference,constraint) => ({ reference,constraint })),
+      getDocs:vi.fn(async request => ({
+        docs:[...documents.entries()]
+          .filter(([path,data]) => path.startsWith(`${request.reference.path}/`) && data[request.constraint.field] === request.constraint.value)
+          .map(([path,data]) => ({ id:path.split("/").at(-1),data:() => data }))
+      })),
+      writeBatch:vi.fn(() => {
+        const pending = [];
+        return {
+          set:(reference,data) => pending.push({ reference,data }),
+          commit:async () => {
+            pending.forEach(({ reference,data }) => documents.set(reference.path,data));
+            commits.push(pending.length);
+          }
+        };
+      })
+    };
+    return { services,documents,commits };
+  }
+
   it("selects Ready rows and never includes Needs attention rows", () => {
     expect(readyMappedTransactions(mappedResult)).toEqual([ready]);
     expect(readyMappedTransactions({ allRows:[attention] })).toEqual([]);
@@ -381,26 +409,44 @@ describe("Banking Phase 5 transaction import model", () => {
     }]);
   });
 
+  it("requires all six banking values to match before treating a row as duplicate", () => {
+    const base = { bankAccountId:"a",transactionDate:"07/08/26",description:"Sale",moneyIn:10,moneyOut:null,balance:50 };
+    for(const [field,value] of [["bankAccountId","b"],["transactionDate","06/08/26"],["description","Refund"],["moneyIn",11],["moneyOut",2],["balance",51]]){
+      expect(bankTransactionDuplicateKey({ ...base,[field]:value })).not.toBe(bankTransactionDuplicateKey(base));
+    }
+  });
+
   it("writes Ready rows successfully to the authenticated user collection", async () => {
-    const writes = [];
-    const commits = [];
-    let nextId = 0;
-    const services = {
-      collection:vi.fn((_db,...parts) => ({ path:parts.join("/") })),
-      doc:vi.fn(parent => ({ path:`${parent.path}/auto-${++nextId}` })),
-      writeBatch:vi.fn(() => ({
-        set:(reference,data) => writes.push({ reference,data }),
-        commit:async () => { commits.push("committed"); }
-      }))
-    };
+    const { services,documents,commits } = memoryFirestore();
     await expect(persistBankTransactions({
       db:{},services,userId:"user-1",bankAccountId:"account-1",mappedResult,importId:"import-1",timestamp
-    })).resolves.toEqual({ importedCount:1,committedBatches:1 });
+    })).resolves.toEqual({ importedCount:1,skippedDuplicateCount:0,committedBatches:1 });
     expect(services.collection).toHaveBeenCalledWith({},"users","user-1","bankTransactions");
-    expect(writes).toHaveLength(1);
-    expect(writes[0].reference.path).toBe("users/user-1/bankTransactions/auto-1");
-    expect(writes[0].data.status).toBe("unmatched");
-    expect(commits).toEqual(["committed"]);
+    expect(documents.size).toBe(1);
+    expect([...documents.keys()][0]).toMatch(/^users\/user-1\/bankTransactions\/csv-[0-9a-f]{64}$/);
+    expect([...documents.values()][0].status).toBe("unmatched");
+    expect(commits).toEqual([1]);
+  });
+
+  it("imports a CSV once and writes zero documents when the same CSV is imported again", async () => {
+    const { services,documents } = memoryFirestore();
+    const options = { db:{},services,userId:"user-1",bankAccountId:"account-1",mappedResult,timestamp };
+    await expect(persistBankTransactions({ ...options,importId:"first" }))
+      .resolves.toEqual({ importedCount:1,skippedDuplicateCount:0,committedBatches:1 });
+    await expect(persistBankTransactions({ ...options,importId:"second" }))
+      .resolves.toEqual({ importedCount:0,skippedDuplicateCount:1,committedBatches:0 });
+    expect(documents.size).toBe(1);
+    expect(services.writeBatch).toHaveBeenCalledOnce();
+  });
+
+  it("imports only new rows from a mixed statement", async () => {
+    const { services,documents } = memoryFirestore();
+    await persistBankTransactions({ db:{},services,userId:"user-1",bankAccountId:"account-1",mappedResult,importId:"first",timestamp });
+    const newReady = Object.freeze({ ...ready,transactionDate:"08/08/26",description:"New payment" });
+    const mixedResult = Object.freeze({ allRows:Object.freeze([ready,newReady,attention]),readyCount:2,attentionCount:1 });
+    await expect(persistBankTransactions({ db:{},services,userId:"user-1",bankAccountId:"account-1",mappedResult:mixedResult,importId:"mixed",timestamp }))
+      .resolves.toEqual({ importedCount:1,skippedDuplicateCount:1,committedBatches:1 });
+    expect(documents.size).toBe(2);
   });
 
   it("uses a single-flight guard to prevent double-click writes", async () => {
@@ -444,7 +490,7 @@ describe("Banking Phase 5 import page", () => {
   it("loads and writes the authenticated bankTransactions subcollection", () => {
     expect(html).toContain('collection(db,"users",user.uid,"bankTransactions")');
     expect(html).toContain("persistBankTransactions({");
-    expect(html).toContain("services:{ collection,doc,writeBatch }");
+    expect(html).toContain("services:{ collection,doc,getDocs,query,where,writeBatch }");
     expect(html).toContain("serverTimestamp()");
   });
 
@@ -458,8 +504,13 @@ describe("Banking Phase 5 import page", () => {
   });
 
   it("clears temporary CSV state only after successful import", () => {
-    expect(html).toMatch(/await persistBankTransactions\([\s\S]*?resetStatementPreview\(\)[\s\S]*?Successfully imported/);
+    expect(html).toMatch(/await persistBankTransactions\([\s\S]*?resetStatementPreview\(\)[\s\S]*?Skipped duplicates/);
     expect(html).toMatch(/function resetStatementPreview[\s\S]*?elements\.fileInput\.value = ""[\s\S]*?clearStatementData\(\)/);
+  });
+
+  it("reports imported and skipped duplicate counts, including the all-duplicate case", () => {
+    expect(html).toContain("`Imported: ${result.importedCount}. Skipped duplicates: ${result.skippedDuplicateCount}.`");
+    expect(html).toContain("No new transactions were imported. Everything in this statement already exists.");
   });
 
   it("includes imported bank transactions in canonical Demo reset storage", () => {

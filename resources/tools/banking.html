@@ -160,11 +160,11 @@
   <script type="module">
     import { auth, db } from "/firebase-config.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { addDoc, collection, doc, getDocs, serverTimestamp, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { BANK_ACCOUNT_STATUS, activeBankAccounts, normaliseBankAccount, validateBankAccountInput } from "/resources/js/bank-account-view.js?v=20260807-banking2";
     import { formatFileSize, parseCsvPreview } from "/resources/js/csv-preview.js?v=20260807-banking3";
     import { MAPPING_FIELDS, normaliseStatementRows, statementMappingData, suggestColumnMappings, validateColumnMappings } from "/resources/js/bank-statement-mapping.js?v=20260807-banking4";
-    import { BANK_TRANSACTION_STATUS, createSingleFlightImport, newestBankTransactions, normaliseBankTransaction, persistBankTransactions, readyMappedTransactions } from "/resources/js/bank-transaction-import.js?v=20260807-banking5";
+    import { BANK_TRANSACTION_STATUS, createSingleFlightImport, newestBankTransactions, normaliseBankTransaction, persistBankTransactions, readyMappedTransactions } from "/resources/js/bank-transaction-import.js?v=20260807-banking6";
 
     const elements = {
       count:document.getElementById("bankAccountCount"), transactionCount:document.getElementById("bankTransactionCount"), needsReviewCount:document.getElementById("bankNeedsReviewCount"), matchedCount:document.getElementById("bankMatchedCount"), add:document.getElementById("addAccountButton"), list:document.getElementById("accountList"),
@@ -450,13 +450,15 @@
           mappedResult,
           importId:importIdentifier(),
           timestamp:serverTimestamp(),
-          services:{ collection,doc,writeBatch }
+          services:{ collection,doc,getDocs,query,where,writeBatch }
         });
         await loadTransactions(currentUser,false);
         modalTrigger = elements.importButton;
         closeImportConfirmation(true);
         resetStatementPreview();
-        setPageFeedback(`Successfully imported ${result.importedCount} transaction${result.importedCount === 1 ? "" : "s"}.`);
+        setPageFeedback(result.importedCount
+          ? `Imported: ${result.importedCount}. Skipped duplicates: ${result.skippedDuplicateCount}.`
+          : "No new transactions were imported. Everything in this statement already exists.");
       }catch(error){
         console.error("Firestore bank transaction import failed",error);
         setFormFeedback("The validated transactions could not be imported. Please try again.",elements.transactionImportFeedback);

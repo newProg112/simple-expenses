@@ -60,26 +60,60 @@ export function prepareBankTransactionRecords(mappedResult = {}, options = {}){
   })));
 }
 
+export function bankTransactionDuplicateKey(transaction = {}){
+  return JSON.stringify([
+    String(transaction.bankAccountId || "").trim(),
+    String(transaction.transactionDate || "").trim(),
+    String(transaction.description || "").trim(),
+    nullableMoney(transaction.moneyIn),
+    nullableMoney(transaction.moneyOut),
+    nullableMoney(transaction.balance)
+  ]);
+}
+
+async function bankTransactionDocumentId(transaction){
+  const encoded = new TextEncoder().encode(bankTransactionDuplicateKey(transaction));
+  const digest = await globalThis.crypto.subtle.digest("SHA-256",encoded);
+  return `csv-${Array.from(new Uint8Array(digest),byte => byte.toString(16).padStart(2,"0")).join("")}`;
+}
+
 export async function persistBankTransactions(options = {}){
   const { db,services = {},userId } = options;
   const ownerId = String(userId || "").trim();
   if(!ownerId) throw new Error("An authenticated user is required for transaction import.");
-  for(const helper of ["collection","doc","writeBatch"]){
+  for(const helper of ["collection","doc","getDocs","query","where","writeBatch"]){
     if(typeof services[helper] !== "function") throw new Error(`Firestore ${helper} helper is required.`);
   }
   const records = prepareBankTransactionRecords(options.mappedResult,options);
+  const transactionCollection = services.collection(db,"users",ownerId,"bankTransactions");
+  const existingSnapshot = await services.getDocs(services.query(
+    transactionCollection,
+    services.where("bankAccountId","==",String(options.bankAccountId || "").trim())
+  ));
+  const knownKeys = new Set(existingSnapshot.docs.map(document => bankTransactionDuplicateKey(document.data())));
+  const newRecords = records.filter(record => {
+    const key = bankTransactionDuplicateKey(record);
+    if(knownKeys.has(key)) return false;
+    knownKeys.add(key);
+    return true;
+  });
   let committedBatches = 0;
-  for(let start = 0; start < records.length; start += BANK_TRANSACTION_BATCH_LIMIT){
+  for(let start = 0; start < newRecords.length; start += BANK_TRANSACTION_BATCH_LIMIT){
     const batch = services.writeBatch(db);
-    const chunk = records.slice(start,start + BANK_TRANSACTION_BATCH_LIMIT);
-    chunk.forEach(record => {
-      const reference = services.doc(services.collection(db,"users",ownerId,"bankTransactions"));
+    const chunk = newRecords.slice(start,start + BANK_TRANSACTION_BATCH_LIMIT);
+    const references = await Promise.all(chunk.map(record => bankTransactionDocumentId(record)));
+    chunk.forEach((record,index) => {
+      const reference = services.doc(transactionCollection,references[index]);
       batch.set(reference,record);
     });
     await batch.commit();
     committedBatches += 1;
   }
-  return Object.freeze({ importedCount:records.length,committedBatches });
+  return Object.freeze({
+    importedCount:newRecords.length,
+    skippedDuplicateCount:records.length - newRecords.length,
+    committedBatches
+  });
 }
 
 export function createSingleFlightImport(execute){
