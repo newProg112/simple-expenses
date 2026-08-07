@@ -83,6 +83,7 @@ describe("marketing landing page", () => {
       "Mileage",
       "Budgets",
       "Cashflow",
+      "Business Insights",
       "Accountant Pack",
       "Trial Balance",
       "General Ledger",
@@ -91,6 +92,21 @@ describe("marketing landing page", () => {
     ]){
       expect(pricing).toContain(`<th scope="row">${feature}</th>`);
     }
+
+    const proCard = pricing.match(/<article class="card plan-card plan-card-pro">([\s\S]*?)<\/article>/)?.[1] || "";
+    expect(proCard).toContain("<li>Business Insights dashboard</li>");
+    expect(proCard.indexOf("Business Insights dashboard")).toBeLessThan(proCard.indexOf("Advanced accounting reports"));
+
+    const advancedAccounting = pricing.slice(pricing.indexOf('<th colspan="3" scope="colgroup">Advanced accounting</th>'));
+    expect([...advancedAccounting.matchAll(/<th scope="row">(.*?)<\/th>/g)].slice(0, 6).map(match => match[1])).toEqual([
+      "Business Insights",
+      "Accountant Pack",
+      "Trial Balance",
+      "General Ledger",
+      "Profit &amp; Loss",
+      "Balance Sheet"
+    ]);
+    expect(advancedAccounting).toMatch(/<th scope="row">Business Insights<\/th>\s*<td class="comparison-value not-included" data-plan="Starter">Not included<\/td>\s*<td class="comparison-value included" data-plan="Pro">Included<\/td>/);
 
     expect(pricing).toContain('href="/signup.html">Get Started Free</a>');
     expect(pricing).toContain('href="/signup.html">Upgrade to Pro</a>');
