@@ -46,6 +46,7 @@ export const NAVIGATION_GROUPS = Object.freeze([
   Object.freeze({
     label: "Accounting",
     items: Object.freeze([
+      Object.freeze({ key: "banking", label: "Banking", href: "/resources/tools/banking.html" }),
       Object.freeze({ key: "trial-balance", label: "Trial Balance", href: "/resources/tools/trial-balance.html" }),
       Object.freeze({ key: "general-ledger", label: "General Ledger", href: "/resources/tools/general-ledger.html" }),
       Object.freeze({ key: "profit-loss", label: "Profit & Loss", href: "/resources/tools/profit-loss.html" }),
@@ -81,6 +82,7 @@ export const NAVIGATION_ICONS = Object.freeze({
   projects: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3M3 12h18M10 12v2h4v-2"/>',
   budgets: '<circle cx="12" cy="12" r="9"/><path d="M16 8.5c-.7-.8-1.8-1.2-3-1.2-1.7 0-3 1-3 2.3 0 3.5 6 1.5 6 5 0 1.3-1.3 2.3-3 2.3-1.2 0-2.3-.4-3-1.2M13 5.5v13"/>',
   cashflow: '<path d="M4 7h13M13 3l4 4-4 4M20 17H7M11 13l-4 4 4 4"/>',
+  banking: '<path d="M3 9h18M5 9v9M9 9v9M15 9v9M19 9v9M3 21h18M12 3 3 8h18L12 3Z"/>',
   "trial-balance": '<path d="M12 3v18M5 6h14M7 6l-4 7h8L7 6ZM17 6l-4 7h8l-4-7ZM8 21h8"/>',
   "general-ledger": '<path d="M4 4h16v16H4zM8 4v16M12 8h5M12 12h5M12 16h3"/>',
   "profit-loss": '<path d="M4 19V5M4 19h16M7 15l4-4 3 2 5-6"/><path d="m16 7h3v3"/>',

@@ -28,6 +28,7 @@ const expectedRoutes = [
   "/resources/tools/projects.html",
   "/resources/tools/budgets.html",
   "/resources/tools/cashflow.html",
+  "/resources/tools/banking.html",
   "/resources/tools/trial-balance.html",
   "/resources/tools/general-ledger.html",
   "/resources/tools/profit-loss.html",
@@ -47,6 +48,7 @@ const shellPages = [
   "resources/tools/bills.html",
   "resources/tools/budgets.html",
   "resources/tools/cashflow.html",
+  "resources/tools/banking.html",
   "resources/tools/client-tracker.html",
   "resources/tools/expenses.html",
   "resources/tools/general-ledger.html",
@@ -71,7 +73,7 @@ describe("application navigation", () => {
   it("defines every application route once", () => {
     const routes = items.map(item => item.href);
 
-    expect(items).toHaveLength(16);
+    expect(items).toHaveLength(17);
     expect(new Set(routes).size).toBe(routes.length);
     expect(routes).toEqual(expectedRoutes);
   });
