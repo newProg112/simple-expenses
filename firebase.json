@@ -34,6 +34,10 @@
           "destination": "/about.html"
         },
         {
+          "source": "/whats-new",
+          "destination": "/whats-new.html"
+        },
+        {
           "source": "/admin",
           "destination": "/admin.html"
         },

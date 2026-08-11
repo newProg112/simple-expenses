@@ -697,6 +697,26 @@ h1 {
 }
 
 @media (max-width: 900px) {
+  .site-links {
+    display: none;
+  }
+
+  .site-actions .button {
+    display: none;
+  }
+
+  .site-actions .menu-button {
+    display: inline-flex;
+  }
+
+  .mobile-navigation.is-open {
+    display: grid;
+  }
+
+  .mobile-navigation a {
+    padding: 10px 12px;
+  }
+
   .guide-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -713,26 +733,6 @@ h1 {
 }
 
 @media (max-width: 760px) {
-  .site-links {
-    display: none;
-  }
-
-  .site-actions .button {
-    display: none;
-  }
-
-  .menu-button {
-    display: inline-flex;
-  }
-
-  .mobile-navigation.is-open {
-    display: grid;
-  }
-
-  .mobile-navigation a {
-    padding: 10px 12px;
-  }
-
   .guide-hero {
     padding-top: 28px;
   }

@@ -1,0 +1,327 @@
+.updates-hero {
+  padding: 46px 0 34px;
+}
+
+.updates-hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+  gap: clamp(30px, 5vw, 64px);
+  align-items: center;
+  padding: clamp(28px, 6vw, 58px);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(560px 300px at 92% 4%, rgba(0, 119, 182, 0.15), transparent 66%),
+    radial-gradient(420px 260px at 0 100%, rgba(167, 243, 208, 0.2), transparent 70%),
+    var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.updates-hero h1 {
+  max-width: 14ch;
+}
+
+.hero-actions,
+.final-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.update-summary {
+  padding: 22px;
+  border: 1px solid rgba(0, 119, 182, 0.2);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.summary-label,
+.why-it-matters > span,
+.update-area {
+  display: block;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.update-summary ul {
+  display: grid;
+  gap: 14px;
+  margin: 15px 0 0;
+  padding: 15px 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.update-summary li {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 9px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.update-summary li span {
+  color: var(--accent-dark);
+  font-size: 11px;
+}
+
+.updates-section {
+  padding: clamp(44px, 7vw, 76px) 0;
+}
+
+.featured-section,
+.principles-section {
+  border-block: 1px solid rgba(0, 0, 0, 0.055);
+  background: rgba(238, 243, 247, 0.58);
+}
+
+.section-heading-copy {
+  max-width: 730px;
+  margin-bottom: 26px;
+}
+
+.section-heading-copy h2,
+.principles-panel h2,
+.final-cta-panel h2 {
+  margin: 0 0 9px;
+  font-size: clamp(1.75rem, 3.5vw, 2.35rem);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+
+.section-heading-copy > p:last-child,
+.principles-panel > div > p,
+.final-cta-panel p {
+  color: var(--muted);
+}
+
+.featured-update {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  gap: clamp(24px, 5vw, 54px);
+  align-items: center;
+  padding: clamp(26px, 5vw, 44px);
+  border: 1px solid rgba(0, 119, 182, 0.22);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(440px 220px at 100% 0, rgba(0, 119, 182, 0.11), transparent 70%),
+    #fff;
+  box-shadow: var(--shadow);
+}
+
+.featured-copy time,
+.update-date time {
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.featured-copy p {
+  max-width: 720px;
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 1.03rem;
+}
+
+.why-it-matters {
+  padding: 21px;
+  border: 1px solid rgba(0, 119, 182, 0.17);
+  border-radius: var(--radius);
+  background: rgba(0, 119, 182, 0.055);
+}
+
+.why-it-matters p {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.inline-link {
+  display: inline-flex;
+  gap: 7px;
+  margin-top: 18px;
+  color: var(--accent-dark);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.recent-section {
+  padding-bottom: clamp(54px, 8vw, 88px);
+}
+
+.updates-list {
+  display: grid;
+  gap: 13px;
+}
+
+.update-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: clamp(22px, 4vw, 46px);
+  padding: clamp(22px, 4vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.update-date {
+  height: 100%;
+  align-self: start;
+  padding: 3px 20px 3px 0;
+  border-right: 1px solid var(--line);
+}
+
+.update-area {
+  margin: 0 0 7px;
+}
+
+.update-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.16rem;
+}
+
+.update-card div:last-child > p:last-of-type {
+  margin: 0;
+  color: var(--muted);
+}
+
+.principles-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(340px, 1.1fr);
+  gap: clamp(30px, 6vw, 70px);
+  align-items: center;
+  padding: clamp(28px, 5vw, 46px);
+  border: 1px solid rgba(0, 119, 182, 0.2);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+
+.principles-panel > div > p:last-child {
+  margin-bottom: 0;
+}
+
+.principle-list {
+  display: grid;
+  gap: 10px;
+}
+
+.principle-list article {
+  padding: 17px 19px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--panel);
+}
+
+.principle-list strong,
+.principle-list span {
+  display: block;
+}
+
+.principle-list span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.final-cta {
+  padding: 28px 0 clamp(50px, 8vw, 88px);
+}
+
+.final-cta-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
+  gap: 30px;
+  align-items: center;
+  padding: clamp(28px, 5vw, 46px);
+  border: 1px solid rgba(0, 119, 182, 0.22);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(440px 240px at 100% 0, rgba(0, 119, 182, 0.13), transparent 68%),
+    var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.final-actions {
+  justify-content: flex-end;
+  margin: 0;
+}
+
+.text-link {
+  display: inline-flex;
+  width: 100%;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 4px;
+  color: var(--accent-dark);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .update-card,
+  .principle-list article {
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .update-card:hover,
+  .principle-list article:hover {
+    transform: translateY(-2px);
+    border-color: rgba(0, 119, 182, 0.25);
+    box-shadow: 0 10px 24px rgba(31, 41, 51, 0.08);
+  }
+}
+
+@media (max-width: 900px) {
+  .updates-hero-panel,
+  .featured-update,
+  .principles-panel,
+  .final-cta-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .final-actions,
+  .text-link {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 700px) {
+  .updates-hero {
+    padding-top: 28px;
+  }
+
+  .updates-section {
+    padding: 44px 0;
+  }
+
+  .updates-hero-panel,
+  .featured-update,
+  .principles-panel,
+  .final-cta-panel {
+    padding: 24px;
+  }
+
+  .update-card {
+    grid-template-columns: 1fr;
+    gap: 13px;
+    padding: 22px;
+  }
+
+  .update-date {
+    height: auto;
+    padding: 0;
+    border-right: 0;
+  }
+
+  .hero-actions .button,
+  .final-actions .button {
+    width: 100%;
+  }
+}
