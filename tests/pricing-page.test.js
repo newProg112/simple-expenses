@@ -97,6 +97,12 @@ describe("public pricing page", () => {
     expect(comparison).toContain("Up to 5");
     expect(comparison).toContain("Unlimited");
     expect(comparison).toContain("Trial Balance, General Ledger, Profit &amp; Loss and Balance Sheet");
+    expect(html).toContain(
+      "10 AI Assistant questions and 10 document scans per month"
+    );
+    expect(html).toContain(
+      "500 AI Assistant questions and 500 document scans per month"
+    );
   });
 
   it("describes Business Insights as a Starter preview and complete Pro view", () => {
@@ -110,12 +116,12 @@ describe("public pricing page", () => {
     expect(comparison).toContain('<span role="cell" data-plan-label="Pro">Complete view</span>');
   });
 
-  it("keeps the temporary pricing note while server enforcement is verified", () => {
+  it("states enforced AI allowances without stale implementation wording", () => {
     expect(aiAssistantSource).toContain("const AI_USAGE_COUNTING_ENABLED = true;");
     expect(aiAssistantSource).toContain("const AI_USAGE_ENFORCEMENT_ENABLED = true;");
     expect(documentScanSource).toContain("const INVOICE_SCANNING_USAGE_COUNTING_ENABLED = true;");
     expect(documentScanSource).toContain("const INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED = true;");
-    expect(html).toContain("the limits are not presently enforced");
+    expect(html).not.toMatch(/not (?:presently )?enforced|configured monthly allowances/i);
   });
 
   it("limits subscription reassurance to the implemented Stripe portal flow", () => {
