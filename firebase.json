@@ -26,6 +26,10 @@
           "destination": "/features.html"
         },
         {
+          "source": "/pricing",
+          "destination": "/pricing.html"
+        },
+        {
           "source": "/admin",
           "destination": "/admin.html"
         },

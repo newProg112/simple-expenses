@@ -31,12 +31,12 @@ describe("Invoice Scanning usage integration", () => {
     );
   });
 
-  it("keeps scan enforcement disabled while counting is enabled", () => {
+  it("keeps scan counting and enforcement enabled", () => {
     expect(scanHandler).toContain(
       "const INVOICE_SCANNING_USAGE_COUNTING_ENABLED = true;"
     );
     expect(scanHandler).toContain(
-      "const INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED = false;"
+      "const INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED = true;"
     );
   });
 
@@ -48,5 +48,9 @@ describe("Invoice Scanning usage integration", () => {
       'import { createRequestId } from "../js/request-id.js?v=20260728-phase4d"'
     );
     expect(html).toContain("requestId: createRequestId()");
+    expect(html).toContain('code === "functions/resource-exhausted"');
+    expect(html).toContain(
+      'return error.message || "This document could not be scanned.";'
+    );
   });
 });

@@ -374,6 +374,10 @@ describe("Account page monthly usage integration", () => {
     expect(assistantHtml).not.toContain('max="10"');
     expect(assistantHtml).not.toContain(">0 of 10</progress>");
     expect(assistantHtml).toContain("usagePlan.textContent = view.displayPlan");
+    expect(assistantHtml).toContain('if(code === "resource-exhausted")');
+    expect(assistantHtml).toContain(
+      'return error?.message || "The monthly AI Assistant allowance has been reached.";'
+    );
   });
 
   it("keeps the backend endpoint authenticated and read-only", () => {
@@ -399,12 +403,12 @@ describe("Account page monthly usage integration", () => {
     expect(usageReader).not.toMatch(/\.(set|create|update|delete)\(/);
   });
 
-  it("keeps AI enforcement disabled", () => {
+  it("keeps AI counting and enforcement enabled", () => {
     expect(aiHandler).toContain(
       "const AI_USAGE_COUNTING_ENABLED = true;"
     );
     expect(aiHandler).toContain(
-      "const AI_USAGE_ENFORCEMENT_ENABLED = false;"
+      "const AI_USAGE_ENFORCEMENT_ENABLED = true;"
     );
   });
 });

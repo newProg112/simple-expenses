@@ -54,7 +54,7 @@ function fileData(name, mimeType, buffer) {
 
 assert.equal(configuredDocumentModel({}), DEFAULT_DOCUMENT_MODEL);
 assert.equal(INVOICE_SCANNING_USAGE_COUNTING_ENABLED, true);
-assert.equal(INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED, false);
+assert.equal(INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED, true);
 assert.equal(
     configuredDocumentModel({OPENAI_DOCUMENT_MODEL: "gpt-document-test"}),
     "gpt-document-test",
@@ -180,7 +180,7 @@ async function run() {
     ["reserve", {
       uid: "authenticated-user",
       requestId,
-      enforceLimit: false,
+      enforceLimit: true,
       usageType: "invoiceScanning",
     }],
     ["finalize", {
@@ -253,6 +253,41 @@ async function run() {
       (error) => error.code === "already-exists",
   );
   assert.equal(duplicateProviderCalls, 0);
+
+  for (const [effectivePlan, message] of [
+    ["Starter", "You've reached this month's document scanning allowance on Starter. Upgrade to Pro for a higher monthly allowance."],
+    ["Pro", "You've reached this month's document scanning allowance. Your usage will be available again when the monthly allowance resets."],
+  ]) {
+    let overLimitProviderCalls = 0;
+    let overLimitFinalizations = 0;
+    await assert.rejects(
+        handleBusinessDocumentScan({
+          auth: {uid: "authenticated-user"},
+          data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
+        }, {
+          firestore: {},
+          logger: {info() {}, warn() {}},
+          openaiClient: {responses: {create: async () => {
+            overLimitProviderCalls += 1;
+            return {output_text: JSON.stringify(extraction)};
+          }}},
+          usageManager: {
+            reserve: async () => ({
+              state: "limit-reached",
+              limit: effectivePlan === "Starter" ? 10 : 500,
+              effectivePlan,
+            }),
+            finalize: async () => {
+              overLimitFinalizations += 1;
+            },
+          },
+        }),
+        (error) => error.code === "resource-exhausted" &&
+          error.message === message,
+    );
+    assert.equal(overLimitProviderCalls, 0);
+    assert.equal(overLimitFinalizations, 0);
+  }
 
   console.log("Business document scan tests passed");
 }

@@ -10,6 +10,7 @@ const admin = require("firebase-admin");
 const {
   USAGE_TYPES,
   createMonthlyUsageManager,
+  monthlyAllowanceMessage,
 } = require("./lib/ai-usage");
 
 const REGION = "us-central1";
@@ -17,7 +18,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const OPENAI_TIMEOUT_MS = 45000;
 const DEFAULT_DOCUMENT_MODEL = "gpt-5.6-sol";
 const INVOICE_SCANNING_USAGE_COUNTING_ENABLED = true;
-const INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED = false;
+const INVOICE_SCANNING_USAGE_ENFORCEMENT_ENABLED = true;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_CONTEXTS = new Set(["bill", "expense"]);
@@ -353,7 +354,10 @@ async function handleBusinessDocumentScan(request, dependencies) {
       usageReservation.state === "limit-reached") {
       throw new HttpsError(
           "resource-exhausted",
-          "The monthly Invoice Scanning allowance has been reached.",
+          monthlyAllowanceMessage(
+              USAGE_TYPES.INVOICE_SCANNING,
+              usageReservation.effectivePlan,
+          ),
       );
     }
     if (usageReservation.state === "in-progress") {

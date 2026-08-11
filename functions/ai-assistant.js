@@ -9,7 +9,11 @@ const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const {buildBusinessSummary} = require("./lib/business-summary");
 const {buildOpenAIRequest} = require("./lib/assistant-prompt");
-const {createAiUsageManager} = require("./lib/ai-usage");
+const {
+  USAGE_TYPES,
+  createAiUsageManager,
+  monthlyAllowanceMessage,
+} = require("./lib/ai-usage");
 const {
   createPreviewResponse,
   routeQuestion,
@@ -20,7 +24,7 @@ const REGION = "us-central1";
 const MAX_AI_ANSWER_LENGTH = 1200;
 const OPENAI_TIMEOUT_MS = 20000;
 const AI_USAGE_COUNTING_ENABLED = true;
-const AI_USAGE_ENFORCEMENT_ENABLED = false;
+const AI_USAGE_ENFORCEMENT_ENABLED = true;
 const DISCLAIMER = "Business information only. This is not accounting, tax or legal advice.";
 const UNSUPPORTED_ANSWER = [
   "I'm the Simple Books Business Assistant, so I can help explain your invoices, bills, expenses, projects, budgets and cashflow.",
@@ -151,7 +155,10 @@ async function handleAssistantRequest(request, dependencies) {
       usageReservation.state === "limit-reached") {
       throw new HttpsError(
           "resource-exhausted",
-          "The monthly AI Assistant allowance has been reached.",
+          monthlyAllowanceMessage(
+              USAGE_TYPES.AI_ASSISTANT,
+              usageReservation.effectivePlan,
+          ),
       );
     }
     if (usageReservation.state === "in-progress") {

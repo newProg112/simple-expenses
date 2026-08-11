@@ -8,6 +8,7 @@ const {
   createAiUsageManager,
   getAuthoritativeAiLimit,
   getAuthoritativeInvoiceScanningLimit,
+  monthlyAllowanceMessage,
   normalizeUsageCount,
   remainingAllowance,
   resolveAuthoritativePlan,
@@ -201,8 +202,8 @@ describe("authoritative AI allowances", () => {
     const { manager } = createFixture({
       account: { demoMode: true },
       usage: {
-        aiAssistantSuccessfulUses: 10,
-        invoiceScanningSuccessfulUses: 10
+        aiAssistantSuccessfulUses: 500,
+        invoiceScanningSuccessfulUses: 500
       }
     });
     const aiReservation = await manager.reserve({
@@ -215,8 +216,49 @@ describe("authoritative AI allowances", () => {
       usageType: USAGE_TYPES.INVOICE_SCANNING
     });
 
-    expect(aiReservation).toMatchObject({ state: "reserved", limit: 500 });
-    expect(scanningReservation).toMatchObject({ state: "reserved", limit: 500 });
+    expect(aiReservation).toMatchObject({
+      state: "reserved",
+      limit: 500,
+      effectivePlan: PLAN_IDS.PRO,
+      demoMode: true
+    });
+    expect(scanningReservation).toMatchObject({
+      state: "reserved",
+      limit: 500,
+      effectivePlan: PLAN_IDS.PRO,
+      demoMode: true
+    });
+  });
+
+  it("builds plan-aware allowance messages for both AI features", () => {
+    expect(monthlyAllowanceMessage(
+      USAGE_TYPES.AI_ASSISTANT,
+      PLAN_IDS.STARTER
+    )).toBe(
+      "You've reached this month's AI Assistant allowance on Starter. " +
+      "Upgrade to Pro for a higher monthly allowance."
+    );
+    expect(monthlyAllowanceMessage(
+      USAGE_TYPES.AI_ASSISTANT,
+      PLAN_IDS.PRO
+    )).toBe(
+      "You've reached this month's AI Assistant allowance. " +
+      "Your usage will be available again when the monthly allowance resets."
+    );
+    expect(monthlyAllowanceMessage(
+      USAGE_TYPES.INVOICE_SCANNING,
+      PLAN_IDS.STARTER
+    )).toBe(
+      "You've reached this month's document scanning allowance on Starter. " +
+      "Upgrade to Pro for a higher monthly allowance."
+    );
+    expect(monthlyAllowanceMessage(
+      USAGE_TYPES.INVOICE_SCANNING,
+      PLAN_IDS.PRO
+    )).toBe(
+      "You've reached this month's document scanning allowance. " +
+      "Your usage will be available again when the monthly allowance resets."
+    );
   });
 });
 
@@ -247,6 +289,25 @@ describe("usage counter safety", () => {
       .toBe(`userProfiles/${uid}/usage/2026-12`);
   });
 
+  it("starts a fresh allowance from a new UTC month document", async () => {
+    const { firestore, manager } = createFixture({
+      usage: {
+        aiAssistantSuccessfulUses: 10,
+        invoiceScanningSuccessfulUses: 10
+      },
+      clock: new Date("2026-08-01T00:00:00.000Z")
+    });
+    const result = await manager.reserve({
+      uid,
+      requestId: requestIds[0]
+    });
+
+    expect(result).toMatchObject({ state: "reserved", monthKey: "2026-08" });
+    expect(firestore.read(usagePath).aiAssistantSuccessfulUses).toBe(10);
+    expect(firestore.read(`${profilePath}/usage/2026-08`))
+      .toMatchObject({ aiAssistantSuccessfulUses: 0 });
+  });
+
   it("rejects malformed identifiers before accessing Firestore", async () => {
     const { manager } = createFixture();
     await expect(manager.reserve({ uid, requestId: "not-a-uuid" }))
@@ -259,6 +320,78 @@ describe("usage counter safety", () => {
 });
 
 describe("transaction-safe reservations", () => {
+  it.each([
+    {
+      label: "Starter AI Assistant use 10",
+      profile: { currentPlan: "Starter", subscriptionStatus: "active" },
+      usageType: USAGE_TYPES.AI_ASSISTANT,
+      counter: "aiAssistantSuccessfulUses",
+      belowLimit: 9,
+      limit: 10
+    },
+    {
+      label: "Pro AI Assistant use 500",
+      profile: { currentPlan: "Pro", subscriptionStatus: "active" },
+      usageType: USAGE_TYPES.AI_ASSISTANT,
+      counter: "aiAssistantSuccessfulUses",
+      belowLimit: 499,
+      limit: 500
+    },
+    {
+      label: "Starter document scan 10",
+      profile: { currentPlan: "Starter", subscriptionStatus: "active" },
+      usageType: USAGE_TYPES.INVOICE_SCANNING,
+      counter: "invoiceScanningSuccessfulUses",
+      belowLimit: 9,
+      limit: 10
+    },
+    {
+      label: "Pro document scan 500",
+      profile: { currentPlan: "Pro", subscriptionStatus: "active" },
+      usageType: USAGE_TYPES.INVOICE_SCANNING,
+      counter: "invoiceScanningSuccessfulUses",
+      belowLimit: 499,
+      limit: 500
+    }
+  ])("allows $label, then rejects the next request without incrementing", async ({
+    profile,
+    usageType,
+    counter,
+    belowLimit,
+    limit
+  }) => {
+    const { firestore, manager } = createFixture({
+      profile,
+      usage: { [counter]: belowLimit }
+    });
+    const allowed = await manager.reserve({
+      uid,
+      requestId: requestIds[0],
+      usageType
+    });
+    await manager.finalize({
+      uid,
+      requestId: requestIds[0],
+      usageType,
+      ...allowed
+    });
+    const rejected = await manager.reserve({
+      uid,
+      requestId: requestIds[1],
+      usageType
+    });
+
+    expect(allowed).toMatchObject({ state: "reserved", limit });
+    expect(firestore.read(usagePath)[counter]).toBe(limit);
+    expect(rejected).toMatchObject({ state: "limit-reached", limit });
+    const stored = firestore.read(usagePath);
+    expect(stored[counter]).toBe(limit);
+    const reservationField = usageType === USAGE_TYPES.AI_ASSISTANT
+      ? "aiAssistantReservations"
+      : "invoiceScanningReservations";
+    expect(stored[reservationField]).not.toHaveProperty(requestIds[1]);
+  });
+
   it("allows only one concurrent request to reserve the final Starter use", async () => {
     const { manager } = createFixture({
       usage: { aiAssistantSuccessfulUses: 9 }

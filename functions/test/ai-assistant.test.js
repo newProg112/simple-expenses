@@ -223,7 +223,7 @@ const silentLogger = {error() {}, info() {}, warn() {}};
 
 async function run() {
   assert.equal(AI_USAGE_COUNTING_ENABLED, true);
-  assert.equal(AI_USAGE_ENFORCEMENT_ENABLED, false);
+  assert.equal(AI_USAGE_ENFORCEMENT_ENABLED, true);
 
   const expectedUnsupportedAnswer = [
     "I'm the Simple Books Business Assistant, so I can help explain your invoices, bills, expenses, projects, budgets and cashflow.",
@@ -330,7 +330,7 @@ async function run() {
         create: async () => ({output_text: "A successful metered answer."}),
       },
     },
-    usageEnforcementEnabled: false,
+    usageEnforcementEnabled: true,
     usageManager: {
       reserve: async (details) => {
         successUsageEvents.push(["reserve", details]);
@@ -357,7 +357,7 @@ async function run() {
   assert.deepEqual(successUsageEvents[0][1], {
     uid: callableRequest.auth.uid,
     requestId,
-    enforceLimit: false,
+    enforceLimit: true,
   });
   assert.deepEqual(successUsageEvents[1][1], {
     uid: callableRequest.auth.uid,
@@ -365,29 +365,43 @@ async function run() {
     requestId,
   });
 
-  let overLimitProviderCalls = 0;
-  await assert.rejects(
-      handleAssistantRequest(callableRequest, {
-        firestore: {},
-        now,
-        buildBusinessSummary: async () => summary,
-        openaiClient: {
-          responses: {
-            create: async () => {
-              overLimitProviderCalls += 1;
-              return {output_text: "Must not be called."};
+  for (const [effectivePlan, message] of [
+    ["Starter", "You've reached this month's AI Assistant allowance on Starter. Upgrade to Pro for a higher monthly allowance."],
+    ["Pro", "You've reached this month's AI Assistant allowance. Your usage will be available again when the monthly allowance resets."],
+  ]) {
+    let overLimitProviderCalls = 0;
+    let overLimitFinalizations = 0;
+    await assert.rejects(
+        handleAssistantRequest(callableRequest, {
+          firestore: {},
+          now,
+          buildBusinessSummary: async () => summary,
+          openaiClient: {
+            responses: {
+              create: async () => {
+                overLimitProviderCalls += 1;
+                return {output_text: "Must not be called."};
+              },
             },
           },
-        },
-        usageEnforcementEnabled: true,
-        usageManager: {
-          reserve: async () => ({state: "limit-reached", limit: 10}),
-        },
-        logger: silentLogger,
-      }),
-      (error) => error.code === "resource-exhausted",
-  );
-  assert.equal(overLimitProviderCalls, 0);
+          usageManager: {
+            reserve: async () => ({
+              state: "limit-reached",
+              limit: effectivePlan === "Starter" ? 10 : 500,
+              effectivePlan,
+            }),
+            finalize: async () => {
+              overLimitFinalizations += 1;
+            },
+          },
+          logger: silentLogger,
+        }),
+        (error) => error.code === "resource-exhausted" &&
+          error.message === message,
+    );
+    assert.equal(overLimitProviderCalls, 0);
+    assert.equal(overLimitFinalizations, 0);
+  }
 
   let completedRetryProviderCalls = 0;
   await assert.rejects(

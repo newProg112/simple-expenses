@@ -37,6 +37,20 @@ const USAGE_CONFIGURATIONS = Object.freeze({
   }),
 });
 
+function monthlyAllowanceMessage(usageType, effectivePlan) {
+  const label = usageType === USAGE_TYPES.INVOICE_SCANNING ?
+    "document scanning" :
+    "AI Assistant";
+
+  if (normalisePlan(effectivePlan) === PLAN_IDS.PRO) {
+    return `You've reached this month's ${label} allowance. ` +
+      "Your usage will be available again when the monthly allowance resets.";
+  }
+
+  return `You've reached this month's ${label} allowance on Starter. ` +
+    "Upgrade to Pro for a higher monthly allowance.";
+}
+
 function usageConfiguration(usageType) {
   const configuration = USAGE_CONFIGURATIONS[usageType];
   if (!configuration) {
@@ -249,8 +263,10 @@ function createAiUsageManager(options) {
         ]);
       const profile = profileSnapshot.exists ? profileSnapshot.data() : {};
       const account = accountSnapshot.exists ? accountSnapshot.data() : {};
+      const demoMode = account.demoMode === true;
+      const effectivePlan = resolveAuthoritativePlan(profile, account);
       const limit = getMonthlyLimit(
-          resolveAuthoritativePlan(profile, account),
+          effectivePlan,
           configuration.limitId,
       );
       const state = usageState(
@@ -264,7 +280,7 @@ function createAiUsageManager(options) {
             usageWrite(state, serverTimestamp),
             {merge: true},
         );
-        return {state: "completed", monthKey, limit};
+        return {state: "completed", monthKey, limit, effectivePlan, demoMode};
       }
 
       if (Object.hasOwn(state[configuration.reservations], requestId)) {
@@ -273,7 +289,7 @@ function createAiUsageManager(options) {
             usageWrite(state, serverTimestamp),
             {merge: true},
         );
-        return {state: "in-progress", monthKey, limit};
+        return {state: "in-progress", monthKey, limit, effectivePlan, demoMode};
       }
 
       const remaining = remainingAllowance(
@@ -281,13 +297,19 @@ function createAiUsageManager(options) {
           state[configuration.successfulUses],
           Object.keys(state[configuration.reservations]).length,
       );
-      if (enforceLimit && remaining !== null && remaining <= 0) {
+      if (enforceLimit && !demoMode && remaining !== null && remaining <= 0) {
         transaction.set(
             refs.usage,
             usageWrite(state, serverTimestamp),
             {merge: true},
         );
-        return {state: "limit-reached", monthKey, limit};
+        return {
+          state: "limit-reached",
+          monthKey,
+          limit,
+          effectivePlan,
+          demoMode,
+        };
       }
 
       state[configuration.reservations][requestId] = {
@@ -299,7 +321,7 @@ function createAiUsageManager(options) {
           usageWrite(state, serverTimestamp),
           {merge: true},
       );
-      return {state: "reserved", monthKey, limit};
+      return {state: "reserved", monthKey, limit, effectivePlan, demoMode};
     });
   }
 
@@ -385,6 +407,7 @@ module.exports = {
   createMonthlyUsageManager: createAiUsageManager,
   getAuthoritativeAiLimit,
   getAuthoritativeInvoiceScanningLimit,
+  monthlyAllowanceMessage,
   normalizeUsageCount,
   remainingAllowance,
   resolveAuthoritativePlan,

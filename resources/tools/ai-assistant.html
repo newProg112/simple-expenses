@@ -1142,7 +1142,10 @@
         if(code === "unauthenticated"){
           return "Your session is no longer available. Please sign in again and retry.";
         }
-        if(code === "invalid-argument" || code === "resource-exhausted"){
+        if(code === "resource-exhausted"){
+          return error?.message || "The monthly AI Assistant allowance has been reached.";
+        }
+        if(code === "invalid-argument"){
           return "That question could not be submitted. Check its length and try one of the suggested questions.";
         }
         if(code === "unavailable" || code === "deadline-exceeded" || code === "internal"){
