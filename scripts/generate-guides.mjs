@@ -35,6 +35,7 @@ function publicHeader({ guidesCurrent = false } = {}) {
         <ul class="site-links">
           <li><a href="/features">Features</a></li>
           <li><a href="/pricing">Pricing</a></li>
+          <li><a href="/about">About</a></li>
           <li><a href="/guides"${guidesCurrent ? ' aria-current="page"' : ""}>Guides</a></li>
           <li><a href="/#contact">Contact</a></li>
         </ul>
@@ -48,6 +49,7 @@ function publicHeader({ guidesCurrent = false } = {}) {
     <nav class="mobile-navigation" id="mobile-navigation" aria-label="Mobile navigation">
       <a href="/features">Features</a>
       <a href="/pricing">Pricing</a>
+      <a href="/about">About</a>
       <a href="/guides"${guidesCurrent ? ' aria-current="page"' : ""}>Guides</a>
       <a href="/#contact">Contact</a>
       <a href="/login.html">Login</a>
@@ -67,6 +69,7 @@ function publicFooter() {
       </div>
       <nav class="footer-links" aria-label="Footer navigation">
         <a href="/">Home</a>
+        <a href="/about">About</a>
         <a href="/guides">Guides</a>
         <a href="/login.html">Login</a>
         <a href="/signup.html">Sign Up</a>

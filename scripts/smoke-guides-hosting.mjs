@@ -15,6 +15,10 @@ async function expectPage(path, expectedText, expectedStatus = 200) {
 }
 
 await expectPage("/guides", "<h1>Simple Books Guides</h1>");
+await expectPage(
+  "/about",
+  "<h1>Business software built to keep things understandable</h1>"
+);
 await expectPage("/admin", "<h1>Admin Dashboard</h1>");
 
 for (const guide of GUIDES) {
@@ -23,4 +27,4 @@ for (const guide of GUIDES) {
 
 await expectPage("/guides/not-a-real-guide", "Page not found", 404);
 
-console.log(`Firebase Hosting smoke test passed for /admin, /guides, ${GUIDES.length} clean guide URLs, and the guide 404.`);
+console.log(`Firebase Hosting smoke test passed for /about, /admin, /guides, ${GUIDES.length} clean guide URLs, and the guide 404.`);

@@ -24,6 +24,7 @@ describe("public features page", () => {
   it("uses the existing public navigation and calls to action", () => {
     expect(html).toContain('href="/features" aria-current="page">Features</a>');
     expect(html).toContain('href="/pricing">Pricing</a>');
+    expect(html).toContain('href="/about">About</a>');
     expect(html).toContain('href="/login.html?demo=1">Try the demo</a>');
     expect(html).toContain('href="/signup.html">Try Simple Books</a>');
     expect(html).toContain('id="menu-button" type="button" aria-expanded="false"');

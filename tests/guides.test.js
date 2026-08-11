@@ -99,6 +99,7 @@ describe("public Guides data and index", () => {
     expect(guidesIndex).toContain('aria-label="Filter guides by category"');
     expect(guidesIndex).toContain('id="empty-state" hidden');
     expect(guidesIndex).toContain('id="clear-filters"');
+    expect(guidesIndex).toContain('<a href="/about">About</a>');
     expect(occurrences(guidesIndex, / data-guide-card/g)).toBe(23);
 
     for (const category of ["All guides", ...GUIDE_CATEGORIES]) {
@@ -146,6 +147,7 @@ describe("generated guide pages", () => {
       expect(html).toContain('id="table-of-contents-list"');
       expect(html).toContain("Related guides");
       expect(html).toContain("Back to all Simple Books guides");
+      expect(html).toContain('<a href="/about">About</a>');
       expect(html).toContain(guide.format === "how-to" ? '"@type":"TechArticle"' : '"@type":"Article"');
       expect(occurrences(html, /<h1>/g)).toBe(1);
     });

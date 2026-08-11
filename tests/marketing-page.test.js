@@ -27,10 +27,11 @@ describe("marketing landing page", () => {
     const desktopNavigation = html.match(/<nav aria-label="Primary navigation">([\s\S]*?)<\/nav>/)?.[1] || "";
     const mobileNavigation = html.match(/<div class="mobile" id="mobileNav"[\s\S]*?>([\s\S]*?)<\/div>/)?.[1] || "";
 
-    expect(textContent(desktopNavigation)).toBe("Features Pricing Guides Contact");
-    expect(textContent(mobileNavigation)).toBe("Features Pricing Guides Contact Login Sign Up");
+    expect(textContent(desktopNavigation)).toBe("Features Pricing About Guides Contact");
+    expect(textContent(mobileNavigation)).toBe("Features Pricing About Guides Contact Login Sign Up");
     expect(`${desktopNavigation}${mobileNavigation}`).not.toContain("/resources/tools/");
     expect(`${desktopNavigation}${mobileNavigation}`).toContain('href="/guides"');
+    expect(`${desktopNavigation}${mobileNavigation}`).toContain('href="/about"');
     expect(html).toContain('href="/login.html"');
     expect(html).toContain('href="/signup.html"');
   });
