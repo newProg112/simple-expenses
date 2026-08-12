@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "generate:guides": "node scripts/generate-guides.mjs",
+    "migration:legacy-storage:dry-run": "node scripts/migrate-legacy-storage-attachments.mjs --project simple-books-office --report migration-reports/legacy-storage-dry-run.json",
+    "test:storage:rules": "firebase emulators:exec --only auth,storage \"node tests/storage-rules-emulator.cjs\"",
     "test": "vitest run",
     "test:guides:hosting": "firebase emulators:exec --only hosting:main \"node scripts/smoke-guides-hosting.mjs\"",
     "test:watch": "vitest"

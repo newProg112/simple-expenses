@@ -8,7 +8,8 @@ const bootstrap = readFileSync(
 );
 const loaderUrl = "https://js-de.sentry-cdn.com/9ca6428f0668673bd5ba75766bdcdc9f.min.js";
 const monitoredPages = [
-  "index.html",
+    "index.html",
+    "security.html",
   "login.html",
   "signup.html",
   "dashboard.html",

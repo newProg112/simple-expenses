@@ -26,6 +26,7 @@ describe("public features page", () => {
     expect(html).toContain('href="/pricing">Pricing</a>');
     expect(html).toContain('href="/about">About</a>');
     expect(html).toContain('href="/whats-new">What\'s New</a>');
+    expect(html).toContain('href="/security">Security</a>');
     expect(html).toContain('href="/login.html?demo=1">Try the demo</a>');
     expect(html).toContain('href="/signup.html">Try Simple Books</a>');
     expect(html).toContain('id="menu-button" type="button" aria-expanded="false"');
@@ -81,6 +82,10 @@ describe("public features page", () => {
     const exports = section("exports-title");
 
     expect(exports).toContain("Accountant Pack");
+    expect(exports).toContain(
+      "Export core account, invoice, bill and client or customer records as JSON"
+    );
+    expect(exports).not.toContain("Export a JSON backup of your Simple Books data");
     expect(exports).toContain("Excel export");
     expect(exports).toContain("Data backup");
   });

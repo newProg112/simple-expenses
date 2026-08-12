@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isBusinessDocument() {
+      return request.resource != null
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches(
+          'application/pdf|image/jpeg|image/png|image/webp'
+        );
+    }
+
+    function isPdf() {
+      return request.resource != null
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+
+    function isCompanyLogo() {
+      return request.resource != null
+        && request.resource.size <= 1024 * 1024
+        && request.resource.contentType.matches('image/jpeg|image/png|image/webp');
+    }
+
+    match /users/{userId}/attachments/bills/{billId}/{fileName} {
+      allow get, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isBusinessDocument();
+    }
+
+    match /users/{userId}/attachments/expenses/{expenseId}/{fileName} {
+      allow get, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isBusinessDocument();
+    }
+
+    match /users/{userId}/attachments/clients/{clientId}/{fileName} {
+      allow get, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isPdf();
+    }
+
+    match /users/{userId}/branding/company-logo {
+      allow get, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isCompanyLogo();
+    }
+  }
+}

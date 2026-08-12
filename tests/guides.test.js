@@ -101,6 +101,7 @@ describe("public Guides data and index", () => {
     expect(guidesIndex).toContain('id="clear-filters"');
     expect(guidesIndex).toContain('<a href="/about">About</a>');
     expect(guidesIndex).toContain('<a href="/whats-new">What\'s New</a>');
+    expect(guidesIndex).toContain('<a href="/security">Security</a>');
     expect(occurrences(guidesIndex, / data-guide-card/g)).toBe(23);
 
     for (const category of ["All guides", ...GUIDE_CATEGORIES]) {
@@ -150,6 +151,7 @@ describe("generated guide pages", () => {
       expect(html).toContain("Back to all Simple Books guides");
       expect(html).toContain('<a href="/about">About</a>');
       expect(html).toContain('<a href="/whats-new">What\'s New</a>');
+      expect(html).toContain('<a href="/security">Security</a>');
       expect(html).toContain(guide.format === "how-to" ? '"@type":"TechArticle"' : '"@type":"Article"');
       expect(occurrences(html, /<h1>/g)).toBe(1);
     });
@@ -631,11 +633,11 @@ describe("generated guide pages", () => {
     }
 
     for (const currentBehaviour of [
-      "Manual bill attachment:</strong> PDF only. No app-level maximum file size is currently enforced.",
+      "Manual bill attachment:</strong> PDF only. The form does not pre-check the size, but Firebase Storage rejects files over 10 MB.",
       "Manual expense attachment:</strong> PDF only, up to 10 MB.",
       "Manual mileage attachment:</strong> PDF, JPG, JPEG or PNG, up to 10 MB.",
       "AI Scan Bill and Scan Receipt:</strong> PDF, JPG, JPEG, PNG or WEBP, up to 10 MB.",
-      "the current Bills implementation does not attempt to delete its stored attachment",
+      "Older bill records without a retained path cannot perform that cleanup.",
       "does not restore or block deletion of the underlying record"
     ]) {
       expect(uploadingReceiptsGuide).toContain(currentBehaviour);

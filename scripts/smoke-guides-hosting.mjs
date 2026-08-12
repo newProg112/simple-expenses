@@ -23,6 +23,10 @@ await expectPage(
   "/whats-new",
   "<h1>See what's new in Simple Books</h1>"
 );
+await expectPage(
+  "/security",
+  "<h1>Clear account controls. Clear data handling.</h1>"
+);
 await expectPage("/admin", "<h1>Admin Dashboard</h1>");
 
 for (const guide of GUIDES) {
@@ -31,4 +35,4 @@ for (const guide of GUIDES) {
 
 await expectPage("/guides/not-a-real-guide", "Page not found", 404);
 
-console.log(`Firebase Hosting smoke test passed for /about, /whats-new, /admin, /guides, ${GUIDES.length} clean guide URLs, and the guide 404.`);
+console.log(`Firebase Hosting smoke test passed for /about, /whats-new, /security, /admin, /guides, ${GUIDES.length} clean guide URLs, and the guide 404.`);

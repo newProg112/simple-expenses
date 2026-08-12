@@ -28,6 +28,7 @@
           <li><a href="/pricing">Pricing</a></li>
           <li><a href="/about">About</a></li>
           <li><a href="/whats-new">What's New</a></li>
+          <li><a href="/security">Security</a></li>
           <li><a href="/guides" aria-current="page">Guides</a></li>
           <li><a href="/#contact">Contact</a></li>
         </ul>
@@ -43,6 +44,7 @@
       <a href="/pricing">Pricing</a>
       <a href="/about">About</a>
       <a href="/whats-new">What's New</a>
+      <a href="/security">Security</a>
       <a href="/guides" aria-current="page">Guides</a>
       <a href="/#contact">Contact</a>
       <a href="/login.html">Login</a>
@@ -154,14 +156,14 @@
           <h2>Replace an attachment while editing</h2>
           <p>Select <strong>Edit</strong> beside the saved record. Bills show the existing file name and <strong>Existing PDF will be kept.</strong> Expenses show the current file name and <strong>Current attachment will be kept unless replaced.</strong> A mileage attachment is retained when you update the claim without choosing a new file, although the Mileage edit form does not currently display the existing file name or a “kept” message.</p>
           <p>Choose a new permitted file and select <strong>Update bill</strong>, <strong>Update expense</strong> or <strong>Update mileage</strong> to replace the attachment reference on the record. There is no control that removes an existing stored attachment while keeping the record attachment-free.</p>
-          <p>Expense and mileage replacements attempt to delete the previous stored file after the updated record saves. Bill replacements update the bill to the new attachment, but the current Bills implementation does not track a storage path or delete the previous stored file. If the replacement uses a different filename, the earlier bill file can therefore remain in storage even though it is no longer linked from the bill.</p>
+          <p>Bill, expense and mileage replacements save the new attachment path and attempt to delete the previous stored file after the updated record saves. Legacy bill records created before attachment paths were retained may still leave their older file in storage when replaced.</p>
         </section>
 
         <section>
           <h2>Delete a record and its attachment</h2>
           <p>Use <strong>Delete</strong> only after checking the record and confirming the prompt. The attachment behaviour differs by workflow:</p>
           <ul class="remember-list">
-            <li><strong>Bills:</strong> deleting a bill removes the record, but the current Bills implementation does not attempt to delete its stored attachment.</li>
+            <li><strong>Bills:</strong> deleting the record also attempts to delete the stored file when an attachment storage path is available. Older bill records without a retained path cannot perform that cleanup.</li>
             <li><strong>Expenses and Mileage:</strong> deleting the record also attempts to delete the stored file when an attachment storage path is available.</li>
           </ul>
           <p>If an Expense or Mileage storage deletion fails, Simple Books logs the failure but does not restore or block deletion of the underlying record. The file may therefore remain in storage without a record linking to it.</p>
@@ -170,7 +172,7 @@
         <section>
           <h2>Supported file types and size limits</h2>
           <ul class="remember-list">
-            <li><strong>Manual bill attachment:</strong> PDF only. No app-level maximum file size is currently enforced.</li>
+            <li><strong>Manual bill attachment:</strong> PDF only. The form does not pre-check the size, but Firebase Storage rejects files over 10 MB.</li>
             <li><strong>Manual expense attachment:</strong> PDF only, up to 10 MB.</li>
             <li><strong>Manual mileage attachment:</strong> PDF, JPG, JPEG or PNG, up to 10 MB.</li>
             <li><strong>AI Scan Bill and Scan Receipt:</strong> PDF, JPG, JPEG, PNG or WEBP, up to 10 MB.</li>
@@ -192,11 +194,11 @@
           <h2>Common attachment mistakes</h2>
           <ul class="remember-list">
             <li><strong>Uploading an image through the manual Expense control.</strong> Ordinary expenses accept only PDF manually; use <strong>Scan Receipt</strong> for JPG, JPEG, PNG or WEBP.</li>
-            <li><strong>Assuming every upload has the same limit.</strong> The 10 MB check applies to manual Expenses, manual Mileage and both scanners, but not to the current manual Bill attachment code.</li>
+            <li><strong>Assuming every upload has the same client-side check.</strong> Expenses, Mileage and both scanners check the 10 MB limit before upload. Bills rely on Firebase Storage to reject files over 10 MB.</li>
             <li><strong>Expecting a chosen file to upload immediately.</strong> It remains selected or pending until the record is saved.</li>
             <li><strong>Applying a scan during an edit.</strong> Scanned details can be applied only to a new bill or expense.</li>
             <li><strong>Expecting two attachments.</strong> Each record stores one attachment reference; a manual file takes priority over a pending scanned document.</li>
-            <li><strong>Assuming a replacement or deletion always removes the old bill file.</strong> Bills do not currently clean up stored attachments.</li>
+            <li><strong>Assuming every legacy file can be cleaned up automatically.</strong> New bill records retain their attachment path for replacement and deletion. Older bill records without that path may leave their previous file in storage.</li>
             <li><strong>Relying on the document without checking the form.</strong> Confirm the merchant or supplier, date, amount, VAT, category and business purpose yourself.</li>
             <li><strong>Uploading unnecessary sensitive information.</strong> Keep the supporting evidence relevant and proportionate.</li>
           </ul>
@@ -205,7 +207,7 @@
         <section>
           <h2>Summary</h2>
           <p>To upload a receipt in Simple Books, choose the attachment control for the record, select a supported file and save the bill, expense or mileage claim. Manual Bills and Expenses are PDF-only; Mileage also accepts JPG, JPEG and PNG. AI scanning accepts PDF, JPG, JPEG, PNG and WEBP and can hold the scanned document as a pending attachment for a new bill or expense.</p>
-          <p>Attachments upload when the record is saved and can then be opened from the recent-record list. Existing attachments normally remain during editing unless you choose a replacement. Remember that Expense and Mileage deletion attempts storage cleanup, while Bills currently leave stored files untouched. Always check the saved figures and avoid keeping sensitive information that the business record does not need.</p>
+          <p>Attachments upload when the record is saved and can then be opened from the recent-record list. Existing attachments normally remain during editing unless you choose a replacement. Bill, Expense and Mileage deletion attempts storage cleanup when the record contains a saved attachment path; legacy bill records may not contain one. Always check the saved figures and avoid keeping sensitive information that the business record does not need.</p>
         </section>
       </article>
 
@@ -257,6 +259,7 @@
         <a href="/">Home</a>
         <a href="/about">About</a>
         <a href="/whats-new">What's New</a>
+        <a href="/security">Security</a>
         <a href="/guides">Guides</a>
         <a href="/login.html">Login</a>
         <a href="/signup.html">Sign Up</a>

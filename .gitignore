@@ -68,6 +68,10 @@ node_modules/
 .env.*.local
 .secret.local
 
+# One-off migration reports and sensitive rollback manifests
+migration-reports/*.json
+migration-private/
+
 # dataconnect generated files
 .dataconnect
 

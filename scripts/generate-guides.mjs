@@ -37,6 +37,7 @@ function publicHeader({ guidesCurrent = false } = {}) {
           <li><a href="/pricing">Pricing</a></li>
           <li><a href="/about">About</a></li>
           <li><a href="/whats-new">What's New</a></li>
+          <li><a href="/security">Security</a></li>
           <li><a href="/guides"${guidesCurrent ? ' aria-current="page"' : ""}>Guides</a></li>
           <li><a href="/#contact">Contact</a></li>
         </ul>
@@ -52,6 +53,7 @@ function publicHeader({ guidesCurrent = false } = {}) {
       <a href="/pricing">Pricing</a>
       <a href="/about">About</a>
       <a href="/whats-new">What's New</a>
+      <a href="/security">Security</a>
       <a href="/guides"${guidesCurrent ? ' aria-current="page"' : ""}>Guides</a>
       <a href="/#contact">Contact</a>
       <a href="/login.html">Login</a>
@@ -73,6 +75,7 @@ function publicFooter() {
         <a href="/">Home</a>
         <a href="/about">About</a>
         <a href="/whats-new">What's New</a>
+        <a href="/security">Security</a>
         <a href="/guides">Guides</a>
         <a href="/login.html">Login</a>
         <a href="/signup.html">Sign Up</a>

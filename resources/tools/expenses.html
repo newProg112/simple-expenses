@@ -2068,6 +2068,7 @@
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
+    import { openAttachment } from "../js/attachment-opening.js?v=20260812-storage1";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -3202,11 +3203,11 @@
       return "application/pdf";
     }
 
-    function uploadAttachment(file, expenseId) {
+    function uploadAttachment(file, expenseId, userId) {
       return new Promise((resolve, reject) => {
         const progress = document.getElementById("attachmentProgress");
         const safeFileName = file.name.replace(/[^\w.\-() ]+/g, "_");
-        const attachmentPath = `expenses/${expenseId}/${safeFileName}`;
+        const attachmentPath = `users/${userId}/attachments/expenses/${expenseId}/${safeFileName}`;
         const fileRef = storageRef(storage, attachmentPath);
         const attachmentType = attachmentContentType(file);
         const uploadLabel = attachmentType === "application/pdf" ? "PDF" : "document";
@@ -3480,7 +3481,7 @@
         }
 
         try {
-          attachment = await uploadAttachment(selectedAttachment, expenseId);
+          attachment = await uploadAttachment(selectedAttachment, expenseId, user.uid);
 
           if (existingExpense?.attachmentPath && existingExpense.attachmentPath !== attachment.attachmentPath) {
             replacedAttachmentPath = existingExpense.attachmentPath;
@@ -3544,7 +3545,7 @@
       let scannedAttachmentWarning = "";
       if (scannedAttachment) {
         try {
-          attachment = await uploadAttachment(scannedAttachment, expenseId);
+          attachment = await uploadAttachment(scannedAttachment, expenseId, user.uid);
           expense = normaliseExpense({ ...expense, ...attachment });
           await setDoc(doc(db, "users", user.uid, "expenses", String(expenseId)), expense);
         } catch (error) {
@@ -3972,9 +3973,10 @@
         const detailText = isMileage
           ? `${Number(expense.miles || 0).toFixed(1)} miles at ${money(expense.ratePerMile)} per mile`
           : escapeHtml(expense.description || "No description");
+        const hasAttachment = Boolean(expense.attachmentPath || expense.attachmentUrl);
         const attachmentLabel = `<div class="expense-secondary expense-attachment-state">${
-              expense.attachmentUrl
-                ? `<a class="expense-attachment-link" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">${isMileage ? "View attachment" : "View PDF"}</a>`
+              hasAttachment
+                ? `<a class="expense-attachment-link" href="#" data-expense-attachment data-expense-id="${expenseId}">${isMileage ? "View attachment" : "View PDF"}</a>`
                 : "No attachment"
             }</div>`;
         const rowAmount = isMileage ? Number(expense.amount || expense.gross || 0) : Number(expense.gross || 0);
@@ -4015,8 +4017,8 @@
           </div>
 
           <div class="row-actions">
-            ${expense.attachmentUrl
-              ? `<a class="btn btn-secondary" href="${escapeHtml(expense.attachmentUrl)}" target="_blank" rel="noopener">${isMileage ? "View attachment" : "View PDF"}</a>`
+            ${hasAttachment
+              ? `<a class="btn btn-secondary" href="#" data-expense-attachment data-expense-id="${expenseId}">${isMileage ? "View attachment" : "View PDF"}</a>`
               : ""}
             <button class="btn btn-secondary" type="button" data-expense-action="edit" data-expense-id="${expenseId}">Edit</button>
             ${expense.status !== "Paid"
@@ -4107,6 +4109,23 @@
     document.getElementById("recentProjectFilter").addEventListener("change", renderExpenses);
 
     document.getElementById("expensesList").addEventListener("click", event => {
+      const attachmentLink = event.target.closest("[data-expense-attachment][data-expense-id]");
+      if (attachmentLink && event.currentTarget.contains(attachmentLink)) {
+        event.preventDefault();
+        const expense = expenses.find(item => String(item.id) === String(attachmentLink.dataset.expenseId));
+        if (!expense) return;
+        openAttachment(expense, {
+          storage,
+          storageRef,
+          getDownloadURL,
+          openWindow: (...args) => window.open(...args)
+        }).catch(error => {
+          console.error("Expense attachment open failed", error);
+          alert("The attachment could not be opened. Please try again.");
+        });
+        return;
+      }
+
       const actionButton = event.target.closest("button[data-expense-action][data-expense-id]");
 
       if (!actionButton || !event.currentTarget.contains(actionButton)) {

@@ -2173,6 +2173,7 @@
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
+    import { openAttachment } from "../js/attachment-opening.js?v=20260812-storage1";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -2186,6 +2187,7 @@
       updateDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import {
+      deleteObject,
       getDownloadURL,
       getStorage,
       ref as storageRef,
@@ -2202,6 +2204,7 @@
     let selectedAttachment = null;
     let pendingScannedBillFile = null;
     let currentBills = [];
+    let billsLoadError = false;
     let currentProjects = [];
     let projectsLoaded = false;
     let projectsLoadError = false;
@@ -2704,8 +2707,12 @@
           id: snap.id,
           ...snap.data()
         }));
+        billsLoadError = false;
+        saveBills(currentBills);
       } catch (error) {
         console.error("Firestore bills load failed", error);
+        currentBills = [];
+        billsLoadError = true;
       }
 
       return currentBills;
@@ -3255,11 +3262,12 @@
       return billScanFileType(file) || "application/pdf";
     }
 
-    function uploadAttachment(file, billId) {
+    function uploadAttachment(file, billId, userId) {
       return new Promise((resolve, reject) => {
         const progress = document.getElementById("attachmentProgress");
         const safeFileName = file.name.replace(/[^\w.\-() ]+/g, "_");
-        const fileRef = storageRef(storage, `bills/${billId}/${safeFileName}`);
+        const attachmentPath = `users/${userId}/attachments/bills/${billId}/${safeFileName}`;
+        const fileRef = storageRef(storage, attachmentPath);
         const attachmentType = billAttachmentContentType(file);
         const uploadLabel = attachmentType === "application/pdf" ? "PDF" : "document";
         const uploadTask = uploadBytesResumable(fileRef, file, { contentType: attachmentType });
@@ -3285,7 +3293,10 @@
               setAttachmentStatus("Attachment uploaded.");
               resolve({
                 attachmentName: file.name,
-                attachmentUrl
+                attachmentUrl,
+                attachmentPath,
+                attachmentSize: file.size,
+                attachmentType
               });
             } catch (error) {
               setAttachmentStatus(`Upload failed: ${error.message}`, true);
@@ -3294,6 +3305,16 @@
           }
         );
       });
+    }
+
+    async function deleteAttachment(attachmentPath) {
+      if (!attachmentPath) return;
+
+      try {
+        await deleteObject(storageRef(storage, attachmentPath));
+      } catch (error) {
+        console.error("Storage attachment delete failed", error);
+      }
     }
 
     async function saveBill() {
@@ -3331,12 +3352,19 @@
 
       let attachment = {
         attachmentName: existingBill?.attachmentName || "",
-        attachmentUrl: existingBill?.attachmentUrl || ""
+        attachmentUrl: existingBill?.attachmentUrl || "",
+        attachmentPath: existingBill?.attachmentPath || "",
+        attachmentSize: existingBill?.attachmentSize || 0,
+        attachmentType: existingBill?.attachmentType || ""
       };
+      let replacedAttachmentPath = "";
 
       try {
         if (selectedAttachment) {
-          attachment = await uploadAttachment(selectedAttachment, billId);
+          attachment = await uploadAttachment(selectedAttachment, billId, user.uid);
+          if (existingBill?.attachmentPath && existingBill.attachmentPath !== attachment.attachmentPath) {
+            replacedAttachmentPath = existingBill.attachmentPath;
+          }
         }
       } catch (error) {
         saveButton.disabled = false;
@@ -3362,6 +3390,9 @@
         projectReference: project.projectReference,
         attachmentName: attachment.attachmentName || "",
         attachmentUrl: attachment.attachmentUrl || "",
+        attachmentPath: attachment.attachmentPath || "",
+        attachmentSize: attachment.attachmentSize || 0,
+        attachmentType: attachment.attachmentType || "",
         createdAt: existingBill?.createdAt || new Date().toISOString()
       };
 
@@ -3378,14 +3409,21 @@
       let scannedAttachmentWarning = "";
       if (scannedAttachment) {
         try {
-          attachment = await uploadAttachment(scannedAttachment, billId);
+          attachment = await uploadAttachment(scannedAttachment, billId, user.uid);
           bill.attachmentName = attachment.attachmentName || "";
           bill.attachmentUrl = attachment.attachmentUrl || "";
+          bill.attachmentPath = attachment.attachmentPath || "";
+          bill.attachmentSize = attachment.attachmentSize || 0;
+          bill.attachmentType = attachment.attachmentType || "";
           await setDoc(ref, bill);
         } catch (error) {
           console.error("Scanned bill attachment upload failed after the bill was saved", error);
           scannedAttachmentWarning = "The bill was saved, but the scanned attachment could not be uploaded. You can edit the bill and attach the file manually.";
         }
+      }
+
+      if (replacedAttachmentPath) {
+        await deleteAttachment(replacedAttachmentPath);
       }
 
       const ledgerPostingWarning = await postBillJournalAfterSave(
@@ -3514,6 +3552,7 @@
         await loadBills();
       }
 
+      const billToDelete = currentBills.find(b => String(b.id) === String(id));
       currentBills = currentBills.filter(b => String(b.id) !== String(id));
       saveBills(currentBills);
       renderBills(currentBills);
@@ -3530,6 +3569,10 @@
         } catch (error) {
           console.error("Firestore bill delete failed", error);
         }
+      }
+
+      if (billToDelete?.attachmentPath) {
+        await deleteAttachment(billToDelete.attachmentPath);
       }
     }
 
@@ -3651,6 +3694,12 @@
       const recentFooter = document.getElementById("recentBillsFooter");
       const visibleBills = getVisibleRecentBills(bills);
 
+      if (billsLoadError) {
+        if (recentFooter) recentFooter.textContent = "Bills could not be loaded";
+        list.innerHTML = `<p class="muted">Bills could not be loaded. Refresh the page to try again.</p>`;
+        return;
+      }
+
       if (recentFooter) {
         recentFooter.textContent = `Showing ${visibleBills.length} of ${bills.length} bills`;
       }
@@ -3676,11 +3725,12 @@
         </div>
       ` + visibleBills.map(bill => {
         const billId = escapeHtml(String(bill.id));
-        const attachmentLabel = bill.attachmentName
-          ? `<a class="bill-attachment-link" href="${escapeHtml(bill.attachmentUrl)}" target="_blank" rel="noopener">${escapeHtml(bill.attachmentName)}</a>`
+        const hasAttachment = Boolean(bill.attachmentPath || bill.attachmentUrl);
+        const attachmentLabel = bill.attachmentName && hasAttachment
+          ? `<a class="bill-attachment-link" href="#" data-bill-action="open-attachment" data-bill-id="${billId}">${escapeHtml(bill.attachmentName)}</a>`
           : "No attachment";
-        const viewPdfButton = bill.attachmentUrl
-          ? `<a class="btn btn-secondary" href="${escapeHtml(bill.attachmentUrl)}" target="_blank" rel="noopener">View PDF</a>`
+        const viewPdfButton = hasAttachment
+          ? `<a class="btn btn-secondary" href="#" data-bill-action="open-attachment" data-bill-id="${billId}">View PDF</a>`
           : "";
         const paymentButtonText = bill.status === "Paid" ? "Mark unpaid" : "Mark paid";
         const paymentButtonClass = bill.status === "Paid" ? "btn btn-secondary" : "btn btn-positive";
@@ -3732,6 +3782,22 @@
       const billId = button.dataset.billId;
 
       if (!billId) return;
+
+      if (button.dataset.billAction === "open-attachment") {
+        event.preventDefault();
+        const bill = currentBills.find(item => String(item.id) === String(billId));
+        if (!bill) return;
+        openAttachment(bill, {
+          storage,
+          storageRef,
+          getDownloadURL,
+          openWindow: (...args) => window.open(...args)
+        }).catch(error => {
+          console.error("Bill attachment open failed", error);
+          alert("The attachment could not be opened. Please try again.");
+        });
+        return;
+      }
 
       if (button.dataset.billAction === "toggle-paid") {
         markBillPaid(billId);

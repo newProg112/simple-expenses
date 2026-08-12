@@ -38,6 +38,10 @@
           "destination": "/whats-new.html"
         },
         {
+          "source": "/security",
+          "destination": "/security.html"
+        },
+        {
           "source": "/admin",
           "destination": "/admin.html"
         },
@@ -170,5 +174,16 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "storage": {
+      "port": 9199
+    }
   }
 }
