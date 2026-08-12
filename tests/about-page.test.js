@@ -54,7 +54,7 @@ describe("public About page", () => {
     )?.[1] || "";
 
     expect(textContent(desktopNavigation)).toBe(
-      "Features Pricing About What's New Security Guides Contact"
+      "Features Pricing About What's New Security FAQ Guides Contact"
     );
     expect(textContent(mobileNavigation)).toBe(
       "Features Pricing About What's New Security Guides FAQ Contact Login Sign Up"

@@ -51,7 +51,7 @@ describe("public What's New page", () => {
     )?.[1] || "";
 
     expect(textContent(desktopNavigation)).toBe(
-      "Features Pricing About What's New Security Guides Contact"
+      "Features Pricing About What's New Security FAQ Guides Contact"
     );
     expect(textContent(mobileNavigation)).toBe(
       "Features Pricing About What's New Security Guides FAQ Contact Login Sign Up"
@@ -150,7 +150,7 @@ describe("public What's New page", () => {
       '<script type="module" src="/assets/guides/public-shell.js"></script>'
     );
     expect(sharedCss).toMatch(
-      /@media \(max-width: 900px\)[\s\S]*?\.site-links[\s\S]*?display: none[\s\S]*?\.site-actions \.menu-button[\s\S]*?display: inline-flex/
+      /@media \(max-width: 1020px\)[\s\S]*?\.site-links[\s\S]*?display: none[\s\S]*?\.site-actions \.menu-button[\s\S]*?display: inline-flex/
     );
     expect(css).toContain("@media (max-width: 900px)");
     expect(css).toMatch(

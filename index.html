@@ -601,6 +601,30 @@
     }
 
     /* Responsive */
+    @media (max-width: 1020px){
+      .actions{ min-width: auto; }
+      .nav > nav{ display:none; }
+      .menu-btn{ display:inline-flex; }
+      .mobile{
+        display:none;
+        padding: 10px 0 14px;
+      }
+      .mobile.open{ display:block; }
+      .mobile a{
+        display:block;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid transparent;
+        color: var(--muted);
+      }
+      .mobile a:hover{
+        background: rgba(255,255,255,.06);
+        border-color: rgba(255,255,255,.12);
+        color: var(--text);
+        text-decoration:none;
+      }
+    }
+
     @media (max-width: 900px){
       .hero-grid{ grid-template-columns: 1fr; }
       .actions{ min-width: auto; }
@@ -711,6 +735,7 @@
           <li><a href="/about">About</a></li>
           <li><a href="/whats-new">What's New</a></li>
           <li><a href="/security">Security</a></li>
+          <li><a href="/faq">FAQ</a></li>
           <li><a href="/guides">Guides</a></li>
           <li><a href="#contact">Contact</a></li>
         </ul>

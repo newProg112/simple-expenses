@@ -42,7 +42,8 @@ describe("public FAQ page", () => {
     const mobileNavigation = html.match(/<nav class="mobile-navigation"[\s\S]*?>([\s\S]*?)<\/nav>/)?.[1] || "";
     const footerNavigation = html.match(/<nav class="footer-links"[\s\S]*?>([\s\S]*?)<\/nav>/)?.[1] || "";
 
-    expect(textContent(desktopNavigation)).toBe("Features Pricing About What's New Security Guides Contact");
+    expect(textContent(desktopNavigation)).toBe("Features Pricing About What's New Security FAQ Guides Contact");
+    expect(desktopNavigation).toContain('href="/faq" aria-current="page"');
     expect(textContent(mobileNavigation)).toBe("Features Pricing About What's New Security Guides FAQ Contact Login Sign Up");
     expect(mobileNavigation).toContain('href="/faq" aria-current="page"');
     expect(footerNavigation).toContain('href="/faq" aria-current="page"');
@@ -110,7 +111,7 @@ describe("public FAQ page", () => {
     expect(html).toContain("does not currently submit tax returns or VAT returns to HMRC");
   });
 
-  it("links FAQ from the public mobile navigation and footer without crowding desktop headers", () => {
+  it("links FAQ from public desktop, mobile and footer navigation", () => {
     for (const file of [
       "index.html", "features.html", "pricing.html", "about.html",
       "whats-new.html", "security.html", "guide-pages/index.html",
@@ -122,7 +123,7 @@ describe("public FAQ page", () => {
       const desktop = page.match(/<nav aria-label="Primary navigation">([\s\S]*?)<\/nav>/)?.[1] || "";
       expect(mobile, `${file} mobile navigation`).toContain('href="/faq"');
       expect(footer, `${file} footer`).toContain('href="/faq"');
-      expect(desktop, `${file} desktop navigation`).not.toContain('href="/faq"');
+      expect(desktop, `${file} desktop navigation`).toContain('href="/faq"');
     }
   });
 
@@ -138,7 +139,7 @@ describe("public FAQ page", () => {
 
     expect(html).toContain('<link rel="stylesheet" href="/assets/guides/guides.css">');
     expect(html).toContain('<script type="module" src="/assets/guides/public-shell.js"></script>');
-    expect(sharedCss).toMatch(/@media \(max-width: 900px\)[\s\S]*?\.site-links[\s\S]*?display: none/);
+    expect(sharedCss).toMatch(/@media \(max-width: 1020px\)[\s\S]*?\.site-links[\s\S]*?display: none/);
     expect(css).toContain("@media (max-width: 900px)");
     expect(css).toMatch(/@media \(max-width: 700px\)[\s\S]*?\.faq-list-two-column \{ grid-template-columns: 1fr;/);
   });

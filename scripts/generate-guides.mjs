@@ -38,6 +38,7 @@ function publicHeader({ guidesCurrent = false } = {}) {
           <li><a href="/about">About</a></li>
           <li><a href="/whats-new">What's New</a></li>
           <li><a href="/security">Security</a></li>
+          <li><a href="/faq">FAQ</a></li>
           <li><a href="/guides"${guidesCurrent ? ' aria-current="page"' : ""}>Guides</a></li>
           <li><a href="/#contact">Contact</a></li>
         </ul>

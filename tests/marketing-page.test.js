@@ -27,7 +27,7 @@ describe("marketing landing page", () => {
     const desktopNavigation = html.match(/<nav aria-label="Primary navigation">([\s\S]*?)<\/nav>/)?.[1] || "";
     const mobileNavigation = html.match(/<div class="mobile" id="mobileNav"[\s\S]*?>([\s\S]*?)<\/div>/)?.[1] || "";
 
-    expect(textContent(desktopNavigation)).toBe("Features Pricing About What's New Security Guides Contact");
+    expect(textContent(desktopNavigation)).toBe("Features Pricing About What's New Security FAQ Guides Contact");
     expect(textContent(mobileNavigation)).toBe("Features Pricing About What's New Security Guides FAQ Contact Login Sign Up");
     expect(`${desktopNavigation}${mobileNavigation}`).not.toContain("/resources/tools/");
     expect(`${desktopNavigation}${mobileNavigation}`).toContain('href="/guides"');
