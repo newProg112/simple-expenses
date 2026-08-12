@@ -1,4 +1,4 @@
-export const BANK_TRANSACTION_STATUS = Object.freeze({ UNMATCHED:"unmatched" });
+export const BANK_TRANSACTION_STATUS = Object.freeze({ UNMATCHED:"unmatched",MATCHED:"matched" });
 export const BANK_TRANSACTION_SOURCE = Object.freeze({ CSV:"csv" });
 export const BANK_TRANSACTION_BATCH_LIMIT = 450;
 
@@ -127,6 +127,10 @@ export function createSingleFlightImport(execute){
 }
 
 export function normaliseBankTransaction(id,data = {}){
+  const hasValidMatch = data.status === BANK_TRANSACTION_STATUS.MATCHED &&
+    ["invoice","bill","expense"].includes(data.matchedRecordType) &&
+    Boolean(String(data.matchedRecordId || "").trim()) &&
+    Number.isFinite(Number(data.matchedAmount)) && Number(data.matchedAmount) > 0;
   return Object.freeze({
     id:String(id || ""),
     bankAccountId:String(data.bankAccountId || ""),
@@ -135,11 +139,17 @@ export function normaliseBankTransaction(id,data = {}){
     moneyIn:nullableMoney(data.moneyIn),
     moneyOut:nullableMoney(data.moneyOut),
     balance:nullableMoney(data.balance),
-    status:BANK_TRANSACTION_STATUS.UNMATCHED,
+    status:hasValidMatch ? BANK_TRANSACTION_STATUS.MATCHED : BANK_TRANSACTION_STATUS.UNMATCHED,
     source:BANK_TRANSACTION_SOURCE.CSV,
     importId:String(data.importId || ""),
     createdAt:data.createdAt || null,
-    updatedAt:data.updatedAt || null
+    updatedAt:data.updatedAt || null,
+    ...(hasValidMatch ? {
+      matchedRecordType:data.matchedRecordType,
+      matchedRecordId:String(data.matchedRecordId).trim(),
+      matchedAt:data.matchedAt || null,
+      matchedAmount:nullableMoney(data.matchedAmount)
+    } : {})
   });
 }
 

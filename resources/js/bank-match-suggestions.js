@@ -48,10 +48,11 @@ function nonPaid(record){
   return String(record?.status || "Unpaid").trim().toLowerCase() !== "paid";
 }
 
-function candidate(id,data,documentType,options){
+function candidate(id,data,documentType,recordType,options){
   return Object.freeze({
     id:String(id || data?.id || ""),
     documentType,
+    recordType,
     label:String(options.label || `${documentType} ${id || ""}`).trim(),
     partyName:String(options.partyName || "").trim(),
     transactionDate:String(options.transactionDate || "").trim(),
@@ -63,7 +64,7 @@ function candidate(id,data,documentType,options){
 export function buildMatchCandidates(sources = {}){
   const invoices = (Array.isArray(sources.invoices) ? sources.invoices : [])
     .filter(nonPaid)
-    .map(invoice => candidate(invoice.id,invoice,"Invoice",{
+    .map(invoice => candidate(invoice.id,invoice,"Invoice","invoice",{
       label:invoice.invoiceNo || invoice.invoiceNumber || `Invoice ${invoice.id || ""}`,
       partyName:invoice.client || invoice.customerName || invoice.customer,
       transactionDate:invoice.date || invoice.invoiceDate || invoice.dueDate,
@@ -72,16 +73,16 @@ export function buildMatchCandidates(sources = {}){
     }));
   const bills = (Array.isArray(sources.bills) ? sources.bills : [])
     .filter(nonPaid)
-    .map(bill => candidate(bill.id,bill,"Bill",{
+    .map(bill => candidate(bill.id,bill,"Bill","bill",{
       label:bill.billNumber || bill.invoiceNumber || `Bill ${bill.id || ""}`,
       partyName:bill.supplier || bill.merchant,
       transactionDate:bill.billDate || bill.date || bill.dueDate,
       amount:bill.total,
       direction:"out"
     }));
-  const claims = (Array.isArray(sources.expenses) ? sources.expenses : []).map(expense => {
+  const claims = (Array.isArray(sources.expenses) ? sources.expenses : []).filter(nonPaid).map(expense => {
     const mileage = expense.type === "mileage";
-    return candidate(expense.id,expense,mileage ? "Mileage claim" : "Expense",{
+    return candidate(expense.id,expense,mileage ? "Mileage claim" : "Expense","expense",{
       label:mileage
         ? expense.businessPurpose || `Mileage claim ${expense.id || ""}`
         : expense.merchant || expense.description || `Expense ${expense.id || ""}`,

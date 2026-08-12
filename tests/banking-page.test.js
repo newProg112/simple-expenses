@@ -32,6 +32,11 @@ import {
   scoreBankMatch,
   suggestBankMatches
 } from "../resources/js/bank-match-suggestions.js";
+import {
+  BANK_MATCH_RECORD_COLLECTIONS,
+  confirmBankMatch,
+  unmatchBankTransaction
+} from "../resources/js/bank-match-confirmation.js";
 import { DEMO_MANAGED_USER_COLLECTIONS } from "../assets/demo-seed-engine.js";
 import { DEMO_SEED } from "../assets/demo-seed.js";
 
@@ -127,9 +132,8 @@ describe("Banking Phase 2 page", () => {
     expect(html).toContain(".card{min-width:0");
   });
 
-  it("adds no matching, reconciliation, journals, or accounting changes", () => {
+  it("adds no reconciliation, journals, or accounting changes", () => {
     expect(html).not.toMatch(/open banking|plaid|truelayer|reconcil|journal|general ledger|trial balance|profit & loss|balance sheet/i);
-    expect(html).not.toMatch(/matchTransaction|invoiceMatch|billMatch|expenseMatch/);
   });
 
   it("keeps the inline module syntactically valid", () => {
@@ -469,7 +473,7 @@ describe("Banking Phase 5 transaction import model", () => {
     await expect(first).resolves.toEqual({ importedCount:1 });
   });
 
-  it("normalises persisted rows as Unmatched and orders newest transaction date first", () => {
+  it("normalises legacy persisted rows as Unmatched and orders newest transaction date first", () => {
     const older = normaliseBankTransaction("older",{ transactionDate:"01/08/26",description:"Older",createdAt:"2026-08-03" });
     const newer = normaliseBankTransaction("newer",{ transactionDate:"02/08/26",description:"Newer",createdAt:"2026-08-01" });
     expect(older.status).toBe(BANK_TRANSACTION_STATUS.UNMATCHED);
@@ -504,9 +508,10 @@ describe("Banking Phase 5 import page", () => {
     expect(html).toContain("newestBankTransactions(transactions)");
     expect(html).toContain("elements.transactionCount.textContent = String(ordered.length)");
     expect(html).toContain("elements.needsReviewCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.UNMATCHED).length)");
+    expect(html).toContain("elements.matchedCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.MATCHED).length)");
     expect(html).toContain('id="transactionList" tabindex="0" aria-label="Imported bank transactions table, horizontally scrollable"');
-    expect(html).toContain('badge.textContent = "Unmatched"');
-    expect(html).not.toMatch(/data-transaction-action|deleteBankTransaction|editBankTransaction/);
+    expect(html).toContain('badge.textContent = matched ? "Matched" : "Unmatched"');
+    expect(html).not.toMatch(/deleteBankTransaction|editBankTransaction/);
   });
 
   it("clears temporary CSV state only after successful import", () => {
@@ -619,15 +624,158 @@ describe("Banking Phase 7A suggestions page", () => {
     expect(html).toContain("suggestion.reasons.forEach");
   });
 
-  it("does not write suggestions or change Unmatched statuses", () => {
-    const suggestionSection = html.match(/<section class="card mapping-card" aria-labelledby="suggestedMatchesTitle">([\s\S]*?)<\/section>/)?.[1] || "";
-    expect(suggestionSection).not.toMatch(/button|data-action|edit|save|confirm/i);
-    expect(html).not.toMatch(/updateMatchSuggestion|saveMatchSuggestion|suggestionBatch|status:\s*"matched"/);
-    expect(html).toContain('badge.textContent = "Unmatched"');
+  it("adds explicit metadata-only Confirm match and Unmatch actions", () => {
+    expect(html).toContain('confirm.textContent = confirm.disabled ? "Confirming..." : "Confirm match"');
+    expect(html).toContain('unmatch.textContent = unmatch.disabled ? "Unmatching..." : "Unmatch"');
+    expect(html).toContain('services:{ doc,runTransaction,serverTimestamp }');
+    expect(html).toContain('services:{ doc,runTransaction,serverTimestamp,deleteField }');
+    expect(html).toContain("No financial record was changed.");
+    expect(html).not.toMatch(/createJournal|replaceJournal|saveJournal|updateInvoiceStatus|markBillPaid|markExpensePaid/);
   });
 
   it("keeps suggestion cards usable on mobile", () => {
     expect(html).toContain(".suggestion-record{grid-template-columns:1fr auto}");
-    expect(html).toContain(".suggestion-reasons{grid-column:1/-1}");
+    expect(html).toContain(".suggestion-reasons,.suggestion-action{grid-column:1/-1}");
+  });
+});
+
+describe("Banking Confirm Match metadata model", () => {
+  const timestamp = Object.freeze({ serverTimestamp:true });
+  const transactionPath = "users/user-1/bankTransactions/bank-1";
+  const invoicePath = "users/user-1/invoices/invoice-1";
+  const baseTransaction = Object.freeze({
+    transactionDate:"07/08/26",description:"Payment from ACME LTD",moneyIn:850,moneyOut:null,status:"unmatched"
+  });
+  const baseInvoice = Object.freeze({
+    invoiceNo:"INV-1023",client:"ACME LTD",date:"07/08/2026",total:850,status:"Unpaid"
+  });
+
+  function transactionFirestore(overrides = {}){
+    const removed = Symbol("deleteField");
+    const documents = new Map([
+      [transactionPath,{ ...baseTransaction,...(overrides.transaction || {}) }],
+      [invoicePath,{ ...baseInvoice,...(overrides.invoice || {}) }]
+    ]);
+    if(overrides.missingTransaction) documents.delete(transactionPath);
+    if(overrides.missingInvoice) documents.delete(invoicePath);
+    const writes = [];
+    const services = {
+      doc:vi.fn((_db,...parts) => ({ path:parts.join("/") })),
+      serverTimestamp:vi.fn(() => timestamp),
+      deleteField:vi.fn(() => removed),
+      runTransaction:vi.fn(async (_db,execute) => execute({
+        get:async reference => ({ exists:() => documents.has(reference.path),data:() => documents.get(reference.path) }),
+        update:(reference,update) => {
+          writes.push({ path:reference.path,update });
+          const next = { ...(documents.get(reference.path) || {}) };
+          Object.entries(update).forEach(([key,value]) => value === removed ? delete next[key] : next[key] = value);
+          documents.set(reference.path,next);
+        }
+      }))
+    };
+    return { documents,writes,services };
+  }
+
+  function confirmOptions(fixture,overrides = {}){
+    return {
+      db:{},userId:"user-1",transactionId:"bank-1",matchedRecordType:"invoice",matchedRecordId:"invoice-1",
+      services:fixture.services,...overrides
+    };
+  }
+
+  it("preserves valid matched state across normalisation and safely rejects incomplete or arbitrary states", () => {
+    const matched = normaliseBankTransaction("bank-1",{
+      ...baseTransaction,status:"matched",matchedRecordType:"invoice",matchedRecordId:"invoice-1",
+      matchedAt:timestamp,matchedAmount:850
+    });
+    expect(matched).toMatchObject({ status:"matched",matchedRecordType:"invoice",matchedRecordId:"invoice-1",matchedAt:timestamp,matchedAmount:850 });
+    expect(normaliseBankTransaction("legacy",baseTransaction).status).toBe("unmatched");
+    expect(normaliseBankTransaction("bad",{ ...baseTransaction,status:"reconciled",matchedRecordId:"x" })).not.toHaveProperty("matchedRecordId");
+    expect(normaliseBankTransaction("incomplete",{ ...baseTransaction,status:"matched",matchedRecordType:"invoice" }).status).toBe("unmatched");
+  });
+
+  it("uses only the three canonical record types and maps mileage to expense", () => {
+    expect(BANK_MATCH_RECORD_COLLECTIONS).toEqual({ invoice:"invoices",bill:"bills",expense:"expenses" });
+    const candidates = buildMatchCandidates({
+      invoices:[{ id:"i",date:"2026-08-07",total:1 }],
+      bills:[{ id:"b",date:"2026-08-07",total:1 }],
+      expenses:[{ id:"m",type:"mileage",date:"2026-08-07",amount:1 }]
+    });
+    expect(candidates.map(candidate => candidate.recordType)).toEqual(["invoice","bill","expense"]);
+  });
+
+  it("excludes paid invoices, bills, expenses, and mileage claims", () => {
+    expect(buildMatchCandidates({
+      invoices:[{ id:"i",status:"Paid",total:1 }],
+      bills:[{ id:"b",status:"Paid",total:1 }],
+      expenses:[{ id:"e",status:"Paid",gross:1 },{ id:"m",type:"mileage",status:"Paid",amount:1 }]
+    })).toEqual([]);
+  });
+
+  it("confirms a fresh valid match by writing only bank transaction metadata", async () => {
+    const fixture = transactionFirestore();
+    await expect(confirmBankMatch(confirmOptions(fixture))).resolves.toEqual({
+      status:"confirmed",transactionId:"bank-1",matchedRecordType:"invoice",matchedRecordId:"invoice-1",matchedAmount:850
+    });
+    expect(fixture.writes).toEqual([{ path:transactionPath,update:{
+      status:"matched",matchedRecordType:"invoice",matchedRecordId:"invoice-1",
+      matchedAt:timestamp,matchedAmount:850,updatedAt:timestamp
+    } }]);
+    expect(fixture.documents.get(invoicePath)).toEqual(baseInvoice);
+    expect(fixture.writes.every(write => !write.path.includes("journals"))).toBe(true);
+    expect(fixture.services.doc).toHaveBeenCalledWith({},"users","user-1","invoices","invoice-1");
+  });
+
+  it.each([
+    ["stale amount",{ invoice:{ total:851 } }],
+    ["wrong direction",{ transaction:{ moneyIn:null,moneyOut:850 } }],
+    ["stale date",{ invoice:{ date:"20/08/2026" } }],
+    ["target now Paid",{ invoice:{ status:"Paid" } }],
+    ["missing target",{ missingInvoice:true }],
+    ["missing bank transaction",{ missingTransaction:true }]
+  ])("rejects %s without writing",async (_label,fixtureOptions) => {
+    const fixture = transactionFirestore(fixtureOptions);
+    await expect(confirmBankMatch(confirmOptions(fixture))).rejects.toThrow();
+    expect(fixture.writes).toEqual([]);
+  });
+
+  it("treats the same confirmed relationship as idempotent", async () => {
+    const fixture = transactionFirestore({ transaction:{
+      status:"matched",matchedRecordType:"invoice",matchedRecordId:"invoice-1",matchedAmount:850
+    } });
+    await expect(confirmBankMatch(confirmOptions(fixture))).resolves.toMatchObject({ status:"already-confirmed" });
+    expect(fixture.writes).toEqual([]);
+  });
+
+  it("rejects competing and invalid persisted match states", async () => {
+    const competing = transactionFirestore({ transaction:{ status:"matched",matchedRecordType:"bill",matchedRecordId:"bill-2",matchedAmount:850 } });
+    await expect(confirmBankMatch(confirmOptions(competing))).rejects.toThrow(/different record/i);
+    expect(competing.writes).toEqual([]);
+    const invalid = transactionFirestore({ transaction:{ status:"reconciled" } });
+    await expect(confirmBankMatch(confirmOptions(invalid))).rejects.toThrow(/invalid match state/i);
+    expect(invalid.writes).toEqual([]);
+  });
+
+  it("unmatches transactionally and clears every match field without touching the target", async () => {
+    const fixture = transactionFirestore({ transaction:{
+      status:"matched",matchedRecordType:"invoice",matchedRecordId:"invoice-1",matchedAt:"then",matchedAmount:850
+    } });
+    await expect(unmatchBankTransaction({
+      db:{},userId:"user-1",transactionId:"bank-1",services:fixture.services
+    })).resolves.toEqual({ status:"unmatched",transactionId:"bank-1" });
+    expect(fixture.documents.get(transactionPath)).toEqual({ ...baseTransaction,status:"unmatched",updatedAt:timestamp });
+    expect(fixture.documents.get(invoicePath)).toEqual(baseInvoice);
+    expect(fixture.writes).toHaveLength(1);
+    expect(fixture.writes[0].path).toBe(transactionPath);
+  });
+
+  it("renders confirmed, missing-target, amount-change, duplicate-target, and reversible states", () => {
+    for(const marker of [
+      'badge.textContent = matched ? "Matched" : "Unmatched"',
+      '"Matched record no longer available"',
+      '" — amount has changed"',
+      '"Another bank transaction is already matched to this record."',
+      'unmatch.dataset.matchAction = "unmatch"'
+    ]) expect(html).toContain(marker);
   });
 });
