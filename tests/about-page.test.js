@@ -57,7 +57,7 @@ describe("public About page", () => {
       "Features Pricing About What's New Security Guides Contact"
     );
     expect(textContent(mobileNavigation)).toBe(
-      "Features Pricing About What's New Security Guides Contact Login Sign Up"
+      "Features Pricing About What's New Security Guides FAQ Contact Login Sign Up"
     );
     expect(html).toContain('href="/about" aria-current="page">About</a>');
     expect(html).toContain('href="/features">View Features</a>');

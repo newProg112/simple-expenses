@@ -42,6 +42,10 @@
           "destination": "/security.html"
         },
         {
+          "source": "/faq",
+          "destination": "/faq.html"
+        },
+        {
           "source": "/admin",
           "destination": "/admin.html"
         },

@@ -45,7 +45,7 @@ describe("public pricing page", () => {
     const mobileNavigation = html.match(/<nav class="mobile-navigation"[\s\S]*?>([\s\S]*?)<\/nav>/)?.[1] || "";
 
     expect(textContent(desktopNavigation)).toBe("Features Pricing About What's New Security Guides Contact");
-    expect(textContent(mobileNavigation)).toBe("Features Pricing About What's New Security Guides Contact Login Sign Up");
+    expect(textContent(mobileNavigation)).toBe("Features Pricing About What's New Security Guides FAQ Contact Login Sign Up");
     expect(html).toContain('href="/pricing" aria-current="page">Pricing</a>');
     expect(html).toContain('href="/features">See everything Simple Books can do');
     expect(html).toContain('href="/signup.html">Start with Starter</a>');

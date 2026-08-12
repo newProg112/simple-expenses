@@ -54,7 +54,7 @@ describe("public What's New page", () => {
       "Features Pricing About What's New Security Guides Contact"
     );
     expect(textContent(mobileNavigation)).toBe(
-      "Features Pricing About What's New Security Guides Contact Login Sign Up"
+      "Features Pricing About What's New Security Guides FAQ Contact Login Sign Up"
     );
     expect(html).toContain(
       'href="/whats-new" aria-current="page">What\'s New</a>'

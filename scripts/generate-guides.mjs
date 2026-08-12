@@ -55,6 +55,7 @@ function publicHeader({ guidesCurrent = false } = {}) {
       <a href="/whats-new">What's New</a>
       <a href="/security">Security</a>
       <a href="/guides"${guidesCurrent ? ' aria-current="page"' : ""}>Guides</a>
+      <a href="/faq">FAQ</a>
       <a href="/#contact">Contact</a>
       <a href="/login.html">Login</a>
       <a href="/signup.html">Sign Up</a>
@@ -77,6 +78,7 @@ function publicFooter() {
         <a href="/whats-new">What's New</a>
         <a href="/security">Security</a>
         <a href="/guides">Guides</a>
+        <a href="/faq">FAQ</a>
         <a href="/login.html">Login</a>
         <a href="/signup.html">Sign Up</a>
         <a href="mailto:adam@simple-books.co.uk">Contact</a>
