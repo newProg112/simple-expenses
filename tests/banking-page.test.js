@@ -587,14 +587,14 @@ describe("Banking Phase 7A matching suggestions", () => {
 
   it("calculates 90% within three days and 75% within seven days", () => {
     const candidates = buildMatchCandidates({
-      bills:[
-        { id:"bill-3",billNumber:"B-3",supplier:"Supplier",billDate:"2026-08-10",total:62.5,status:"Unpaid" },
-        { id:"bill-7",billNumber:"B-7",supplier:"Supplier",billDate:"2026-08-14",total:62.5,status:"Unpaid" }
+      invoices:[
+        { id:"invoice-3",invoiceNo:"I-3",client:"Customer",date:"2026-08-10",total:62.5,status:"Unpaid" },
+        { id:"invoice-7",invoiceNo:"I-7",client:"Customer",date:"2026-08-14",total:62.5,status:"Unpaid" }
       ]
     });
-    const outgoing = { transactionDate:"07/08/26",description:"Card payment",moneyIn:null,moneyOut:62.5,status:"unmatched" };
-    expect(scoreBankMatch(outgoing,candidates[0]).confidence).toBe(90);
-    expect(scoreBankMatch(outgoing,candidates[1]).confidence).toBe(MATCH_CONFIDENCE_MINIMUM);
+    const incomingPayment = { transactionDate:"07/08/26",description:"Bank receipt",moneyIn:62.5,moneyOut:null,status:"unmatched" };
+    expect(scoreBankMatch(incomingPayment,candidates[0]).confidence).toBe(90);
+    expect(scoreBankMatch(incomingPayment,candidates[1]).confidence).toBe(MATCH_CONFIDENCE_MINIMUM);
   });
 
   it("supports expenses and mileage claims as outgoing candidates", () => {

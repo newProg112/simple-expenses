@@ -39,6 +39,13 @@ function daysBetween(left,right){
   return Math.abs(leftValue - rightValue) / 86400000;
 }
 
+function daysAfter(left,right){
+  const leftValue = safeDateValue(left);
+  const rightValue = safeDateValue(right);
+  if(leftValue === null || rightValue === null) return null;
+  return (leftValue - rightValue) / 86400000;
+}
+
 function containsParty(description,partyName){
   const party = String(partyName || "").trim().toLowerCase();
   return Boolean(party && String(description || "").toLowerCase().includes(party));
@@ -56,6 +63,8 @@ function candidate(id,data,documentType,recordType,options){
     label:String(options.label || `${documentType} ${id || ""}`).trim(),
     partyName:String(options.partyName || "").trim(),
     transactionDate:String(options.transactionDate || "").trim(),
+    billDate:String(options.billDate || "").trim(),
+    dueDate:String(options.dueDate || "").trim(),
     amount:finiteAmount(options.amount),
     direction:options.direction
   });
@@ -77,6 +86,8 @@ export function buildMatchCandidates(sources = {}){
       label:bill.billNumber || bill.invoiceNumber || `Bill ${bill.id || ""}`,
       partyName:bill.supplier || bill.merchant,
       transactionDate:bill.billDate || bill.date || bill.dueDate,
+      billDate:bill.billDate || bill.date,
+      dueDate:bill.dueDate,
       amount:bill.total,
       direction:"out"
     }));
@@ -99,6 +110,29 @@ export function scoreBankMatch(transaction,candidateRecord){
   const transactionAmount = finiteAmount(candidateRecord.direction === "in" ? transaction?.moneyIn : transaction?.moneyOut);
   if(transactionAmount === null || candidateRecord.amount === null || transactionAmount !== candidateRecord.amount){
     return Object.freeze({ confidence:0,reasons:Object.freeze([]) });
+  }
+  if(candidateRecord.recordType === "bill"){
+    const hasValidDueDate = safeDateValue(candidateRecord.dueDate) !== null;
+    const difference = daysAfter(
+      transaction?.transactionDate,
+      hasValidDueDate ? candidateRecord.dueDate : candidateRecord.billDate
+    );
+    const validTiming = difference !== null && (hasValidDueDate
+      ? difference >= -7 && difference <= 30
+      : difference >= 0 && difference <= 30);
+    if(!validTiming){
+      return Object.freeze({ confidence:0,reasons:Object.freeze(["Amount matches"]) });
+    }
+    const nameFound = containsParty(transaction?.description,candidateRecord.partyName);
+    const reasons = [
+      "Amount matches",
+      hasValidDueDate ? "Payment date is near bill due date" : "Payment date is on or after bill date"
+    ];
+    if(nameFound) reasons.push("Supplier name found");
+    return Object.freeze({
+      confidence:nameFound ? 90 : MATCH_CONFIDENCE_MINIMUM,
+      reasons:Object.freeze(reasons)
+    });
   }
   const difference = daysBetween(transaction?.transactionDate,candidateRecord.transactionDate);
   if(difference === null || difference > 7){
