@@ -123,7 +123,7 @@
       </section>
 
       <section class="card mapping-card" aria-labelledby="suggestedMatchesTitle">
-        <div class="preview-heading"><div><h2 id="suggestedMatchesTitle">Suggested matches</h2><p class="muted">Suggestions based on amount and nearby dates. Confirming stores the relationship on the bank transaction only.</p></div></div>
+        <div class="preview-heading"><div><h2 id="suggestedMatchesTitle">Suggested matches</h2><p class="muted">Suggestions based on exact amounts and suitable payment dates. Confirming marks the source Paid and posts its Bank settlement.</p></div></div>
         <div class="accounts-state" id="suggestionsLoading" role="status"><span aria-hidden="true">...</span><strong>Checking for suggestions</strong><p class="muted">Comparing unmatched transactions with existing records.</p></div>
         <div class="accounts-state" id="suggestionsError" role="alert" hidden><span aria-hidden="true">!</span><strong>Suggestions could not be loaded.</strong><p class="muted">Your bank transactions are unchanged. Refresh the page to try again.</p></div>
         <div class="accounts-state" id="suggestionsEmpty" hidden><span aria-hidden="true">0</span><strong>No suggested matches yet.</strong><p class="muted">Suggestions appear when amount and date rules reach at least 75% confidence.</p></div>
@@ -172,9 +172,9 @@
     import { BANK_ACCOUNT_STATUS, activeBankAccounts, normaliseBankAccount, validateBankAccountInput } from "/resources/js/bank-account-view.js?v=20260807-banking2";
     import { formatFileSize, parseCsvPreview } from "/resources/js/csv-preview.js?v=20260807-banking3";
     import { MAPPING_FIELDS, normaliseStatementRows, statementMappingData, suggestColumnMappings, validateColumnMappings } from "/resources/js/bank-statement-mapping.js?v=20260807-banking4";
-    import { BANK_TRANSACTION_STATUS, createSingleFlightImport, newestBankTransactions, normaliseBankTransaction, persistBankTransactions, readyMappedTransactions } from "/resources/js/bank-transaction-import.js?v=20260807-banking6";
+    import { BANK_TRANSACTION_STATUS, createSingleFlightImport, newestBankTransactions, normaliseBankTransaction, persistBankTransactions, readyMappedTransactions } from "/resources/js/bank-transaction-import.js?v=20260812-banking10";
     import { suggestBankMatches } from "/resources/js/bank-match-suggestions.js?v=20260812-banking9";
-    import { confirmBankMatch, unmatchBankTransaction } from "/resources/js/bank-match-confirmation.js?v=20260812-banking8";
+    import { confirmBankMatch, unmatchBankTransaction } from "/resources/js/bank-match-confirmation.js?v=20260812-banking11";
 
     const elements = {
       count:document.getElementById("bankAccountCount"), transactionCount:document.getElementById("bankTransactionCount"), needsReviewCount:document.getElementById("bankNeedsReviewCount"), matchedCount:document.getElementById("bankMatchedCount"), add:document.getElementById("addAccountButton"), list:document.getElementById("accountList"),
@@ -407,7 +407,8 @@
       if(!record) return { text:"Matched record no longer available",warning:true };
       const type = transaction.matchedRecordType === "invoice" ? "Invoice" : transaction.matchedRecordType === "bill" ? "Bill" : record.type === "mileage" ? "Mileage claim" : "Expense";
       const changed = Number.isFinite(matchedRecordAmount(transaction,record)) && matchedRecordAmount(transaction,record) !== Number(transaction.matchedAmount);
-      return { text:`${type}: ${matchedRecordLabel(transaction,record)}${changed ? " — amount has changed" : ""}`,warning:changed };
+      const settled = transaction.settlementJournalId ? " — settled" : "";
+      return { text:`${type}: ${matchedRecordLabel(transaction,record)}${settled}${changed ? " — amount has changed" : ""}`,warning:changed };
     }
     function renderTransactions(){
       const ordered = newestBankTransactions(transactions);
@@ -553,7 +554,10 @@
           services:{ doc,runTransaction,serverTimestamp }
         });
         await loadTransactions(currentUser,false);
-        setPageFeedback(result.status === "already-confirmed" ? "This match was already confirmed." : "Match confirmed. No financial record was changed.");
+        await loadMatchSources(currentUser);
+        setPageFeedback(result.status === "already-confirmed"
+          ? (result.settled ? "This match was already confirmed and the source record is settled." : "This legacy match was already confirmed.")
+          : "Match confirmed. The source record was marked Paid and its settlement journal was posted.");
       }catch(error){
         console.error("Bank match confirmation failed",error);
         setPageFeedback(error.message || "The match could not be confirmed. Refresh and try again.",true);
@@ -568,12 +572,15 @@
       activeMatchActions.add(transactionId);
       renderTransactions();
       try{
-        await unmatchBankTransaction({
+        const result = await unmatchBankTransaction({
           db,userId:currentUser.uid,transactionId,
           services:{ doc,runTransaction,serverTimestamp,deleteField }
         });
         await loadTransactions(currentUser,false);
-        setPageFeedback("Match removed. No financial record was changed.");
+        await loadMatchSources(currentUser);
+        setPageFeedback(result.settlementReversed
+          ? "Match removed. The Banking settlement was reversed and the source record was restored."
+          : "Legacy match removed. No source record or journal was changed.");
       }catch(error){
         console.error("Bank transaction unmatch failed",error);
         setPageFeedback(error.message || "The match could not be removed. Refresh and try again.",true);

@@ -93,6 +93,38 @@ function sourceReference(source, fields, label) {
   return reference === null ? label : String(reference);
 }
 
+export function normaliseBankTransactionDate(value) {
+  const text = String(value ?? "").trim();
+  let match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  let year;
+  let month;
+  let day;
+
+  if (match) {
+    year = Number(match[1]);
+    month = Number(match[2]);
+    day = Number(match[3]);
+  } else {
+    match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+    if (!match) return "";
+    day = Number(match[1]);
+    month = Number(match[2]);
+    year = Number(match[3]);
+    if (match[3].length === 2) year += 2000;
+  }
+
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() !== month - 1 ||
+    check.getUTCDate() !== day
+  ) {
+    return "";
+  }
+
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function amountFromNetVatTotal(source, options) {
   const net = requirePositiveMoney(
     readMoney(source, options.netFields, options.netLabel, true),
@@ -445,6 +477,60 @@ export function createMileageJournal(mileage) {
       journalLine("5200", description, amount, 0),
       journalLine("2200", description, 0, amount)
     ]
+  });
+}
+
+export function createBankSettlementJournal(settlement) {
+  if (!settlement || typeof settlement !== "object") {
+    throw new Error("Bank settlement is required.");
+  }
+
+  const transactionId = sourceReference(
+    settlement,
+    ["transactionId", "sourceId"],
+    "bank transaction"
+  );
+  const recordId = sourceReference(settlement, ["recordId"], "record");
+  const recordType = String(settlement.recordType || "").trim();
+  const amount = requirePositiveMoney(Number(settlement.amount), "Settlement amount");
+  const date = normaliseBankTransactionDate(
+    firstPresent(settlement, ["transactionDate", "date"])
+  );
+  if (!date) throw new Error("A valid bank transaction date is required.");
+  const labels = {
+    invoice: "Invoice receipt",
+    bill: "Supplier bill payment",
+    expense: settlement.isMileage ? "Mileage reimbursement" : "Expense reimbursement"
+  };
+  const description = `${labels[recordType] || ""} ${recordId}`.trim();
+  let lines;
+
+  if (recordType === "invoice") {
+    lines = [
+      journalLine("1000", description, amount, 0),
+      journalLine("1100", description, 0, amount)
+    ];
+  } else if (recordType === "bill") {
+    lines = [
+      journalLine("2000", description, amount, 0),
+      journalLine("1000", description, 0, amount)
+    ];
+  } else if (recordType === "expense") {
+    lines = [
+      journalLine("2200", description, amount, 0),
+      journalLine("1000", description, 0, amount)
+    ];
+  } else {
+    throw new Error("Unsupported bank settlement record type.");
+  }
+
+  return finishJournal({
+    id: `bank-settlement:${transactionId}`,
+    date,
+    sourceType: "bankSettlement",
+    sourceId: transactionId,
+    description,
+    lines
   });
 }
 

@@ -132,8 +132,8 @@ describe("Banking Phase 2 page", () => {
     expect(html).toContain(".card{min-width:0");
   });
 
-  it("adds no reconciliation, journals, or accounting changes", () => {
-    expect(html).not.toMatch(/open banking|plaid|truelayer|reconcil|journal|general ledger|trial balance|profit & loss|balance sheet/i);
+  it("does not add Open Banking, full reconciliation, or financial-report UI", () => {
+    expect(html).not.toMatch(/open banking|plaid|truelayer|automatic reconciliation|general ledger|trial balance|profit & loss|balance sheet/i);
   });
 
   it("keeps the inline module syntactically valid", () => {
@@ -624,12 +624,13 @@ describe("Banking Phase 7A suggestions page", () => {
     expect(html).toContain("suggestion.reasons.forEach");
   });
 
-  it("adds explicit metadata-only Confirm match and Unmatch actions", () => {
+  it("adds explicit settlement-aware Confirm match and reversible Unmatch actions", () => {
     expect(html).toContain('confirm.textContent = confirm.disabled ? "Confirming..." : "Confirm match"');
     expect(html).toContain('unmatch.textContent = unmatch.disabled ? "Unmatching..." : "Unmatch"');
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp }');
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp,deleteField }');
-    expect(html).toContain("No financial record was changed.");
+    expect(html).toContain("The source record was marked Paid and its settlement journal was posted.");
+    expect(html).toContain("The Banking settlement was reversed and the source record was restored.");
     expect(html).not.toMatch(/createJournal|replaceJournal|saveJournal|updateInvoiceStatus|markBillPaid|markExpensePaid/);
   });
 
@@ -639,10 +640,12 @@ describe("Banking Phase 7A suggestions page", () => {
   });
 });
 
-describe("Banking Confirm Match metadata model", () => {
+describe("Banking Confirm Match settlement model", () => {
   const timestamp = Object.freeze({ serverTimestamp:true });
   const transactionPath = "users/user-1/bankTransactions/bank-1";
   const invoicePath = "users/user-1/invoices/invoice-1";
+  const invoiceJournalPath = "journals/invoice_user-1_invoice-1";
+  const settlementJournalPath = "journals/bank-settlement_user-1_bank-1";
   const baseTransaction = Object.freeze({
     transactionDate:"07/08/26",description:"Payment from ACME LTD",moneyIn:850,moneyOut:null,status:"unmatched"
   });
@@ -654,7 +657,14 @@ describe("Banking Confirm Match metadata model", () => {
     const removed = Symbol("deleteField");
     const documents = new Map([
       [transactionPath,{ ...baseTransaction,...(overrides.transaction || {}) }],
-      [invoicePath,{ ...baseInvoice,...(overrides.invoice || {}) }]
+      [invoicePath,{ ...baseInvoice,...(overrides.invoice || {}) }],
+      [invoiceJournalPath,{
+        userId:"user-1",journalId:"invoice_user-1_invoice-1",date:"2026-08-07",
+        sourceType:"salesInvoice",sourceId:"invoice-1",lines:[
+          { accountCode:"1100",description:"Invoice",debit:850,credit:0 },
+          { accountCode:"4000",description:"Invoice",debit:0,credit:850 }
+        ]
+      }]
     ]);
     if(overrides.missingTransaction) documents.delete(transactionPath);
     if(overrides.missingInvoice) documents.delete(invoicePath);
@@ -670,6 +680,14 @@ describe("Banking Confirm Match metadata model", () => {
           const next = { ...(documents.get(reference.path) || {}) };
           Object.entries(update).forEach(([key,value]) => value === removed ? delete next[key] : next[key] = value);
           documents.set(reference.path,next);
+        },
+        set:(reference,data) => {
+          writes.push({ path:reference.path,set:data });
+          documents.set(reference.path,{ ...data });
+        },
+        delete:reference => {
+          writes.push({ path:reference.path,delete:true });
+          documents.delete(reference.path);
         }
       }))
     };
@@ -712,17 +730,17 @@ describe("Banking Confirm Match metadata model", () => {
     })).toEqual([]);
   });
 
-  it("confirms a fresh valid match by writing only bank transaction metadata", async () => {
+  it("confirms a fresh valid match by settling the source and posting one settlement journal", async () => {
     const fixture = transactionFirestore();
-    await expect(confirmBankMatch(confirmOptions(fixture))).resolves.toEqual({
-      status:"confirmed",transactionId:"bank-1",matchedRecordType:"invoice",matchedRecordId:"invoice-1",matchedAmount:850
+    await expect(confirmBankMatch(confirmOptions(fixture))).resolves.toMatchObject({
+      status:"confirmed",transactionId:"bank-1",matchedRecordType:"invoice",matchedRecordId:"invoice-1",
+      matchedAmount:850,settled:true,settlementJournalId:"bank-settlement_user-1_bank-1"
     });
-    expect(fixture.writes).toEqual([{ path:transactionPath,update:{
-      status:"matched",matchedRecordType:"invoice",matchedRecordId:"invoice-1",
-      matchedAt:timestamp,matchedAmount:850,updatedAt:timestamp
-    } }]);
-    expect(fixture.documents.get(invoicePath)).toEqual(baseInvoice);
-    expect(fixture.writes.every(write => !write.path.includes("journals"))).toBe(true);
+    expect(fixture.documents.get(invoicePath)).toMatchObject({ status:"Paid",bankSettlement:{ transactionId:"bank-1" } });
+    expect(fixture.documents.get(settlementJournalPath)).toMatchObject({
+      sourceType:"bankSettlement",sourceId:"bank-1",matchedRecordType:"invoice",matchedRecordId:"invoice-1"
+    });
+    expect(fixture.writes).toHaveLength(3);
     expect(fixture.services.doc).toHaveBeenCalledWith({},"users","user-1","invoices","invoice-1");
   });
 
@@ -762,7 +780,7 @@ describe("Banking Confirm Match metadata model", () => {
     } });
     await expect(unmatchBankTransaction({
       db:{},userId:"user-1",transactionId:"bank-1",services:fixture.services
-    })).resolves.toEqual({ status:"unmatched",transactionId:"bank-1" });
+    })).resolves.toEqual({ status:"unmatched",transactionId:"bank-1",settlementReversed:false });
     expect(fixture.documents.get(transactionPath)).toEqual({ ...baseTransaction,status:"unmatched",updatedAt:timestamp });
     expect(fixture.documents.get(invoicePath)).toEqual(baseInvoice);
     expect(fixture.writes).toHaveLength(1);
@@ -775,6 +793,7 @@ describe("Banking Confirm Match metadata model", () => {
       '"Matched record no longer available"',
       '" — amount has changed"',
       '"Another bank transaction is already matched to this record."',
+      '" — settled"',
       'unmatch.dataset.matchAction = "unmatch"'
     ]) expect(html).toContain(marker);
   });

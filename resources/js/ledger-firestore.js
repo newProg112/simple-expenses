@@ -1,5 +1,6 @@
 import {
   createBillJournal,
+  createBankSettlementJournal,
   createExpenseJournal,
   createMileageJournal,
   createSalesInvoiceJournal,
@@ -17,6 +18,7 @@ function sourcePrefix(sourceType) {
   if (sourceType === "supplierBill") return "bill";
   if (sourceType === "expenseClaim") return "expense";
   if (sourceType === "mileageClaim") return "mileage";
+  if (sourceType === "bankSettlement") return "bank-settlement";
   return String(sourceType || "source");
 }
 
@@ -46,6 +48,10 @@ export function expenseJournalDocumentId(userId, expenseId) {
 
 export function mileageJournalDocumentId(userId, mileageId) {
   return journalDocumentId(userId, "mileageClaim", mileageId);
+}
+
+export function bankSettlementJournalDocumentId(userId, transactionId) {
+  return journalDocumentId(userId, "bankSettlement", transactionId);
 }
 
 export function isMileageExpenseRecord(expenseData) {
@@ -214,6 +220,36 @@ export function prepareMileageJournal(userId, mileageId, mileageData, timestamps
     journal,
     timestamps
   });
+}
+
+export function prepareBankSettlementJournal(
+  userId,
+  transactionId,
+  settlementData,
+  timestamps = {}
+) {
+  const owner = requiredIdentifier(userId, "User ID");
+  const sourceId = requiredIdentifier(transactionId, "Bank transaction ID");
+  const journalId = bankSettlementJournalDocumentId(owner, sourceId);
+  const journal = createBankSettlementJournal({
+    ...settlementData,
+    transactionId: sourceId
+  });
+  const prepared = serialiseJournalForFirestore(journal, {
+    userId: owner,
+    journalId,
+    sourceNumber: settlementData?.recordId || ""
+  });
+
+  return {
+    ...prepared,
+    createdAt: timestamps.createdAt || "",
+    updatedAt: timestamps.updatedAt || "",
+    bankTransactionId: sourceId,
+    bankAccountId: String(settlementData?.bankAccountId || ""),
+    matchedRecordType: String(settlementData?.recordType || ""),
+    matchedRecordId: String(settlementData?.recordId || "")
+  };
 }
 
 function requireFirestoreReadApi(firestoreApi) {

@@ -148,7 +148,11 @@ export function normaliseBankTransaction(id,data = {}){
       matchedRecordType:data.matchedRecordType,
       matchedRecordId:String(data.matchedRecordId).trim(),
       matchedAt:data.matchedAt || null,
-      matchedAmount:nullableMoney(data.matchedAmount)
+      matchedAmount:nullableMoney(data.matchedAmount),
+      ...(String(data.settlementJournalId || "").trim() ? {
+        settlementJournalId:String(data.settlementJournalId).trim(),
+        settlementVersion:Number(data.settlementVersion) || null
+      } : {})
     } : {})
   });
 }
