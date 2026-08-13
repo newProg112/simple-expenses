@@ -121,6 +121,7 @@ describe("Banking Phase 2 page", () => {
 
   it("keeps Demo accounts editable and resettable without fake banking seed data", () => {
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankAccounts");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankReconciliations");
     expect(DEMO_SEED).not.toHaveProperty("bankAccounts");
     expect(html).not.toMatch(/demoMode|isDemoMode|paidSubscription/);
   });
@@ -848,5 +849,33 @@ describe("Banking Money Out and Money In categorisation page",() => {
     expect(html).toContain('BANK_INCOME_CATEGORIES.map(category => category.value)');
     expect(html).toContain('"Sales / Trading income"');
     expect(html).not.toContain('matchedRecordType:"invoice"');
+  });
+});
+
+describe("Banking per-account reconciliation page",() => {
+  it("provides the narrow account, closing-date, statement-balance, calculation, and sign-off workflow",() => {
+    for(const marker of [
+      'id="bankReconciliationTitle"','id="reconciliationAccount"','id="reconciliationDate"',
+      'id="reconciliationBalance"','id="calculateReconciliationButton"','id="reconciliationBookBalance"',
+      'id="reconciliationStatementBalance"','id="reconciliationDifference"','id="reconciliationUnresolved"',
+      'id="signOffReconciliationButton"'
+    ]) expect(html).toContain(marker);
+    expect(html).toContain("calculateBankReconciliation(currentReconciliationOptions(validation.value))");
+    expect(html).toContain("signOffBankReconciliation({");
+    expect(html).toContain('services:{ doc,runTransaction,serverTimestamp }');
+  });
+
+  it("loads owned journals and nested reconciliation history without creating a reconciliation journal",() => {
+    expect(html).toContain('getDocs(query(collection(db,"journals"),where("userId","==",user.uid)))');
+    expect(html).toContain('getDocs(collection(db,"users",user.uid,"bankReconciliations"))');
+    expect(html).toContain('id="reconciliationHistoryTable"');
+    expect(html).toContain('record.displayStatus === "reconciled" ? "Reconciled" : "Needs review"');
+    expect(html).toContain("No accounting journal was created.");
+    expect(html).not.toMatch(/reopenReconciliation|deleteReconciliation/);
+  });
+
+  it("keeps archived accounts available for historical reconciliation review",() => {
+    expect(html).toContain('account.status === BANK_ACCOUNT_STATUS.ARCHIVED ? " (Archived)" : ""');
+    expect(html).toContain("reconciliationHistory(reconciliations,currentReconciliationOptions())");
   });
 });

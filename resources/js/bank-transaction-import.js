@@ -161,7 +161,10 @@ export function normaliseBankTransaction(id,data = {}){
       matchedAmount:nullableMoney(data.matchedAmount),
       ...(String(data.settlementJournalId || "").trim() ? {
         settlementJournalId:String(data.settlementJournalId).trim(),
-        settlementVersion:Number(data.settlementVersion) || null
+        settlementVersion:Number(data.settlementVersion) || null,
+        ...(String(data.settlementStateFingerprint || "").trim() ? {
+          settlementStateFingerprint:String(data.settlementStateFingerprint).trim()
+        } : {})
       } : {}),
       ...(data.matchOrigin === "categorisation" && Number(data.categorisationVersion) === 1 ? {
         matchOrigin:"categorisation",
