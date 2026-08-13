@@ -43,19 +43,19 @@ import { DEMO_SEED } from "../assets/demo-seed.js";
 const html = readFileSync(new URL("../resources/tools/banking.html", import.meta.url), "utf8");
 
 describe("Banking Phase 2 account model", () => {
-  it("requires account and bank names and defaults opening balance to zero", () => {
+  it("requires account and bank names, a valid effective date, and defaults opening balance to zero", () => {
     expect(validateBankAccountInput({})).toEqual({
       valid:false,
-      errors:{ accountName:"Enter an account name.", bankName:"Enter a bank name." },
-      value:{ accountName:"", bankName:"", openingBalance:0 }
+      errors:{ accountName:"Enter an account name.", bankName:"Enter a bank name.", openingBalanceDate:"Enter a valid opening balance effective date." },
+      value:{ accountName:"", bankName:"", openingBalance:0, openingBalanceDate:"" }
     });
-    expect(validateBankAccountInput({ accountName:"  Business Current Account ", bankName:" Barclays ", openingBalance:"" }))
-      .toEqual({ valid:true, errors:{}, value:{ accountName:"Business Current Account", bankName:"Barclays", openingBalance:0 } });
+    expect(validateBankAccountInput({ accountName:"  Business Current Account ", bankName:" Barclays ", openingBalance:"", openingBalanceDate:"2026-08-01" }))
+      .toEqual({ valid:true, errors:{}, value:{ accountName:"Business Current Account", bankName:"Barclays", openingBalance:0, openingBalanceDate:"2026-08-01" } });
   });
 
   it("accepts negative currency balances, rounds safely, and rejects non-numeric values", () => {
-    expect(validateBankAccountInput({ accountName:"Current", bankName:"Bank", openingBalance:"-123.456" }).value.openingBalance).toBe(-123.46);
-    expect(validateBankAccountInput({ accountName:"Current", bankName:"Bank", openingBalance:"not money" }))
+    expect(validateBankAccountInput({ accountName:"Current", bankName:"Bank", openingBalance:"-123.456", openingBalanceDate:"2026-08-01" }).value.openingBalance).toBe(-123.46);
+    expect(validateBankAccountInput({ accountName:"Current", bankName:"Bank", openingBalance:"not money", openingBalanceDate:"2026-08-01" }))
       .toMatchObject({ valid:false, errors:{ openingBalance:"Enter a valid opening balance." } });
   });
 
@@ -95,6 +95,7 @@ describe("Banking Phase 2 page", () => {
     expect(html).toContain('id="accountName" name="accountName" type="text" maxlength="160" required');
     expect(html).toContain('id="bankName" name="bankName" type="text" maxlength="160" required');
     expect(html).toContain('id="openingBalance" name="openingBalance" type="number" step="0.01" inputmode="decimal" value="0.00"');
+    expect(html).toContain('id="openingBalanceDate" name="openingBalanceDate" type="date" required');
     expect(html).toContain('id="cancelAccountButton" type="button">Cancel</button>');
     expect(html).toContain('id="saveAccountButton" type="submit">Save</button>');
     expect(html).toContain('role="alert" hidden');
@@ -104,8 +105,8 @@ describe("Banking Phase 2 page", () => {
   it("uses the authenticated user bankAccounts subcollection and archives without deletion", () => {
     expect(html).toContain('collection(db,"users",user.uid,"bankAccounts")');
     expect(html).toContain('collection(db,"users",currentUser.uid,"bankAccounts")');
-    expect(html).toContain('{ ...data,createdAt:serverTimestamp() }');
-    expect(html).toContain('updateDoc(doc(db,"users",currentUser.uid,"bankAccounts",editingAccountId),data)');
+    expect(html).toContain("createBankAccountWithOpeningBalance({");
+    expect(html).toContain("updateBankAccountWithOpeningBalance({");
     expect(html).toContain('updateDoc(doc(db,"users",currentUser.uid,"bankAccounts",accountId),{ status:BANK_ACCOUNT_STATUS.ARCHIVED })');
     expect(html).not.toMatch(/deleteDoc|sortCode|accountNumber|openBankingConnection/i);
   });
@@ -371,6 +372,7 @@ describe("Banking Phase 5 transaction import model", () => {
 
   function memoryFirestore(){
     const documents = new Map();
+    documents.set("users/user-1/bankAccounts/account-1",{ accountName:"Current",status:"Active" });
     const commits = [];
     const services = {
       collection:vi.fn((_db,...parts) => ({ path:parts.join("/") })),
@@ -386,8 +388,10 @@ describe("Banking Phase 5 transaction import model", () => {
         const pending = [];
         return {
           set:(reference,data) => pending.push({ reference,data }),
+          update:(reference,data) => pending.push({ reference,data,merge:true }),
           commit:async () => {
-            pending.forEach(({ reference,data }) => documents.set(reference.path,data));
+            pending.forEach(({ reference,data,merge }) => documents.set(reference.path,
+              merge ? { ...documents.get(reference.path),...data } : data));
             commits.push(pending.length);
           }
         };
@@ -432,10 +436,12 @@ describe("Banking Phase 5 transaction import model", () => {
       db:{},services,userId:"user-1",bankAccountId:"account-1",mappedResult,importId:"import-1",timestamp
     })).resolves.toEqual({ importedCount:1,skippedDuplicateCount:0,committedBatches:1 });
     expect(services.collection).toHaveBeenCalledWith({},"users","user-1","bankTransactions");
-    expect(documents.size).toBe(1);
-    expect([...documents.keys()][0]).toMatch(/^users\/user-1\/bankTransactions\/csv-[0-9a-f]{64}$/);
-    expect([...documents.values()][0].status).toBe("unmatched");
-    expect(commits).toEqual([1]);
+    expect(documents.size).toBe(2);
+    const transaction = [...documents.entries()].find(([path]) => path.includes("/bankTransactions/"));
+    expect(transaction[0]).toMatch(/^users\/user-1\/bankTransactions\/csv-[0-9a-f]{64}$/);
+    expect(transaction[1].status).toBe("unmatched");
+    expect(documents.get("users/user-1/bankAccounts/account-1").bankingActivity).toEqual({ version:1,type:"importedTransaction" });
+    expect(commits).toEqual([2]);
   });
 
   it("imports a CSV once and writes zero documents when the same CSV is imported again", async () => {
@@ -445,7 +451,7 @@ describe("Banking Phase 5 transaction import model", () => {
       .resolves.toEqual({ importedCount:1,skippedDuplicateCount:0,committedBatches:1 });
     await expect(persistBankTransactions({ ...options,importId:"second" }))
       .resolves.toEqual({ importedCount:0,skippedDuplicateCount:1,committedBatches:0 });
-    expect(documents.size).toBe(1);
+    expect(documents.size).toBe(2);
     expect(services.writeBatch).toHaveBeenCalledOnce();
   });
 
@@ -456,7 +462,7 @@ describe("Banking Phase 5 transaction import model", () => {
     const mixedResult = Object.freeze({ allRows:Object.freeze([ready,newReady,attention]),readyCount:2,attentionCount:1 });
     await expect(persistBankTransactions({ db:{},services,userId:"user-1",bankAccountId:"account-1",mappedResult:mixedResult,importId:"mixed",timestamp }))
       .resolves.toEqual({ importedCount:1,skippedDuplicateCount:1,committedBatches:1 });
-    expect(documents.size).toBe(2);
+    expect(documents.size).toBe(3);
   });
 
   it("uses a single-flight guard to prevent double-click writes", async () => {

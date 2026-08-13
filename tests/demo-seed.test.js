@@ -273,7 +273,7 @@ describe("demo seed engine", () => {
       .toHaveLength(journalCount);
   });
 
-  it("clears all managed demo records and journals while preserving the account marker", async () => {
+  it("clears all managed demo records and all owned journals, including bank opening balances, while preserving the account marker", async () => {
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankAccounts");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransactions");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankIncome");
@@ -298,6 +298,9 @@ describe("demo seed engine", () => {
     expect(operations.every(operation => operation.type === "delete")).toBe(true);
     expect(operations.some(operation => operation.documentReference.path === `users/${demoUser.uid}`))
       .toBe(false);
+    expect(services.where).toHaveBeenCalledWith("userId", "==", demoUser.uid);
+    expect(operations.filter(operation => operation.documentReference.path.startsWith("journals/")))
+      .toHaveLength(2);
   });
 
   it.each([

@@ -30,7 +30,7 @@ function basicJournal(overrides = {}) {
 describe("default Chart of Accounts", () => {
   it("contains the required accounts and the reimbursement liability", () => {
     expect(DEFAULT_CHART_OF_ACCOUNTS.map(account => account.code)).toEqual([
-      "1000", "1100", "1200", "2000", "2100", "2200", "3000",
+      "1000", "1100", "1200", "2000", "2100", "2200", "3000", "3100",
       "4000", "4100", "4200", "5000", "5200", "5300", "5400", "5500"
     ]);
     expect(DEFAULT_CHART_OF_ACCOUNTS.find(account => account.code === "2200"))

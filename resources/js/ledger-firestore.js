@@ -1,6 +1,7 @@
 import {
   createBillJournal,
   createBankIncomeJournal,
+  createBankOpeningBalanceJournal,
   createBankSettlementJournal,
   createExpenseJournal,
   createMileageJournal,
@@ -21,6 +22,7 @@ function sourcePrefix(sourceType) {
   if (sourceType === "mileageClaim") return "mileage";
   if (sourceType === "bankSettlement") return "bank-settlement";
   if (sourceType === "bankIncome") return "bank-income";
+  if (sourceType === "bankOpeningBalance") return "bank-opening-balance";
   return String(sourceType || "source");
 }
 
@@ -58,6 +60,10 @@ export function bankSettlementJournalDocumentId(userId, transactionId) {
 
 export function bankIncomeJournalDocumentId(userId, incomeId) {
   return journalDocumentId(userId, "bankIncome", incomeId);
+}
+
+export function bankOpeningBalanceJournalDocumentId(userId, bankAccountId) {
+  return journalDocumentId(userId, "bankOpeningBalance", bankAccountId);
 }
 
 export function isMileageExpenseRecord(expenseData) {
@@ -282,6 +288,36 @@ export function prepareBankIncomeJournal(
     bankAccountId: String(incomeData?.bankAccountId || ""),
     incomeCategory: String(incomeData?.category || ""),
     incomeAccountCode: String(incomeData?.incomeAccountCode || "")
+  };
+}
+
+export function prepareBankOpeningBalanceJournal(
+  userId,
+  bankAccountId,
+  openingBalanceData,
+  timestamps = {}
+) {
+  const owner = requiredIdentifier(userId, "User ID");
+  const sourceId = requiredIdentifier(bankAccountId, "Bank account ID");
+  const journalId = bankOpeningBalanceJournalDocumentId(owner, sourceId);
+  const journal = createBankOpeningBalanceJournal({
+    ...openingBalanceData,
+    bankAccountId: sourceId
+  });
+  const prepared = serialiseJournalForFirestore(journal, {
+    userId: owner,
+    journalId,
+    sourceNumber: sourceId
+  });
+
+  return {
+    ...prepared,
+    createdAt: timestamps.createdAt || "",
+    updatedAt: timestamps.updatedAt || "",
+    bankAccountId: sourceId,
+    openingBalanceVersion: 1,
+    openingBalanceAmount: Number(openingBalanceData?.openingBalance),
+    openingBalanceDate: String(openingBalanceData?.openingBalanceDate || "")
   };
 }
 

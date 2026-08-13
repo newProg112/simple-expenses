@@ -1,6 +1,6 @@
 export const BANK_TRANSACTION_STATUS = Object.freeze({ UNMATCHED:"unmatched",MATCHED:"matched" });
 export const BANK_TRANSACTION_SOURCE = Object.freeze({ CSV:"csv" });
-export const BANK_TRANSACTION_BATCH_LIMIT = 450;
+export const BANK_TRANSACTION_BATCH_LIMIT = 449;
 
 function transactionDateValue(value){
   const raw = String(value || "").trim();
@@ -86,6 +86,8 @@ export async function persistBankTransactions(options = {}){
   }
   const records = prepareBankTransactionRecords(options.mappedResult,options);
   const transactionCollection = services.collection(db,"users",ownerId,"bankTransactions");
+  const bankAccountCollection = services.collection(db,"users",ownerId,"bankAccounts");
+  const bankAccountRef = services.doc(bankAccountCollection,String(options.bankAccountId || "").trim());
   const existingSnapshot = await services.getDocs(services.query(
     transactionCollection,
     services.where("bankAccountId","==",String(options.bankAccountId || "").trim())
@@ -105,6 +107,11 @@ export async function persistBankTransactions(options = {}){
     chunk.forEach((record,index) => {
       const reference = services.doc(transactionCollection,references[index]);
       batch.set(reference,record);
+    });
+    if(typeof batch.update !== "function") throw new Error("Firestore batch update helper is required.");
+    batch.update(bankAccountRef,{
+      bankingActivity:{ version:1,type:"importedTransaction" },
+      updatedAt:options.timestamp
     });
     await batch.commit();
     committedBatches += 1;

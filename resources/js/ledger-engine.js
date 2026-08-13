@@ -8,6 +8,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = Object.freeze([
   Object.freeze({ code: "2100", name: "VAT Output", type: "Liability" }),
   Object.freeze({ code: "2200", name: "Employee Reimbursements Payable", type: "Liability" }),
   Object.freeze({ code: "3000", name: "Owner's Equity", type: "Equity" }),
+  Object.freeze({ code: "3100", name: "Opening Balance Equity", type: "Equity" }),
   Object.freeze({ code: "4000", name: "Sales Revenue", type: "Income" }),
   Object.freeze({ code: "4100", name: "Interest Received", type: "Income" }),
   Object.freeze({ code: "4200", name: "Other Income", type: "Income" }),
@@ -606,6 +607,50 @@ export function createBankIncomeJournal(income) {
     sourceType: "bankIncome",
     sourceId,
     bankTransactionId: transactionId,
+    description,
+    lines
+  });
+}
+
+export function createBankOpeningBalanceJournal(openingBalance) {
+  if (!openingBalance || typeof openingBalance !== "object") {
+    throw new Error("Bank opening balance is required.");
+  }
+
+  const bankAccountId = sourceReference(
+    openingBalance,
+    ["bankAccountId", "id"],
+    "bank account"
+  );
+  const amount = Number(openingBalance.openingBalance ?? openingBalance.amount);
+  if (!Number.isFinite(amount) || amount === 0) {
+    throw new Error("A non-zero bank opening balance is required.");
+  }
+  const roundedAmount = roundMoney(amount);
+  if (Math.abs(amount - roundedAmount) > 1e-8) {
+    throw new Error("Bank opening balance must have no more than two decimal places.");
+  }
+  const date = normaliseBankTransactionDate(
+    firstPresent(openingBalance, ["openingBalanceDate", "effectiveDate", "date"])
+  );
+  if (!date) throw new Error("A valid opening balance effective date is required.");
+  const value = Math.abs(roundedAmount);
+  const description = `Bank opening balance ${bankAccountId}`;
+  const lines = roundedAmount > 0
+    ? [
+        journalLine("1000", description, value, 0),
+        journalLine("3100", description, 0, value)
+      ]
+    : [
+        journalLine("3100", description, value, 0),
+        journalLine("1000", description, 0, value)
+      ];
+
+  return finishJournal({
+    id: `bank-opening-balance:${bankAccountId}`,
+    date,
+    sourceType: "bankOpeningBalance",
+    sourceId: bankAccountId,
     description,
     lines
   });

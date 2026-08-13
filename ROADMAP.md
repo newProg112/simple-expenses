@@ -39,6 +39,13 @@
 - [x] General Ledger
 - [x] Profit & Loss
 - [x] Balance Sheet
+
+## Banking
+
+- [x] CSV Banking foundation — statement import, matching, settlement and categorisation
+- [x] Bank opening-balance accounting — dated deterministic journals, legacy opt-in and activity locking
+- [ ] Live bank feed / Open Banking integration
+
 ## Business Insights
 
 - [x] Business Insights Phase 1 — deterministic health, priorities, trends and snapshot
@@ -157,7 +164,7 @@
 
 - [ ] Admin Dashboard – Phase 2B aggregates and SaaS monitoring
 - [ ] Multi-user support
-- [ ] Bank feed integration
+- [ ] Bank feed integration / Open Banking (see Banking)
 - [ ] Android app
 
 ## Industry Templates
