@@ -2066,7 +2066,9 @@
       replaceMileageJournal
     } from "../js/ledger-firestore.js";
     import {
+      BANK_CATEGORISATION_STATUS_MESSAGE,
       BANK_SETTLEMENT_STATUS_MESSAGE,
+      isBankCategorisedExpense,
       isBankingSettledSource,
       sourceStatusForSave
     } from "../js/bank-settlement-source-state.js?v=20260812-banking12";
@@ -3450,6 +3452,11 @@
       const expenseId = String(editingExpenseId || Date.now());
       const now = new Date().toISOString();
       const existingType = existingExpense?.type === "mileage" ? "mileage" : "expense";
+      if (isBankCategorisedExpense(existingExpense)) {
+        saveButton.disabled = false;
+        alert(BANK_CATEGORISATION_STATUS_MESSAGE);
+        return;
+      }
       const project = selectedProject(
         isMileage ? "mileageProjectSelect" : "expenseProjectSelect"
       );
@@ -3611,6 +3618,11 @@
 
       if (!expense) return;
 
+      if (isBankCategorisedExpense(expense)) {
+        alert(BANK_CATEGORISATION_STATUS_MESSAGE);
+        return;
+      }
+
       const removedPendingScan = Boolean(pendingScannedReceiptFile);
       clearPendingScannedReceiptFile(false);
       clearReceiptAiApplyFeedback();
@@ -3672,6 +3684,11 @@
 
       if (!expense) return;
 
+      if (isBankCategorisedExpense(expense)) {
+        alert(BANK_CATEGORISATION_STATUS_MESSAGE);
+        return;
+      }
+
       if (isBankingSettledSource(expense)) {
         alert(BANK_SETTLEMENT_STATUS_MESSAGE);
         return;
@@ -3702,9 +3719,13 @@
 
     async function deleteExpense(id) {
       // TODO GL: post an immutable reversal before deleting an expense or mileage journal source.
+      const expenseToDelete = expenses.find(expense => String(expense.id) === String(id));
+      if (isBankCategorisedExpense(expenseToDelete)) {
+        alert(BANK_CATEGORISATION_STATUS_MESSAGE);
+        return;
+      }
       if (!confirm("Delete this expense?")) return;
 
-      const expenseToDelete = expenses.find(expense => String(expense.id) === String(id));
       saveExpenses(expenses.filter(expense => String(expense.id) !== String(id)));
       renderExpenses();
 
@@ -4005,6 +4026,10 @@
             }</div>`;
         const rowAmount = isMileage ? Number(expense.amount || expense.gross || 0) : Number(expense.gross || 0);
         const bankingSettled = isBankingSettledSource(expense);
+        const bankCategorised = isBankCategorisedExpense(expense);
+        const bankingMessage = bankCategorised
+          ? BANK_CATEGORISATION_STATUS_MESSAGE
+          : BANK_SETTLEMENT_STATUS_MESSAGE;
         const projectName = expense.projectName || (expense.projectReference ? "Project" : "Unassigned");
 
         return `
@@ -4045,12 +4070,12 @@
             ${hasAttachment
               ? `<a class="btn btn-secondary" href="#" data-expense-attachment data-expense-id="${expenseId}">${isMileage ? "View attachment" : "View PDF"}</a>`
               : ""}
-            <button class="btn btn-secondary" type="button" data-expense-action="edit" data-expense-id="${expenseId}">Edit</button>
+            <button class="btn btn-secondary" type="button" data-expense-action="edit" data-expense-id="${expenseId}"${bankCategorised ? ` disabled title="${BANK_CATEGORISATION_STATUS_MESSAGE}"` : ""}>Edit</button>
             ${expense.status !== "Paid"
-              ? `<button class="btn btn-positive" type="button" data-expense-action="mark-paid" data-expense-id="${expenseId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}"` : ""}>Mark paid</button>`
+              ? `<button class="btn btn-positive" type="button" data-expense-action="mark-paid" data-expense-id="${expenseId}"${bankingSettled ? ` disabled title="${bankingMessage}"` : ""}>Mark paid</button>`
               : ""}
-            ${bankingSettled ? `<span class="expense-secondary">${BANK_SETTLEMENT_STATUS_MESSAGE}</span>` : ""}
-            <button class="btn btn-danger-subtle" type="button" data-expense-action="delete" data-expense-id="${expenseId}">Delete</button>
+            ${bankingSettled ? `<span class="expense-secondary">${bankingMessage}</span>` : ""}
+            <button class="btn btn-danger-subtle" type="button" data-expense-action="delete" data-expense-id="${expenseId}"${bankCategorised ? ` disabled title="${BANK_CATEGORISATION_STATUS_MESSAGE}"` : ""}>Delete</button>
           </div>
         </div>
       `;

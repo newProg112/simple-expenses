@@ -152,6 +152,10 @@ export function normaliseBankTransaction(id,data = {}){
       ...(String(data.settlementJournalId || "").trim() ? {
         settlementJournalId:String(data.settlementJournalId).trim(),
         settlementVersion:Number(data.settlementVersion) || null
+      } : {}),
+      ...(data.matchOrigin === "categorisation" && Number(data.categorisationVersion) === 1 ? {
+        matchOrigin:"categorisation",
+        categorisationVersion:1
       } : {})
     } : {})
   });

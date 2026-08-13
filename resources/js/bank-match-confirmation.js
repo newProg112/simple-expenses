@@ -571,6 +571,9 @@ export async function unmatchBankTransaction(options = {}){
     if(!exists(snapshot)) throw new Error("Bank transaction no longer exists.");
     const bankTransaction = { ...snapshot.data(),id:transactionId };
     if(bankTransaction.status !== "matched") throw new Error("Bank transaction is not currently matched.");
+    if(bankTransaction.matchOrigin === "categorisation"){
+      throw new Error("This transaction was categorised. Use Uncategorise in Banking instead.");
+    }
     const timestamp = services.serverTimestamp();
 
     if(!bankTransaction.settlementJournalId){

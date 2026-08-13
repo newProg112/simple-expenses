@@ -510,7 +510,7 @@ describe("Banking Phase 5 import page", () => {
     expect(html).toContain("elements.needsReviewCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.UNMATCHED).length)");
     expect(html).toContain("elements.matchedCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.MATCHED).length)");
     expect(html).toContain('id="transactionList" tabindex="0" aria-label="Imported bank transactions table, horizontally scrollable"');
-    expect(html).toContain('badge.textContent = matched ? "Matched" : "Unmatched"');
+    expect(html).toContain('badge.textContent = categorised ? "Categorised" : matched ? "Matched" : "Unmatched"');
     expect(html).not.toMatch(/deleteBankTransaction|editBankTransaction/);
   });
 
@@ -626,7 +626,7 @@ describe("Banking Phase 7A suggestions page", () => {
 
   it("adds explicit settlement-aware Confirm match and reversible Unmatch actions", () => {
     expect(html).toContain('confirm.textContent = confirm.disabled ? "Confirming..." : "Confirm match"');
-    expect(html).toContain('unmatch.textContent = unmatch.disabled ? "Unmatching..." : "Unmatch"');
+    expect(html).toContain('(categorised ? "Uncategorise" : "Unmatch")');
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp }');
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp,deleteField }');
     expect(html).toContain("The source record was marked Paid and its settlement journal was posted.");
@@ -708,6 +708,10 @@ describe("Banking Confirm Match settlement model", () => {
       matchedAt:timestamp,matchedAmount:850
     });
     expect(matched).toMatchObject({ status:"matched",matchedRecordType:"invoice",matchedRecordId:"invoice-1",matchedAt:timestamp,matchedAmount:850 });
+    expect(normaliseBankTransaction("categorised",{
+      ...baseTransaction,status:"matched",matchedRecordType:"expense",matchedRecordId:"bank-expense_bank-1",
+      matchedAmount:850,matchOrigin:"categorisation",categorisationVersion:1
+    })).toMatchObject({ status:"matched",matchOrigin:"categorisation",categorisationVersion:1 });
     expect(normaliseBankTransaction("legacy",baseTransaction).status).toBe("unmatched");
     expect(normaliseBankTransaction("bad",{ ...baseTransaction,status:"reconciled",matchedRecordId:"x" })).not.toHaveProperty("matchedRecordId");
     expect(normaliseBankTransaction("incomplete",{ ...baseTransaction,status:"matched",matchedRecordType:"invoice" }).status).toBe("unmatched");
@@ -790,12 +794,41 @@ describe("Banking Confirm Match settlement model", () => {
 
   it("renders confirmed, missing-target, amount-change, duplicate-target, and reversible states", () => {
     for(const marker of [
-      'badge.textContent = matched ? "Matched" : "Unmatched"',
+      'badge.textContent = categorised ? "Categorised" : matched ? "Matched" : "Unmatched"',
       '"Matched record no longer available"',
       '" — amount has changed"',
       '"Another bank transaction is already matched to this record."',
       '" — settled"',
-      'unmatch.dataset.matchAction = "unmatch"'
+      'unmatch.dataset.matchAction = categorised ? "uncategorise" : "unmatch"'
     ]) expect(html).toContain(marker);
+  });
+});
+
+describe("Banking Money Out categorisation page",() => {
+  it("shows Categorise only through the strict Money Out eligibility helper",() => {
+    expect(html).toContain("moneyOutCategorisationEligibility(transaction).eligible");
+    expect(html).toContain('categorise.dataset.matchAction = "categorise"');
+    expect(html).toContain('categorise.textContent = categorise.disabled ? "Categorising..." : "Categorise"');
+    expect(html).not.toMatch(/moneyInCategorisation|categoriseMoneyIn/i);
+  });
+
+  it("renders the fixed date/gross and controlled Expense fields",() => {
+    for(const marker of [
+      'id="categorisationDate"','id="categorisationGross"','id="categorisationMerchant"',
+      'id="categorisationCategory"','id="categorisationDescription"','id="categorisationVatTreatment"',
+      '<option value="none">No VAT</option>','<option value="included-20">20% included</option>',
+      '<option value="included-5">5% included</option>','<option value="exact">Exact VAT amount</option>',
+      'id="categorisationProject"'
+    ]) expect(html).toContain(marker);
+    expect(html).toContain('collection(db,"users",user.uid,"projects")');
+  });
+
+  it("calls only the dedicated atomic categorise and uncategorise operations",() => {
+    expect(html).toContain("await categoriseMoneyOut({");
+    expect(html).toContain("await uncategoriseMoneyOut({");
+    expect(html).toContain('services:{ doc,runTransaction,serverTimestamp }');
+    expect(html).toContain('services:{ doc,runTransaction,serverTimestamp,deleteField }');
+    expect(html).toContain('matchOrigin === "categorisation"');
+    expect(html).toContain('Categorisation removed. The Banking-created Expense and its two journals were removed.');
   });
 });

@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  BANK_CATEGORISATION_STATUS_MESSAGE,
   BANK_SETTLEMENT_STATUS_MESSAGE,
+  isBankCategorisedExpense,
   isBankingSettledSource,
   sourceStatusForSave
 } from "../resources/js/bank-settlement-source-state.js";
@@ -23,6 +25,15 @@ describe("Banking-settled source status state", () => {
     expect(isBankingSettledSource({ bankSettlement:{ ...marker,transactionId:"" } })).toBe(false);
     expect(isBankingSettledSource({ bankSettlement:{ ...marker,journalId:"" } })).toBe(false);
     expect(isBankingSettledSource({ bankSettlement:{ ...marker,version:2 } })).toBe(false);
+  });
+
+  it("identifies Banking-created expenses and uses the dedicated read-only message", () => {
+    expect(isBankCategorisedExpense({ bankCategorisation:{ version:1,transactionId:"bank-1" } })).toBe(true);
+    expect(isBankCategorisedExpense({ bankCategorisation:{ version:2,transactionId:"bank-1" } })).toBe(false);
+    expect(isBankCategorisedExpense({})).toBe(false);
+    expect(BANK_CATEGORISATION_STATUS_MESSAGE).toBe(
+      "This expense was created from a bank transaction. Uncategorise it in Banking before editing or deleting it."
+    );
   });
 
   it.each([
@@ -67,6 +78,15 @@ describe("Banking-settled source status state", () => {
     expect(pages.expense).toMatch(/if \(isBankingSettledSource\(expense\)\)[\s\S]*?alert\(BANK_SETTLEMENT_STATUS_MESSAGE\)/);
     expect(pages.expense).toContain('document.getElementById("status").disabled = false');
     expect(pages.expense).toContain('document.getElementById("mileageStatus").disabled = false');
+  });
+
+  it("blocks editing, saving, deleting and payment actions for a Banking-created expense", () => {
+    expect(pages.expense).toContain("isBankCategorisedExpense(existingExpense)");
+    expect(pages.expense).toMatch(/function editExpense[\s\S]*?isBankCategorisedExpense\(expense\)[\s\S]*?BANK_CATEGORISATION_STATUS_MESSAGE/);
+    expect(pages.expense).toMatch(/function markExpensePaid[\s\S]*?isBankCategorisedExpense\(expense\)[\s\S]*?BANK_CATEGORISATION_STATUS_MESSAGE/);
+    expect(pages.expense).toMatch(/function deleteExpense[\s\S]*?isBankCategorisedExpense\(expenseToDelete\)[\s\S]*?BANK_CATEGORISATION_STATUS_MESSAGE/);
+    expect(pages.expense).toMatch(/data-expense-action="edit"[\s\S]*?bankCategorised \? ` disabled title=/);
+    expect(pages.expense).toMatch(/data-expense-action="delete"[\s\S]*?bankCategorised \? ` disabled title=/);
   });
 
   it.each(Object.entries(pages))("keeps the %s inline module syntactically valid",(_name,html) => {
