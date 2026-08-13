@@ -9,6 +9,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = Object.freeze([
   Object.freeze({ code: "2200", name: "Employee Reimbursements Payable", type: "Liability" }),
   Object.freeze({ code: "3000", name: "Owner's Equity", type: "Equity" }),
   Object.freeze({ code: "4000", name: "Sales Revenue", type: "Income" }),
+  Object.freeze({ code: "4100", name: "Interest Received", type: "Income" }),
+  Object.freeze({ code: "4200", name: "Other Income", type: "Income" }),
   Object.freeze({ code: "5000", name: "General Expenses", type: "Expense" }),
   Object.freeze({ code: "5200", name: "Travel & Mileage", type: "Expense" }),
   Object.freeze({ code: "5300", name: "Utilities", type: "Expense" }),
@@ -529,6 +531,81 @@ export function createBankSettlementJournal(settlement) {
     date,
     sourceType: "bankSettlement",
     sourceId: transactionId,
+    description,
+    lines
+  });
+}
+
+export function createBankIncomeJournal(income) {
+  if (!income || typeof income !== "object") {
+    throw new Error("Bank income is required.");
+  }
+
+  const sourceId = sourceReference(income, ["id", "incomeId"], "bank income");
+  const transactionId = sourceReference(
+    income,
+    ["bankTransactionId", "transactionId"],
+    "bank transaction"
+  );
+  const payer = sourceReference(income, ["payer", "sourceName"], "payer");
+  const suppliedNet = firstPresent(income, ["net", "netAmount"]);
+  const suppliedGross = readMoney(
+    income,
+    ["gross", "grossAmount", "total"],
+    "Bank income gross",
+    true
+  );
+  const suppliedVat = readMoney(income, ["vat", "vatAmount"], "Bank income VAT");
+  const suppliedRate = firstPresent(income, ["vatRate"]);
+  let incomeValues = income;
+
+  if ((suppliedNet === null || Number(suppliedNet) === 0) && suppliedGross > 0) {
+    let derivedVat = suppliedVat;
+    let derivedNet;
+    if (derivedVat !== null) {
+      derivedNet = roundMoney(suppliedGross - derivedVat);
+    } else if (suppliedRate !== null) {
+      const vatRate = Number(suppliedRate);
+      if (!Number.isFinite(vatRate) || vatRate < 0) {
+        throw new Error("VAT rate must be a finite, non-negative number.");
+      }
+      derivedNet = roundMoney(suppliedGross / (1 + vatRate));
+      derivedVat = roundMoney(suppliedGross - derivedNet);
+    } else {
+      derivedNet = suppliedGross;
+      derivedVat = 0;
+    }
+    incomeValues = { ...income, net: derivedNet, vat: derivedVat };
+  }
+
+  const values = amountFromNetVatTotal(incomeValues, {
+    netFields: ["net", "netAmount"],
+    vatFields: ["vat", "vatAmount"],
+    vatRateFields: ["vatRate"],
+    totalFields: ["gross", "grossAmount", "total"],
+    netLabel: "Bank income net",
+    vatLabel: "Bank income VAT",
+    totalLabel: "Bank income gross"
+  });
+  const incomeAccountCode = String(income.incomeAccountCode || "").trim();
+  const incomeAccount = ACCOUNT_BY_CODE.get(incomeAccountCode);
+  if (!incomeAccount || incomeAccount.type !== "Income") {
+    throw new Error("A valid income account is required.");
+  }
+  const context = [payer, String(income.description || "").trim()].filter(Boolean).join(" - ");
+  const description = `Bank income ${sourceId}${context ? ` - ${context}` : ""}`;
+  const lines = [journalLine("1000", description, values.total, 0)];
+  lines.push(journalLine(incomeAccountCode, description, 0, values.net));
+  if (values.vat > 0) {
+    lines.push(journalLine("2100", `VAT on bank income ${sourceId}`, 0, values.vat));
+  }
+
+  return finishJournal({
+    id: `bank-income:${sourceId}`,
+    date: sourceDate(income, ["date", "transactionDate"]),
+    sourceType: "bankIncome",
+    sourceId,
+    bankTransactionId: transactionId,
     description,
     lines
   });

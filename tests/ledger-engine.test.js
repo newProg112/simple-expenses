@@ -31,7 +31,7 @@ describe("default Chart of Accounts", () => {
   it("contains the required accounts and the reimbursement liability", () => {
     expect(DEFAULT_CHART_OF_ACCOUNTS.map(account => account.code)).toEqual([
       "1000", "1100", "1200", "2000", "2100", "2200", "3000",
-      "4000", "5000", "5200", "5300", "5400", "5500"
+      "4000", "4100", "4200", "5000", "5200", "5300", "5400", "5500"
     ]);
     expect(DEFAULT_CHART_OF_ACCOUNTS.find(account => account.code === "2200"))
       .toEqual({ code: "2200", name: "Employee Reimbursements Payable", type: "Liability" });

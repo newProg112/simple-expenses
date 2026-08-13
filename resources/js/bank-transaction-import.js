@@ -127,8 +127,11 @@ export function createSingleFlightImport(execute){
 }
 
 export function normaliseBankTransaction(id,data = {}){
-  const hasValidMatch = data.status === BANK_TRANSACTION_STATUS.MATCHED &&
-    ["invoice","bill","expense"].includes(data.matchedRecordType) &&
+  const hasValidMatchedType = ["invoice","bill","expense"].includes(data.matchedRecordType) ||
+    (data.matchedRecordType === "bankIncome" && data.matchOrigin === "categorisation" &&
+      Number(data.categorisationVersion) === 1 && Boolean(String(data.categorisationJournalId || "").trim()) &&
+      Boolean(String(data.categorisationStateFingerprint || "").trim()));
+  const hasValidMatch = data.status === BANK_TRANSACTION_STATUS.MATCHED && hasValidMatchedType &&
     Boolean(String(data.matchedRecordId || "").trim()) &&
     Number.isFinite(Number(data.matchedAmount)) && Number(data.matchedAmount) > 0;
   return Object.freeze({
@@ -155,7 +158,13 @@ export function normaliseBankTransaction(id,data = {}){
       } : {}),
       ...(data.matchOrigin === "categorisation" && Number(data.categorisationVersion) === 1 ? {
         matchOrigin:"categorisation",
-        categorisationVersion:1
+        categorisationVersion:1,
+        ...(String(data.categorisationJournalId || "").trim() ? {
+          categorisationJournalId:String(data.categorisationJournalId).trim()
+        } : {}),
+        ...(String(data.categorisationStateFingerprint || "").trim() ? {
+          categorisationStateFingerprint:String(data.categorisationStateFingerprint).trim()
+        } : {})
       } : {})
     } : {})
   });

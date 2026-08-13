@@ -526,7 +526,9 @@ describe("Banking Phase 5 import page", () => {
 
   it("includes imported bank transactions in canonical Demo reset storage", () => {
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransactions");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankIncome");
     expect(DEMO_SEED).not.toHaveProperty("bankTransactions");
+    expect(DEMO_SEED).not.toHaveProperty("bankIncome");
   });
 
   it("does not add matching, accounting, Open Banking, or subscription behavior", () => {
@@ -804,12 +806,13 @@ describe("Banking Confirm Match settlement model", () => {
   });
 });
 
-describe("Banking Money Out categorisation page",() => {
-  it("shows Categorise only through the strict Money Out eligibility helper",() => {
+describe("Banking Money Out and Money In categorisation page",() => {
+  it("shows Categorise only through the strict direction-specific eligibility helpers",() => {
     expect(html).toContain("moneyOutCategorisationEligibility(transaction).eligible");
+    expect(html).toContain("moneyInCategorisationEligibility(transaction).eligible");
     expect(html).toContain('categorise.dataset.matchAction = "categorise"');
+    expect(html).toContain('categorise.dataset.categorisationType = categorisationType');
     expect(html).toContain('categorise.textContent = categorise.disabled ? "Categorising..." : "Categorise"');
-    expect(html).not.toMatch(/moneyInCategorisation|categoriseMoneyIn/i);
   });
 
   it("renders the fixed date/gross and controlled Expense fields",() => {
@@ -823,12 +826,21 @@ describe("Banking Money Out categorisation page",() => {
     expect(html).toContain('collection(db,"users",user.uid,"projects")');
   });
 
-  it("calls only the dedicated atomic categorise and uncategorise operations",() => {
-    expect(html).toContain("await categoriseMoneyOut({");
-    expect(html).toContain("await uncategoriseMoneyOut({");
+  it("dispatches only to the dedicated atomic Money Out or Money In operations",() => {
+    expect(html).toContain("const categorise = isMoneyIn ? categoriseMoneyIn : categoriseMoneyOut;");
+    expect(html).toContain("const uncategorise = isMoneyIn ? uncategoriseMoneyIn : uncategoriseMoneyOut;");
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp }');
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp,deleteField }');
     expect(html).toContain('matchOrigin === "categorisation"');
     expect(html).toContain('Categorisation removed. The Banking-created Expense and its two journals were removed.');
+    expect(html).toContain('Categorisation removed. The Banking-created income record and journal were removed.');
+  });
+
+  it("loads and describes the Banking-created income source without creating an invoice",() => {
+    expect(html).toContain('collection(db,"users",user.uid,"bankIncome")');
+    expect(html).toContain('Income: ${matchedRecordLabel(transaction,record)} — received');
+    expect(html).toContain('BANK_INCOME_CATEGORIES.map(category => category.value)');
+    expect(html).toContain('"Sales / Trading income"');
+    expect(html).not.toContain('matchedRecordType:"invoice"');
   });
 });

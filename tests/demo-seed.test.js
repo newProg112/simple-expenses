@@ -276,6 +276,7 @@ describe("demo seed engine", () => {
   it("clears all managed demo records and journals while preserving the account marker", async () => {
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankAccounts");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransactions");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankIncome");
     expect(DEMO_SEED).not.toHaveProperty("bankAccounts");
     const collectionCounts = Object.fromEntries(
       DEMO_MANAGED_USER_COLLECTIONS.map(collectionName => [collectionName, 1])

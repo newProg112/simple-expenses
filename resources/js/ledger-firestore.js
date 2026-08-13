@@ -1,5 +1,6 @@
 import {
   createBillJournal,
+  createBankIncomeJournal,
   createBankSettlementJournal,
   createExpenseJournal,
   createMileageJournal,
@@ -19,6 +20,7 @@ function sourcePrefix(sourceType) {
   if (sourceType === "expenseClaim") return "expense";
   if (sourceType === "mileageClaim") return "mileage";
   if (sourceType === "bankSettlement") return "bank-settlement";
+  if (sourceType === "bankIncome") return "bank-income";
   return String(sourceType || "source");
 }
 
@@ -52,6 +54,10 @@ export function mileageJournalDocumentId(userId, mileageId) {
 
 export function bankSettlementJournalDocumentId(userId, transactionId) {
   return journalDocumentId(userId, "bankSettlement", transactionId);
+}
+
+export function bankIncomeJournalDocumentId(userId, incomeId) {
+  return journalDocumentId(userId, "bankIncome", incomeId);
 }
 
 export function isMileageExpenseRecord(expenseData) {
@@ -249,6 +255,33 @@ export function prepareBankSettlementJournal(
     bankAccountId: String(settlementData?.bankAccountId || ""),
     matchedRecordType: String(settlementData?.recordType || ""),
     matchedRecordId: String(settlementData?.recordId || "")
+  };
+}
+
+export function prepareBankIncomeJournal(
+  userId,
+  incomeId,
+  incomeData,
+  timestamps = {}
+) {
+  const owner = requiredIdentifier(userId, "User ID");
+  const sourceId = requiredIdentifier(incomeId, "Bank income ID");
+  const journalId = bankIncomeJournalDocumentId(owner, sourceId);
+  const journal = createBankIncomeJournal({ ...incomeData, id: sourceId });
+  const prepared = serialiseJournalForFirestore(journal, {
+    userId: owner,
+    journalId,
+    sourceNumber: incomeData?.bankTransactionId || sourceId
+  });
+
+  return {
+    ...prepared,
+    createdAt: timestamps.createdAt || "",
+    updatedAt: timestamps.updatedAt || "",
+    bankTransactionId: String(incomeData?.bankTransactionId || ""),
+    bankAccountId: String(incomeData?.bankAccountId || ""),
+    incomeCategory: String(incomeData?.category || ""),
+    incomeAccountCode: String(incomeData?.incomeAccountCode || "")
   };
 }
 
