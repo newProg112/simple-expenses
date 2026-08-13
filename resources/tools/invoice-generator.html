@@ -2641,6 +2641,10 @@
     getJournalForSource,
     replaceInvoiceJournal
   } from "../js/ledger-firestore.js";
+  import {
+    BANK_SETTLEMENT_STATUS_MESSAGE,
+    isBankingSettledSource
+  } from "../js/bank-settlement-source-state.js?v=20260812-banking12";
 
   import {
     collection,
@@ -4054,6 +4058,7 @@ async function renderRecentInvoices(){
         const overdue = isInvoiceOverdue(invoice);
         const statusText = overdue ? "Overdue" : (invoice.status || "Unpaid");
         const ageingText = getInvoiceAgeingText(invoice);
+        const bankingSettled = isBankingSettledSource(invoice);
 
         const statusClass =
           statusText === "Paid"
@@ -4104,9 +4109,10 @@ async function renderRecentInvoices(){
             </div>
 
             <div class="invoice-row-actions invoice-row-field" data-label="Actions">
-              <button onclick="toggleInvoiceStatus('${invoice.id}')">
+              <button onclick="toggleInvoiceStatus('${invoice.id}')"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}"` : ""}>
                 ${statusText === "Paid" ? "Mark Unpaid" : "Mark Paid"}
               </button>
+              ${bankingSettled ? `<span class="invoice-row-sub">${BANK_SETTLEMENT_STATUS_MESSAGE}</span>` : ""}
 
               <button onclick="reopenInvoice('${invoice.id}')">
                 Edit invoice
@@ -4142,6 +4148,11 @@ async function toggleInvoiceStatus(invoiceId){
 
   if(!invoice){
     alert("Could not find this invoice.");
+    return;
+  }
+
+  if(isBankingSettledSource(invoice)){
+    alert(BANK_SETTLEMENT_STATUS_MESSAGE);
     return;
   }
 

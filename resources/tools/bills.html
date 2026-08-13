@@ -2170,6 +2170,11 @@
       calculateBillAmounts,
       normaliseVatRateOptionValue
     } from "../js/business-logic.js";
+    import {
+      BANK_SETTLEMENT_STATUS_MESSAGE,
+      isBankingSettledSource,
+      sourceStatusForSave
+    } from "../js/bank-settlement-source-state.js?v=20260812-banking12";
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
@@ -3383,7 +3388,7 @@
         vatRate,
         vat,
         total,
-        status: document.getElementById("status").value,
+        status: sourceStatusForSave(existingBill,document.getElementById("status").value),
         notes: document.getElementById("notes").value.trim(),
         projectId: project.projectId,
         projectName: project.projectName,
@@ -3466,6 +3471,7 @@
       document.getElementById("netAmount").value = "";
       document.getElementById("vatRate").value = "0.20";
       document.getElementById("status").value = "Unpaid";
+      document.getElementById("status").disabled = false;
       document.getElementById("notes").value = "";
       document.getElementById("billFormTitle").textContent = "Add bill";
       document.getElementById("saveBillButton").textContent = "Save bill";
@@ -3495,6 +3501,7 @@
       );
       vatRateSelect.value = reopenedVatRate || "0.20";
       document.getElementById("status").value = bill.status || "Unpaid";
+      document.getElementById("status").disabled = isBankingSettledSource(bill);
       document.getElementById("notes").value = bill.notes || "";
       renderProjectDropdown({
         projectId: bill.projectId || "",
@@ -3523,6 +3530,10 @@
       const bill = currentBills.find(b => String(b.id) === String(id));
 
       if (bill) {
+        if (isBankingSettledSource(bill)) {
+          alert(BANK_SETTLEMENT_STATUS_MESSAGE);
+          return;
+        }
         const nextStatus = bill.status === "Paid" ? "Unpaid" : "Paid";
         bill.status = nextStatus;
         bill.paidAt = nextStatus === "Paid" ? new Date().toISOString() : "";
@@ -3734,6 +3745,7 @@
           : "";
         const paymentButtonText = bill.status === "Paid" ? "Mark unpaid" : "Mark paid";
         const paymentButtonClass = bill.status === "Paid" ? "btn btn-secondary" : "btn btn-positive";
+        const bankingSettled = isBankingSettledSource(bill);
         const projectName = bill.projectName || (bill.projectReference ? "Project" : "Unassigned");
 
         return `
@@ -3766,7 +3778,8 @@
           <div class="row-actions">
             ${viewPdfButton}
             <button class="btn btn-secondary" type="button" data-bill-action="edit" data-bill-id="${billId}">Edit</button>
-            <button class="${paymentButtonClass}" type="button" data-bill-action="toggle-paid" data-bill-id="${billId}">${paymentButtonText}</button>
+            <button class="${paymentButtonClass}" type="button" data-bill-action="toggle-paid" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}"` : ""}>${paymentButtonText}</button>
+            ${bankingSettled ? `<span class="bill-date-label">${BANK_SETTLEMENT_STATUS_MESSAGE}</span>` : ""}
             <button class="btn btn-danger-subtle" type="button" data-bill-action="delete" data-bill-id="${billId}">Delete</button>
           </div>
         </div>

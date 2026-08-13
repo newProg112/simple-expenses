@@ -631,6 +631,7 @@ describe("Banking Phase 7A suggestions page", () => {
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp,deleteField }');
     expect(html).toContain("The source record was marked Paid and its settlement journal was posted.");
     expect(html).toContain("The Banking settlement was reversed and the source record was restored.");
+    expect(html).toContain("bankMatchDiagnostic:error?.bankMatchDiagnostic || null");
     expect(html).not.toMatch(/createJournal|replaceJournal|saveJournal|updateInvoiceStatus|markBillPaid|markExpensePaid/);
   });
 

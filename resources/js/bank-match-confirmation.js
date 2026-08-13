@@ -150,6 +150,113 @@ function settlementMarker(transactionId,journalId,recordType,targetData,paymentD
   };
 }
 
+function legacyRecoveryError(reason,details = {}){
+  const error = new Error("The source record no longer has the expected Banking settlement marker.");
+  error.code = "BANK_LEGACY_SETTLEMENT_RECOVERY_FAILED";
+  error.bankMatchDiagnostic = Object.freeze({ reason,...details });
+  return error;
+}
+
+function legacyMissingExpenseMarkerEligibility(transaction,targetData,recordType){
+  if(recordType !== "expense") return { eligible:false,reason:"source-record-type-not-eligible" };
+  if(hasOwn(targetData,"bankSettlement")) return { eligible:false,reason:"bank-settlement-field-present" };
+  if(hasOwn(targetData,"paidAt")) return { eligible:false,reason:"paid-at-field-present" };
+  if(!["expense","mileage"].includes(String(targetData?.type || "").trim().toLowerCase())){
+    return { eligible:false,reason:"source-type-not-eligible" };
+  }
+  if(!["Draft","Submitted","Approved"].includes(String(targetData?.status || ""))){
+    return { eligible:false,reason:"current-status-not-eligible" };
+  }
+  if(!hasOwn(transaction,"matchedAt") || !transaction.matchedAt){
+    return { eligible:false,reason:"transaction-matched-at-missing" };
+  }
+  if(!String(transaction.settlementStateFingerprint || "")){
+    return { eligible:false,reason:"transaction-settlement-fingerprint-missing" };
+  }
+  return { eligible:true,reason:"eligible" };
+}
+
+const HISTORICAL_EXPENSE_DEFAULTS = Object.freeze({
+  type:"expense",from:"",to:"",businessPurpose:"",miles:0,ratePerMile:0,amount:0,
+  attachmentName:"",attachmentUrl:"",attachmentPath:"",attachmentSize:0,attachmentType:"",
+  projectId:"",projectName:"",projectReference:""
+});
+
+const HISTORICAL_EXPENSE_SCHEMA_VARIANTS = Object.freeze([
+  Object.freeze({
+    name:"before-project-allocation",
+    absentFields:Object.freeze(["projectId","projectName","projectReference"])
+  }),
+  Object.freeze({
+    name:"before-mileage-attachment-type",
+    absentFields:Object.freeze(["attachmentType","projectId","projectName","projectReference"])
+  }),
+  Object.freeze({
+    name:"before-mileage-claims",
+    absentFields:Object.freeze([
+      "type","from","to","businessPurpose","miles","ratePerMile","amount","attachmentType",
+      "projectId","projectName","projectReference"
+    ])
+  }),
+  Object.freeze({
+    name:"initial-expenses-schema",
+    absentFields:Object.freeze([
+      "type","from","to","businessPurpose","miles","ratePerMile","amount",
+      "attachmentName","attachmentUrl","attachmentPath","attachmentSize","attachmentType",
+      "projectId","projectName","projectReference"
+    ])
+  })
+]);
+
+function reconstructedMarker(transaction,journal,journalId,amount,previousStatus,sourceHash){
+  return {
+    version:BANK_SETTLEMENT_VERSION,
+    transactionId:String(transaction.id || ""),
+    journalId,
+    previousStatus,
+    hadPaidAt:false,
+    previousPaidAt:null,
+    paymentDateApplied:true,
+    paymentDate:`${journal.date}T00:00:00.000Z`,
+    amount,
+    sourceFingerprint:sourceHash
+  };
+}
+
+function recoverLegacyMissingExpenseMarker({ transaction,targetData,journal,journalId,amount }){
+  const sourceHash = sourceFingerprint(targetData);
+  const candidates = ["Draft","Submitted","Approved"]
+    .map(status => reconstructedMarker(transaction,journal,journalId,amount,status,sourceHash))
+    .filter(marker => valueFingerprint(marker) === String(transaction.settlementStateFingerprint));
+  return { marker:candidates.length === 1 ? candidates[0] : null,matchCount:candidates.length };
+}
+
+function diagnoseHistoricalMarkerMismatch({ transaction,targetData,journal,journalId,amount }){
+  const persisted = String(transaction.settlementStateFingerprint || "");
+  const historicalSourceShapeMatches = [];
+  HISTORICAL_EXPENSE_SCHEMA_VARIANTS.forEach(variant => {
+    if(!variant.absentFields.every(field => hasOwn(targetData,field) &&
+      sameValue(targetData[field],HISTORICAL_EXPENSE_DEFAULTS[field]))) return;
+    const historicalSource = { ...targetData };
+    variant.absentFields.forEach(field => delete historicalSource[field]);
+    const sourceHash = sourceFingerprint(historicalSource);
+    ["Draft","Submitted","Approved"].forEach(status => {
+      const marker = reconstructedMarker(transaction,journal,journalId,amount,status,sourceHash);
+      if(valueFingerprint(marker) === persisted){
+        historicalSourceShapeMatches.push({
+          schemaVariant:variant.name,previousStatus:status,
+          fieldsMaterialisedByLegacySave:[...variant.absentFields]
+        });
+      }
+    });
+  });
+  const currentSourceHash = sourceFingerprint(targetData);
+  const nonstandardPreviousStatusMatches = ["Unpaid"].filter(status =>
+    valueFingerprint(reconstructedMarker(transaction,journal,journalId,amount,status,currentSourceHash)) === persisted
+  );
+  return { historicalSourceShapeMatches,nonstandardPreviousStatusMatches };
+}
+
 function legacyMisparsedBankTransactionDate(value){
   const raw = String(value || "").trim();
   const match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
@@ -169,15 +276,19 @@ function settlementJournalValidation(
   journal,userId,journalId,transaction,targetData,recordType,recordId,amount,
   { allowLegacyDate = false } = {}
 ){
-  if(!journal || String(journal.userId || "") !== userId ||
-    String(journal.journalId || "") !== journalId ||
-    String(journal.sourceType || "") !== "bankSettlement" ||
-    String(journal.sourceId || "") !== String(transaction.id || "") ||
-    String(journal.bankTransactionId || "") !== String(transaction.id || "") ||
-    String(journal.bankAccountId || "") !== String(transaction.bankAccountId || "") ||
-    String(journal.matchedRecordType || "") !== recordType ||
-    String(journal.matchedRecordId || "") !== recordId){
-    return { valid:false,legacyDate:"" };
+  if(!journal) return { valid:false,legacyDate:"",reason:"journal-missing" };
+  if(String(journal.userId || "") !== userId) return { valid:false,legacyDate:"",reason:"journal-owner-mismatch" };
+  if(String(journal.journalId || "") !== journalId) return { valid:false,legacyDate:"",reason:"journal-id-mismatch" };
+  if(String(journal.sourceType || "") !== "bankSettlement") return { valid:false,legacyDate:"",reason:"journal-source-type-mismatch" };
+  if(String(journal.sourceId || "") !== String(transaction.id || "") ||
+    String(journal.bankTransactionId || "") !== String(transaction.id || "")){
+    return { valid:false,legacyDate:"",reason:"journal-transaction-mismatch" };
+  }
+  if(String(journal.bankAccountId || "") !== String(transaction.bankAccountId || "")){
+    return { valid:false,legacyDate:"",reason:"journal-bank-account-mismatch" };
+  }
+  if(String(journal.matchedRecordType || "") !== recordType || String(journal.matchedRecordId || "") !== recordId){
+    return { valid:false,legacyDate:"",reason:"journal-source-record-mismatch" };
   }
   const expected = createBankSettlementJournal({
     transactionId:transaction.id,
@@ -187,51 +298,107 @@ function settlementJournalValidation(
     isMileage:String(targetData?.type || "").trim().toLowerCase() === "mileage",
     amount
   });
-  if(String(journal.sourceNumber || "") !== recordId ||
-    String(journal.description || "") !== expected.description ||
-    !sameValue(journal.lines,expected.lines) || !validateJournal(journal).valid){
-    return { valid:false,legacyDate:"" };
-  }
-  if(journal.date === expected.date) return { valid:true,legacyDate:"" };
+  if(String(journal.sourceNumber || "") !== recordId) return { valid:false,legacyDate:"",reason:"journal-source-number-mismatch" };
+  if(String(journal.description || "") !== expected.description) return { valid:false,legacyDate:"",reason:"journal-description-mismatch" };
+  if(!sameValue(journal.lines,expected.lines)) return { valid:false,legacyDate:"",reason:"journal-lines-mismatch" };
+  if(!validateJournal(journal).valid) return { valid:false,legacyDate:"",reason:"journal-invalid" };
+  if(journal.date === expected.date) return { valid:true,legacyDate:"",reason:"valid" };
   const legacyDate = allowLegacyDate
     ? legacyMisparsedBankTransactionDate(transaction.transactionDate)
     : "";
   return {
     valid:Boolean(legacyDate && journal.date === legacyDate),
-    legacyDate:journal.date === legacyDate ? legacyDate : ""
+    legacyDate:journal.date === legacyDate ? legacyDate : "",
+    reason:legacyDate && journal.date === legacyDate ? "valid-legacy-date" : "journal-date-mismatch"
   };
 }
 
 function validatePersistedSettlement({
   transaction,targetData,journal,userId,recordType,recordId,journalId,allowLegacyDate = false
 }){
-  const marker = targetData?.bankSettlement;
-  if(!marker || Number(marker.version) !== BANK_SETTLEMENT_VERSION ||
-    String(marker.transactionId || "") !== String(transaction.id || "") ||
-    String(marker.journalId || "") !== journalId){
-    throw new Error("The source record no longer has the expected Banking settlement marker.");
+  let marker = targetData?.bankSettlement;
+  let recoveredMissingSourceMarker = false;
+  let match;
+  let journalValidation;
+  const recoveryEligibility = !marker
+    ? legacyMissingExpenseMarkerEligibility(transaction,targetData,recordType)
+    : null;
+  if(!marker && recoveryEligibility.eligible){
+    try{
+      match = exactMatch(transaction,recordType,recordId,targetData,"Draft");
+    }catch(error){
+      throw legacyRecoveryError("source-match-validation-failed",{
+        validationMessage:String(error?.message || "Match validation failed.")
+      });
+    }
+    if(moneyInCents(match.amount) !== moneyInCents(transaction.matchedAmount)){
+      throw legacyRecoveryError("matched-amount-mismatch");
+    }
+    journalValidation = settlementJournalValidation(
+      journal,userId,journalId,transaction,targetData,recordType,recordId,match.amount,
+      { allowLegacyDate }
+    );
+    if(!journalValidation.valid){
+      throw legacyRecoveryError(journalValidation.reason || "settlement-journal-validation-failed");
+    }
+    const reconstructed = recoverLegacyMissingExpenseMarker({
+      transaction,targetData,journal,journalId,amount:match.amount
+    });
+    marker = reconstructed.marker;
+    recoveredMissingSourceMarker = Boolean(marker);
+    if(!marker){
+      const mismatch = diagnoseHistoricalMarkerMismatch({
+        transaction,targetData,journal,journalId,amount:match.amount
+      });
+      const reason = reconstructed.matchCount > 1
+        ? "multiple-reconstructed-markers-match"
+        : mismatch.historicalSourceShapeMatches.length === 1
+          ? "historical-source-schema-normalisation-match-found"
+          : mismatch.historicalSourceShapeMatches.length > 1
+            ? "multiple-historical-source-schema-matches"
+            : mismatch.nonstandardPreviousStatusMatches.length === 1
+              ? "nonstandard-previous-status-match-found"
+              : "no-reconstructed-marker-matches-persisted-fingerprint";
+      throw legacyRecoveryError(reconstructed.matchCount > 1
+        ? "multiple-reconstructed-markers-match"
+        : reason,{
+        reconstructedMarkerMatchCount:reconstructed.matchCount,
+        attemptedPreviousStatuses:["Draft","Submitted","Approved"],
+        assumedPriorPaidAt:false,
+        ...mismatch,
+        unresolvedPossibilities:Object.freeze([
+          "the original marker recorded a paidAt value that the legacy save erased",
+          "the legacy save changed or removed source fields outside the known committed schema epochs"
+        ])
+      });
+    }
   }
+  if(!marker) throw legacyRecoveryError(recoveryEligibility?.reason || "source-settlement-marker-missing");
+  if(Number(marker.version) !== BANK_SETTLEMENT_VERSION) throw legacyRecoveryError("source-marker-version-mismatch");
+  if(String(marker.transactionId || "") !== String(transaction.id || "")) throw legacyRecoveryError("source-marker-transaction-mismatch");
+  if(String(marker.journalId || "") !== journalId) throw legacyRecoveryError("source-marker-journal-id-mismatch");
   if(String(transaction.settlementStateFingerprint || "") !== valueFingerprint(marker)){
     throw new Error("The source Banking settlement marker changed; it was not overwritten.");
   }
-  if(targetData.status !== "Paid" || sourceFingerprint(targetData) !== marker.sourceFingerprint){
+  if(sourceFingerprint(targetData) !== marker.sourceFingerprint){
     throw new Error("The source record changed after it was settled; it was not overwritten.");
   }
+  const recoveringManualPaymentState = targetData.status !== "Paid";
   const hasPaidAt = hasOwn(targetData,"paidAt");
-  if(marker.paymentDateApplied){
+  if(!recoveringManualPaymentState && marker.paymentDateApplied){
     if(!hasPaidAt || !sameValue(targetData.paidAt,marker.paymentDate)){
       throw new Error("The source payment date changed after settlement; it was not overwritten.");
     }
-  }else if(hasPaidAt !== Boolean(marker.hadPaidAt) ||
-    (hasPaidAt && !sameValue(targetData.paidAt,marker.previousPaidAt))){
+  }else if(!recoveringManualPaymentState && (hasPaidAt !== Boolean(marker.hadPaidAt) ||
+    (hasPaidAt && !sameValue(targetData.paidAt,marker.previousPaidAt)))){
     throw new Error("The source payment state changed after settlement; it was not overwritten.");
   }
-  const match = exactMatch(transaction,recordType,recordId,targetData,marker.previousStatus);
+  match = match || exactMatch(transaction,recordType,recordId,targetData,marker.previousStatus);
   if(moneyInCents(match.amount) !== moneyInCents(marker.amount) ||
     moneyInCents(match.amount) !== moneyInCents(transaction.matchedAmount)){
     throw new Error("The settled amount no longer matches the bank transaction.");
   }
-  const journalValidation = settlementJournalValidation(
+  journalValidation = journalValidation || settlementJournalValidation(
     journal,userId,journalId,transaction,targetData,recordType,recordId,match.amount,
     { allowLegacyDate }
   );
@@ -242,7 +409,10 @@ function validatePersistedSettlement({
     marker.paymentDate !== `${journalValidation.legacyDate}T00:00:00.000Z`){
     throw new Error("The legacy Banking payment date does not match its settlement journal.");
   }
-  return { marker,amount:match.amount };
+  return {
+    marker,amount:match.amount,recoveredManualPaymentState:recoveringManualPaymentState,
+    recoveredMissingSourceMarker
+  };
 }
 
 function clearMatchUpdate(services,timestamp){
@@ -451,7 +621,9 @@ export async function unmatchBankTransaction(options = {}){
     firestoreTransaction.update(transactionRef,clearMatchUpdate(services,timestamp));
     return Object.freeze({
       status:"unmatched",transactionId,settlementReversed:true,
-      restoredStatus:validated.marker.previousStatus
+      restoredStatus:validated.marker.previousStatus,
+      recoveredManualPaymentState:validated.recoveredManualPaymentState,
+      recoveredMissingSourceMarker:validated.recoveredMissingSourceMarker
     });
   });
 }

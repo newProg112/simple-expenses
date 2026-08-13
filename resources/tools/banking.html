@@ -174,7 +174,7 @@
     import { MAPPING_FIELDS, normaliseStatementRows, statementMappingData, suggestColumnMappings, validateColumnMappings } from "/resources/js/bank-statement-mapping.js?v=20260807-banking4";
     import { BANK_TRANSACTION_STATUS, createSingleFlightImport, newestBankTransactions, normaliseBankTransaction, persistBankTransactions, readyMappedTransactions } from "/resources/js/bank-transaction-import.js?v=20260812-banking10";
     import { suggestBankMatches } from "/resources/js/bank-match-suggestions.js?v=20260812-banking9";
-    import { confirmBankMatch, unmatchBankTransaction } from "/resources/js/bank-match-confirmation.js?v=20260812-banking11";
+    import { confirmBankMatch, unmatchBankTransaction } from "/resources/js/bank-match-confirmation.js?v=20260812-banking13";
 
     const elements = {
       count:document.getElementById("bankAccountCount"), transactionCount:document.getElementById("bankTransactionCount"), needsReviewCount:document.getElementById("bankNeedsReviewCount"), matchedCount:document.getElementById("bankMatchedCount"), add:document.getElementById("addAccountButton"), list:document.getElementById("accountList"),
@@ -582,7 +582,9 @@
           ? "Match removed. The Banking settlement was reversed and the source record was restored."
           : "Legacy match removed. No source record or journal was changed.");
       }catch(error){
-        console.error("Bank transaction unmatch failed",error);
+        console.error("Bank transaction unmatch failed",error,{
+          bankMatchDiagnostic:error?.bankMatchDiagnostic || null
+        });
         setPageFeedback(error.message || "The match could not be removed. Refresh and try again.",true);
       }finally{
         activeMatchActions.delete(transactionId);
