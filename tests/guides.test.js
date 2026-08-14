@@ -980,7 +980,7 @@ describe("generated guide pages", () => {
       "Journal entries shown in the ledger",
       "Debit and credit postings explained",
       "Running account balances",
-      "Filtering by account and date",
+      "Filtering by account, bank account and date",
       "Relationship to the Trial Balance",
       "Relationship to the Profit & Loss Statement",
       "Relationship to the Balance Sheet",
@@ -1004,7 +1004,7 @@ describe("generated guide pages", () => {
     );
     expect(generalLedgerGuide).toContain("<span>15 minute read</span>");
     expect(generalLedgerGuide).toContain(
-      '<time datetime="2026-07-30">30 July 2026</time>'
+      '<time datetime="2026-08-14">14 August 2026</time>'
     );
     expect(generalLedgerGuide).toContain('"@type":"BreadcrumbList"');
     expect(generalLedgerGuide).toContain('"@type":"TechArticle"');
@@ -1045,6 +1045,9 @@ describe("generated guide pages", () => {
       "New running balance = previous running balance + debit − credit.",
       "Date From</strong> and <strong>Date To</strong> are optional and inclusive",
       "The filtered running balance therefore starts at zero",
+      "All bank accounts</strong> is the default and preserves the complete combined nominal ledger",
+      "Leaving 1000 hides the Bank account selector and resets it to All",
+      "Unattributed legacy Bank rows",
       "Every Trial Balance account code links to the General Ledger",
       "Current delete workflows do not reverse or delete the linked journal.",
       "one invalid loaded journal or invalid journal date makes the General Ledger unavailable"

@@ -140,6 +140,39 @@ export function generalLedgerBankAccountDisplay(entry, bankAccounts = []) {
   return `Bank account: ${accountName}`;
 }
 
+export function generalLedgerBankAccountOptions(bankAccounts = []) {
+  return (Array.isArray(bankAccounts) ? bankAccounts : [])
+    .map(account => {
+      const id = String(account?.id || "").trim();
+      const accountName = String(account?.accountName || "").trim() || id;
+      const bankName = String(account?.bankName || "").trim();
+      const archived = String(account?.status || "") === "Archived";
+      return {
+        id,
+        accountName,
+        bankName,
+        archived,
+        label: archived ? `${accountName} (Archived)` : accountName
+      };
+    })
+    .filter(account => account.id)
+    .sort((left, right) =>
+      Number(left.archived) - Number(right.archived) ||
+      left.accountName.localeCompare(right.accountName, "en-GB", { sensitivity: "base" }) ||
+      left.bankName.localeCompare(right.bankName, "en-GB", { sensitivity: "base" }) ||
+      left.id.localeCompare(right.id)
+    )
+    .map(({ id, label }) => ({ value: id, label }));
+}
+
+export function generalLedgerBankAccountFilterState(accountCode = "", bankAccountId = "") {
+  const visible = String(accountCode || "").trim() === "1000";
+  return {
+    visible,
+    bankAccountId: visible ? String(bankAccountId || "").trim() : ""
+  };
+}
+
 function ledgerRows(entries, bankAccounts) {
   return entries.map(entry => ({
     date: calendarDateKey(entry.date) || String(entry.date || ""),
@@ -176,7 +209,13 @@ function baseView(accounts) {
 
 export function generalLedgerViewFromJournals(
   journals,
-  { accountCode = "", dateFrom = "", dateTo = "", bankAccounts = [] } = {}
+  {
+    accountCode = "",
+    dateFrom = "",
+    dateTo = "",
+    bankAccountId = "",
+    bankAccounts = []
+  } = {}
 ) {
   try {
     if (!Array.isArray(journals)) throw new Error("Journals must be an array.");
@@ -233,7 +272,13 @@ export function generalLedgerViewFromJournals(
 
     const filteredJournals = filterJournalsByDate(journals, dateFrom, dateTo);
     const orderedJournals = sortJournalsForAccountLedger(filteredJournals);
-    const ledger = buildAccountLedger(orderedJournals, selectedAccountCode);
+    const bankAccountFilter = generalLedgerBankAccountFilterState(
+      selectedAccountCode,
+      bankAccountId
+    );
+    const ledger = buildAccountLedger(orderedJournals, selectedAccountCode, {
+      bankAccountId: bankAccountFilter.bankAccountId
+    });
     const rows = ledgerRows(ledger.entries,bankAccounts);
     const closingBalance = ledger.closingBalance;
 
@@ -244,8 +289,8 @@ export function generalLedgerViewFromJournals(
         state: "noActivity",
         status: "No activity",
         statusText: "No entries in selected period",
-        emptyTitle: "No journal entries found for the selected date range.",
-        emptyText: "Adjust the date filters or choose another account."
+        emptyTitle: "No journal entries found for the selected filters.",
+        emptyText: "Adjust the filters or choose another account."
       };
     }
 

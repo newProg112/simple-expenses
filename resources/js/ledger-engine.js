@@ -834,11 +834,15 @@ export function buildTrialBalance(
   };
 }
 
-export function buildAccountLedger(journals = [], accountCode) {
+export function buildAccountLedger(journals = [], accountCode, options = {}) {
   requireValidJournals(journals);
   const code = String(accountCode || "");
 
   if (!ACCOUNT_BY_CODE.has(code)) throw new Error("A valid account code is required.");
+
+  const selectedBankAccountId = code === "1000"
+    ? String(options?.bankAccountId || "").trim()
+    : "";
 
   const entries = [];
   let sequence = 0;
@@ -850,6 +854,7 @@ export function buildAccountLedger(journals = [], accountCode) {
       const bankAccountId = code === "1000"
         ? String(line.bankAccountId || journal.bankAccountId || "").trim()
         : "";
+      if (selectedBankAccountId && bankAccountId !== selectedBankAccountId) return;
 
       entries.push({
         date: journal.date,

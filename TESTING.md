@@ -664,9 +664,13 @@ The authenticated General Ledger page now performs a read-only equality query ag
 
 Accounts with activity are sorted by code and use the engine's chart-of-accounts names. Selecting an account renders only its postings, with source number preferred as the reference. Optional Date From and Date To filters are inclusive calendar-date filters and are applied by the Refresh button; an invalid range shows a clear warning without partial totals.
 
+When `1000 — Bank` is selected, an additional Bank account selector uses the already-loaded owned bank-account documents. Its default `All bank accounts` option preserves the combined 1000 ledger, including unattributed legacy rows. Selecting an active or archived bank account applies an exact effective `bankAccountId` constraint after line-level attribution has taken precedence over the journal-level fallback and before running-balance accumulation. Specific-account running and closing balances therefore use only admitted rows. Archived labels include `(Archived)`; missing account records retain their stable-ID row fallback under All and do not create synthetic selector options. The bank selector is hidden and reset to All for every non-1000 nominal ledger.
+
+The Bank account constraint combines with the existing inclusive date range. Date From still removes earlier journals without introducing a brought-forward balance. Bank-account collection loading remains non-fatal, and the feature performs no Firestore writes or changes to journal construction, reconciliation, Trial Balance, Balance Sheet, Profit & Loss, or VAT accounting.
+
 Positive running balances are presented as debit balances such as `£240.00 Dr`, negative engine balances are presented as positive credit values such as `£200.00 Cr`, and zero is shown as `£0.00`. Trial Balance account codes link to the corresponding preselected General Ledger account.
 
-Pure reporting tests live in `tests/general-ledger-view.test.js`. This stage remains read-only and excludes journal editing, opening-balance calculations outside the selected period, export, P&L, Balance Sheet, and account-ledger pagination.
+Pure reporting tests live in `tests/general-ledger-view.test.js`, `tests/ledger-engine.test.js`, and `tests/general-ledger-bank-attribution.test.js`. This stage remains read-only and excludes journal editing, opening-balance calculations outside the selected period, export, P&L, Balance Sheet, and account-ledger pagination.
 
 ## General Ledger Stage 4.1: Profit & Loss page scaffold
 

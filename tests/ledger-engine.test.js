@@ -407,6 +407,49 @@ describe("account ledger", () => {
     }));
   });
 
+  it("filters attributed Bank entries before calculating running and closing balances", () => {
+    const journals = [
+      basicJournal({ id:"a-1",sourceId:"a-1",date:"2026-07-01",bankAccountId:"account-a" }),
+      basicJournal({
+        id:"b-1",sourceId:"b-1",date:"2026-07-02",bankAccountId:"account-b",
+        lines:[
+          { accountCode:"3000",description:"Debit",debit:40,credit:0 },
+          { accountCode:"1000",description:"Credit",debit:0,credit:40 }
+        ]
+      }),
+      basicJournal({
+        id:"a-2",sourceId:"a-2",date:"2026-07-03",bankAccountId:"account-a",
+        lines:[
+          { accountCode:"3000",description:"Debit",debit:25,credit:0 },
+          { accountCode:"1000",description:"Credit",debit:0,credit:25 }
+        ]
+      })
+    ];
+
+    expect(buildAccountLedger(journals,"1000").entries.map(entry => entry.runningBalance))
+      .toEqual([100,60,35]);
+    const filtered = buildAccountLedger(journals,"1000",{ bankAccountId:"account-a" });
+    expect(filtered.entries.map(entry => entry.runningBalance)).toEqual([100,75]);
+    expect(filtered.entries.map(entry => entry.bankAccountId)).toEqual(["account-a","account-a"]);
+    expect(filtered.closingBalance).toBe(75);
+  });
+
+  it("keeps unattributed Bank entries only when the bank-account constraint is blank", () => {
+    const journal = basicJournal();
+
+    expect(buildAccountLedger([journal],"1000").entries).toHaveLength(1);
+    expect(buildAccountLedger([journal],"1000",{ bankAccountId:"account-a" }))
+      .toMatchObject({ entries:[],closingBalance:0 });
+  });
+
+  it("ignores a bank-account constraint for non-Bank nominal accounts", () => {
+    const journal = basicJournal({ bankAccountId:"account-a" });
+    const unfiltered = buildAccountLedger([journal],"3000");
+    const supplied = buildAccountLedger([journal],"3000",{ bankAccountId:"different" });
+
+    expect(supplied).toEqual(unfiltered);
+  });
+
   it("rejects an unknown account code", () => {
     expect(() => buildAccountLedger([], "9999")).toThrow("valid account code");
   });

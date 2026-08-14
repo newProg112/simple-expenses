@@ -10,7 +10,7 @@
   <meta property="og:title" content="Understanding the General Ledger in Simple Books | Simple Books Guides">
   <meta property="og:description" content="Learn how the Simple Books General Ledger displays journal postings, account activity, debit and credit entries, and running balances.">
   <meta property="og:url" content="https://simple-books.co.uk/guides/understanding-the-general-ledger">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Understanding the General Ledger in Simple Books","description":"Learn how the Simple Books General Ledger displays journal postings, account activity, debit and credit entries, and running balances.","dateModified":"2026-07-30","datePublished":"2026-07-30","inLanguage":"en-GB","articleSection":"Accounting","keywords":"general ledger, ledger entries, journal postings, running balance, account codes, Simple Books","mainEntityOfPage":"https://simple-books.co.uk/guides/understanding-the-general-ledger","author":{"@type":"Organization","name":"Simple Books","url":"https://simple-books.co.uk"},"publisher":{"@type":"Organization","name":"Simple Books","url":"https://simple-books.co.uk"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Understanding the General Ledger in Simple Books","description":"Learn how the Simple Books General Ledger displays journal postings, account activity, debit and credit entries, and running balances.","dateModified":"2026-08-14","datePublished":"2026-07-30","inLanguage":"en-GB","articleSection":"Accounting","keywords":"general ledger, ledger entries, journal postings, running balance, account codes, Simple Books","mainEntityOfPage":"https://simple-books.co.uk/guides/understanding-the-general-ledger","author":{"@type":"Organization","name":"Simple Books","url":"https://simple-books.co.uk"},"publisher":{"@type":"Organization","name":"Simple Books","url":"https://simple-books.co.uk"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://simple-books.co.uk"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://simple-books.co.uk/guides"},{"@type":"ListItem","position":3,"name":"Accounting","item":"https://simple-books.co.uk/guides#all-guides-heading"},{"@type":"ListItem","position":4,"name":"Understanding the General Ledger in Simple Books","item":"https://simple-books.co.uk/guides/understanding-the-general-ledger"}]}</script>
   <link rel="stylesheet" href="/assets/guides/guides.css">
   <script src="/assets/sentry-monitoring.js"></script>
@@ -70,7 +70,7 @@
       <p class="guide-intro">Learn how the Simple Books General Ledger displays journal postings, account activity, debit and credit entries, and running balances.</p>
       <p class="guide-meta">
         <span>15 minute read</span>
-        <span>Last updated <time datetime="2026-07-30">30 July 2026</time></span>
+        <span>Last updated <time datetime="2026-08-14">14 August 2026</time></span>
       </p>
     </header>
 
@@ -79,14 +79,14 @@
         <section>
           <h2>Introduction</h2>
           <p>The General Ledger is the detailed account-by-account view of the journals behind the Simple Books accounting reports. Where the Trial Balance gives one closing debit or credit balance for each active account, the General Ledger lets you choose one account and review the individual dated postings that produced its balance.</p>
-          <p>This guide explains the General Ledger exactly as it is currently implemented: how invoices, bills, expenses and mileage claims generate journals, how those journals are stored and loaded, how account and date filters work, and how the running balance is calculated. It also identifies the current limitations that matter when interpreting a filtered ledger. This is general product guidance, not accounting or tax advice.</p>
+          <p>This guide explains the General Ledger exactly as it is currently implemented: how source activity generates journals, how those journals are stored and loaded, how nominal-account, bank-account and date filters work, and how the running balance is calculated. It also identifies the current limitations that matter when interpreting a filtered ledger. This is general product guidance, not accounting or tax advice.</p>
         </section>
 
         <section>
           <h2>What is a General Ledger?</h2>
           <p>A General Ledger organises accounting postings by account. Each journal can affect several ledger accounts, and the ledger for one account shows only the lines posted to that account. For example, a sales invoice journal can appear in the separate ledgers for Trade Receivables, Sales Revenue and VAT Output.</p>
-          <p>In Simple Books, the page displays one selected account at a time. Its table has <strong>Date</strong>, <strong>Reference</strong>, <strong>Description</strong>, <strong>Debit</strong>, <strong>Credit</strong> and <strong>Running Balance</strong> columns. The account selector contains accounts with journal activity and orders them by account code.</p>
-          <p>The General Ledger is not another transaction-entry page. Journals are created by the current invoice, bill, expense and mileage workflows. For the underlying accounting model, read <a href="/guides/what-is-double-entry-bookkeeping">What is double-entry bookkeeping?</a>.</p>
+          <p>In Simple Books, the page displays one selected nominal account at a time. Its table has <strong>Date</strong>, <strong>Reference</strong>, <strong>Description</strong>, <strong>Debit</strong>, <strong>Credit</strong> and <strong>Running Balance</strong> columns. The Account selector contains accounts with journal activity and orders them by account code. Selecting <strong>1000 — Bank</strong> also reveals a Bank account selector for the owned accounts attributed to that shared nominal ledger.</p>
+          <p>The General Ledger is not another transaction-entry page. Journals are created by the supported invoice, bill, expense, mileage and Banking workflows. For the underlying accounting model, read <a href="/guides/what-is-double-entry-bookkeeping">What is double-entry bookkeeping?</a>.</p>
         </section>
 
         <section>
@@ -112,6 +112,7 @@
             <li><strong>Supplier bill:</strong> debit the category-mapped expense account for the net amount; debit <strong>1200 VAT Input</strong> when VAT is greater than zero; and credit <strong>2000 Trade Payables</strong> for the gross total.</li>
             <li><strong>Business expense:</strong> debit the category-mapped expense account for the net amount; debit <strong>1200 VAT Input</strong> when VAT is greater than zero; and credit <strong>2200 Employee Reimbursements Payable</strong> for the gross amount.</li>
             <li><strong>Mileage claim:</strong> debit <strong>5200 Travel &amp; Mileage</strong> and credit <strong>2200 Employee Reimbursements Payable</strong> for the claim amount. The current mileage journal has no VAT line.</li>
+            <li><strong>Banking activity:</strong> supported settlements, categorisation, opening balances and exception resolutions post their Bank side to shared nominal account <strong>1000 Bank</strong> with an owned bank-account ID. Internal transfers debit 1000 for the destination account and credit 1000 for the source account, so their combined nominal movement is zero.</li>
           </ul>
           <p>Supported bill and expense categories map to Travel &amp; Mileage, Utilities, Professional Fees, or Software &amp; Subscriptions. An unmatched category uses General Expenses. Project allocation does not add a project-specific journal line.</p>
         </section>
@@ -119,7 +120,7 @@
         <section>
           <h2>How journal entries are stored and loaded</h2>
           <p>Simple Books stores journals as separate documents in its <strong>journals</strong> collection. Each source has a deterministic journal document identifier built from its source type, the user ID and the source record ID. Saving an update writes to that same linked document rather than deliberately adding a second journal for the source.</p>
-          <p>A stored journal includes the owning user ID, journal ID, journal date, source type, source ID, source number where available, description, created and updated timestamps, and its debit and credit lines. Each line stores the account code, line description, debit and credit values.</p>
+          <p>A stored journal includes the owning user ID, journal ID, journal date, source type, source ID, source number where available, description, created and updated timestamps, and its debit and credit lines. Each line stores the account code, line description, debit and credit values. Banking journals can carry bank-account attribution at journal level, while transfer and exception Bank lines can carry the more specific line-level attribution.</p>
           <p>The General Ledger queries journal documents for the authenticated user. It maps the stored fields into journal data without silently repairing malformed values, then validates the complete loaded journal set. If loading or validation fails, the page shows <strong>Unable to load</strong> and no partial account or journal results.</p>
         </section>
 
@@ -129,7 +130,7 @@
           <ul class="remember-list">
             <li><strong>Date:</strong> the journal’s written calendar date, shown as YYYY-MM-DD.</li>
             <li><strong>Reference:</strong> the source number when present, otherwise the source ID, journal ID or journal document reference in that order.</li>
-            <li><strong>Description:</strong> the journal line description, falling back to the journal description when needed.</li>
+            <li><strong>Description:</strong> the journal line description, falling back to the journal description when needed. Attributed 1000 Bank rows add <strong>Bank account:</strong>, <strong>To</strong>, or <strong>From</strong> beneath it.</li>
             <li><strong>Debit and Credit:</strong> the posting amount on its relevant side, with an em dash on the other side.</li>
             <li><strong>Running Balance:</strong> the cumulative debit-minus-credit position after that row.</li>
           </ul>
@@ -148,14 +149,15 @@
           <p>For the selected account, Simple Books starts the running balance at zero and processes the displayed entries in order. For each row it applies:</p>
           <p><strong>New running balance = previous running balance + debit − credit.</strong></p>
           <p>Two Trade Receivables debits of £120 and £60 produce running balances of £120 Dr and £180 Dr. In a credit-oriented account, a £60 Trade Payables credit produces a numeric balance of minus £60, displayed as £60.00 Cr.</p>
-          <p>The Closing balance above the table is the final running balance of the currently displayed entries. It is not stored separately; the page recalculates it from the selected journals and account lines.</p>
+          <p>The Closing balance above the table is the final running balance of the currently displayed entries. It is not stored separately; the page recalculates it from the selected journals and account lines. When a particular owned bank account is selected, only that account’s admitted 1000 rows participate in both the running and closing balances.</p>
         </section>
 
         <section>
-          <h2>Filtering by account and date</h2>
+          <h2>Filtering by account, bank account and date</h2>
           <p>The <strong>Account</strong> selector lists distinct account codes that have debit or credit activity anywhere in the loaded journals. Labels combine the code and chart name, such as <strong>1100 — Trade Receivables</strong>. Only an exact active account code is accepted. An unknown or missing account selection is ignored safely and the page asks you to choose an account.</p>
+          <p>For <strong>1000 — Bank</strong>, <strong>All bank accounts</strong> is the default and preserves the complete combined nominal ledger, including attributed and unattributed legacy Bank rows. Selecting a specific active or archived owned bank account keeps only 1000 rows whose resolved bank-account ID exactly matches; archived options are marked <strong>(Archived)</strong>. Unattributed rows are excluded from a specific-account view, missing account records do not break All, and Simple Books does not guess attribution from descriptions, names, values or transaction types.</p>
           <p><strong>Date From</strong> and <strong>Date To</strong> are optional and inclusive. Date From keeps journals on or after that calendar date; Date To keeps journals on or before it. You can use either boundary alone or both together. Date From must be on or before Date To. An invalid range produces <strong>Check dates</strong> and no ledger rows until it is corrected.</p>
-          <p>Changing the account reapplies the current filters immediately. After changing a date, select <strong>Refresh</strong>. If the account has no entries in the chosen period, the page shows <strong>No activity</strong>.</p>
+          <p>Changing the nominal Account or Bank account reapplies the current filters immediately. Leaving 1000 hides the Bank account selector and resets it to All, so it cannot affect another nominal ledger. After changing a date, select <strong>Refresh</strong>. If no entries match the selected filters, the page shows <strong>No activity</strong>.</p>
           <p>The date filter is applied to whole journals before the selected account ledger is built. The filtered running balance therefore starts at zero with the first in-range posting. It does not bring forward an opening balance from journals before Date From. This is an important difference from a conventional ledger report with a brought-forward balance.</p>
         </section>
 
@@ -163,7 +165,7 @@
           <h2>Relationship to the Trial Balance</h2>
           <p>The <a href="/guides/understanding-the-trial-balance">Trial Balance</a> and General Ledger use the same loaded journals and chart of accounts. The Trial Balance accumulates all debits and credits for each active account and presents one net closing debit or credit balance. The General Ledger exposes the individual postings for one account.</p>
           <p>Every Trial Balance account code links to the General Ledger using an <strong>account</strong> query parameter, for example <strong>?account=1100</strong>. When that code exists in the active account list, the General Ledger selects it automatically. An unknown query value is ignored.</p>
-          <p>The current Trial Balance has no date filter, while the General Ledger does. With no General Ledger date filters, the selected account’s closing balance should represent the same all-journal debit-minus-credit amount as its Trial Balance row. With a date range, the figures can differ because the ledger includes only journals inside that range and does not carry forward an opening balance.</p>
+          <p>The current Trial Balance has no date or bank-account filter, while the General Ledger does. With no General Ledger filters, the selected account’s closing balance should represent the same all-journal debit-minus-credit amount as its Trial Balance row. A specific 1000 Bank account or a date range can differ because the General Ledger includes only the selected subset and does not carry forward an opening balance.</p>
         </section>
 
         <section>
@@ -215,10 +217,11 @@
           <ul class="remember-list">
             <li><strong>One account at a time:</strong> the page does not show a combined multi-account ledger table.</li>
             <li><strong>No brought-forward balance:</strong> Date From excludes earlier journals entirely, so a filtered running balance begins at zero.</li>
-            <li><strong>No manual journals or opening-balance workflow:</strong> the current user interface does not provide these posting tools.</li>
+            <li><strong>Unattributed legacy Bank rows:</strong> these remain in All bank accounts but cannot be assigned to a specific owned bank account without reliable stored attribution.</li>
+            <li><strong>No manual journal workflow:</strong> the current user interface does not provide a general manual-journal posting tool; Banking opening balances use their dedicated owned-account workflow.</li>
             <li><strong>No ledger export, print or pagination controls:</strong> the current page displays the loaded selected-account entries in one table.</li>
             <li><strong>Status changes do not post payments:</strong> marking invoices, bills or expenses Paid does not create Bank entries or clear Trade Receivables, Trade Payables or Employee Reimbursements Payable.</li>
-            <li><strong>Bank and Owner’s Equity are not posted by the four current source builders:</strong> those accounts exist in the chart but invoices, bills, expenses and mileage do not use them.</li>
+            <li><strong>One shared Bank nominal account:</strong> owned bank accounts remain attributed beneath 1000 Bank and do not receive separate nominal codes.</li>
             <li><strong>Deletion does not reverse journals:</strong> deleting a source record does not currently create a reversal or remove its linked journal, so the posting can remain in the ledger.</li>
             <li><strong>A journal write can fail after its source is saved:</strong> the source can exist on an operational page but be missing from journal-based reports.</li>
             <li><strong>No partial display for malformed data:</strong> one invalid loaded journal or invalid journal date makes the General Ledger unavailable rather than being silently skipped.</li>
@@ -228,8 +231,8 @@
 
         <section>
           <h2>Summary</h2>
-          <p>The Simple Books General Ledger reads the authenticated user’s stored journals, validates them, builds a list of active chart accounts and displays the matching lines for one selected account. Rows show the journal date, best available reference, description, debit, credit and a running balance calculated by adding debits and subtracting credits.</p>
-          <p>Use exact account-code selection and optional inclusive Date From and Date To filters to investigate account activity. Follow account links from the Trial Balance, match reporting dates when comparing Profit &amp; Loss or the Balance Sheet, and remember that Date From does not bring forward earlier balances. Current payment statuses, deletion workflows, missing journal writes and the absence of manual journals or settlement postings can all affect what the ledger represents.</p>
+          <p>The Simple Books General Ledger reads the authenticated user’s stored journals, validates them, builds a list of active chart accounts and displays the matching lines for one selected account. Rows show the journal date, best available reference, description, debit, credit and a running balance calculated by adding debits and subtracting credits. Account 1000 can additionally be narrowed to an exact owned bank-account attribution.</p>
+          <p>Use exact account-code selection, the optional 1000 Bank account selector, and inclusive Date From and Date To filters to investigate account activity. Follow account links from the Trial Balance, match reporting dates when comparing Profit &amp; Loss or the Balance Sheet, and remember that Date From does not bring forward earlier balances. Unattributed legacy rows, current payment statuses, deletion workflows and missing journal writes can all affect what the ledger represents.</p>
         </section>
       </article>
 
