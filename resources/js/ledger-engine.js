@@ -7,8 +7,11 @@ export const DEFAULT_CHART_OF_ACCOUNTS = Object.freeze([
   Object.freeze({ code: "2000", name: "Trade Payables", type: "Liability" }),
   Object.freeze({ code: "2100", name: "VAT Output", type: "Liability" }),
   Object.freeze({ code: "2200", name: "Employee Reimbursements Payable", type: "Liability" }),
+  Object.freeze({ code: "2300", name: "Tax Control", type: "Liability" }),
+  Object.freeze({ code: "2400", name: "Business Loan", type: "Liability" }),
   Object.freeze({ code: "3000", name: "Owner's Equity", type: "Equity" }),
   Object.freeze({ code: "3100", name: "Opening Balance Equity", type: "Equity" }),
+  Object.freeze({ code: "3200", name: "Owner's Drawings", type: "Equity" }),
   Object.freeze({ code: "4000", name: "Sales Revenue", type: "Income" }),
   Object.freeze({ code: "4100", name: "Interest Received", type: "Income" }),
   Object.freeze({ code: "4200", name: "Other Income", type: "Income" }),
@@ -696,6 +699,52 @@ export function createBankTransferJournal(transfer) {
   });
 }
 
+export function createBankExceptionJournal(resolution) {
+  if (!resolution || typeof resolution !== "object") {
+    throw new Error("Bank exception resolution is required.");
+  }
+  const resolutionId = String(firstPresent(resolution, ["resolutionId", "id"]) || "").trim();
+  const bankAccountId = String(resolution.bankAccountId || "").trim();
+  const resolutionType = String(resolution.resolutionType || "").trim();
+  if(!resolutionId) throw new Error("Bank exception resolution ID is required.");
+  if(!bankAccountId) throw new Error("Bank account ID is required.");
+  const amount = requirePositiveMoney(Number(resolution.amount), "Resolution amount");
+  const date = normaliseBankTransactionDate(
+    firstPresent(resolution, ["effectiveDate", "transactionDate", "date"])
+  );
+  if(!date) throw new Error("A valid bank exception date is required.");
+  const definitions = {
+    ownerContribution:{ accountCode:"3000",direction:"moneyIn",label:"Owner contribution" },
+    ownerDrawing:{ accountCode:"3200",direction:"moneyOut",label:"Owner drawing" },
+    loanReceived:{ accountCode:"2400",direction:"moneyIn",label:"Business loan received" },
+    loanRepaymentPrincipal:{ accountCode:"2400",direction:"moneyOut",label:"Loan repayment - principal" },
+    taxPayment:{ accountCode:"2300",direction:"moneyOut",label:"Tax payment" },
+    personalNonBusinessIn:{ accountCode:"3000",direction:"moneyIn",label:"Personal / non-business money in" },
+    personalNonBusinessOut:{ accountCode:"3200",direction:"moneyOut",label:"Personal / non-business money out" }
+  };
+  const definition = definitions[resolutionType];
+  if(!definition) throw new Error("Unsupported journal-posting bank exception type.");
+  if(String(resolution.nominalAccountCode || "") !== definition.accountCode){
+    throw new Error("The bank exception counter-account is invalid.");
+  }
+  if(String(resolution.direction || "") !== definition.direction){
+    throw new Error("The bank exception direction is invalid.");
+  }
+  const description = `${definition.label} ${resolutionId}`;
+  const bankLine = definition.direction === "moneyIn"
+    ? { ...journalLine("1000",description,amount,0),bankAccountId }
+    : { ...journalLine("1000",description,0,amount),bankAccountId };
+  const counterLine = definition.direction === "moneyIn"
+    ? journalLine(definition.accountCode,description,0,amount)
+    : journalLine(definition.accountCode,description,amount,0);
+
+  return finishJournal({
+    id:`bank-exception:${resolutionId}`,
+    date,sourceType:"bankException",sourceId:resolutionId,description,
+    lines:definition.direction === "moneyIn" ? [bankLine,counterLine] : [counterLine,bankLine]
+  });
+}
+
 export function reverseJournal(originalJournal) {
   const originalValidation = validateJournal(originalJournal);
 
@@ -798,6 +847,10 @@ export function buildAccountLedger(journals = [], accountCode) {
     journal.lines.forEach(line => {
       if (line.accountCode !== code) return;
 
+      const bankAccountId = code === "1000"
+        ? String(line.bankAccountId || journal.bankAccountId || "").trim()
+        : "";
+
       entries.push({
         date: journal.date,
         debit: line.debit,
@@ -808,7 +861,7 @@ export function buildAccountLedger(journals = [], accountCode) {
         sourceType: journal.sourceType || "",
         sourceId: journal.sourceId || "",
         description: line.description || journal.description || "",
-        ...(String(line.bankAccountId || "").trim() ? { bankAccountId:String(line.bankAccountId).trim() } : {}),
+        ...(bankAccountId ? { bankAccountId } : {}),
         sequence: sequence++
       });
     });

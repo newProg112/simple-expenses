@@ -30,7 +30,8 @@ export const DEMO_MANAGED_USER_COLLECTIONS = Object.freeze([
   "bankIncome",
   "bankReconciliations",
   "bankTransfers",
-  "bankTransferLinks"
+  "bankTransferLinks",
+  "bankExceptionResolutions"
 ]);
 
 const BATCH_OPERATION_LIMIT = 450;

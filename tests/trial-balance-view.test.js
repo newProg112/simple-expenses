@@ -225,6 +225,33 @@ describe("Firestore journal preparation and owner isolation", () => {
     expect(view.state).toBe("error");
   });
 
+  it("preserves Banking journal attribution without mutating stored data", () => {
+    const data = {
+      journalId:"bank-transfer_user-1_transfer-1",
+      date:"2026-08-14",
+      sourceType:"bankTransfer",
+      sourceId:"transfer-1",
+      bankAccountId:"fallback-account",
+      sourceBankAccountId:"source-account",
+      destinationBankAccountId:"destination-account",
+      lines:[
+        { accountCode:"1000",description:"Transfer",debit:62.5,credit:0,bankAccountId:"destination-account" },
+        { accountCode:"1000",description:"Transfer",debit:0,credit:62.5,bankAccountId:"source-account" }
+      ]
+    };
+    const before = structuredClone(data);
+    const journal = journalFromFirestoreData("stored-transfer",data);
+
+    expect(journal).toMatchObject({
+      bankAccountId:"fallback-account",
+      sourceBankAccountId:"source-account",
+      destinationBankAccountId:"destination-account"
+    });
+    expect(journal.lines.map(line => line.bankAccountId))
+      .toEqual(["destination-account","source-account"]);
+    expect(data).toEqual(before);
+  });
+
   it("requires a non-empty authenticated user ID for the owner query", () => {
     expect(requireJournalOwnerId(" user-1 ")).toBe("user-1");
     expect(() => requireJournalOwnerId("")).toThrow("authenticated user ID");

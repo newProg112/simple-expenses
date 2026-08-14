@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   BANK_CATEGORISATION_STATUS_MESSAGE,
+  BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
   BANK_SETTLEMENT_STATUS_MESSAGE,
   isBankCategorisedExpense,
   isBankingSettledSource,
@@ -53,6 +54,9 @@ describe("Banking-settled source status state", () => {
       "This record is matched to a bank transaction. Unmatch it in Banking before changing its payment status."
     );
     Object.values(pages).forEach(html => expect(html).toContain("BANK_SETTLEMENT_STATUS_MESSAGE"));
+    expect(BANK_SETTLEMENT_ACCOUNTING_MESSAGE).toBe(
+      "This invoice is matched to a bank transaction. Unmatch it in Banking before changing accounting details."
+    );
   });
 
   it("locks invoice status toggling in rendering and in the action handler", () => {

@@ -46,7 +46,8 @@
 - [x] Bank opening-balance accounting — dated deterministic journals, legacy opt-in and activity locking
 - [x] Per-account bank reconciliation MVP — dated statement comparison, strict sign-off and immutable review history
 - [x] Internal bank transfers between owned accounts â€” deterministic shared journals, explicit statement-side pairing and safe Untransfer
-- [ ] Banking exception handling â€” refunds, non-business items and other exceptional movements
+- [x] Banking exception resolution MVP - owner funds/drawings, loans, tax control, personal movements and reviewed no-posting exceptions
+- [ ] Banking refunds and credit-note handling
 - [ ] Partial payments and manual matching
 - [ ] Live bank feed / Open Banking integration
 

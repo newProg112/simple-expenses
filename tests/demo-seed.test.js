@@ -280,6 +280,7 @@ describe("demo seed engine", () => {
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankReconciliations");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransfers");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransferLinks");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankExceptionResolutions");
     expect(DEMO_SEED).not.toHaveProperty("bankAccounts");
     const collectionCounts = Object.fromEntries(
       DEMO_MANAGED_USER_COLLECTIONS.map(collectionName => [collectionName, 1])

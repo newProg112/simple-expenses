@@ -517,7 +517,7 @@ describe("Banking Phase 5 import page", () => {
     expect(html).toContain("elements.needsReviewCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.UNMATCHED).length)");
     expect(html).toContain("elements.matchedCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.MATCHED).length)");
     expect(html).toContain('id="transactionList" tabindex="0" aria-label="Imported bank transactions table, horizontally scrollable"');
-    expect(html).toContain('badge.textContent = transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"');
+    expect(html).toContain('badge.textContent = exceptionResolved ? (exceptionDefinition?.label || "Other resolved") : transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"');
     expect(html).not.toMatch(/deleteBankTransaction|editBankTransaction/);
   });
 
@@ -536,8 +536,10 @@ describe("Banking Phase 5 import page", () => {
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankIncome");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransfers");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransferLinks");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankExceptionResolutions");
     expect(DEMO_SEED).not.toHaveProperty("bankTransactions");
     expect(DEMO_SEED).not.toHaveProperty("bankIncome");
+    expect(DEMO_SEED).not.toHaveProperty("bankExceptionResolutions");
   });
 
   it("does not add matching, accounting, Open Banking, or subscription behavior", () => {
@@ -563,6 +565,26 @@ describe("Banking internal transfer page",() => {
     expect(html).toContain("await untransferBankTransaction({");
     expect(html).toContain('button.dataset.matchAction === "untransfer"');
     expect(html).toContain("No second journal was posted.");
+  });
+});
+
+describe("Banking exception resolution page",() => {
+  it("offers direction-specific Other / Resolve choices with plain-English explanations",() => {
+    for(const marker of [
+      'id="exceptionType"','id="exceptionExplanation"','id="exceptionReason"',
+      'resolve.textContent = "Other / Resolve"',
+      'bankExceptionOptions(eligibility.direction)',
+      'getDocs(collection(db,"users",user.uid,"bankExceptionResolutions"))'
+    ]) expect(html).toContain(marker);
+    expect(html).toContain("BANK_EXCEPTION_TYPES.find(item => item.value === elements.exceptionType.value)");
+    expect(html).toContain("definition?.explanation");
+  });
+
+  it("dispatches only to atomic Resolve and Unresolve helpers",() => {
+    expect(html).toContain("await resolveBankException({");
+    expect(html).toContain("await unresolveBankException({");
+    expect(html).toContain('button.dataset.matchAction === "unresolve"');
+    expect(html).toContain("Statement row marked reviewed with no accounting journal.");
   });
 });
 
@@ -658,7 +680,7 @@ describe("Banking Phase 7A suggestions page", () => {
 
   it("adds explicit settlement-aware Confirm match and reversible Unmatch actions", () => {
     expect(html).toContain('confirm.textContent = confirm.disabled ? "Confirming..." : "Confirm match"');
-    expect(html).toContain('(transferred ? "Untransfer" : categorised ? "Uncategorise" : "Unmatch")');
+    expect(html).toContain('(exceptionResolved ? "Unresolve" : transferred ? "Untransfer" : categorised ? "Uncategorise" : "Unmatch")');
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp }');
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp,deleteField }');
     expect(html).toContain("The source record was marked Paid and its settlement journal was posted.");
@@ -826,12 +848,12 @@ describe("Banking Confirm Match settlement model", () => {
 
   it("renders confirmed, missing-target, amount-change, duplicate-target, and reversible states", () => {
     for(const marker of [
-      'badge.textContent = transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"',
+      'badge.textContent = exceptionResolved ? (exceptionDefinition?.label || "Other resolved") : transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"',
       '"Matched record no longer available"',
       '" — amount has changed"',
       '"Another bank transaction is already matched to this record."',
       '" — settled"',
-      'unmatch.dataset.matchAction = transferred ? "untransfer" : categorised ? "uncategorise" : "unmatch"'
+      'unmatch.dataset.matchAction = exceptionResolved ? "unresolve" : transferred ? "untransfer" : categorised ? "uncategorise" : "unmatch"'
     ]) expect(html).toContain(marker);
   });
 });

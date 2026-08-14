@@ -1,6 +1,7 @@
 import {
   createBillJournal,
   createBankIncomeJournal,
+  createBankExceptionJournal,
   createBankOpeningBalanceJournal,
   createBankSettlementJournal,
   createBankTransferJournal,
@@ -25,6 +26,7 @@ function sourcePrefix(sourceType) {
   if (sourceType === "bankIncome") return "bank-income";
   if (sourceType === "bankOpeningBalance") return "bank-opening-balance";
   if (sourceType === "bankTransfer") return "bank-transfer";
+  if (sourceType === "bankException") return "bank-exception";
   return String(sourceType || "source");
 }
 
@@ -70,6 +72,10 @@ export function bankOpeningBalanceJournalDocumentId(userId, bankAccountId) {
 
 export function bankTransferJournalDocumentId(userId, transferId) {
   return journalDocumentId(userId, "bankTransfer", transferId);
+}
+
+export function bankExceptionJournalDocumentId(userId, resolutionId) {
+  return journalDocumentId(userId, "bankException", resolutionId);
 }
 
 export function isMileageExpenseRecord(expenseData) {
@@ -356,6 +362,30 @@ export function prepareBankTransferJournal(
     destinationBankAccountId: String(transferData?.destinationBankAccountId || ""),
     amount: Number(transferData?.amount),
     effectiveDate: String(transferData?.effectiveDate || "")
+  };
+}
+
+export function prepareBankExceptionJournal(
+  userId,
+  resolutionId,
+  resolutionData,
+  timestamps = {}
+) {
+  const owner = requiredIdentifier(userId, "User ID");
+  const sourceId = requiredIdentifier(resolutionId, "Bank exception resolution ID");
+  const journalId = bankExceptionJournalDocumentId(owner,sourceId);
+  const journal = createBankExceptionJournal({ ...resolutionData,resolutionId:sourceId });
+  const prepared = serialiseJournalForFirestore(journal,{
+    userId:owner,journalId,sourceNumber:resolutionData?.bankTransactionId || sourceId
+  });
+  return {
+    ...prepared,
+    createdAt:timestamps.createdAt || "",updatedAt:timestamps.updatedAt || "",
+    bankExceptionVersion:1,bankExceptionResolutionId:sourceId,
+    bankTransactionId:String(resolutionData?.bankTransactionId || ""),
+    bankAccountId:String(resolutionData?.bankAccountId || ""),
+    resolutionType:String(resolutionData?.resolutionType || ""),
+    nominalAccountCode:String(resolutionData?.nominalAccountCode || "")
   };
 }
 

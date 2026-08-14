@@ -35,6 +35,15 @@ export function journalFromFirestoreData(documentId, data) {
     sourceId: journalData.sourceId,
     sourceNumber: journalData.sourceNumber,
     description: journalData.description,
+    ...(String(journalData.bankAccountId || "").trim() ? {
+      bankAccountId:String(journalData.bankAccountId).trim()
+    } : {}),
+    ...(String(journalData.sourceBankAccountId || "").trim() ? {
+      sourceBankAccountId:String(journalData.sourceBankAccountId).trim()
+    } : {}),
+    ...(String(journalData.destinationBankAccountId || "").trim() ? {
+      destinationBankAccountId:String(journalData.destinationBankAccountId).trim()
+    } : {}),
     lines: Array.isArray(journalData.lines)
       ? journalData.lines.map(line => ({
           accountCode: line?.accountCode,

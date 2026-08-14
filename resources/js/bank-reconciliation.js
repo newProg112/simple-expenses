@@ -92,7 +92,15 @@ function transactionCore(transaction){
     transferJournalId:String(transaction?.transferJournalId || ""),
     transferRole:String(transaction?.transferRole || ""),
     pairedBankTransactionId:String(transaction?.pairedBankTransactionId || ""),
-    transferStateFingerprint:String(transaction?.transferStateFingerprint || "")
+    transferStateFingerprint:String(transaction?.transferStateFingerprint || ""),
+    exceptionVersion:Number(transaction?.exceptionVersion || 0),
+    exceptionResolutionId:String(transaction?.exceptionResolutionId || ""),
+    exceptionResolutionType:String(transaction?.exceptionResolutionType || ""),
+    exceptionPosting:String(transaction?.exceptionPosting || ""),
+    exceptionJournalId:String(transaction?.exceptionJournalId || ""),
+    exceptionReasonCode:String(transaction?.exceptionReasonCode || ""),
+    exceptionBlocksReconciliation:transaction?.exceptionBlocksReconciliation === true,
+    exceptionStateFingerprint:String(transaction?.exceptionStateFingerprint || "")
   };
 }
 
@@ -145,6 +153,19 @@ export function isCompletedBankTransaction(transaction,journalIds = null){
       !["source","destination"].includes(String(transaction.transferRole || "")) ||
       !String(transaction.transferStateFingerprint || "").trim()) return false;
     journalId = String(transaction.transferJournalId || "").trim();
+  }else if(matchedType === "bankException"){
+    if(transaction.matchOrigin !== "bankException" || Number(transaction.exceptionVersion) !== 1 ||
+      String(transaction.exceptionResolutionId || "") !== matchedId ||
+      !String(transaction.exceptionResolutionType || "").trim() ||
+      !String(transaction.exceptionStateFingerprint || "").trim()) return false;
+    const posting = String(transaction.exceptionPosting || "");
+    if(posting === "none"){
+      return transaction.exceptionResolutionType === "ignoredReviewed" &&
+        Boolean(String(transaction.exceptionReasonCode || "").trim()) &&
+        !String(transaction.exceptionJournalId || "").trim();
+    }
+    if(posting !== "journal") return false;
+    journalId = String(transaction.exceptionJournalId || "").trim();
   }else if(["invoice","bill","expense"].includes(matchedType)){
     if(Number(transaction.settlementVersion) !== 1 ||
       !String(transaction.settlementStateFingerprint || "").trim()) return false;
@@ -246,11 +267,18 @@ export function calculateBankReconciliation(options = {}){
     !normaliseBankTransactionDate(transaction?.transactionDate) ||
     !isCompletedBankTransaction(transaction,relevantJournalIds)
   );
+  const blockingIgnoredTransactions = relevantTransactions.filter(transaction =>
+    isCompletedBankTransaction(transaction,relevantJournalIds) &&
+    transaction.exceptionPosting === "none" && transaction.exceptionBlocksReconciliation === true
+  );
   const difference = roundMoney(bookBalance - statementClosingBalance);
   const blockers = [];
   if(opening.legacyOpeningUnposted) blockers.push("Post or confirm the legacy opening balance before reconciling this account.");
   if(difference !== 0) blockers.push("Book balance and statement balance must agree exactly.");
   if(unresolvedTransactions.length) blockers.push(`${unresolvedTransactions.length} transaction${unresolvedTransactions.length === 1 ? "" : "s"} still need review.`);
+  if(blockingIgnoredTransactions.length){
+    blockers.push(`${blockingIgnoredTransactions.length} ignored transaction${blockingIgnoredTransactions.length === 1 ? "" : "s"} still require accounting resolution before sign-off.`);
+  }
   const sourceSnapshot = {
     version:BANK_RECONCILIATION_VERSION,userId,bankAccountId,statementClosingDate,
     openingBalanceAccounting:accountOpeningCore(account),
@@ -262,6 +290,7 @@ export function calculateBankReconciliation(options = {}){
     version:BANK_RECONCILIATION_VERSION,userId,bankAccountId,statementClosingDate,statementClosingBalance,
     openingBalance:opening.openingBalance,bookBalance,difference,
     unresolvedCount:unresolvedTransactions.length,
+    blockingIgnoredCount:blockingIgnoredTransactions.length,
     unresolvedTransactionIds:Object.freeze(unresolvedTransactions.map(sourceId)),
     legacyOpeningUnposted:opening.legacyOpeningUnposted,
     eligible:blockers.length === 0,blockers:Object.freeze(blockers),

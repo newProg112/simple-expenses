@@ -118,12 +118,37 @@ export function formatGeneralLedgerBalance(value) {
   return `${formatTrialBalanceGbp(Math.abs(balance))} ${balance > 0 ? "Dr" : "Cr"}`;
 }
 
-function ledgerRows(entries) {
+function bankAccountNames(bankAccounts = []) {
+  return new Map((Array.isArray(bankAccounts) ? bankAccounts : []).map(account => {
+    const id = String(account?.id || "").trim();
+    const name = String(account?.accountName || "").trim() || id;
+    const archived = String(account?.status || "") === "Archived";
+    return [id, archived ? `${name} (Archived)` : name];
+  }).filter(([id]) => id));
+}
+
+export function generalLedgerBankAccountDisplay(entry, bankAccounts = []) {
+  const bankAccountId = String(entry?.bankAccountId || "").trim();
+  if (!bankAccountId) return "";
+  const accountName = bankAccountNames(bankAccounts).get(bankAccountId) || bankAccountId;
+
+  if (String(entry?.sourceType || "") === "bankTransfer") {
+    if (Number(entry?.debit) > 0) return `To ${accountName}`;
+    if (Number(entry?.credit) > 0) return `From ${accountName}`;
+  }
+
+  return `Bank account: ${accountName}`;
+}
+
+function ledgerRows(entries, bankAccounts) {
   return entries.map(entry => ({
     date: calendarDateKey(entry.date) || String(entry.date || ""),
     reference: generalLedgerReference(entry),
     description: String(entry.description || ""),
     ...(String(entry.bankAccountId || "").trim() ? { bankAccountId:String(entry.bankAccountId).trim() } : {}),
+    ...(String(entry.bankAccountId || "").trim() ? {
+      bankAccountDisplay:generalLedgerBankAccountDisplay(entry,bankAccounts)
+    } : {}),
     debit: entry.debit,
     credit: entry.credit,
     runningBalance: entry.runningBalance,
@@ -151,7 +176,7 @@ function baseView(accounts) {
 
 export function generalLedgerViewFromJournals(
   journals,
-  { accountCode = "", dateFrom = "", dateTo = "" } = {}
+  { accountCode = "", dateFrom = "", dateTo = "", bankAccounts = [] } = {}
 ) {
   try {
     if (!Array.isArray(journals)) throw new Error("Journals must be an array.");
@@ -209,7 +234,7 @@ export function generalLedgerViewFromJournals(
     const filteredJournals = filterJournalsByDate(journals, dateFrom, dateTo);
     const orderedJournals = sortJournalsForAccountLedger(filteredJournals);
     const ledger = buildAccountLedger(orderedJournals, selectedAccountCode);
-    const rows = ledgerRows(ledger.entries);
+    const rows = ledgerRows(ledger.entries,bankAccounts);
     const closingBalance = ledger.closingBalance;
 
     if (rows.length === 0) {

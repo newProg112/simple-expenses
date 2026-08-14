@@ -2642,7 +2642,7 @@
     replaceInvoiceJournal
   } from "../js/ledger-firestore.js";
   import {
-    BANK_SETTLEMENT_STATUS_MESSAGE,
+    BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
     isBankingSettledSource
   } from "../js/bank-settlement-source-state.js?v=20260812-banking12";
 
@@ -2654,7 +2654,8 @@
     getDoc,
     doc,
     updateDoc,
-    deleteDoc
+    deleteDoc,
+    runTransaction
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   import {
@@ -3030,15 +3031,39 @@
   window.updateInvoiceInFirestore = async function(invoiceId, updatedInvoice){
     if(!window.currentUser){
       alert("Please log in first.");
-      return;
+      return false;
     }
 
-    await updateDoc(
-      doc(db, "users", window.currentUser.uid, "invoices", invoiceId),
-      updatedInvoice
-    );
+    const invoiceRef =
+      doc(db, "users", window.currentUser.uid, "invoices", String(invoiceId));
+
+    try{
+      await runTransaction(db, async transaction => {
+        const invoiceSnapshot = await transaction.get(invoiceRef);
+
+        if(!invoiceSnapshot.exists()){
+          throw new Error("Could not find this invoice.");
+        }
+
+        if(isBankingSettledSource(invoiceSnapshot.data())){
+          const error = new Error(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+          error.code = "bank-settled-invoice-edit";
+          throw error;
+        }
+
+        transaction.update(invoiceRef, updatedInvoice);
+      });
+    }catch(error){
+      if(error?.code === "bank-settled-invoice-edit"){
+        alert(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+        return false;
+      }
+
+      throw error;
+    }
 
     console.log("Invoice updated in Firestore");
+    return true;
   };
 
   window.deleteInvoiceFromFirestore = async function(invoiceId){
@@ -3198,6 +3223,57 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+
+const bankSettlementSourceStatePromise =
+  import("../js/bank-settlement-source-state.js?v=20260812-banking12");
+
+const bankSettledInvoiceEditControlIds = Object.freeze([
+  "businessName",
+  "businessEmail",
+  "businessWebsite",
+  "businessVat",
+  "savedCustomerSelect",
+  "clientName",
+  "clientEmail",
+  "clientAddress",
+  "paymentTerms",
+  "dueDate",
+  "recurringInvoice",
+  "recurringFrequency",
+  "nextInvoiceDate",
+  "reminderDate",
+  "invoiceNumber",
+  "invoiceDate",
+  "projectSelect",
+  "description1",
+  "amount1",
+  "description2",
+  "amount2",
+  "description3",
+  "amount3",
+  "vatRate"
+]);
+
+function setBankSettledInvoiceEditLock(locked,message = ""){
+  bankSettledInvoiceEditControlIds.forEach(id => {
+    const control = document.getElementById(id);
+
+    if(control){
+      control.disabled = Boolean(locked);
+      control.setAttribute("aria-readonly", locked ? "true" : "false");
+      control.title = locked ? message : "";
+    }
+  });
+
+  const updateButton = document.getElementById("updateInvoiceBtn");
+
+  if(updateButton && locked){
+    updateButton.disabled = true;
+    updateButton.title = message;
+  }else if(updateButton){
+    updateButton.title = "";
+  }
+}
 
 window.trackInvoiceCreated = async function(parameters){
   try{
@@ -3968,6 +4044,11 @@ function toggleDarkMode(){
 }
 
 async function renderRecentInvoices(){
+  const {
+    BANK_SETTLEMENT_STATUS_MESSAGE,
+    isBankingSettledSource
+  } = await bankSettlementSourceStatePromise;
+
   let invoices = [];
   const user = await getInvoiceUser();
 
@@ -4151,6 +4232,11 @@ async function toggleInvoiceStatus(invoiceId){
     return;
   }
 
+  const {
+    BANK_SETTLEMENT_STATUS_MESSAGE,
+    isBankingSettledSource
+  } = await bankSettlementSourceStatePromise;
+
   if(isBankingSettledSource(invoice)){
     alert(BANK_SETTLEMENT_STATUS_MESSAGE);
     return;
@@ -4239,6 +4325,10 @@ async function populateInvoiceForm(invoice){
 }
 
 async function reopenInvoice(invoiceId){
+  const {
+    BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
+    isBankingSettledSource
+  } = await bankSettlementSourceStatePromise;
   let invoices = [];
 
   if(window.getInvoicesFromFirestore){
@@ -4255,13 +4345,25 @@ async function reopenInvoice(invoiceId){
   }
 
   editingInvoiceId = invoice.id;
+  const bankingSettled = isBankingSettledSource(invoice);
 
-  document.getElementById("updateInvoiceBtn").disabled = false;
+  setBankSettledInvoiceEditLock(false);
+
+  document.getElementById("updateInvoiceBtn").disabled = bankingSettled;
 
   document.getElementById("editModeStatus").textContent =
-    "Editing invoice " + (invoice.invoiceNo || "");
+    bankingSettled
+      ? "Viewing settled invoice " + (invoice.invoiceNo || "") + ". " +
+        BANK_SETTLEMENT_ACCOUNTING_MESSAGE
+      : "Editing invoice " + (invoice.invoiceNo || "");
 
   await populateInvoiceForm(invoice);
+
+  if(bankingSettled){
+    setBankSettledInvoiceEditLock(true,BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+    alert(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+    return;
+  }
 
   alert("Invoice loaded for editing. Make changes, then click Update Invoice.");
 }
@@ -4283,6 +4385,7 @@ async function duplicateInvoice(invoiceId){
   }
 
   editingInvoiceId = null;
+  setBankSettledInvoiceEditLock(false);
   document.getElementById("updateInvoiceBtn").disabled = true;
   document.getElementById("editModeStatus").textContent =
     "Creating a duplicate of " + (invoice.invoiceNo || "invoice");
@@ -4298,6 +4401,31 @@ async function duplicateInvoice(invoiceId){
 async function updateExistingInvoice(){
   if(!editingInvoiceId){
     alert("Open an invoice first using Reopen.");
+    return;
+  }
+
+  const {
+    BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
+    isBankingSettledSource
+  } = await bankSettlementSourceStatePromise;
+  const currentInvoices = window.getInvoicesFromFirestore
+    ? await window.getInvoicesFromFirestore()
+    : JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  const currentInvoice = currentInvoices.find(invoice =>
+    String(invoice.id) === String(editingInvoiceId)
+  );
+
+  if(!currentInvoice){
+    alert("Could not find this invoice.");
+    return;
+  }
+
+  if(isBankingSettledSource(currentInvoice)){
+    setBankSettledInvoiceEditLock(true,BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+    document.getElementById("editModeStatus").textContent =
+      "Viewing settled invoice " + (currentInvoice.invoiceNo || "") + ". " +
+      BANK_SETTLEMENT_ACCOUNTING_MESSAGE;
+    alert(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
     return;
   }
 
@@ -4360,7 +4488,17 @@ async function updateExistingInvoice(){
   let journalSaved = true;
 
   if(window.updateInvoiceInFirestore){
-    await window.updateInvoiceInFirestore(editingInvoiceId, updatedInvoice);
+    const invoiceUpdated =
+      await window.updateInvoiceInFirestore(editingInvoiceId, updatedInvoice);
+
+    if(invoiceUpdated === false){
+      setBankSettledInvoiceEditLock(true,BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+      document.getElementById("editModeStatus").textContent =
+        "Viewing settled invoice " + (currentInvoice.invoiceNo || "") + ". " +
+        BANK_SETTLEMENT_ACCOUNTING_MESSAGE;
+      return;
+    }
+
     journalSaved = await postInvoiceJournalAfterInvoiceSave(
       editingInvoiceId,
       updatedInvoice,
@@ -4369,6 +4507,7 @@ async function updateExistingInvoice(){
   }
 
   editingInvoiceId = null;
+  setBankSettledInvoiceEditLock(false);
 
   document.getElementById("updateInvoiceBtn").disabled = true;
 
@@ -4386,6 +4525,7 @@ async function updateExistingInvoice(){
 
 function cancelInvoiceEdit(){
   editingInvoiceId = null;
+  setBankSettledInvoiceEditLock(false);
 
   document.getElementById("updateInvoiceBtn").disabled = true;
 

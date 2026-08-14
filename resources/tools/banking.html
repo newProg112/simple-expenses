@@ -252,6 +252,26 @@
     </section>
   </div>
 
+  <div class="modal-overlay" id="exceptionModalOverlay" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="exceptionModalTitle">
+      <div class="modal-header"><div><h2 id="exceptionModalTitle">Other Banking resolution</h2><p class="muted">Resolve a legitimate movement without forcing it into sales or ordinary business expenses.</p></div><button class="modal-close" id="exceptionModalClose" type="button" aria-label="Close other resolution form">&times;</button></div>
+      <form id="exceptionForm" novalidate>
+        <div class="modal-body">
+          <div class="form-feedback" id="exceptionFeedback" role="alert" hidden></div>
+          <div class="form-grid">
+            <div class="field"><label>Transaction</label><div class="categorisation-fixed" id="exceptionTransaction"></div></div>
+            <div class="field"><label>Amount</label><div class="categorisation-fixed" id="exceptionAmount"></div></div>
+            <div class="field field-wide"><label for="exceptionType">Resolution <span class="required" aria-hidden="true">*</span></label><select id="exceptionType" required></select></div>
+            <div class="field-wide"><p class="categorisation-note" id="exceptionExplanation"></p></div>
+            <div class="field field-wide" id="exceptionReasonField" hidden><label for="exceptionReason">Ignore reason <span class="required" aria-hidden="true">*</span></label><select id="exceptionReason"></select></div>
+            <div class="field field-wide"><label for="exceptionNotes">Notes</label><textarea id="exceptionNotes" maxlength="500" placeholder="Optional audit note"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-actions"><button class="btn btn-secondary" id="cancelExceptionButton" type="button">Cancel</button><button class="btn" id="confirmExceptionButton" type="submit">Confirm resolution</button></div>
+      </form>
+    </section>
+  </div>
+
   <script type="module">
     import { auth, db } from "/firebase-config.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -267,6 +287,7 @@
     import { bankAccountOpeningBalanceLocked, createBankAccountWithOpeningBalance, postLegacyBankOpeningBalance, updateBankAccountWithOpeningBalance } from "/resources/js/bank-opening-balance.js?v=20260813-banking16";
     import { calculateBankReconciliation, normaliseBankReconciliation, reconciliationHistory, signOffBankReconciliation, validateBankReconciliationInput } from "/resources/js/bank-reconciliation.js?v=20260813-banking17";
     import { bankTransferCandidates, bankTransferEligibility, normaliseBankTransfer, transferBankTransaction, untransferBankTransaction } from "/resources/js/bank-transfer.js?v=20260814-banking18";
+    import { BANK_EXCEPTION_IGNORE_REASONS, BANK_EXCEPTION_TYPES, bankExceptionEligibility, bankExceptionOptions, normaliseBankExceptionResolution, resolveBankException, unresolveBankException } from "/resources/js/bank-exception-resolution.js?v=20260814-banking19";
 
     const elements = {
       count:document.getElementById("bankAccountCount"), transactionCount:document.getElementById("bankTransactionCount"), needsReviewCount:document.getElementById("bankNeedsReviewCount"), matchedCount:document.getElementById("bankMatchedCount"), add:document.getElementById("addAccountButton"), list:document.getElementById("accountList"),
@@ -284,6 +305,7 @@
       importOverlay:document.getElementById("importModalOverlay"), importClose:document.getElementById("importModalClose"), transactionImportFeedback:document.getElementById("transactionImportFeedback"), confirmedImportCount:document.getElementById("confirmedImportCount"), confirmImport:document.getElementById("confirmImportButton"), cancelImport:document.getElementById("cancelImportButton"),
       categorisationOverlay:document.getElementById("categorisationModalOverlay"), categorisationClose:document.getElementById("categorisationModalClose"), categorisationForm:document.getElementById("categorisationForm"), categorisationFeedback:document.getElementById("categorisationFeedback"), categorisationTitle:document.getElementById("categorisationModalTitle"), categorisationSubtitle:document.getElementById("categorisationModalSubtitle"), categorisationPartyLabel:document.getElementById("categorisationPartyLabel"), categorisationCategoryLabel:document.getElementById("categorisationCategoryLabel"), categorisationNote:document.getElementById("categorisationNote"), categorisationDate:document.getElementById("categorisationDate"), categorisationGross:document.getElementById("categorisationGross"), categorisationMerchant:document.getElementById("categorisationMerchant"), categorisationCategory:document.getElementById("categorisationCategory"), categorisationProject:document.getElementById("categorisationProject"), categorisationVatTreatment:document.getElementById("categorisationVatTreatment"), categorisationExactVatField:document.getElementById("categorisationExactVatField"), categorisationExactVat:document.getElementById("categorisationExactVat"), categorisationDescription:document.getElementById("categorisationDescription"), confirmCategorisation:document.getElementById("confirmCategorisationButton"), cancelCategorisation:document.getElementById("cancelCategorisationButton"),
       transferOverlay:document.getElementById("transferModalOverlay"), transferClose:document.getElementById("transferModalClose"), transferForm:document.getElementById("transferForm"), transferFeedback:document.getElementById("transferFeedback"), transferTransaction:document.getElementById("transferTransaction"), transferAmount:document.getElementById("transferAmount"), transferOtherAccount:document.getElementById("transferOtherAccount"), transferPairing:document.getElementById("transferPairing"), transferDirection:document.getElementById("transferDirection"), confirmTransfer:document.getElementById("confirmTransferButton"), cancelTransfer:document.getElementById("cancelTransferButton"),
+      exceptionOverlay:document.getElementById("exceptionModalOverlay"), exceptionClose:document.getElementById("exceptionModalClose"), exceptionForm:document.getElementById("exceptionForm"), exceptionFeedback:document.getElementById("exceptionFeedback"), exceptionTransaction:document.getElementById("exceptionTransaction"), exceptionAmount:document.getElementById("exceptionAmount"), exceptionType:document.getElementById("exceptionType"), exceptionExplanation:document.getElementById("exceptionExplanation"), exceptionReasonField:document.getElementById("exceptionReasonField"), exceptionReason:document.getElementById("exceptionReason"), exceptionNotes:document.getElementById("exceptionNotes"), confirmException:document.getElementById("confirmExceptionButton"), cancelException:document.getElementById("cancelExceptionButton"),
       reconciliationAccount:document.getElementById("reconciliationAccount"), reconciliationDate:document.getElementById("reconciliationDate"), reconciliationBalance:document.getElementById("reconciliationBalance"), calculateReconciliation:document.getElementById("calculateReconciliationButton"), reconciliationFeedback:document.getElementById("reconciliationFeedback"), reconciliationPosition:document.getElementById("reconciliationPosition"), reconciliationBookBalance:document.getElementById("reconciliationBookBalance"), reconciliationStatementBalance:document.getElementById("reconciliationStatementBalance"), reconciliationDifference:document.getElementById("reconciliationDifference"), reconciliationUnresolved:document.getElementById("reconciliationUnresolved"), reconciliationSummary:document.getElementById("reconciliationSummary"), reconciliationStatusText:document.getElementById("reconciliationStatusText"), signOffReconciliation:document.getElementById("signOffReconciliationButton"), reconciliationHistoryEmpty:document.getElementById("reconciliationHistoryEmpty"), reconciliationHistoryTable:document.getElementById("reconciliationHistoryTable"), reconciliationHistoryBody:document.getElementById("reconciliationHistoryBody")
     };
     let accounts = [];
@@ -303,6 +325,7 @@
     let isImportingTransactions = false;
     let matchSources = { invoices:[],bills:[],expenses:[],bankIncome:[] };
     let bankTransfers = [];
+    let bankExceptionResolutions = [];
     let matchSourcesLoaded = false;
     let projects = [];
     let pendingCategorisationId = null;
@@ -310,6 +333,8 @@
     let isCategorising = false;
     let pendingTransferId = null;
     let isTransferring = false;
+    let pendingExceptionId = null;
+    let isResolvingException = false;
     let bankingJournals = [];
     let reconciliations = [];
     let reconciliationPosition = null;
@@ -639,6 +664,17 @@
       return Number(record.type === "mileage" ? record.amount ?? record.gross : record.gross ?? record.total);
     }
     function matchedRelationship(transaction){
+      if(transaction.matchedRecordType === "bankException"){
+        if(!matchSourcesLoaded) return { text:"Loading resolution...",warning:false };
+        const resolution = bankExceptionResolutions.find(item => item.resolutionId === transaction.exceptionResolutionId);
+        if(!resolution) return { text:"Exception resolution record no longer available",warning:true };
+        const definition = BANK_EXCEPTION_TYPES.find(item => item.value === resolution.resolutionType);
+        const reason = BANK_EXCEPTION_IGNORE_REASONS.find(item => item.value === resolution.reasonCode);
+        const detail = resolution.posting === "none"
+          ? `${reason?.label || "Reviewed with no posting"}${resolution.blocksReconciliation ? " - blocks reconciliation" : ""}`
+          : `${definition?.accountName || "Counter-account"}${resolution.nominalAccountCode ? ` (${resolution.nominalAccountCode})` : ""}`;
+        return { text:detail,warning:resolution.posting === "none" && resolution.blocksReconciliation };
+      }
       if(transaction.matchedRecordType === "bankTransfer"){
         if(!matchSourcesLoaded) return { text:"Loading bank transfer...",warning:false };
         const otherAccountId = transaction.transferRole === "source"
@@ -685,8 +721,11 @@
         const matched = transaction.status === BANK_TRANSACTION_STATUS.MATCHED;
         const categorised = matched && transaction.matchOrigin === "categorisation" && transaction.categorisationVersion === 1;
         const transferred = matched && transaction.matchedRecordType === "bankTransfer" && transaction.transferVersion === 1;
+        const exceptionResolved = matched && transaction.matchedRecordType === "bankException" && transaction.exceptionVersion === 1;
+        const exceptionDefinition = exceptionResolved
+          ? BANK_EXCEPTION_TYPES.find(item => item.value === transaction.exceptionResolutionType) : null;
         badge.className = matched ? "status-matched" : "status-unmatched";
-        badge.textContent = transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched";
+        badge.textContent = exceptionResolved ? (exceptionDefinition?.label || "Other resolved") : transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched";
         statusCell.append(badge);
         if(matched){
           const relationship = matchedRelationship(transaction);
@@ -696,12 +735,12 @@
           const unmatch = document.createElement("button");
           unmatch.className = "btn btn-secondary match-action";
           unmatch.type = "button";
-          unmatch.dataset.matchAction = transferred ? "untransfer" : categorised ? "uncategorise" : "unmatch";
+          unmatch.dataset.matchAction = exceptionResolved ? "unresolve" : transferred ? "untransfer" : categorised ? "uncategorise" : "unmatch";
           unmatch.dataset.transactionId = transaction.id;
           unmatch.disabled = activeMatchActions.has(transaction.id);
           unmatch.textContent = unmatch.disabled
-            ? (transferred ? "Untransferring..." : categorised ? "Uncategorising..." : "Unmatching...")
-            : (transferred ? "Untransfer" : categorised ? "Uncategorise" : "Unmatch");
+            ? (exceptionResolved ? "Unresolving..." : transferred ? "Untransferring..." : categorised ? "Uncategorising..." : "Unmatching...")
+            : (exceptionResolved ? "Unresolve" : transferred ? "Untransfer" : categorised ? "Uncategorise" : "Unmatch");
           statusCell.append(detail,unmatch);
         }else{
           const categorisationType = moneyOutCategorisationEligibility(transaction).eligible
@@ -724,6 +763,16 @@
             transfer.disabled = activeMatchActions.has(transaction.id) || accounts.length < 2;
             transfer.textContent = "Transfer";
             statusCell.append(transfer);
+          }
+          if(bankExceptionEligibility(transaction).eligible){
+            const resolve = document.createElement("button");
+            resolve.className = "btn btn-secondary match-action";
+            resolve.type = "button";
+            resolve.dataset.matchAction = "exception";
+            resolve.dataset.transactionId = transaction.id;
+            resolve.disabled = activeMatchActions.has(transaction.id);
+            resolve.textContent = "Other / Resolve";
+            statusCell.append(resolve);
           }
         }
         row.append(statusCell);
@@ -804,16 +853,18 @@
     async function loadMatchSources(user){
       if(!user) return;
       try{
-        const [invoiceSnapshot,billSnapshot,expenseSnapshot,incomeSnapshot,transferSnapshot] = await Promise.all([
+        const [invoiceSnapshot,billSnapshot,expenseSnapshot,incomeSnapshot,transferSnapshot,exceptionSnapshot] = await Promise.all([
           getDocs(collection(db,"users",user.uid,"invoices")),
           getDocs(collection(db,"users",user.uid,"bills")),
           getDocs(collection(db,"users",user.uid,"expenses")),
           getDocs(collection(db,"users",user.uid,"bankIncome")),
-          getDocs(collection(db,"users",user.uid,"bankTransfers"))
+          getDocs(collection(db,"users",user.uid,"bankTransfers")),
+          getDocs(collection(db,"users",user.uid,"bankExceptionResolutions"))
         ]);
         const records = snapshot => snapshot.docs.map(document => ({ ...document.data(),id:document.id }));
         matchSources = { invoices:records(invoiceSnapshot),bills:records(billSnapshot),expenses:records(expenseSnapshot),bankIncome:records(incomeSnapshot) };
         bankTransfers = transferSnapshot.docs.map(document => normaliseBankTransfer(document.id,document.data()));
+        bankExceptionResolutions = exceptionSnapshot.docs.map(document => normaliseBankExceptionResolution(document.id,document.data()));
         matchSourcesLoaded = true;
         renderTransactions();
       }catch(error){
@@ -1168,6 +1219,120 @@
         renderTransactions();
       }
     }
+    function renderExceptionSelection(){
+      const definition = BANK_EXCEPTION_TYPES.find(item => item.value === elements.exceptionType.value);
+      elements.exceptionExplanation.textContent = definition?.explanation || "";
+      const ignored = definition?.posting === "none";
+      elements.exceptionReasonField.hidden = !ignored;
+      elements.exceptionReason.required = ignored;
+      if(ignored){
+        const reason = BANK_EXCEPTION_IGNORE_REASONS.find(item => item.value === elements.exceptionReason.value);
+        if(reason){
+          elements.exceptionExplanation.textContent = `${definition.explanation} ${reason.explanation}${reason.blocksReconciliation ? " This reason prevents reconciliation sign-off until it is un-resolved." : " Reconciliation still requires the book and statement balances to agree."}`;
+        }
+      }
+    }
+    function openExceptionForm(button){
+      const transaction = transactions.find(item => item.id === button.dataset.transactionId);
+      const eligibility = bankExceptionEligibility(transaction);
+      if(!transaction || !eligibility.eligible){
+        setPageFeedback(eligibility.reason || "This transaction cannot use Other / Resolve.",true);
+        return;
+      }
+      pendingExceptionId = transaction.id;
+      setFormFeedback("",elements.exceptionFeedback);
+      elements.exceptionTransaction.textContent = `${transaction.transactionDate} / ${transaction.description}`;
+      elements.exceptionAmount.textContent = money(eligibility.amount);
+      elements.exceptionType.replaceChildren();
+      bankExceptionOptions(eligibility.direction).forEach(definition => {
+        const option = document.createElement("option");
+        option.value = definition.value;
+        option.textContent = definition.label;
+        elements.exceptionType.append(option);
+      });
+      elements.exceptionReason.replaceChildren();
+      BANK_EXCEPTION_IGNORE_REASONS.forEach(reason => {
+        const option = document.createElement("option");
+        option.value = reason.value;
+        option.textContent = reason.label;
+        elements.exceptionReason.append(option);
+      });
+      elements.exceptionNotes.value = "";
+      renderExceptionSelection();
+      openOverlay(elements.exceptionOverlay,elements.exceptionType,button);
+    }
+    function closeExceptionForm(force = false){
+      if(isResolvingException && !force) return;
+      pendingExceptionId = null;
+      setFormFeedback("",elements.exceptionFeedback);
+      closeOverlay(elements.exceptionOverlay);
+    }
+    function setExceptionLoading(loading){
+      isResolvingException = loading;
+      elements.confirmException.disabled = loading;
+      elements.cancelException.disabled = loading;
+      elements.exceptionClose.disabled = loading;
+      elements.exceptionType.disabled = loading;
+      elements.exceptionReason.disabled = loading;
+      elements.exceptionNotes.disabled = loading;
+      elements.confirmException.textContent = loading ? "Resolving..." : "Confirm resolution";
+    }
+    async function submitException(event){
+      event.preventDefault();
+      if(isResolvingException || !pendingExceptionId || !currentUser) return;
+      const transactionId = pendingExceptionId;
+      setExceptionLoading(true);
+      activeMatchActions.add(transactionId);
+      try{
+        const result = await resolveBankException({
+          db,userId:currentUser.uid,transactionId,
+          input:{
+            resolutionType:elements.exceptionType.value,
+            reasonCode:elements.exceptionReasonField.hidden ? "" : elements.exceptionReason.value,
+            notes:elements.exceptionNotes.value
+          },
+          services:{ doc,runTransaction,serverTimestamp }
+        });
+        await loadTransactions(currentUser,false);
+        await loadMatchSources(currentUser);
+        await loadReconciliationData(currentUser);
+        closeExceptionForm(true);
+        setPageFeedback(result.status === "already-resolved"
+          ? "This transaction was already resolved. No duplicate record or journal was created."
+          : result.journalId
+            ? "Banking exception resolved and posted to the selected balance-sheet account."
+            : "Statement row marked reviewed with no accounting journal.");
+      }catch(error){
+        console.error("Bank exception resolution failed",error);
+        setFormFeedback(error.message || "The transaction could not be resolved.",elements.exceptionFeedback);
+      }finally{
+        activeMatchActions.delete(transactionId);
+        setExceptionLoading(false);
+        renderTransactions();
+      }
+    }
+    async function unresolveException(button){
+      const transactionId = button.dataset.transactionId;
+      if(!currentUser || !transactionId || activeMatchActions.has(transactionId)) return;
+      activeMatchActions.add(transactionId);
+      renderTransactions();
+      try{
+        await unresolveBankException({
+          db,userId:currentUser.uid,transactionId,
+          services:{ doc,runTransaction,serverTimestamp,deleteField }
+        });
+        await loadTransactions(currentUser,false);
+        await loadMatchSources(currentUser);
+        await loadReconciliationData(currentUser);
+        setPageFeedback("Other resolution removed. The imported transaction now needs review; signed reconciliation history was preserved.");
+      }catch(error){
+        console.error("Bank exception Unresolve failed",error);
+        setPageFeedback(error.message || "The resolution could not be removed. Refresh and try again.",true);
+      }finally{
+        activeMatchActions.delete(transactionId);
+        renderTransactions();
+      }
+    }
     async function loadTransactions(user,showLoading = true){
       if(!user) return;
       if(showLoading) elements.transactionsLoading.hidden = false;
@@ -1320,7 +1485,7 @@
     }
     function closeOverlay(overlay){
       overlay.hidden = true;
-      if(elements.accountOverlay.hidden && elements.legacyOpeningOverlay.hidden && elements.archiveOverlay.hidden && elements.importOverlay.hidden && elements.categorisationOverlay.hidden && elements.transferOverlay.hidden) document.body.style.overflow = "";
+      if(elements.accountOverlay.hidden && elements.legacyOpeningOverlay.hidden && elements.archiveOverlay.hidden && elements.importOverlay.hidden && elements.categorisationOverlay.hidden && elements.transferOverlay.hidden && elements.exceptionOverlay.hidden) document.body.style.overflow = "";
       modalTrigger?.focus();
       modalTrigger = null;
     }
@@ -1553,6 +1718,8 @@
       if(button.dataset.matchAction === "unmatch") void unmatchTransaction(button);
       if(button.dataset.matchAction === "transfer") openTransferForm(button);
       if(button.dataset.matchAction === "untransfer") void untransferTransaction(button);
+      if(button.dataset.matchAction === "exception") openExceptionForm(button);
+      if(button.dataset.matchAction === "unresolve") void unresolveException(button);
     });
     elements.categorisationForm.addEventListener("submit",submitCategorisation);
     elements.cancelCategorisation.addEventListener("click",() => closeCategorisationForm());
@@ -1570,6 +1737,14 @@
     elements.transferClose.addEventListener("click",() => closeTransferForm());
     elements.transferOverlay.addEventListener("click",event => {
       if(event.target === elements.transferOverlay) closeTransferForm();
+    });
+    elements.exceptionForm.addEventListener("submit",submitException);
+    elements.exceptionType.addEventListener("change",renderExceptionSelection);
+    elements.exceptionReason.addEventListener("change",renderExceptionSelection);
+    elements.cancelException.addEventListener("click",() => closeExceptionForm());
+    elements.exceptionClose.addEventListener("click",() => closeExceptionForm());
+    elements.exceptionOverlay.addEventListener("click",event => {
+      if(event.target === elements.exceptionOverlay) closeExceptionForm();
     });
     elements.cancelImport.addEventListener("click",() => closeImportConfirmation());
     elements.importClose.addEventListener("click",() => closeImportConfirmation());
@@ -1625,7 +1800,8 @@
     }));
     document.addEventListener("keydown",event => {
       if(event.key !== "Escape") return;
-      if(!elements.transferOverlay.hidden) closeTransferForm();
+      if(!elements.exceptionOverlay.hidden) closeExceptionForm();
+      else if(!elements.transferOverlay.hidden) closeTransferForm();
       else if(!elements.categorisationOverlay.hidden) closeCategorisationForm();
       else if(!elements.legacyOpeningOverlay.hidden) closeLegacyOpeningBalanceForm();
       else if(!elements.importOverlay.hidden) closeImportConfirmation();

@@ -144,7 +144,15 @@ export function normaliseBankTransaction(id,data = {}){
       Boolean(String(data.transferJournalId || "").trim()) &&
       ["source","destination"].includes(String(data.transferRole || "")) &&
       Boolean(String(data.transferStateFingerprint || "").trim()));
-  const hasValidMatch = data.status === BANK_TRANSACTION_STATUS.MATCHED && hasValidMatchedType &&
+  const hasValidException = data.matchedRecordType === "bankException" &&
+    data.matchOrigin === "bankException" && Number(data.exceptionVersion) === 1 &&
+    Boolean(String(data.exceptionResolutionId || "").trim()) &&
+    String(data.exceptionResolutionId || "").trim() === String(data.matchedRecordId || "").trim() &&
+    Boolean(String(data.exceptionResolutionType || "").trim()) &&
+    ["journal","none"].includes(String(data.exceptionPosting || "")) &&
+    Boolean(String(data.exceptionStateFingerprint || "").trim()) &&
+    (data.exceptionPosting === "none" || Boolean(String(data.exceptionJournalId || "").trim()));
+  const hasValidMatch = data.status === BANK_TRANSACTION_STATUS.MATCHED && (hasValidMatchedType || hasValidException) &&
     Boolean(String(data.matchedRecordId || "").trim()) &&
     Number.isFinite(Number(data.matchedAmount)) && Number(data.matchedAmount) > 0;
   return Object.freeze({
@@ -192,6 +200,16 @@ export function normaliseBankTransaction(id,data = {}){
         ...(String(data.pairedBankTransactionId || "").trim() ? {
           pairedBankTransactionId:String(data.pairedBankTransactionId).trim()
         } : {})
+      } : {}),
+      ...(data.matchOrigin === "bankException" && Number(data.exceptionVersion) === 1 ? {
+        matchOrigin:"bankException",exceptionVersion:1,
+        exceptionResolutionId:String(data.exceptionResolutionId).trim(),
+        exceptionResolutionType:String(data.exceptionResolutionType).trim(),
+        exceptionPosting:String(data.exceptionPosting).trim(),
+        exceptionJournalId:String(data.exceptionJournalId || "").trim(),
+        exceptionReasonCode:String(data.exceptionReasonCode || "").trim(),
+        exceptionBlocksReconciliation:data.exceptionBlocksReconciliation === true,
+        exceptionStateFingerprint:String(data.exceptionStateFingerprint).trim()
       } : {})
     } : {})
   });

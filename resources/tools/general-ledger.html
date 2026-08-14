@@ -316,6 +316,18 @@
       border-bottom:0;
     }
 
+    .ledger-description-primary,
+    .ledger-bank-account{
+      display:block;
+    }
+
+    .ledger-bank-account{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:700;
+    }
+
     .empty-row td{
       padding:48px 20px;
       text-align:center;
@@ -533,6 +545,7 @@
       requireJournalOwnerId
     } from "../js/trial-balance-view.js";
     import { generalLedgerViewFromJournals } from "../js/general-ledger-view.js";
+    import { normaliseBankAccount } from "../js/bank-account-view.js?v=20260813-banking16";
 
     const accountsValue = document.getElementById("accountsValue");
     const accountsMeta = document.getElementById("accountsMeta");
@@ -557,6 +570,7 @@
     const reportContent = document.getElementById("financialReportContent");
     const requestedAccount = new URLSearchParams(window.location.search).get("account") || "";
     let journals = [];
+    let bankAccounts = [];
     let loadedUserId = "";
     let loadSequence = 0;
     let journalsLoaded = false;
@@ -635,8 +649,29 @@
         const row = document.createElement("tr");
         [
           entry.date,
-          entry.reference || "—",
-          entry.description || "—",
+          entry.reference || "—"
+        ].forEach(value => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        });
+
+        const descriptionCell = document.createElement("td");
+        const description = document.createElement("span");
+        description.className = "ledger-description-primary";
+        description.textContent = entry.description || "—";
+        descriptionCell.append(description);
+
+        if(entry.bankAccountDisplay){
+          const bankAccount = document.createElement("span");
+          bankAccount.className = "ledger-bank-account";
+          bankAccount.textContent = entry.bankAccountDisplay;
+          descriptionCell.append(bankAccount);
+        }
+
+        row.append(descriptionCell);
+
+        [
           entry.debitDisplay,
           entry.creditDisplay,
           entry.runningBalanceDisplay
@@ -645,6 +680,7 @@
           cell.textContent = value;
           row.append(cell);
         });
+
         tableBody.append(row);
       });
     }
@@ -694,7 +730,8 @@
       const view = generalLedgerViewFromJournals(journals, {
         accountCode: accountSelect.value,
         dateFrom: dateFrom.value,
-        dateTo: dateTo.value
+        dateTo: dateTo.value,
+        bankAccounts
       });
 
       if (view.state === "error") {
@@ -716,7 +753,13 @@
           collection(db, "journals"),
           where("userId", "==", ownerId)
         );
-        const snapshot = await getDocs(ownerQuery);
+        const [snapshot,bankAccountSnapshot] = await Promise.all([
+          getDocs(ownerQuery),
+          getDocs(collection(db,"users",ownerId,"bankAccounts")).catch(error => {
+            console.warn("General Ledger bank-account names could not be loaded",error);
+            return { docs:[] };
+          })
+        ]);
         if (sequence !== loadSequence || auth.currentUser?.uid !== ownerId) return;
 
         journals = snapshot.docs.map(documentSnapshot =>
@@ -725,10 +768,14 @@
             documentSnapshot.data()
           )
         );
+        bankAccounts = bankAccountSnapshot.docs.map(documentSnapshot =>
+          normaliseBankAccount(documentSnapshot.id,documentSnapshot.data())
+        );
         journalsLoaded = true;
         refreshButton.disabled = false;
         const view = generalLedgerViewFromJournals(journals, {
-          accountCode: requestedAccount
+          accountCode: requestedAccount,
+          bankAccounts
         });
 
         if (view.state === "error") {
@@ -742,6 +789,7 @@
       } catch (error) {
         if (sequence !== loadSequence) return;
         journals = [];
+        bankAccounts = [];
         journalsLoaded = false;
         refreshButton.disabled = true;
         console.error("General Ledger journal load failed", error);
@@ -806,6 +854,7 @@
     onAuthStateChanged(auth, user => {
       if (!user) {
         journals = [];
+        bankAccounts = [];
         journalsLoaded = false;
         loadedUserId = "";
         loadSequence += 1;

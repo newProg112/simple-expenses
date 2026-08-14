@@ -187,7 +187,13 @@ describe("atomic internal transfer posting",() => {
     const trialBalance = buildTrialBalance(journals);
     const balanceSheet = buildBalanceSheetReport(journals);
     const profitLoss = buildProfitLossReport(journals);
-    const generalLedger = generalLedgerViewFromJournals(journals,{ accountCode:"1000" });
+    const generalLedger = generalLedgerViewFromJournals(journals,{
+      accountCode:"1000",
+      bankAccounts:[
+        { id:"account-a",accountName:"tetttt",status:"Active" },
+        { id:"account-b",accountName:"Test Current Account",status:"Active" }
+      ]
+    });
     expect(trialBalance).toMatchObject({ balanced:true,totalDebits:0,totalCredits:0 });
     expect(trialBalance.accounts.find(row => row.accountCode === "1000")).toMatchObject({ balance:0 });
     expect(balanceSheet).toMatchObject({ totalAssets:0 });
@@ -195,6 +201,8 @@ describe("atomic internal transfer posting",() => {
     expect(profitLoss).toMatchObject({ totalIncome:0,totalExpenses:0,netResult:0 });
     expect(generalLedger).toMatchObject({ state:"loaded",entriesCount:2,closingBalance:0 });
     expect(generalLedger.rows.map(row => row.bankAccountId)).toEqual(["account-b","account-a"]);
+    expect(generalLedger.rows.map(row => row.bankAccountDisplay))
+      .toEqual(["To Test Current Account","From tetttt"]);
     expect(journals.flatMap(journal => journal.lines).some(line => ["1200","2100"].includes(line.accountCode))).toBe(false);
   });
 
