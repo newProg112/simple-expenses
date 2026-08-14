@@ -34,6 +34,7 @@ function mockFirestore(overrides = {}){
   const removed = Symbol("deleteField");
   const documents = new Map([
     [transactionPath,{ ...imported,...(overrides.transaction || {}) }],
+    ["users/user-1/bankAccounts/account-1",{ accountName:"Current",status:"Active" }],
     ["users/user-1/projects/project-1",{ name:"Launch",reference:"PR-1",status:"Active" }],
     ...(overrides.documents || [])
   ]);
@@ -155,6 +156,7 @@ describe("atomic Money In categorisation",() => {
       expect.objectContaining({ accountCode:"4000",debit:0,credit:100 }),
       expect.objectContaining({ accountCode:"2100",debit:0,credit:20 })
     ]);
+    expect(fixture.documents.get(journalPath).bankAccountId).toBe("account-1");
     const matched = fixture.documents.get(transactionPath);
     expect(matched).toMatchObject({
       status:"matched",matchedRecordType:"bankIncome",matchedRecordId:"bank-income_bank-1",
@@ -164,6 +166,49 @@ describe("atomic Money In categorisation",() => {
     for(const field of ["bankAccountId","transactionDate","description","moneyIn","moneyOut","balance","source","importId","createdAt"]){
       expect(matched[field]).toEqual(original[field]);
     }
+  });
+
+  it("allows historical categorisation for an owned Archived bank account",async () => {
+    const fixture = mockFirestore({
+      documents:[["users/user-1/bankAccounts/account-1",{ accountName:"Current",status:"Archived" }]]
+    });
+
+    await expect(categoriseMoneyIn(options(fixture))).resolves.toMatchObject({ status:"categorised" });
+
+    expect(fixture.documents.get(sourcePath).bankAccountId).toBe("account-1");
+    expect(fixture.documents.get(journalPath)).toMatchObject({ bankAccountId:"account-1" });
+  });
+
+  it.each([
+    ["a blank attribution",{ transaction:{ bankAccountId:"" } }],
+    ["a missing account",{ transaction:{ bankAccountId:"missing-account" } }],
+    ["a foreign-owned account",{
+      transaction:{ bankAccountId:"foreign-account" },
+      documents:[["users/user-2/bankAccounts/foreign-account",{ accountName:"Foreign",status:"Active" }]]
+    }],
+    ["an unsupported account status",{
+      documents:[["users/user-1/bankAccounts/account-1",{ accountName:"Current",status:"Suspended" }]]
+    }],
+    ["a malformed attribution",{ transaction:{ bankAccountId:" account-1 " } }]
+  ])("rejects %s with zero writes",async (_label,fixtureOptions) => {
+    const fixture = mockFirestore(fixtureOptions);
+    const before = structuredClone([...fixture.documents.entries()]);
+
+    await expect(categoriseMoneyIn(options(fixture))).rejects.toThrow(/bank account/i);
+
+    expect(fixture.writes).toEqual([]);
+    expect([...fixture.documents.entries()]).toEqual(before);
+  });
+
+  it("uses the persisted transaction account when UI state supplies another account ID",async () => {
+    const fixture = mockFirestore({
+      documents:[["users/user-1/bankAccounts/account-2",{ accountName:"Other",status:"Active" }]]
+    });
+
+    await categoriseMoneyIn(options(fixture,{ bankAccountId:"account-2" }));
+
+    expect(fixture.documents.get(sourcePath).bankAccountId).toBe("account-1");
+    expect(fixture.documents.get(journalPath)).toMatchObject({ bankAccountId:"account-1" });
   });
 
   it.each([

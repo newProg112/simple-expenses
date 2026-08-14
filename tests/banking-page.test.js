@@ -1017,7 +1017,8 @@ describe("Banking Confirm Match settlement model", () => {
   const invoiceJournalPath = "journals/invoice_user-1_invoice-1";
   const settlementJournalPath = "journals/bank-settlement_user-1_bank-1";
   const baseTransaction = Object.freeze({
-    transactionDate:"07/08/26",description:"Payment from ACME LTD",moneyIn:850,moneyOut:null,status:"unmatched"
+    bankAccountId:"account-1",transactionDate:"07/08/26",description:"Payment from ACME LTD",
+    moneyIn:850,moneyOut:null,status:"unmatched"
   });
   const baseInvoice = Object.freeze({
     invoiceNo:"INV-1023",client:"ACME LTD",date:"07/08/2026",total:850,status:"Unpaid"
@@ -1027,6 +1028,7 @@ describe("Banking Confirm Match settlement model", () => {
     const removed = Symbol("deleteField");
     const documents = new Map([
       [transactionPath,{ ...baseTransaction,...(overrides.transaction || {}) }],
+      ["users/user-1/bankAccounts/account-1",{ accountName:"Current",status:"Active" }],
       [invoicePath,{ ...baseInvoice,...(overrides.invoice || {}) }],
       [invoiceJournalPath,{
         userId:"user-1",journalId:"invoice_user-1_invoice-1",date:"2026-08-07",

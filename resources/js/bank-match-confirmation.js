@@ -13,6 +13,7 @@ import {
   journalDocumentId,
   prepareBankSettlementJournal
 } from "./ledger-firestore.js";
+import { requireOwnedBankAccountInTransaction } from "./bank-account-integrity.js";
 
 export const BANK_MATCH_RECORD_COLLECTIONS = Object.freeze({
   invoice:"invoices",
@@ -444,14 +445,15 @@ export async function confirmBankMatch(options = {}){
   const targetRef = services.doc(db,"users",userId,targetCollection,matchedRecordId);
 
   return services.runTransaction(db,async firestoreTransaction => {
-    const [transactionSnapshot,targetSnapshot] = await Promise.all([
-      firestoreTransaction.get(transactionRef),
-      firestoreTransaction.get(targetRef)
-    ]);
+    const transactionSnapshot = await firestoreTransaction.get(transactionRef);
     if(!exists(transactionSnapshot)) throw new Error("Bank transaction no longer exists.");
-    if(!exists(targetSnapshot)) throw new Error("Matched record no longer exists.");
-
     const bankTransaction = { ...transactionSnapshot.data(),id:transactionId };
+    const validatedAccount = await requireOwnedBankAccountInTransaction({
+      db,services,userId,firestoreTransaction,bankTransaction
+    });
+    bankTransaction.bankAccountId = validatedAccount.bankAccountId;
+    const targetSnapshot = await firestoreTransaction.get(targetRef);
+    if(!exists(targetSnapshot)) throw new Error("Matched record no longer exists.");
     const targetData = targetSnapshot.data();
     const sameRelationship = bankTransaction.status === "matched" &&
       bankTransaction.matchedRecordType === matchedRecordType &&

@@ -7,6 +7,7 @@ import {
   BANK_VAT_TREATMENTS,
   calculateMoneyOutCategorisationAmounts
 } from "./bank-transaction-categorisation.js";
+import { requireOwnedBankAccountInTransaction } from "./bank-account-integrity.js";
 
 export const BANK_INCOME_CATEGORISATION_VERSION = 1;
 export const BANK_INCOME_CATEGORIES = Object.freeze([
@@ -248,6 +249,10 @@ export async function categoriseMoneyIn(options = {}){
     const transactionSnapshot = await firestoreTransaction.get(transactionRef);
     if(!exists(transactionSnapshot)) throw new Error("Bank transaction no longer exists.");
     const bankTransaction = { ...transactionSnapshot.data(),id:transactionId };
+    const validatedAccount = await requireOwnedBankAccountInTransaction({
+      db,services,userId,firestoreTransaction,bankTransaction
+    });
+    bankTransaction.bankAccountId = validatedAccount.bankAccountId;
     const incomeId = bankIncomeDocumentId(transactionId);
     const sourceRef = services.doc(db,"users",userId,"bankIncome",incomeId);
     const journalRef = services.doc(db,"journals",bankIncomeJournalDocumentId(userId,incomeId));

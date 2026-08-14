@@ -5,6 +5,7 @@ import {
   prepareBankSettlementJournal,
   prepareExpenseJournal
 } from "./ledger-firestore.js";
+import { requireOwnedBankAccountInTransaction } from "./bank-account-integrity.js";
 
 export const BANK_CATEGORISATION_VERSION = 1;
 export const BANK_CATEGORISED_EXPENSE_CATEGORIES = Object.freeze([
@@ -323,6 +324,10 @@ export async function categoriseMoneyOut(options = {}){
     const transactionSnapshot = await firestoreTransaction.get(transactionRef);
     if(!exists(transactionSnapshot)) throw new Error("Bank transaction no longer exists.");
     const bankTransaction = { ...transactionSnapshot.data(),id:transactionId };
+    const validatedAccount = await requireOwnedBankAccountInTransaction({
+      db,services,userId,firestoreTransaction,bankTransaction
+    });
+    bankTransaction.bankAccountId = validatedAccount.bankAccountId;
     const expenseId = bankCategorisedExpenseDocumentId(transactionId);
     const expenseRef = services.doc(db,"users",userId,"expenses",expenseId);
     const accrualRef = services.doc(db,"journals",expenseJournalDocumentId(userId,expenseId));

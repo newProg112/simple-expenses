@@ -79,6 +79,9 @@ function fixture(caseName,overrides = {}){
   const settlementPath = `journals/bank-settlement_user-1_${transactionId}`;
   const documents = new Map([
     [transactionPath,{ bankAccountId:"account-1",status:"unmatched",...definition.transaction,...(overrides.transaction || {}) }],
+    ["users/user-1/bankAccounts/account-1",{
+      accountName:"Current",status:"Active",...(overrides.account || {})
+    }],
     [sourcePath,{ ...definition.source,...(overrides.source || {}) }],
     [accrualPath,{
       userId:"user-1",journalId:accrualPath.slice("journals/".length),date:definition.source.date || definition.source.billDate,
@@ -86,6 +89,8 @@ function fixture(caseName,overrides = {}){
       lines:overrides.accrualLines || definition.accrualLines
     }]
   ]);
+  for(const [path,data] of overrides.documents || []) documents.set(path,data);
+  if(overrides.missingAccount) documents.delete("users/user-1/bankAccounts/account-1");
   if(overrides.missingAccrual) documents.delete(accrualPath);
   if(overrides.existingSettlement){
     documents.set(settlementPath,{ userId:"user-1",sourceType:"manual",sourceId:"other" });
@@ -242,10 +247,62 @@ describe("Banking exact-payment settlement", () => {
     expect(journal.lines).toEqual(CASES[caseName].settlementLines);
     expect(journal).toMatchObject({
       userId:"user-1",sourceType:"bankSettlement",sourceId:"bank-1",
+      bankAccountId:"account-1",
       matchedRecordType:CASES[caseName].recordType,matchedRecordId:CASES[caseName].recordId
     });
     if(caseName === "invoice") expect(source).not.toHaveProperty("paidAt");
     else expect(source.paidAt).toBe(`${CASES[caseName].transaction.transactionDate}T00:00:00.000Z`);
+  });
+
+  it("settles a transaction attributed to an owned Archived bank account",async () => {
+    const testFixture = fixture("invoice",{ account:{ status:"Archived" } });
+
+    await expect(confirmBankMatch(testFixture.confirmOptions)).resolves.toMatchObject({ status:"confirmed" });
+
+    expect(testFixture.documents.get(testFixture.settlementPath)).toMatchObject({ bankAccountId:"account-1" });
+  });
+
+  it.each([
+    ["a blank attribution",{ transaction:{ bankAccountId:"" } }],
+    ["a missing account",{ missingAccount:true }],
+    ["a foreign-owned account",{
+      transaction:{ bankAccountId:"foreign-account" },
+      documents:[["users/user-2/bankAccounts/foreign-account",{ accountName:"Foreign",status:"Active" }]]
+    }],
+    ["an unsupported account status",{ account:{ status:"Suspended" } }],
+    ["a malformed attribution",{ transaction:{ bankAccountId:"users/user-2/bankAccounts/account-1" } }]
+  ])("rejects %s with zero writes",async (_label,fixtureOptions) => {
+    const testFixture = fixture("invoice",fixtureOptions);
+    const before = structuredClone([...testFixture.documents.entries()]);
+
+    await expect(confirmBankMatch(testFixture.confirmOptions)).rejects.toThrow(/bank account/i);
+
+    expect(testFixture.writes).toEqual([]);
+    expect([...testFixture.documents.entries()]).toEqual(before);
+  });
+
+  it.each(["invoice","bill","expense"])(
+    "leaves the %s source document unchanged when bank-account validation fails",
+    async caseName => {
+      const testFixture = fixture(caseName,{ missingAccount:true });
+      const originalSource = structuredClone(testFixture.documents.get(testFixture.sourcePath));
+
+      await expect(confirmBankMatch(testFixture.confirmOptions)).rejects.toThrow(/bank account/i);
+
+      expect(testFixture.writes).toEqual([]);
+      expect(testFixture.documents.get(testFixture.sourcePath)).toEqual(originalSource);
+      expect(testFixture.documents.has(testFixture.settlementPath)).toBe(false);
+    }
+  );
+
+  it("uses the persisted transaction account when UI state supplies another account ID",async () => {
+    const testFixture = fixture("invoice",{
+      documents:[["users/user-1/bankAccounts/account-2",{ accountName:"Other",status:"Active" }]]
+    });
+
+    await confirmBankMatch({ ...testFixture.confirmOptions,bankAccountId:"account-2" });
+
+    expect(testFixture.documents.get(testFixture.settlementPath)).toMatchObject({ bankAccountId:"account-1" });
   });
 
   it("requires an exact full amount, correct direction, eligible source, and matching accrual",async () => {
