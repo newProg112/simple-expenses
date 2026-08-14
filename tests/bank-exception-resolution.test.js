@@ -16,6 +16,7 @@ import { buildTrialBalance,DEFAULT_CHART_OF_ACCOUNTS } from "../resources/js/led
 import { generalLedgerViewFromJournals } from "../resources/js/general-ledger-view.js";
 import { normaliseBankTransaction } from "../resources/js/bank-transaction-import.js";
 import { journalFromFirestoreData } from "../resources/js/trial-balance-view.js";
+import { unmatchBankTransaction } from "../resources/js/bank-match-confirmation.js";
 
 const userId = "user-1";
 const timestamp = Object.freeze({ serverTimestamp:true });
@@ -204,6 +205,30 @@ describe.each([
     expect(journals.flatMap(item => item.lines).some(line => ["1200","2100"].includes(line.accountCode))).toBe(false);
     expect(reconciliation(fixture,direction === "in" ? 100 : -100))
       .toMatchObject({ bookBalance:direction === "in" ? 100 : -100,unresolvedCount:0,eligible:true });
+  });
+});
+
+describe("generic Unmatch isolation",() => {
+  it("rejects an exception resolution without changing its record, journal, or transaction markers",async () => {
+    const fixture = mockFirestore();
+    const result = await resolveBankException(options(fixture,"ownerContribution"));
+    const resolutionPath = `users/${userId}/bankExceptionResolutions/${result.resolutionId}`;
+    const journalPath = `journals/${result.journalId}`;
+    const before = structuredClone({
+      transaction:fixture.documents.get(transactionPath),
+      resolution:fixture.documents.get(resolutionPath),
+      journal:fixture.documents.get(journalPath)
+    });
+    fixture.writes.length = 0;
+
+    await expect(unmatchBankTransaction({
+      db:{},userId,transactionId:"bank-row",services:fixture.services
+    })).rejects.toThrow(/Use Unresolve/i);
+
+    expect(fixture.writes).toEqual([]);
+    expect(fixture.documents.get(transactionPath)).toEqual(before.transaction);
+    expect(fixture.documents.get(resolutionPath)).toEqual(before.resolution);
+    expect(fixture.documents.get(journalPath)).toEqual(before.journal);
   });
 });
 

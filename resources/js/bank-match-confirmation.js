@@ -571,8 +571,28 @@ export async function unmatchBankTransaction(options = {}){
     if(!exists(snapshot)) throw new Error("Bank transaction no longer exists.");
     const bankTransaction = { ...snapshot.data(),id:transactionId };
     if(bankTransaction.status !== "matched") throw new Error("Bank transaction is not currently matched.");
-    if(bankTransaction.matchOrigin === "categorisation"){
+    const rawMatchOrigin = bankTransaction.matchOrigin;
+    const matchOrigin = rawMatchOrigin === undefined || rawMatchOrigin === null
+      ? ""
+      : String(rawMatchOrigin).trim();
+    const hasMatchOrigin = rawMatchOrigin !== undefined && rawMatchOrigin !== null && String(rawMatchOrigin) !== "";
+    if(matchOrigin === "categorisation"){
       throw new Error("This transaction was categorised. Use Uncategorise in Banking instead.");
+    }
+    if(matchOrigin === "bankTransfer"){
+      throw new Error("This transaction is a bank transfer. Use Untransfer in Banking instead.");
+    }
+    if(matchOrigin === "bankException"){
+      throw new Error("This transaction was resolved another way. Use Unresolve in Banking instead.");
+    }
+    if(hasMatchOrigin){
+      throw new Error("This transaction has an unsupported match origin and cannot use generic Unmatch.");
+    }
+    const matchedRecordType = requiredText(bankTransaction.matchedRecordType,"Matched record type");
+    const matchedRecordId = requiredText(bankTransaction.matchedRecordId,"Matched record ID");
+    const targetCollection = BANK_MATCH_RECORD_COLLECTIONS[matchedRecordType];
+    if(!targetCollection){
+      throw new Error("This transaction is not a normal document match and cannot use generic Unmatch.");
     }
     const timestamp = services.serverTimestamp();
 
@@ -581,10 +601,6 @@ export async function unmatchBankTransaction(options = {}){
       return Object.freeze({ status:"unmatched",transactionId,settlementReversed:false });
     }
 
-    const matchedRecordType = requiredText(bankTransaction.matchedRecordType,"Matched record type");
-    const matchedRecordId = requiredText(bankTransaction.matchedRecordId,"Matched record ID");
-    const targetCollection = BANK_MATCH_RECORD_COLLECTIONS[matchedRecordType];
-    if(!targetCollection) throw new Error("Unsupported matched record type.");
     const expectedJournalId = bankSettlementJournalDocumentId(userId,transactionId);
     if(bankTransaction.settlementJournalId !== expectedJournalId){
       throw new Error("Bank transaction has an unexpected settlement journal reference.");

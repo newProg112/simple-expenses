@@ -133,6 +133,38 @@ function journalsFromFixture(testFixture){
     .map(path => journalFromFirestoreData(path.slice("journals/".length),testFixture.documents.get(path)));
 }
 
+describe("generic Unmatch workflow boundary",() => {
+  it.each(Object.keys(CASES))("still unmatches a normal %s settlement",async caseName => {
+    const testFixture = fixture(caseName);
+    await confirmBankMatch(testFixture.confirmOptions);
+
+    const result = await unmatchBankTransaction(testFixture.unmatchOptions);
+
+    expect(result).toMatchObject({ status:"unmatched",settlementReversed:true });
+    expect(testFixture.documents.get(testFixture.transactionPath)).toMatchObject({ status:"unmatched" });
+    expect(testFixture.documents.has(testFixture.settlementPath)).toBe(false);
+    expect(testFixture.documents.get(testFixture.sourcePath)).toMatchObject({
+      status:testFixture.definition.source.status
+    });
+  });
+
+  it.each([
+    ["an unknown origin",{ matchOrigin:"externalWorkflow",matchedRecordType:"invoice",matchedRecordId:"invoice-1" },/unsupported match origin/i],
+    ["a malformed falsey origin",{ matchOrigin:0,matchedRecordType:"invoice",matchedRecordId:"invoice-1" },/unsupported match origin/i],
+    ["an originless non-document type",{ matchedRecordType:"bankTransfer",matchedRecordId:"transfer-1" },/not a normal document match/i]
+  ])("rejects %s with zero writes",async (_label,matchedFields,message) => {
+    const testFixture = fixture("invoice",{
+      transaction:{ status:"matched",matchedAmount:120,...matchedFields }
+    });
+    const before = structuredClone([...testFixture.documents.entries()]);
+
+    await expect(unmatchBankTransaction(testFixture.unmatchOptions)).rejects.toThrow(message);
+
+    expect(testFixture.writes).toEqual([]);
+    expect([...testFixture.documents.entries()]).toEqual(before);
+  });
+});
+
 function stableValue(value){
   if(value === null || value === undefined || typeof value !== "object") return value;
   if(Array.isArray(value)) return value.map(stableValue);

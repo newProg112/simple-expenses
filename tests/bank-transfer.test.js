@@ -15,6 +15,7 @@ import { buildTrialBalance } from "../resources/js/ledger-engine.js";
 import { generalLedgerViewFromJournals } from "../resources/js/general-ledger-view.js";
 import { journalFromFirestoreData } from "../resources/js/trial-balance-view.js";
 import { normaliseBankTransaction } from "../resources/js/bank-transaction-import.js";
+import { unmatchBankTransaction } from "../resources/js/bank-match-confirmation.js";
 
 const userId = "user-1";
 const timestamp = Object.freeze({ serverTimestamp:true });
@@ -204,6 +205,28 @@ describe("atomic internal transfer posting",() => {
     expect(generalLedger.rows.map(row => row.bankAccountDisplay))
       .toEqual(["To Test Current Account","From tetttt"]);
     expect(journals.flatMap(journal => journal.lines).some(line => ["1200","2100"].includes(line.accountCode))).toBe(false);
+  });
+
+  it("rejects generic Unmatch without changing transfer artifacts or markers",async () => {
+    const fixture = mockFirestore({ includeDestination:false });
+    const result = await transferBankTransaction(transferOptions(fixture));
+    const transferPath = `users/${userId}/bankTransfers/${result.transferId}`;
+    const journalPath = `journals/bank-transfer_${userId}_${result.transferId}`;
+    const before = structuredClone({
+      transaction:fixture.documents.get(sourcePath),
+      transfer:fixture.documents.get(transferPath),
+      journal:fixture.documents.get(journalPath)
+    });
+    fixture.writes.length = 0;
+
+    await expect(unmatchBankTransaction({
+      db:{},userId,transactionId:"source-row",services:fixture.services
+    })).rejects.toThrow(/Use Untransfer/i);
+
+    expect(fixture.writes).toEqual([]);
+    expect(fixture.documents.get(sourcePath)).toEqual(before.transaction);
+    expect(fixture.documents.get(transferPath)).toEqual(before.transfer);
+    expect(fixture.documents.get(journalPath)).toEqual(before.journal);
   });
 
   it("derives the same accounting direction when initiated from Money In",async () => {
