@@ -73,3 +73,12 @@ export function activeBankAccounts(accounts = []){
       String(left.accountName || "").localeCompare(String(right.accountName || "")) ||
       String(left.id || "").localeCompare(String(right.id || "")));
 }
+
+export function bankAccountDisplayName(bankAccountId, accounts = []){
+  const accountId = String(bankAccountId || "").trim();
+  const account = (Array.isArray(accounts) ? accounts : [])
+    .find(item => String(item?.id || "").trim() === accountId);
+  if(!account) return accountId || "Unknown bank account";
+  const accountName = String(account.accountName || "").trim() || accountId || "Unknown bank account";
+  return `${accountName}${account.status === BANK_ACCOUNT_STATUS.ARCHIVED ? " (Archived)" : ""}`;
+}

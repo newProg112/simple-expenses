@@ -81,10 +81,13 @@ export async function persistBankTransactions(options = {}){
   const { db,services = {},userId } = options;
   const ownerId = String(userId || "").trim();
   if(!ownerId) throw new Error("An authenticated user is required for transaction import.");
-  for(const helper of ["collection","doc","getDocs","query","where","writeBatch"]){
+  for(const helper of ["collection","doc","getDocs","query","where","runTransaction"]){
     if(typeof services[helper] !== "function") throw new Error(`Firestore ${helper} helper is required.`);
   }
   const records = prepareBankTransactionRecords(options.mappedResult,options);
+  if(records.length > BANK_TRANSACTION_BATCH_LIMIT){
+    throw new Error(`A statement import cannot contain more than ${BANK_TRANSACTION_BATCH_LIMIT} Ready rows.`);
+  }
   const transactionCollection = services.collection(db,"users",ownerId,"bankTransactions");
   const bankAccountCollection = services.collection(db,"users",ownerId,"bankAccounts");
   const bankAccountRef = services.doc(bankAccountCollection,String(options.bankAccountId || "").trim());
@@ -92,34 +95,55 @@ export async function persistBankTransactions(options = {}){
     transactionCollection,
     services.where("bankAccountId","==",String(options.bankAccountId || "").trim())
   ));
-  const knownKeys = new Set(existingSnapshot.docs.map(document => bankTransactionDuplicateKey(document.data())));
-  const newRecords = records.filter(record => {
+  const knownKeys = new Set();
+  for(const document of existingSnapshot.docs){
+    const data = document.data();
+    if(document.id !== await bankTransactionDocumentId(data)) knownKeys.add(bankTransactionDuplicateKey(data));
+  }
+  const candidates = records.filter(record => {
     const key = bankTransactionDuplicateKey(record);
     if(knownKeys.has(key)) return false;
     knownKeys.add(key);
     return true;
   });
-  let committedBatches = 0;
-  for(let start = 0; start < newRecords.length; start += BANK_TRANSACTION_BATCH_LIMIT){
-    const batch = services.writeBatch(db);
-    const chunk = newRecords.slice(start,start + BANK_TRANSACTION_BATCH_LIMIT);
-    const references = await Promise.all(chunk.map(record => bankTransactionDocumentId(record)));
-    chunk.forEach((record,index) => {
-      const reference = services.doc(transactionCollection,references[index]);
-      batch.set(reference,record);
+  const documentIds = await Promise.all(candidates.map(bankTransactionDocumentId));
+  const references = documentIds.map(id => services.doc(transactionCollection,id));
+
+  return services.runTransaction(db,async firestoreTransaction => {
+    const snapshots = await Promise.all([
+      firestoreTransaction.get(bankAccountRef),
+      ...references.map(reference => firestoreTransaction.get(reference))
+    ]);
+    const [accountSnapshot,...transactionSnapshots] = snapshots;
+    if(!accountSnapshot.exists()) throw new Error("The selected bank account no longer exists.");
+    const accountStatus = String(accountSnapshot.data()?.status || "Active");
+    if(accountStatus !== "Active") throw new Error("The selected bank account is no longer active.");
+
+    const newRecords = candidates.filter((record,index) => {
+      const snapshot = transactionSnapshots[index];
+      if(!snapshot.exists()) return true;
+      if(bankTransactionDuplicateKey(snapshot.data()) !== bankTransactionDuplicateKey(record)){
+        throw new Error("A bank transaction identity collision was detected; nothing was imported.");
+      }
+      return false;
     });
-    if(typeof batch.update !== "function") throw new Error("Firestore batch update helper is required.");
-    batch.update(bankAccountRef,{
-      bankingActivity:{ version:1,type:"importedTransaction" },
-      updatedAt:options.timestamp
+    if(newRecords.length){
+      if(typeof firestoreTransaction.set !== "function" || typeof firestoreTransaction.update !== "function"){
+        throw new Error("Firestore transaction write helpers are required.");
+      }
+      candidates.forEach((record,index) => {
+        if(!transactionSnapshots[index].exists()) firestoreTransaction.set(references[index],record);
+      });
+      firestoreTransaction.update(bankAccountRef,{
+        bankingActivity:{ version:1,type:"importedTransaction" },
+        updatedAt:options.timestamp
+      });
+    }
+    return Object.freeze({
+      importedCount:newRecords.length,
+      skippedDuplicateCount:records.length - newRecords.length,
+      committedBatches:newRecords.length ? 1 : 0
     });
-    await batch.commit();
-    committedBatches += 1;
-  }
-  return Object.freeze({
-    importedCount:newRecords.length,
-    skippedDuplicateCount:records.length - newRecords.length,
-    committedBatches
   });
 }
 

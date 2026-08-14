@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   BANK_ACCOUNT_STATUS,
   activeBankAccounts,
+  bankAccountDisplayName,
   normaliseBankAccount,
   validateBankAccountInput
 } from "../resources/js/bank-account-view.js";
@@ -18,6 +19,7 @@ import {
 import {
   BANK_TRANSACTION_SOURCE,
   BANK_TRANSACTION_STATUS,
+  BANK_TRANSACTION_BATCH_LIMIT,
   bankTransactionDuplicateKey,
   createSingleFlightImport,
   newestBankTransactions,
@@ -68,6 +70,30 @@ describe("Banking Phase 2 account model", () => {
     expect(accounts[1].status).toBe(BANK_ACCOUNT_STATUS.ARCHIVED);
     expect(accounts[2].status).toBe(BANK_ACCOUNT_STATUS.ACTIVE);
     expect(activeBankAccounts(accounts).map(account => account.id)).toEqual(["newer","older"]);
+  });
+
+  it("resolves transaction account names with archived and missing-account fallbacks", () => {
+    const accounts = [
+      normaliseBankAccount("current",{ accountName:"tetttt",status:"Active" }),
+      normaliseBankAccount("destination",{ accountName:"Test Current Account",status:"Active" }),
+      normaliseBankAccount("archived",{ accountName:"Old Savings",status:"Archived" })
+    ];
+    expect(bankAccountDisplayName("current",accounts)).toBe("tetttt");
+    expect(bankAccountDisplayName("destination",accounts)).toBe("Test Current Account");
+    expect(bankAccountDisplayName("archived",accounts)).toBe("Old Savings (Archived)");
+    expect(bankAccountDisplayName("missing-account-id",accounts)).toBe("missing-account-id");
+    expect(bankAccountDisplayName("",accounts)).toBe("Unknown bank account");
+  });
+
+  it("distinguishes visually identical transaction rows by their stored bank account",() => {
+    const accounts = [
+      normaliseBankAccount("source",{ accountName:"tetttt",status:"Active" }),
+      normaliseBankAccount("destination",{ accountName:"Test Current Account",status:"Active" })
+    ];
+    const first = { transactionDate:"07/08/26",description:"ACME LTD",moneyIn:850,balance:4320.15,bankAccountId:"source" };
+    const second = { ...first,bankAccountId:"destination" };
+    expect(bankAccountDisplayName(first.bankAccountId,accounts)).toBe("tetttt");
+    expect(bankAccountDisplayName(second.bankAccountId,accounts)).toBe("Test Current Account");
   });
 });
 describe("Banking Phase 2 page", () => {
@@ -371,10 +397,21 @@ describe("Banking Phase 5 transaction import model", () => {
   });
   const mappedResult = Object.freeze({ allRows:Object.freeze([ready,attention]),readyCount:1,attentionCount:1 });
 
-  function memoryFirestore(){
+  function memoryFirestore(options = {}){
     const documents = new Map();
     documents.set("users/user-1/bankAccounts/account-1",{ accountName:"Current",status:"Active" });
+    if(options.includeSecondAccount){
+      documents.set("users/user-1/bankAccounts/account-2",{ accountName:"Savings",status:"Active" });
+    }
+    for(const [path,data] of Object.entries(options.documents || {})) documents.set(path,structuredClone(data));
+    const versions = new Map([...documents.keys()].map(path => [path,0]));
     const commits = [];
+    let failNextCommit = options.failNextCommit === true;
+    let transactionAttempts = 0;
+    let releaseConcurrentTransactions;
+    let concurrentTransactionArrivals = 0;
+    const concurrentTransactionBarrier = new Promise(resolve => { releaseConcurrentTransactions = resolve; });
+    const clone = value => value === undefined ? undefined : structuredClone(value);
     const services = {
       collection:vi.fn((_db,...parts) => ({ path:parts.join("/") })),
       doc:vi.fn((parent,id) => ({ path:`${parent.path}/${id}` })),
@@ -383,22 +420,76 @@ describe("Banking Phase 5 transaction import model", () => {
       getDocs:vi.fn(async request => ({
         docs:[...documents.entries()]
           .filter(([path,data]) => path.startsWith(`${request.reference.path}/`) && data[request.constraint.field] === request.constraint.value)
-          .map(([path,data]) => ({ id:path.split("/").at(-1),data:() => data }))
+          .map(([path,data]) => ({ id:path.split("/").at(-1),data:() => clone(data) }))
       })),
-      writeBatch:vi.fn(() => {
-        const pending = [];
-        return {
-          set:(reference,data) => pending.push({ reference,data }),
-          update:(reference,data) => pending.push({ reference,data,merge:true }),
-          commit:async () => {
-            pending.forEach(({ reference,data,merge }) => documents.set(reference.path,
-              merge ? { ...documents.get(reference.path),...data } : data));
-            commits.push(pending.length);
+      runTransaction:vi.fn(async (_db,execute) => {
+        for(let attempt = 0; attempt < 5; attempt += 1){
+          transactionAttempts += 1;
+          const reads = new Map();
+          const pending = [];
+          const transaction = {
+            get:async reference => {
+              if(!reads.has(reference.path)) reads.set(reference.path,versions.get(reference.path) || 0);
+              const present = documents.has(reference.path);
+              const data = clone(documents.get(reference.path));
+              return { exists:() => present,data:() => clone(data) };
+            },
+            set:(reference,data) => pending.push({ operation:"set",reference,data:clone(data) }),
+            update:(reference,data) => pending.push({ operation:"update",reference,data:clone(data) })
+          };
+          const result = await execute(transaction);
+          if(options.synchroniseFirstTransactions && attempt === 0){
+            concurrentTransactionArrivals += 1;
+            if(concurrentTransactionArrivals === 2) releaseConcurrentTransactions();
+            await concurrentTransactionBarrier;
           }
-        };
+          const conflicted = [...reads].some(([path,version]) => (versions.get(path) || 0) !== version);
+          if(conflicted) continue;
+          if(failNextCommit){
+            failNextCommit = false;
+            throw new Error("Simulated transaction commit failure.");
+          }
+          if(pending.some(write => write.operation === "update" && !documents.has(write.reference.path))){
+            throw new Error("Cannot update a missing document.");
+          }
+          pending.forEach(write => {
+            const current = documents.get(write.reference.path) || {};
+            documents.set(write.reference.path,write.operation === "update"
+              ? { ...current,...clone(write.data) }
+              : clone(write.data));
+            versions.set(write.reference.path,(versions.get(write.reference.path) || 0) + 1);
+          });
+          if(pending.length) commits.push(pending.length);
+          return result;
+        }
+        throw new Error("Simulated Firestore transaction retry limit exceeded.");
       })
     };
-    return { services,documents,commits };
+    return { services,documents,commits,get transactionAttempts(){ return transactionAttempts; } };
+  }
+
+  function mappedTransactions(...rows){
+    const readyRows = rows.map(row => Object.freeze({ ...row,status:"Ready",errors:[] }));
+    return Object.freeze({ allRows:Object.freeze(readyRows),readyCount:readyRows.length,attentionCount:0 });
+  }
+
+  function legacyTransaction(row = ready,overrides = {}){
+    return {
+      bankAccountId:"account-1",transactionDate:row.transactionDate,description:row.description,
+      moneyIn:row.moneyIn,moneyOut:row.moneyOut,balance:row.balance,
+      status:"unmatched",source:"csv",importId:"legacy-import",createdAt:"legacy-created",updatedAt:"legacy-updated",
+      ...overrides
+    };
+  }
+
+  async function expectLegacyDuplicateSkipped(fixture,mapped = mappedResult){
+    const before = structuredClone([...fixture.documents.entries()]);
+    await expect(persistBankTransactions({
+      db:{},services:fixture.services,userId:"user-1",bankAccountId:"account-1",
+      mappedResult:mapped,importId:"new-import",timestamp
+    })).resolves.toEqual({ importedCount:0,skippedDuplicateCount:mapped.readyCount,committedBatches:0 });
+    expect([...fixture.documents.entries()]).toEqual(before);
+    expect(fixture.commits).toEqual([]);
   }
 
   it("selects Ready rows and never includes Needs attention rows", () => {
@@ -446,14 +537,117 @@ describe("Banking Phase 5 transaction import model", () => {
   });
 
   it("imports a CSV once and writes zero documents when the same CSV is imported again", async () => {
-    const { services,documents } = memoryFirestore();
+    const { services,documents,commits } = memoryFirestore();
     const options = { db:{},services,userId:"user-1",bankAccountId:"account-1",mappedResult,timestamp };
     await expect(persistBankTransactions({ ...options,importId:"first" }))
       .resolves.toEqual({ importedCount:1,skippedDuplicateCount:0,committedBatches:1 });
     await expect(persistBankTransactions({ ...options,importId:"second" }))
       .resolves.toEqual({ importedCount:0,skippedDuplicateCount:1,committedBatches:0 });
     expect(documents.size).toBe(2);
-    expect(services.writeBatch).toHaveBeenCalledOnce();
+    expect(commits).toEqual([2]);
+    expect(services.runTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips an equivalent same-account random-ID legacy row across persisted value representations",async () => {
+    const row = { transactionDate:"06/08/26",description:"BT GROUP",moneyIn:null,moneyOut:62.5,balance:null };
+    const fixture = memoryFirestore({ documents:{
+      "users/user-1/bankTransactions/legacy-random-id":legacyTransaction(row,{
+        transactionDate:" 06/08/26 ",description:"  BT GROUP  ",moneyIn:"",moneyOut:"62.50",balance:""
+      })
+    } });
+
+    await expectLegacyDuplicateSkipped(fixture,mappedTransactions(row));
+    expect(fixture.documents.get("users/user-1/bankTransactions/legacy-random-id"))
+      .toMatchObject({ description:"  BT GROUP  ",moneyIn:"",moneyOut:"62.50",balance:"" });
+  });
+
+  it("preserves a same-account legacy invoice match and all settlement artifacts when skipped",async () => {
+    const transactionPath = "users/user-1/bankTransactions/legacy-invoice-row";
+    const invoicePath = "users/user-1/invoices/invoice-1";
+    const journalPath = "journals/legacy-invoice-settlement";
+    const fixture = memoryFirestore({ documents:{
+      [transactionPath]:legacyTransaction(ready,{
+        status:"matched",matchedRecordType:"invoice",matchedRecordId:"invoice-1",matchedAmount:1250,
+        settlementVersion:1,settlementJournalId:"legacy-invoice-settlement",settlementStateFingerprint:"invoice-fingerprint"
+      }),
+      [invoicePath]:{ status:"Paid",bankSettlement:{ transactionId:"legacy-invoice-row",journalId:"legacy-invoice-settlement" } },
+      [journalPath]:{ sourceType:"bankSettlement",bankTransactionId:"legacy-invoice-row",bankAccountId:"account-1" }
+    } });
+
+    await expectLegacyDuplicateSkipped(fixture);
+    expect(fixture.documents.get(transactionPath)).toMatchObject({
+      status:"matched",matchedRecordType:"invoice",settlementJournalId:"legacy-invoice-settlement"
+    });
+    expect(fixture.documents.get(invoicePath).bankSettlement.transactionId).toBe("legacy-invoice-row");
+    expect(fixture.documents.get(journalPath).bankTransactionId).toBe("legacy-invoice-row");
+  });
+
+  it("preserves a same-account legacy expense match and its accounting artifacts when skipped",async () => {
+    const transactionPath = "users/user-1/bankTransactions/legacy-expense-row";
+    const expensePath = "users/user-1/expenses/expense-1";
+    const journalPath = "journals/legacy-expense-settlement";
+    const fixture = memoryFirestore({ documents:{
+      [transactionPath]:legacyTransaction(ready,{
+        status:"matched",matchedRecordType:"expense",matchedRecordId:"expense-1",matchedAmount:1250,
+        settlementVersion:1,settlementJournalId:"legacy-expense-settlement",settlementStateFingerprint:"expense-fingerprint"
+      }),
+      [expensePath]:{ status:"Paid",bankSettlement:{ transactionId:"legacy-expense-row",journalId:"legacy-expense-settlement" } },
+      [journalPath]:{ sourceType:"bankSettlement",bankTransactionId:"legacy-expense-row",bankAccountId:"account-1" }
+    } });
+
+    await expectLegacyDuplicateSkipped(fixture);
+    expect(fixture.documents.get(transactionPath)).toMatchObject({
+      status:"matched",matchedRecordType:"expense",settlementJournalId:"legacy-expense-settlement"
+    });
+    expect(fixture.documents.get(expensePath).bankSettlement.transactionId).toBe("legacy-expense-row");
+    expect(fixture.documents.get(journalPath).bankTransactionId).toBe("legacy-expense-row");
+  });
+
+  it("preserves a same-account legacy bank transfer record, journal, and markers when skipped",async () => {
+    const transactionPath = "users/user-1/bankTransactions/legacy-transfer-row";
+    const transferPath = "users/user-1/bankTransfers/transfer-1";
+    const journalPath = "journals/legacy-transfer-journal";
+    const fixture = memoryFirestore({ documents:{
+      [transactionPath]:legacyTransaction(ready,{
+        status:"matched",matchedRecordType:"bankTransfer",matchedRecordId:"transfer-1",matchedAmount:1250,
+        matchOrigin:"bankTransfer",transferVersion:1,transferId:"transfer-1",
+        transferJournalId:"legacy-transfer-journal",transferRole:"destination",transferStateFingerprint:"transfer-fingerprint"
+      }),
+      [transferPath]:{
+        transferId:"transfer-1",sourceBankAccountId:"account-2",destinationBankAccountId:"account-1",
+        sourceTransactionId:"",destinationTransactionId:"legacy-transfer-row",journalId:"legacy-transfer-journal",status:"posted"
+      },
+      [journalPath]:{ sourceType:"bankTransfer",bankTransferId:"transfer-1",destinationBankAccountId:"account-1" }
+    } });
+
+    await expectLegacyDuplicateSkipped(fixture);
+    expect(fixture.documents.get(transactionPath)).toMatchObject({
+      status:"matched",matchOrigin:"bankTransfer",transferId:"transfer-1",transferJournalId:"legacy-transfer-journal"
+    });
+    expect(fixture.documents.get(transferPath).destinationTransactionId).toBe("legacy-transfer-row");
+    expect(fixture.documents.get(journalPath).bankTransferId).toBe("transfer-1");
+  });
+
+  it.each([
+    ["amount",{ moneyIn:1251 },"account-1"],
+    ["date",{ transactionDate:"08/08/26" },"account-1"],
+    ["description",{ description:"Different payment" },"account-1"],
+    ["balance",{ balance:9001 },"account-1"],
+    ["account",{},"account-2"]
+  ])("imports a genuinely changed %s beside a legacy row",async (_field,changes,bankAccountId) => {
+    const transactionPath = "users/user-1/bankTransactions/legacy-original";
+    const original = legacyTransaction(ready);
+    const fixture = memoryFirestore({ includeSecondAccount:true,documents:{ [transactionPath]:original } });
+    const changedRow = { ...ready,...changes };
+
+    await expect(persistBankTransactions({
+      db:{},services:fixture.services,userId:"user-1",bankAccountId,
+      mappedResult:mappedTransactions(changedRow),importId:"changed-import",timestamp
+    })).resolves.toEqual({ importedCount:1,skippedDuplicateCount:0,committedBatches:1 });
+
+    expect([...fixture.documents.keys()].filter(path => path.includes("/bankTransactions/"))).toHaveLength(2);
+    expect(fixture.documents.get(transactionPath)).toEqual(original);
+    expect(fixture.commits).toEqual([2]);
   });
 
   it("imports only new rows from a mixed statement", async () => {
@@ -464,6 +658,107 @@ describe("Banking Phase 5 transaction import model", () => {
     await expect(persistBankTransactions({ db:{},services,userId:"user-1",bankAccountId:"account-1",mappedResult:mixedResult,importId:"mixed",timestamp }))
       .resolves.toEqual({ importedCount:1,skippedDuplicateCount:1,committedBatches:1 });
     expect(documents.size).toBe(3);
+  });
+
+  it("serialises concurrent identical imports into one commit with no losing partial writes", async () => {
+    const fixture = memoryFirestore({ synchroniseFirstTransactions:true });
+    const options = {
+      db:{},services:fixture.services,userId:"user-1",bankAccountId:"account-1",mappedResult,timestamp
+    };
+
+    const results = await Promise.all([
+      persistBankTransactions({ ...options,importId:"tab-a" }),
+      persistBankTransactions({ ...options,importId:"tab-b" })
+    ]);
+
+    expect(results.map(result => result.importedCount).sort()).toEqual([0,1]);
+    expect(results.map(result => result.skippedDuplicateCount).sort()).toEqual([0,1]);
+    expect(fixture.commits).toEqual([2]);
+    expect(fixture.transactionAttempts).toBeGreaterThan(2);
+    const transactionEntries = [...fixture.documents.entries()]
+      .filter(([path]) => path.includes("/bankTransactions/"));
+    expect(transactionEntries).toHaveLength(1);
+    expect(["tab-a","tab-b"]).toContain(transactionEntries[0][1].importId);
+  });
+
+  it("keeps deterministic row identity isolated by owned bank account", async () => {
+    const fixture = memoryFirestore({ includeSecondAccount:true });
+    const base = { db:{},services:fixture.services,userId:"user-1",mappedResult,timestamp };
+
+    await persistBankTransactions({ ...base,bankAccountId:"account-1",importId:"current" });
+    await persistBankTransactions({ ...base,bankAccountId:"account-2",importId:"savings" });
+
+    const rows = [...fixture.documents.entries()].filter(([path]) => path.includes("/bankTransactions/"));
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map(([,data]) => data.bankAccountId))).toEqual(new Set(["account-1","account-2"]));
+    expect(new Set(rows.map(([path]) => path)).size).toBe(2);
+  });
+
+  it("allows genuinely different imports to commit independently", async () => {
+    const fixture = memoryFirestore();
+    const later = Object.freeze({ ...ready,transactionDate:"08/08/26",description:"Different payment" });
+    const laterResult = Object.freeze({ allRows:Object.freeze([later]),readyCount:1,attentionCount:0 });
+    const base = {
+      db:{},services:fixture.services,userId:"user-1",bankAccountId:"account-1",timestamp
+    };
+
+    await expect(persistBankTransactions({ ...base,mappedResult,importId:"first" }))
+      .resolves.toMatchObject({ importedCount:1 });
+    await expect(persistBankTransactions({ ...base,mappedResult:laterResult,importId:"second" }))
+      .resolves.toMatchObject({ importedCount:1 });
+
+    expect([...fixture.documents.keys()].filter(path => path.includes("/bankTransactions/"))).toHaveLength(2);
+    expect(fixture.commits).toEqual([2,2]);
+  });
+
+  it("leaves no rows or account metadata after a failed atomic commit", async () => {
+    const fixture = memoryFirestore({ failNextCommit:true });
+    const originalAccount = structuredClone(fixture.documents.get("users/user-1/bankAccounts/account-1"));
+    const secondRow = Object.freeze({ ...ready,transactionDate:"08/08/26",description:"Second payment" });
+    const twoRowResult = Object.freeze({
+      allRows:Object.freeze([ready,secondRow]),readyCount:2,attentionCount:0
+    });
+
+    await expect(persistBankTransactions({
+      db:{},services:fixture.services,userId:"user-1",bankAccountId:"account-1",
+      mappedResult:twoRowResult,importId:"failed",timestamp
+    })).rejects.toThrow(/Simulated transaction commit failure/i);
+
+    expect([...fixture.documents.keys()].filter(path => path.includes("/bankTransactions/"))).toEqual([]);
+    expect(fixture.documents.get("users/user-1/bankAccounts/account-1")).toEqual(originalAccount);
+    expect(fixture.commits).toEqual([]);
+  });
+
+  it.each([
+    ["missing","missing-account"],
+    ["archived","account-2"]
+  ])("rejects a %s selected bank account without importing rows",async (state,bankAccountId) => {
+    const fixture = memoryFirestore({ includeSecondAccount:state === "archived" });
+    if(state === "archived") fixture.documents.get("users/user-1/bankAccounts/account-2").status = "Archived";
+
+    await expect(persistBankTransactions({
+      db:{},services:fixture.services,userId:"user-1",bankAccountId,
+      mappedResult,importId:`${state}-account`,timestamp
+    })).rejects.toThrow(state === "missing" ? /no longer exists/i : /no longer active/i);
+
+    expect([...fixture.documents.keys()].filter(path => path.includes("/bankTransactions/"))).toEqual([]);
+    expect(fixture.commits).toEqual([]);
+  });
+
+  it("rejects oversized statements before any Firestore transaction can partially commit", async () => {
+    const fixture = memoryFirestore();
+    const rows = Array.from({ length:BANK_TRANSACTION_BATCH_LIMIT + 1 },(_,index) => Object.freeze({
+      ...ready,transactionDate:`${String((index % 28) + 1).padStart(2,"0")}/08/26`,description:`Payment ${index}`
+    }));
+
+    await expect(persistBankTransactions({
+      db:{},services:fixture.services,userId:"user-1",bankAccountId:"account-1",
+      mappedResult:{ allRows:rows,readyCount:rows.length,attentionCount:0 },importId:"too-large",timestamp
+    })).rejects.toThrow(new RegExp(`cannot contain more than ${BANK_TRANSACTION_BATCH_LIMIT} Ready rows`,"i"));
+
+    expect(fixture.services.runTransaction).not.toHaveBeenCalled();
+    expect(fixture.commits).toEqual([]);
+    expect(fixture.documents.size).toBe(1);
   });
 
   it("uses a single-flight guard to prevent double-click writes", async () => {
@@ -507,7 +802,7 @@ describe("Banking Phase 5 import page", () => {
   it("loads and writes the authenticated bankTransactions subcollection", () => {
     expect(html).toContain('collection(db,"users",user.uid,"bankTransactions")');
     expect(html).toContain("persistBankTransactions({");
-    expect(html).toContain("services:{ collection,doc,getDocs,query,where,writeBatch }");
+    expect(html).toContain("services:{ collection,doc,getDocs,query,where,runTransaction }");
     expect(html).toContain("serverTimestamp()");
   });
 
@@ -521,14 +816,34 @@ describe("Banking Phase 5 import page", () => {
     expect(html).not.toMatch(/deleteBankTransaction|editBankTransaction/);
   });
 
+  it("shows every transaction's stored bank account beneath its description",() => {
+    expect(html).toContain('function transactionBankAccountLabel(transaction)');
+    expect(html).toContain('bankAccountDisplayName(transaction?.bankAccountId,accounts)');
+    expect(html).toContain('accountLabel.className = "transaction-account"');
+    expect(html).toContain('accountLabel.textContent = transactionBankAccountLabel(transaction)');
+    expect(html).toContain('descriptionCell.append(accountLabel)');
+    expect(html).toContain('.transaction-account{display:block');
+  });
+
+  it("keeps all existing matched and unresolved workflow status/actions while adding account attribution",() => {
+    for(const marker of [
+      'transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"',
+      'exceptionResolved ? "unresolve" : transferred ? "untransfer" : categorised ? "uncategorise" : "unmatch"',
+      'categorise.dataset.matchAction = "categorise"',
+      'transfer.dataset.matchAction = "transfer"',
+      'resolve.dataset.matchAction = "exception"'
+    ]) expect(html).toContain(marker);
+  });
+
   it("clears temporary CSV state only after successful import", () => {
     expect(html).toMatch(/await persistBankTransactions\([\s\S]*?resetStatementPreview\(\)[\s\S]*?Skipped duplicates/);
     expect(html).toMatch(/function resetStatementPreview[\s\S]*?elements\.fileInput\.value = ""[\s\S]*?clearStatementData\(\)/);
   });
 
   it("reports imported and skipped duplicate counts, including the all-duplicate case", () => {
-    expect(html).toContain("`Imported: ${result.importedCount}. Skipped duplicates: ${result.skippedDuplicateCount}.`");
-    expect(html).toContain("No new transactions were imported. Everything in this statement already exists.");
+    expect(html).toContain("const destinationAccountName = bankAccountDisplayName(bankAccountId,accounts)");
+    expect(html).toContain('`${result.importedCount} transaction${result.importedCount === 1 ? "" : "s"} imported into ${destinationAccountName}. Skipped duplicates: ${result.skippedDuplicateCount}.`');
+    expect(html).toContain('`No new transactions were imported into ${destinationAccountName}. Everything in this statement already exists for that bank account.`');
   });
 
   it("includes imported bank transactions in canonical Demo reset storage", () => {
