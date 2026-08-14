@@ -517,7 +517,7 @@ describe("Banking Phase 5 import page", () => {
     expect(html).toContain("elements.needsReviewCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.UNMATCHED).length)");
     expect(html).toContain("elements.matchedCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.MATCHED).length)");
     expect(html).toContain('id="transactionList" tabindex="0" aria-label="Imported bank transactions table, horizontally scrollable"');
-    expect(html).toContain('badge.textContent = categorised ? "Categorised" : matched ? "Matched" : "Unmatched"');
+    expect(html).toContain('badge.textContent = transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"');
     expect(html).not.toMatch(/deleteBankTransaction|editBankTransaction/);
   });
 
@@ -534,12 +534,35 @@ describe("Banking Phase 5 import page", () => {
   it("includes imported bank transactions in canonical Demo reset storage", () => {
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransactions");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankIncome");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransfers");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransferLinks");
     expect(DEMO_SEED).not.toHaveProperty("bankTransactions");
     expect(DEMO_SEED).not.toHaveProperty("bankIncome");
   });
 
   it("does not add matching, accounting, Open Banking, or subscription behavior", () => {
     expect(html).not.toMatch(/matchInvoice|matchBill|matchExpense|createJournal|ledgerEntry|plaid|truelayer|plan-entitlements|starterPreview/);
+  });
+});
+
+describe("Banking internal transfer page",() => {
+  it("offers explicit account selection and user-confirmed statement pairing",() => {
+    for(const marker of [
+      'id="transferOtherAccount"','id="transferPairing"',
+      'transfer.dataset.matchAction = "transfer"',
+      'bankTransferCandidates({ transaction,otherBankAccountId,transactions,transfers:bankTransfers })',
+      'getDocs(collection(db,"users",user.uid,"bankTransfers"))'
+    ]) expect(html).toContain(marker);
+    expect(html).toContain("Archived accounts are shown only so historical transfers can remain correctly attributed.");
+  });
+
+  it("dispatches posting, later-side linking, and Untransfer through atomic helpers",() => {
+    expect(html).toContain("await transferBankTransaction({");
+    expect(html).toContain("existingTransferId:pairingId");
+    expect(html).toContain("oppositeTransactionId:pairingId");
+    expect(html).toContain("await untransferBankTransaction({");
+    expect(html).toContain('button.dataset.matchAction === "untransfer"');
+    expect(html).toContain("No second journal was posted.");
   });
 });
 
@@ -635,7 +658,7 @@ describe("Banking Phase 7A suggestions page", () => {
 
   it("adds explicit settlement-aware Confirm match and reversible Unmatch actions", () => {
     expect(html).toContain('confirm.textContent = confirm.disabled ? "Confirming..." : "Confirm match"');
-    expect(html).toContain('(categorised ? "Uncategorise" : "Unmatch")');
+    expect(html).toContain('(transferred ? "Untransfer" : categorised ? "Uncategorise" : "Unmatch")');
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp }');
     expect(html).toContain('services:{ doc,runTransaction,serverTimestamp,deleteField }');
     expect(html).toContain("The source record was marked Paid and its settlement journal was posted.");
@@ -803,12 +826,12 @@ describe("Banking Confirm Match settlement model", () => {
 
   it("renders confirmed, missing-target, amount-change, duplicate-target, and reversible states", () => {
     for(const marker of [
-      'badge.textContent = categorised ? "Categorised" : matched ? "Matched" : "Unmatched"',
+      'badge.textContent = transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"',
       '"Matched record no longer available"',
       '" — amount has changed"',
       '"Another bank transaction is already matched to this record."',
       '" — settled"',
-      'unmatch.dataset.matchAction = categorised ? "uncategorise" : "unmatch"'
+      'unmatch.dataset.matchAction = transferred ? "untransfer" : categorised ? "uncategorise" : "unmatch"'
     ]) expect(html).toContain(marker);
   });
 });

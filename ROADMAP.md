@@ -45,7 +45,8 @@
 - [x] CSV Banking foundation — statement import, matching, settlement and categorisation
 - [x] Bank opening-balance accounting — dated deterministic journals, legacy opt-in and activity locking
 - [x] Per-account bank reconciliation MVP — dated statement comparison, strict sign-off and immutable review history
-- [ ] Bank transfers and exception handling
+- [x] Internal bank transfers between owned accounts â€” deterministic shared journals, explicit statement-side pairing and safe Untransfer
+- [ ] Banking exception handling â€” refunds, non-business items and other exceptional movements
 - [ ] Partial payments and manual matching
 - [ ] Live bank feed / Open Banking integration
 

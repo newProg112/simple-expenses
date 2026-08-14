@@ -123,6 +123,7 @@ function ledgerRows(entries) {
     date: calendarDateKey(entry.date) || String(entry.date || ""),
     reference: generalLedgerReference(entry),
     description: String(entry.description || ""),
+    ...(String(entry.bankAccountId || "").trim() ? { bankAccountId:String(entry.bankAccountId).trim() } : {}),
     debit: entry.debit,
     credit: entry.credit,
     runningBalance: entry.runningBalance,

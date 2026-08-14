@@ -40,7 +40,10 @@ export function journalFromFirestoreData(documentId, data) {
           accountCode: line?.accountCode,
           description: line?.description,
           debit: line?.debit,
-          credit: line?.credit
+          credit: line?.credit,
+          ...(String(line?.bankAccountId || "").trim() ? {
+            bankAccountId:String(line.bankAccountId).trim()
+          } : {})
         }))
       : journalData.lines
   };

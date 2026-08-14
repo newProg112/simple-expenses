@@ -233,6 +233,25 @@
     </section>
   </div>
 
+  <div class="modal-overlay" id="transferModalOverlay" hidden>
+    <section class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="transferModalTitle">
+      <div class="modal-header"><div><h2 id="transferModalTitle">Transfer between my bank accounts</h2><p class="muted">Post one movement between two owned accounts with no income, expense or VAT effect.</p></div><button class="modal-close" id="transferModalClose" type="button" aria-label="Close transfer form">&times;</button></div>
+      <form id="transferForm" novalidate>
+        <div class="modal-body">
+          <div class="form-feedback" id="transferFeedback" role="alert" hidden></div>
+          <div class="form-grid">
+            <div class="field"><label>Transaction</label><div class="categorisation-fixed" id="transferTransaction"></div></div>
+            <div class="field"><label>Amount</label><div class="categorisation-fixed" id="transferAmount"></div></div>
+            <div class="field field-wide"><label for="transferOtherAccount">Other owned bank account <span class="required" aria-hidden="true">*</span></label><select id="transferOtherAccount" required></select><p class="categorisation-note">Archived accounts are shown only so historical transfers can remain correctly attributed.</p></div>
+            <div class="field field-wide"><label for="transferPairing">Opposite statement side</label><select id="transferPairing"><option value="">Not imported yet</option></select><p class="categorisation-note">Pairing is optional and always requires your selection. Suggested rows use opposite direction, the same amount and a date within three days.</p></div>
+            <div class="field field-wide"><p class="categorisation-note" id="transferDirection"></p></div>
+          </div>
+        </div>
+        <div class="modal-actions"><button class="btn btn-secondary" id="cancelTransferButton" type="button">Cancel</button><button class="btn" id="confirmTransferButton" type="submit">Post transfer</button></div>
+      </form>
+    </section>
+  </div>
+
   <script type="module">
     import { auth, db } from "/firebase-config.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -247,6 +266,7 @@
     import { BANK_INCOME_CATEGORIES, categoriseMoneyIn, moneyInCategorisationEligibility, uncategoriseMoneyIn } from "/resources/js/bank-income-categorisation.js?v=20260813-banking15";
     import { bankAccountOpeningBalanceLocked, createBankAccountWithOpeningBalance, postLegacyBankOpeningBalance, updateBankAccountWithOpeningBalance } from "/resources/js/bank-opening-balance.js?v=20260813-banking16";
     import { calculateBankReconciliation, normaliseBankReconciliation, reconciliationHistory, signOffBankReconciliation, validateBankReconciliationInput } from "/resources/js/bank-reconciliation.js?v=20260813-banking17";
+    import { bankTransferCandidates, bankTransferEligibility, normaliseBankTransfer, transferBankTransaction, untransferBankTransaction } from "/resources/js/bank-transfer.js?v=20260814-banking18";
 
     const elements = {
       count:document.getElementById("bankAccountCount"), transactionCount:document.getElementById("bankTransactionCount"), needsReviewCount:document.getElementById("bankNeedsReviewCount"), matchedCount:document.getElementById("bankMatchedCount"), add:document.getElementById("addAccountButton"), list:document.getElementById("accountList"),
@@ -263,6 +283,7 @@
       archiveOverlay:document.getElementById("archiveModalOverlay"), archiveClose:document.getElementById("archiveModalClose"), archiveName:document.getElementById("archiveAccountName"), archiveFeedback:document.getElementById("archiveFeedback"), confirmArchive:document.getElementById("confirmArchiveButton"),
       importOverlay:document.getElementById("importModalOverlay"), importClose:document.getElementById("importModalClose"), transactionImportFeedback:document.getElementById("transactionImportFeedback"), confirmedImportCount:document.getElementById("confirmedImportCount"), confirmImport:document.getElementById("confirmImportButton"), cancelImport:document.getElementById("cancelImportButton"),
       categorisationOverlay:document.getElementById("categorisationModalOverlay"), categorisationClose:document.getElementById("categorisationModalClose"), categorisationForm:document.getElementById("categorisationForm"), categorisationFeedback:document.getElementById("categorisationFeedback"), categorisationTitle:document.getElementById("categorisationModalTitle"), categorisationSubtitle:document.getElementById("categorisationModalSubtitle"), categorisationPartyLabel:document.getElementById("categorisationPartyLabel"), categorisationCategoryLabel:document.getElementById("categorisationCategoryLabel"), categorisationNote:document.getElementById("categorisationNote"), categorisationDate:document.getElementById("categorisationDate"), categorisationGross:document.getElementById("categorisationGross"), categorisationMerchant:document.getElementById("categorisationMerchant"), categorisationCategory:document.getElementById("categorisationCategory"), categorisationProject:document.getElementById("categorisationProject"), categorisationVatTreatment:document.getElementById("categorisationVatTreatment"), categorisationExactVatField:document.getElementById("categorisationExactVatField"), categorisationExactVat:document.getElementById("categorisationExactVat"), categorisationDescription:document.getElementById("categorisationDescription"), confirmCategorisation:document.getElementById("confirmCategorisationButton"), cancelCategorisation:document.getElementById("cancelCategorisationButton"),
+      transferOverlay:document.getElementById("transferModalOverlay"), transferClose:document.getElementById("transferModalClose"), transferForm:document.getElementById("transferForm"), transferFeedback:document.getElementById("transferFeedback"), transferTransaction:document.getElementById("transferTransaction"), transferAmount:document.getElementById("transferAmount"), transferOtherAccount:document.getElementById("transferOtherAccount"), transferPairing:document.getElementById("transferPairing"), transferDirection:document.getElementById("transferDirection"), confirmTransfer:document.getElementById("confirmTransferButton"), cancelTransfer:document.getElementById("cancelTransferButton"),
       reconciliationAccount:document.getElementById("reconciliationAccount"), reconciliationDate:document.getElementById("reconciliationDate"), reconciliationBalance:document.getElementById("reconciliationBalance"), calculateReconciliation:document.getElementById("calculateReconciliationButton"), reconciliationFeedback:document.getElementById("reconciliationFeedback"), reconciliationPosition:document.getElementById("reconciliationPosition"), reconciliationBookBalance:document.getElementById("reconciliationBookBalance"), reconciliationStatementBalance:document.getElementById("reconciliationStatementBalance"), reconciliationDifference:document.getElementById("reconciliationDifference"), reconciliationUnresolved:document.getElementById("reconciliationUnresolved"), reconciliationSummary:document.getElementById("reconciliationSummary"), reconciliationStatusText:document.getElementById("reconciliationStatusText"), signOffReconciliation:document.getElementById("signOffReconciliationButton"), reconciliationHistoryEmpty:document.getElementById("reconciliationHistoryEmpty"), reconciliationHistoryTable:document.getElementById("reconciliationHistoryTable"), reconciliationHistoryBody:document.getElementById("reconciliationHistoryBody")
     };
     let accounts = [];
@@ -281,11 +302,14 @@
     let transactions = [];
     let isImportingTransactions = false;
     let matchSources = { invoices:[],bills:[],expenses:[],bankIncome:[] };
+    let bankTransfers = [];
     let matchSourcesLoaded = false;
     let projects = [];
     let pendingCategorisationId = null;
     let pendingCategorisationType = null;
     let isCategorising = false;
+    let pendingTransferId = null;
+    let isTransferring = false;
     let bankingJournals = [];
     let reconciliations = [];
     let reconciliationPosition = null;
@@ -615,6 +639,17 @@
       return Number(record.type === "mileage" ? record.amount ?? record.gross : record.gross ?? record.total);
     }
     function matchedRelationship(transaction){
+      if(transaction.matchedRecordType === "bankTransfer"){
+        if(!matchSourcesLoaded) return { text:"Loading bank transfer...",warning:false };
+        const otherAccountId = transaction.transferRole === "source"
+          ? bankTransfers.find(transfer => transfer.transferId === transaction.transferId)?.destinationBankAccountId
+          : bankTransfers.find(transfer => transfer.transferId === transaction.transferId)?.sourceBankAccountId;
+        const otherAccount = accounts.find(account => account.id === otherAccountId);
+        const direction = transaction.transferRole === "source" ? "to" : "from";
+        return otherAccount
+          ? { text:`Transfer ${direction} ${otherAccount.accountName}`,warning:false }
+          : { text:"Transfer account no longer available",warning:true };
+      }
       if(!matchSourcesLoaded) return { text:"Loading matched record...",warning:false };
       const record = matchedSourceRecord(transaction);
       if(!record) return { text:"Matched record no longer available",warning:true };
@@ -649,8 +684,9 @@
         const badge = document.createElement("span");
         const matched = transaction.status === BANK_TRANSACTION_STATUS.MATCHED;
         const categorised = matched && transaction.matchOrigin === "categorisation" && transaction.categorisationVersion === 1;
+        const transferred = matched && transaction.matchedRecordType === "bankTransfer" && transaction.transferVersion === 1;
         badge.className = matched ? "status-matched" : "status-unmatched";
-        badge.textContent = categorised ? "Categorised" : matched ? "Matched" : "Unmatched";
+        badge.textContent = transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched";
         statusCell.append(badge);
         if(matched){
           const relationship = matchedRelationship(transaction);
@@ -660,12 +696,12 @@
           const unmatch = document.createElement("button");
           unmatch.className = "btn btn-secondary match-action";
           unmatch.type = "button";
-          unmatch.dataset.matchAction = categorised ? "uncategorise" : "unmatch";
+          unmatch.dataset.matchAction = transferred ? "untransfer" : categorised ? "uncategorise" : "unmatch";
           unmatch.dataset.transactionId = transaction.id;
           unmatch.disabled = activeMatchActions.has(transaction.id);
           unmatch.textContent = unmatch.disabled
-            ? (categorised ? "Uncategorising..." : "Unmatching...")
-            : (categorised ? "Uncategorise" : "Unmatch");
+            ? (transferred ? "Untransferring..." : categorised ? "Uncategorising..." : "Unmatching...")
+            : (transferred ? "Untransfer" : categorised ? "Uncategorise" : "Unmatch");
           statusCell.append(detail,unmatch);
         }else{
           const categorisationType = moneyOutCategorisationEligibility(transaction).eligible
@@ -680,6 +716,14 @@
             categorise.disabled = activeMatchActions.has(transaction.id);
             categorise.textContent = categorise.disabled ? "Categorising..." : "Categorise";
             statusCell.append(categorise);
+            const transfer = document.createElement("button");
+            transfer.className = "btn btn-secondary match-action";
+            transfer.type = "button";
+            transfer.dataset.matchAction = "transfer";
+            transfer.dataset.transactionId = transaction.id;
+            transfer.disabled = activeMatchActions.has(transaction.id) || accounts.length < 2;
+            transfer.textContent = "Transfer";
+            statusCell.append(transfer);
           }
         }
         row.append(statusCell);
@@ -760,14 +804,16 @@
     async function loadMatchSources(user){
       if(!user) return;
       try{
-        const [invoiceSnapshot,billSnapshot,expenseSnapshot,incomeSnapshot] = await Promise.all([
+        const [invoiceSnapshot,billSnapshot,expenseSnapshot,incomeSnapshot,transferSnapshot] = await Promise.all([
           getDocs(collection(db,"users",user.uid,"invoices")),
           getDocs(collection(db,"users",user.uid,"bills")),
           getDocs(collection(db,"users",user.uid,"expenses")),
-          getDocs(collection(db,"users",user.uid,"bankIncome"))
+          getDocs(collection(db,"users",user.uid,"bankIncome")),
+          getDocs(collection(db,"users",user.uid,"bankTransfers"))
         ]);
         const records = snapshot => snapshot.docs.map(document => ({ ...document.data(),id:document.id }));
         matchSources = { invoices:records(invoiceSnapshot),bills:records(billSnapshot),expenses:records(expenseSnapshot),bankIncome:records(incomeSnapshot) };
+        bankTransfers = transferSnapshot.docs.map(document => normaliseBankTransfer(document.id,document.data()));
         matchSourcesLoaded = true;
         renderTransactions();
       }catch(error){
@@ -990,6 +1036,138 @@
         renderTransactions();
       }
     }
+    function transferAccountName(accountId){
+      return accounts.find(account => account.id === accountId)?.accountName || accountId;
+    }
+    function renderTransferPairings(){
+      const transaction = transactions.find(item => item.id === pendingTransferId);
+      const otherBankAccountId = elements.transferOtherAccount.value;
+      const selected = elements.transferPairing.value;
+      elements.transferPairing.replaceChildren();
+      const none = document.createElement("option");
+      none.value = "";
+      none.textContent = "Not imported yet";
+      elements.transferPairing.append(none);
+      bankTransferCandidates({ transaction,otherBankAccountId,transactions,transfers:bankTransfers }).forEach(candidate => {
+        const option = document.createElement("option");
+        option.value = `${candidate.type}:${candidate.id}`;
+        option.textContent = candidate.label;
+        elements.transferPairing.append(option);
+      });
+      elements.transferPairing.value = [...elements.transferPairing.options].some(option => option.value === selected) ? selected : "";
+      const eligibility = bankTransferEligibility(transaction);
+      if(!eligibility.eligible || !otherBankAccountId){
+        elements.transferDirection.textContent = "";
+        return;
+      }
+      const currentName = transferAccountName(transaction.bankAccountId);
+      const otherName = transferAccountName(otherBankAccountId);
+      elements.transferDirection.textContent = eligibility.role === "source"
+        ? `${money(eligibility.amount)} will move from ${currentName} to ${otherName}.`
+        : `${money(eligibility.amount)} will move from ${otherName} to ${currentName}.`;
+    }
+    function openTransferForm(button){
+      const transaction = transactions.find(item => item.id === button.dataset.transactionId);
+      const eligibility = bankTransferEligibility(transaction);
+      if(!transaction || !eligibility.eligible){
+        setPageFeedback(eligibility.reason || "This transaction cannot be transferred.",true);
+        return;
+      }
+      const otherAccounts = accounts.filter(account => account.id !== transaction.bankAccountId &&
+        [BANK_ACCOUNT_STATUS.ACTIVE,BANK_ACCOUNT_STATUS.ARCHIVED].includes(account.status));
+      if(!otherAccounts.length){
+        setPageFeedback("Add another owned bank account before recording an internal transfer.",true);
+        return;
+      }
+      pendingTransferId = transaction.id;
+      setFormFeedback("",elements.transferFeedback);
+      elements.transferTransaction.textContent = `${transaction.transactionDate} / ${transaction.description}`;
+      elements.transferAmount.textContent = money(eligibility.amount);
+      elements.transferOtherAccount.replaceChildren();
+      otherAccounts
+        .sort((left,right) => left.accountName.localeCompare(right.accountName,"en-GB",{ sensitivity:"base" }))
+        .forEach(account => {
+          const option = document.createElement("option");
+          option.value = account.id;
+          option.textContent = `${account.accountName}${account.status === BANK_ACCOUNT_STATUS.ARCHIVED ? " (Archived)" : ""}`;
+          elements.transferOtherAccount.append(option);
+        });
+      renderTransferPairings();
+      openOverlay(elements.transferOverlay,elements.transferOtherAccount,button);
+    }
+    function closeTransferForm(force = false){
+      if(isTransferring && !force) return;
+      pendingTransferId = null;
+      setFormFeedback("",elements.transferFeedback);
+      closeOverlay(elements.transferOverlay);
+    }
+    function setTransferLoading(loading){
+      isTransferring = loading;
+      elements.confirmTransfer.disabled = loading;
+      elements.cancelTransfer.disabled = loading;
+      elements.transferClose.disabled = loading;
+      elements.transferOtherAccount.disabled = loading;
+      elements.transferPairing.disabled = loading;
+      elements.confirmTransfer.textContent = loading ? "Posting..." : "Post transfer";
+    }
+    async function submitTransfer(event){
+      event.preventDefault();
+      if(isTransferring || !pendingTransferId || !currentUser) return;
+      const transactionId = pendingTransferId;
+      const pairing = elements.transferPairing.value;
+      const separator = pairing.indexOf(":");
+      const pairingType = separator > 0 ? pairing.slice(0,separator) : "";
+      const pairingId = separator > 0 ? pairing.slice(separator + 1) : "";
+      setTransferLoading(true);
+      activeMatchActions.add(transactionId);
+      try{
+        const result = await transferBankTransaction({
+          db,userId:currentUser.uid,transactionId,
+          otherBankAccountId:elements.transferOtherAccount.value,
+          ...(pairingType === "transaction" ? { oppositeTransactionId:pairingId } : {}),
+          ...(pairingType === "transfer" ? { existingTransferId:pairingId } : {}),
+          services:{ doc,runTransaction,serverTimestamp }
+        });
+        await loadTransactions(currentUser,false);
+        await loadMatchSources(currentUser);
+        await loadReconciliationData(currentUser);
+        closeTransferForm(true);
+        setPageFeedback(result.status === "linked"
+          ? "Statement side linked to the existing bank transfer. No second journal was posted."
+          : result.status === "already-transferred"
+            ? "This bank transfer was already posted. No duplicate journal was created."
+            : "Bank transfer posted with no income, expense or VAT effect.");
+      }catch(error){
+        console.error("Bank transfer failed",error);
+        setFormFeedback(error.message || "The bank transfer could not be posted.",elements.transferFeedback);
+      }finally{
+        activeMatchActions.delete(transactionId);
+        setTransferLoading(false);
+        renderTransactions();
+      }
+    }
+    async function untransferTransaction(button){
+      const transactionId = button.dataset.transactionId;
+      if(!currentUser || !transactionId || activeMatchActions.has(transactionId)) return;
+      activeMatchActions.add(transactionId);
+      renderTransactions();
+      try{
+        await untransferBankTransaction({
+          db,userId:currentUser.uid,transactionId,
+          services:{ doc,runTransaction,serverTimestamp,deleteField }
+        });
+        await loadTransactions(currentUser,false);
+        await loadMatchSources(currentUser);
+        await loadReconciliationData(currentUser);
+        setPageFeedback("Bank transfer removed. Linked statement rows now need review; signed reconciliations were preserved and may show Needs review.");
+      }catch(error){
+        console.error("Bank Untransfer failed",error);
+        setPageFeedback(error.message || "The bank transfer could not be removed. Refresh and try again.",true);
+      }finally{
+        activeMatchActions.delete(transactionId);
+        renderTransactions();
+      }
+    }
     async function loadTransactions(user,showLoading = true){
       if(!user) return;
       if(showLoading) elements.transactionsLoading.hidden = false;
@@ -1142,7 +1320,7 @@
     }
     function closeOverlay(overlay){
       overlay.hidden = true;
-      if(elements.accountOverlay.hidden && elements.legacyOpeningOverlay.hidden && elements.archiveOverlay.hidden && elements.importOverlay.hidden && elements.categorisationOverlay.hidden) document.body.style.overflow = "";
+      if(elements.accountOverlay.hidden && elements.legacyOpeningOverlay.hidden && elements.archiveOverlay.hidden && elements.importOverlay.hidden && elements.categorisationOverlay.hidden && elements.transferOverlay.hidden) document.body.style.overflow = "";
       modalTrigger?.focus();
       modalTrigger = null;
     }
@@ -1373,6 +1551,8 @@
       if(button.dataset.matchAction === "categorise") openCategorisationForm(button);
       if(button.dataset.matchAction === "uncategorise") void uncategoriseTransaction(button);
       if(button.dataset.matchAction === "unmatch") void unmatchTransaction(button);
+      if(button.dataset.matchAction === "transfer") openTransferForm(button);
+      if(button.dataset.matchAction === "untransfer") void untransferTransaction(button);
     });
     elements.categorisationForm.addEventListener("submit",submitCategorisation);
     elements.cancelCategorisation.addEventListener("click",() => closeCategorisationForm());
@@ -1383,6 +1563,13 @@
     });
     elements.categorisationOverlay.addEventListener("click",event => {
       if(event.target === elements.categorisationOverlay) closeCategorisationForm();
+    });
+    elements.transferForm.addEventListener("submit",submitTransfer);
+    elements.transferOtherAccount.addEventListener("change",renderTransferPairings);
+    elements.cancelTransfer.addEventListener("click",() => closeTransferForm());
+    elements.transferClose.addEventListener("click",() => closeTransferForm());
+    elements.transferOverlay.addEventListener("click",event => {
+      if(event.target === elements.transferOverlay) closeTransferForm();
     });
     elements.cancelImport.addEventListener("click",() => closeImportConfirmation());
     elements.importClose.addEventListener("click",() => closeImportConfirmation());
@@ -1438,7 +1625,8 @@
     }));
     document.addEventListener("keydown",event => {
       if(event.key !== "Escape") return;
-      if(!elements.categorisationOverlay.hidden) closeCategorisationForm();
+      if(!elements.transferOverlay.hidden) closeTransferForm();
+      else if(!elements.categorisationOverlay.hidden) closeCategorisationForm();
       else if(!elements.legacyOpeningOverlay.hidden) closeLegacyOpeningBalanceForm();
       else if(!elements.importOverlay.hidden) closeImportConfirmation();
       else if(!elements.archiveOverlay.hidden) closeArchiveConfirmation();

@@ -137,7 +137,13 @@ export function normaliseBankTransaction(id,data = {}){
   const hasValidMatchedType = ["invoice","bill","expense"].includes(data.matchedRecordType) ||
     (data.matchedRecordType === "bankIncome" && data.matchOrigin === "categorisation" &&
       Number(data.categorisationVersion) === 1 && Boolean(String(data.categorisationJournalId || "").trim()) &&
-      Boolean(String(data.categorisationStateFingerprint || "").trim()));
+      Boolean(String(data.categorisationStateFingerprint || "").trim())) ||
+    (data.matchedRecordType === "bankTransfer" && data.matchOrigin === "bankTransfer" &&
+      Number(data.transferVersion) === 1 && Boolean(String(data.transferId || "").trim()) &&
+      String(data.transferId || "").trim() === String(data.matchedRecordId || "").trim() &&
+      Boolean(String(data.transferJournalId || "").trim()) &&
+      ["source","destination"].includes(String(data.transferRole || "")) &&
+      Boolean(String(data.transferStateFingerprint || "").trim()));
   const hasValidMatch = data.status === BANK_TRANSACTION_STATUS.MATCHED && hasValidMatchedType &&
     Boolean(String(data.matchedRecordId || "").trim()) &&
     Number.isFinite(Number(data.matchedAmount)) && Number(data.matchedAmount) > 0;
@@ -174,6 +180,17 @@ export function normaliseBankTransaction(id,data = {}){
         } : {}),
         ...(String(data.categorisationStateFingerprint || "").trim() ? {
           categorisationStateFingerprint:String(data.categorisationStateFingerprint).trim()
+        } : {})
+      } : {}),
+      ...(data.matchOrigin === "bankTransfer" && Number(data.transferVersion) === 1 ? {
+        matchOrigin:"bankTransfer",
+        transferVersion:1,
+        transferId:String(data.transferId).trim(),
+        transferJournalId:String(data.transferJournalId).trim(),
+        transferRole:String(data.transferRole).trim(),
+        transferStateFingerprint:String(data.transferStateFingerprint).trim(),
+        ...(String(data.pairedBankTransactionId || "").trim() ? {
+          pairedBankTransactionId:String(data.pairedBankTransactionId).trim()
         } : {})
       } : {})
     } : {})

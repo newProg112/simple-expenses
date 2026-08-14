@@ -3,6 +3,7 @@ import {
   createBankIncomeJournal,
   createBankOpeningBalanceJournal,
   createBankSettlementJournal,
+  createBankTransferJournal,
   createExpenseJournal,
   createMileageJournal,
   createSalesInvoiceJournal,
@@ -23,6 +24,7 @@ function sourcePrefix(sourceType) {
   if (sourceType === "bankSettlement") return "bank-settlement";
   if (sourceType === "bankIncome") return "bank-income";
   if (sourceType === "bankOpeningBalance") return "bank-opening-balance";
+  if (sourceType === "bankTransfer") return "bank-transfer";
   return String(sourceType || "source");
 }
 
@@ -64,6 +66,10 @@ export function bankIncomeJournalDocumentId(userId, incomeId) {
 
 export function bankOpeningBalanceJournalDocumentId(userId, bankAccountId) {
   return journalDocumentId(userId, "bankOpeningBalance", bankAccountId);
+}
+
+export function bankTransferJournalDocumentId(userId, transferId) {
+  return journalDocumentId(userId, "bankTransfer", transferId);
 }
 
 export function isMileageExpenseRecord(expenseData) {
@@ -125,7 +131,10 @@ export function serialiseJournalForFirestore(journal, metadata) {
       accountCode: line.accountCode,
       description: line.description,
       debit: line.debit,
-      credit: line.credit
+      credit: line.credit,
+      ...(String(line.bankAccountId || "").trim() ? {
+        bankAccountId: String(line.bankAccountId).trim()
+      } : {})
     }))
   });
 }
@@ -318,6 +327,35 @@ export function prepareBankOpeningBalanceJournal(
     openingBalanceVersion: 1,
     openingBalanceAmount: Number(openingBalanceData?.openingBalance),
     openingBalanceDate: String(openingBalanceData?.openingBalanceDate || "")
+  };
+}
+
+export function prepareBankTransferJournal(
+  userId,
+  transferId,
+  transferData,
+  timestamps = {}
+) {
+  const owner = requiredIdentifier(userId, "User ID");
+  const sourceId = requiredIdentifier(transferId, "Bank transfer ID");
+  const journalId = bankTransferJournalDocumentId(owner, sourceId);
+  const journal = createBankTransferJournal({ ...transferData, transferId: sourceId });
+  const prepared = serialiseJournalForFirestore(journal, {
+    userId: owner,
+    journalId,
+    sourceNumber: sourceId
+  });
+
+  return {
+    ...prepared,
+    createdAt: timestamps.createdAt || "",
+    updatedAt: timestamps.updatedAt || "",
+    bankTransferVersion: 1,
+    bankTransferId: sourceId,
+    sourceBankAccountId: String(transferData?.sourceBankAccountId || ""),
+    destinationBankAccountId: String(transferData?.destinationBankAccountId || ""),
+    amount: Number(transferData?.amount),
+    effectiveDate: String(transferData?.effectiveDate || "")
   };
 }
 

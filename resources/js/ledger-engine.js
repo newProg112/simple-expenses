@@ -656,6 +656,46 @@ export function createBankOpeningBalanceJournal(openingBalance) {
   });
 }
 
+export function createBankTransferJournal(transfer) {
+  if (!transfer || typeof transfer !== "object") {
+    throw new Error("Bank transfer is required.");
+  }
+
+  const transferId = String(firstPresent(transfer, ["transferId", "id"]) || "").trim();
+  const sourceBankAccountId = String(transfer.sourceBankAccountId || "").trim();
+  const destinationBankAccountId = String(transfer.destinationBankAccountId || "").trim();
+  if(!transferId) throw new Error("Bank transfer ID is required.");
+  if(!sourceBankAccountId) throw new Error("Source bank account ID is required.");
+  if(!destinationBankAccountId) throw new Error("Destination bank account ID is required.");
+  if (sourceBankAccountId === destinationBankAccountId) {
+    throw new Error("A bank transfer must use two different bank accounts.");
+  }
+  const amount = requirePositiveMoney(Number(transfer.amount), "Transfer amount");
+  const date = normaliseBankTransactionDate(
+    firstPresent(transfer, ["effectiveDate", "transactionDate", "date"])
+  );
+  if (!date) throw new Error("A valid bank transfer date is required.");
+  const description = `Bank transfer ${transferId}`;
+
+  return finishJournal({
+    id: `bank-transfer:${transferId}`,
+    date,
+    sourceType: "bankTransfer",
+    sourceId: transferId,
+    description,
+    lines: [
+      {
+        ...journalLine("1000", description, amount, 0),
+        bankAccountId: destinationBankAccountId
+      },
+      {
+        ...journalLine("1000", description, 0, amount),
+        bankAccountId: sourceBankAccountId
+      }
+    ]
+  });
+}
+
 export function reverseJournal(originalJournal) {
   const originalValidation = validateJournal(originalJournal);
 
@@ -674,7 +714,8 @@ export function reverseJournal(originalJournal) {
       accountCode: line.accountCode,
       description: `Reversal: ${line.description || originalJournal.description || "journal line"}`,
       debit: line.credit,
-      credit: line.debit
+      credit: line.debit,
+      ...(String(line.bankAccountId || "").trim() ? { bankAccountId:String(line.bankAccountId).trim() } : {})
     }))
   };
 
@@ -767,6 +808,7 @@ export function buildAccountLedger(journals = [], accountCode) {
         sourceType: journal.sourceType || "",
         sourceId: journal.sourceId || "",
         description: line.description || journal.description || "",
+        ...(String(line.bankAccountId || "").trim() ? { bankAccountId:String(line.bankAccountId).trim() } : {}),
         sequence: sequence++
       });
     });

@@ -62,7 +62,8 @@ function journalCore(journal){
     bankAccountId:String(journal?.bankAccountId || ""),
     lines:(Array.isArray(journal?.lines) ? journal.lines : []).map(line => ({
       accountCode:String(line?.accountCode || ""),description:String(line?.description || ""),
-      debit:Number(line?.debit),credit:Number(line?.credit)
+      debit:Number(line?.debit),credit:Number(line?.credit),
+      bankAccountId:String(line?.bankAccountId || "")
     }))
   };
 }
@@ -85,7 +86,13 @@ function transactionCore(transaction){
     matchOrigin:String(transaction?.matchOrigin || ""),
     categorisationVersion:Number(transaction?.categorisationVersion || 0),
     categorisationJournalId:String(transaction?.categorisationJournalId || ""),
-    categorisationStateFingerprint:String(transaction?.categorisationStateFingerprint || "")
+    categorisationStateFingerprint:String(transaction?.categorisationStateFingerprint || ""),
+    transferVersion:Number(transaction?.transferVersion || 0),
+    transferId:String(transaction?.transferId || ""),
+    transferJournalId:String(transaction?.transferJournalId || ""),
+    transferRole:String(transaction?.transferRole || ""),
+    pairedBankTransactionId:String(transaction?.pairedBankTransactionId || ""),
+    transferStateFingerprint:String(transaction?.transferStateFingerprint || "")
   };
 }
 
@@ -132,6 +139,12 @@ export function isCompletedBankTransaction(transaction,journalIds = null){
     if(transaction.matchOrigin !== "categorisation" || Number(transaction.categorisationVersion) !== 1 ||
       !String(transaction.categorisationStateFingerprint || "").trim()) return false;
     journalId = String(transaction.categorisationJournalId || "").trim();
+  }else if(matchedType === "bankTransfer"){
+    if(transaction.matchOrigin !== "bankTransfer" || Number(transaction.transferVersion) !== 1 ||
+      String(transaction.transferId || "") !== matchedId ||
+      !["source","destination"].includes(String(transaction.transferRole || "")) ||
+      !String(transaction.transferStateFingerprint || "").trim()) return false;
+    journalId = String(transaction.transferJournalId || "").trim();
   }else if(["invoice","bill","expense"].includes(matchedType)){
     if(Number(transaction.settlementVersion) !== 1 ||
       !String(transaction.settlementStateFingerprint || "").trim()) return false;
@@ -199,7 +212,12 @@ export function calculateBankReconciliation(options = {}){
   const journals = Array.isArray(options.journals) ? options.journals : [];
   const transactions = Array.isArray(options.transactions) ? options.transactions : [];
 
-  const attributedJournals = journals.filter(journal => String(journal?.bankAccountId || "") === bankAccountId);
+  const journalAttributedToAccount = journal =>
+    String(journal?.bankAccountId || "") === bankAccountId ||
+    (Array.isArray(journal?.lines) && journal.lines.some(line =>
+      String(line?.accountCode || "") === "1000" && String(line?.bankAccountId || "") === bankAccountId
+    ));
+  const attributedJournals = journals.filter(journalAttributedToAccount);
   attributedJournals.forEach(journal => {
     if(String(journal?.userId || "") !== userId) throw new Error("An attributed journal does not belong to the authenticated user.");
     if(!sourceId(journal)) throw new Error("An attributed journal ID is required.");
@@ -213,7 +231,10 @@ export function calculateBankReconciliation(options = {}){
     .sort((left,right) => sourceId(left).localeCompare(sourceId(right)));
   const relevantJournalIds = new Set(relevantJournals.map(sourceId));
   const bookBalance = roundMoney(relevantJournals.reduce((balance,journal) =>
-    balance + journal.lines.filter(line => String(line.accountCode) === "1000")
+    balance + journal.lines.filter(line => String(line.accountCode) === "1000" &&
+      (String(line.bankAccountId || "")
+        ? String(line.bankAccountId) === bankAccountId
+        : String(journal.bankAccountId || "") === bankAccountId))
       .reduce((sum,line) => sum + Number(line.debit) - Number(line.credit),0),0));
 
   const accountTransactions = transactions.filter(transaction => String(transaction?.bankAccountId || "") === bankAccountId);
