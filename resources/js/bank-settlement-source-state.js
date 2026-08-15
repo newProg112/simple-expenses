@@ -9,6 +9,11 @@ export const BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE =
 
 export const BANK_SETTLED_EXPENSE_EDIT_ERROR_CODE = "bank-settled-expense-edit";
 
+export const BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE =
+  "This record is matched to a bank transaction. Unmatch it in Banking before changing accounting details.";
+
+export const BANK_SETTLED_BILL_MUTATION_ERROR_CODE = "bank-settled-bill-mutation";
+
 export const BANK_CATEGORISATION_STATUS_MESSAGE =
   "This expense was created from a bank transaction. Uncategorise it in Banking before editing or deleting it.";
 
@@ -39,6 +44,69 @@ export function sourceStatusForSave(record,requestedStatus){
 
 function snapshotExists(snapshot){
   return typeof snapshot?.exists === "function" ? snapshot.exists() : Boolean(snapshot?.exists);
+}
+
+function bankSettledBillMutationError(){
+  const error = new Error(BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE);
+  error.code = BANK_SETTLED_BILL_MUTATION_ERROR_CODE;
+  return error;
+}
+
+function requireBillMutationOptions(options){
+  const { db,services = {} } = options;
+  const userId = String(options.userId || "").trim();
+  const billId = String(options.billId || "").trim();
+  if(!userId) throw new Error("An authenticated user is required to change a bill.");
+  if(!billId || billId.includes("/")) throw new Error("Bill ID is invalid.");
+  if(typeof services.doc !== "function") throw new Error("Firestore doc helper is required.");
+  return { db,services,userId,billId,billRef:services.doc(db,"users",userId,"bills",billId) };
+}
+
+export async function readBillRecordWithSettlementGuard(options = {}){
+  const { services,billId,billRef } = requireBillMutationOptions(options);
+  if(typeof services.getDoc !== "function") throw new Error("Firestore getDoc helper is required.");
+  const snapshot = await services.getDoc(billRef);
+  if(!snapshotExists(snapshot)) throw new Error("Could not find this bill.");
+  const bill = snapshot.data();
+  if(isBankingSettledSource(bill)) throw bankSettledBillMutationError();
+  return Object.freeze({ ...bill,id:billId });
+}
+
+export async function saveBillRecordWithSettlementGuard(options = {}){
+  const { db,services,billId,billRef } = requireBillMutationOptions(options);
+  const bill = options.bill;
+  if(!bill || typeof bill !== "object" || Array.isArray(bill)){
+    throw new Error("Bill data is required.");
+  }
+  if(typeof services.runTransaction !== "function"){
+    throw new Error("Firestore runTransaction helper is required.");
+  }
+
+  return services.runTransaction(db,async transaction => {
+    const snapshot = await transaction.get(billRef);
+    const exists = snapshotExists(snapshot);
+    if(options.requireExisting && !exists) throw new Error("Could not find this bill.");
+    if(exists && isBankingSettledSource(snapshot.data())) throw bankSettledBillMutationError();
+    if(typeof transaction.set !== "function") throw new Error("Firestore transaction set helper is required.");
+    transaction.set(billRef,bill);
+    return Object.freeze({ status:exists ? "updated" : "created",billId });
+  });
+}
+
+export async function deleteBillRecordWithSettlementGuard(options = {}){
+  const { db,services,billId,billRef } = requireBillMutationOptions(options);
+  if(typeof services.runTransaction !== "function"){
+    throw new Error("Firestore runTransaction helper is required.");
+  }
+
+  return services.runTransaction(db,async transaction => {
+    const snapshot = await transaction.get(billRef);
+    if(!snapshotExists(snapshot)) throw new Error("Could not find this bill.");
+    if(isBankingSettledSource(snapshot.data())) throw bankSettledBillMutationError();
+    if(typeof transaction.delete !== "function") throw new Error("Firestore transaction delete helper is required.");
+    transaction.delete(billRef);
+    return Object.freeze({ status:"deleted",billId });
+  });
 }
 
 export async function saveExpenseRecordWithSettlementGuard(options = {}){

@@ -1892,6 +1892,7 @@
         </div>
 
         <p class="bill-ai-apply-feedback" id="billAiApplyFeedback" role="status" tabindex="-1" hidden></p>
+        <p class="bill-ai-apply-feedback" id="billEditLockMessage" role="status" tabindex="-1" hidden></p>
 
         <div class="grid">
           <div class="field">
@@ -2171,10 +2172,15 @@
       normaliseVatRateOptionValue
     } from "../js/business-logic.js";
     import {
+      BANK_SETTLED_BILL_MUTATION_ERROR_CODE,
+      BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE,
       BANK_SETTLEMENT_STATUS_MESSAGE,
+      deleteBillRecordWithSettlementGuard,
       isBankingSettledSource,
+      readBillRecordWithSettlementGuard,
+      saveBillRecordWithSettlementGuard,
       sourceStatusForSave
-    } from "../js/bank-settlement-source-state.js?v=20260812-banking12";
+    } from "../js/bank-settlement-source-state.js?v=20260815-banking23";
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
@@ -2184,10 +2190,10 @@
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
-      deleteDoc,
       doc,
       getDoc,
       getDocs,
+      runTransaction,
       setDoc,
       updateDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -3267,11 +3273,13 @@
       return billScanFileType(file) || "application/pdf";
     }
 
-    function uploadAttachment(file, billId, userId) {
+    function uploadAttachment(file, billId, userId, uniquePathToken = "") {
       return new Promise((resolve, reject) => {
         const progress = document.getElementById("attachmentProgress");
         const safeFileName = file.name.replace(/[^\w.\-() ]+/g, "_");
-        const attachmentPath = `users/${userId}/attachments/bills/${billId}/${safeFileName}`;
+        const safePathToken = String(uniquePathToken || "").replace(/[^\w-]+/g, "");
+        const storedFileName = safePathToken ? `${safePathToken}-${safeFileName}` : safeFileName;
+        const attachmentPath = `users/${userId}/attachments/bills/${billId}/${storedFileName}`;
         const fileRef = storageRef(storage, attachmentPath);
         const attachmentType = billAttachmentContentType(file);
         const uploadLabel = attachmentType === "application/pdf" ? "PDF" : "document";
@@ -3322,7 +3330,38 @@
       }
     }
 
+    const bankSettledBillEditControlIds = Object.freeze([
+      "openBillScanButton","supplier","billNumber","billDate","dueDate","category",
+      "netAmount","vatRate","status","projectSelect","notes","billAttachment",
+      "removePendingScannedBillFileButton","saveBillButton"
+    ]);
+
+    function setBankSettledBillEditLock(locked, message = "") {
+      bankSettledBillEditControlIds.forEach(id => {
+        const control = document.getElementById(id);
+        if (!control) return;
+        control.disabled = Boolean(locked);
+        control.setAttribute("aria-readonly", locked ? "true" : "false");
+        control.title = locked ? message : "";
+      });
+      const lockMessage = document.getElementById("billEditLockMessage");
+      lockMessage.textContent = locked ? message : "";
+      lockMessage.hidden = !locked;
+    }
+
+    function rejectBankSettledBillEdit() {
+      setBankSettledBillEditLock(true, BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE);
+      alert(BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE);
+    }
+
     async function saveBill() {
+      let existingBill = editingBillId === null
+        ? null
+        : currentBills.find(bill => String(bill.id) === String(editingBillId));
+      if (isBankingSettledSource(existingBill)) {
+        rejectBankSettledBillEdit();
+        return;
+      }
       const supplier = document.getElementById("supplier").value.trim();
 
       if (!supplier) {
@@ -3341,15 +3380,31 @@
         return;
       }
 
+      const billId = existingBill?.id ?? Date.now();
+      if (existingBill) {
+        try {
+          existingBill = await readBillRecordWithSettlementGuard({
+            db,userId:user.uid,billId,
+            services:{ doc,getDoc }
+          });
+        } catch (error) {
+          if (error?.code === BANK_SETTLED_BILL_MUTATION_ERROR_CODE) {
+            await loadBills();
+            renderBills(currentBills);
+            rejectBankSettledBillEdit();
+            return;
+          }
+          setAttachmentStatus(`Firestore read failed: ${error.message}`, true);
+          saveButton.disabled = false;
+          return;
+        }
+      }
+
       const { net, vatRate, vat, total } = calculateBillAmounts(
         document.getElementById("netAmount").value,
         document.getElementById("vatRate").value
       );
-      const existingBill = editingBillId === null
-        ? null
-        : currentBills.find(bill => String(bill.id) === String(editingBillId));
       const activityIdempotencyKey = existingBill ? "" : createActivityIdempotencyKey();
-      const billId = existingBill?.id ?? Date.now();
       const project = selectedBillProject();
       const scannedAttachment = !existingBill && !selectedAttachment
         ? pendingScannedBillFile
@@ -3363,10 +3418,17 @@
         attachmentType: existingBill?.attachmentType || ""
       };
       let replacedAttachmentPath = "";
+      let uploadedReplacementPath = "";
 
       try {
         if (selectedAttachment) {
-          attachment = await uploadAttachment(selectedAttachment, billId, user.uid);
+          attachment = await uploadAttachment(
+            selectedAttachment,
+            billId,
+            user.uid,
+            existingBill ? createRequestId() : ""
+          );
+          if (existingBill) uploadedReplacementPath = attachment.attachmentPath;
           if (existingBill?.attachmentPath && existingBill.attachmentPath !== attachment.attachmentPath) {
             replacedAttachmentPath = existingBill.attachmentPath;
           }
@@ -3401,11 +3463,19 @@
         createdAt: existingBill?.createdAt || new Date().toISOString()
       };
 
-      const ref = doc(db, "users", user.uid, "bills", String(billId));
-
       try {
-        await setDoc(ref, bill);
+        await saveBillRecordWithSettlementGuard({
+          db,userId:user.uid,billId,bill,requireExisting:Boolean(existingBill),
+          services:{ doc,runTransaction }
+        });
       } catch (error) {
+        if (uploadedReplacementPath) await deleteAttachment(uploadedReplacementPath);
+        if (error?.code === BANK_SETTLED_BILL_MUTATION_ERROR_CODE) {
+          await loadBills();
+          renderBills(currentBills);
+          rejectBankSettledBillEdit();
+          return;
+        }
         setAttachmentStatus(`Firestore save failed: ${error.message}`, true);
         saveButton.disabled = false;
         return;
@@ -3420,8 +3490,18 @@
           bill.attachmentPath = attachment.attachmentPath || "";
           bill.attachmentSize = attachment.attachmentSize || 0;
           bill.attachmentType = attachment.attachmentType || "";
-          await setDoc(ref, bill);
+          await saveBillRecordWithSettlementGuard({
+            db,userId:user.uid,billId,bill,requireExisting:true,
+            services:{ doc,runTransaction }
+          });
         } catch (error) {
+          if (attachment?.attachmentPath) await deleteAttachment(attachment.attachmentPath);
+          if (error?.code === BANK_SETTLED_BILL_MUTATION_ERROR_CODE) {
+            await loadBills();
+            renderBills(currentBills);
+            rejectBankSettledBillEdit();
+            return;
+          }
           console.error("Scanned bill attachment upload failed after the bill was saved", error);
           scannedAttachmentWarning = "The bill was saved, but the scanned attachment could not be uploaded. You can edit the bill and attach the file manually.";
         }
@@ -3463,6 +3543,7 @@
     function clearForm() {
       editingBillId = null;
       clearBillAiApplyFeedback();
+      setBankSettledBillEditLock(false);
       document.getElementById("supplier").value = "";
       document.getElementById("billNumber").value = "";
       document.getElementById("billDate").value = "";
@@ -3480,14 +3561,42 @@
       resetAttachmentUI();
     }
 
-    function editBill(id) {
-      const bill = currentBills.find(item => String(item.id) === String(id));
+    async function editBill(id) {
+      let bill = currentBills.find(item => String(item.id) === String(id));
       if (!bill) return;
+      if (isBankingSettledSource(bill)) {
+        alert(BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE);
+        return;
+      }
+
+      const user = await getCurrentUser();
+      if (user) {
+        try {
+          bill = await readBillRecordWithSettlementGuard({
+            db,userId:user.uid,billId:id,
+            services:{ doc,getDoc }
+          });
+          currentBills = currentBills.map(item =>
+            String(item.id) === String(id) ? bill : item
+          );
+          saveBills(currentBills);
+        } catch (error) {
+          if (error?.code === BANK_SETTLED_BILL_MUTATION_ERROR_CODE) {
+            await loadBills();
+            alert(BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE);
+            renderBills(currentBills);
+            return;
+          }
+          alert(`Could not open this bill: ${error.message}`);
+          return;
+        }
+      }
 
       const removedPendingScan = Boolean(pendingScannedBillFile);
       clearPendingScannedBillFile(false);
       clearBillAiApplyFeedback();
       editingBillId = bill.id;
+      setBankSettledBillEditLock(false);
       document.getElementById("supplier").value = bill.supplier || "";
       document.getElementById("billNumber").value = bill.billNumber || "";
       document.getElementById("billDate").value = bill.billDate || "";
@@ -3557,29 +3666,43 @@
 
     async function deleteBill(id) {
       // TODO GL: post an immutable reversal before deleting a supplier bill journal source.
-      if (!confirm("Delete this bill?")) return;
-
       if (!currentBills.length) {
         await loadBills();
       }
 
       const billToDelete = currentBills.find(b => String(b.id) === String(id));
+      if (!billToDelete) return;
+      if (isBankingSettledSource(billToDelete)) {
+        alert(BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE);
+        return;
+      }
+      if (!confirm("Delete this bill?")) return;
+
+      const user = await getCurrentUser();
+      if (user) {
+        try {
+          await deleteBillRecordWithSettlementGuard({
+            db,userId:user.uid,billId:id,
+            services:{ doc,runTransaction }
+          });
+        } catch (error) {
+          if (error?.code === BANK_SETTLED_BILL_MUTATION_ERROR_CODE) {
+            await loadBills();
+            alert(BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE);
+            renderBills(currentBills);
+            return;
+          }
+          alert(`Could not delete this bill: ${error.message}`);
+          return;
+        }
+      }
+
       currentBills = currentBills.filter(b => String(b.id) !== String(id));
       saveBills(currentBills);
       renderBills(currentBills);
 
       if (String(editingBillId) === String(id)) {
         clearForm();
-      }
-
-      const ref = billDocRef(id);
-
-      if (ref) {
-        try {
-          await deleteDoc(ref);
-        } catch (error) {
-          console.error("Firestore bill delete failed", error);
-        }
       }
 
       if (billToDelete?.attachmentPath) {
@@ -3777,10 +3900,10 @@
 
           <div class="row-actions">
             ${viewPdfButton}
-            <button class="btn btn-secondary" type="button" data-bill-action="edit" data-bill-id="${billId}">Edit</button>
+            <button class="btn btn-secondary" type="button" data-bill-action="edit" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE}"` : ""}>Edit</button>
             <button class="${paymentButtonClass}" type="button" data-bill-action="toggle-paid" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}"` : ""}>${paymentButtonText}</button>
             ${bankingSettled ? `<span class="bill-date-label">${BANK_SETTLEMENT_STATUS_MESSAGE}</span>` : ""}
-            <button class="btn btn-danger-subtle" type="button" data-bill-action="delete" data-bill-id="${billId}">Delete</button>
+            <button class="btn btn-danger-subtle" type="button" data-bill-action="delete" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE}"` : ""}>Delete</button>
           </div>
         </div>
       `;

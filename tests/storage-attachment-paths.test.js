@@ -20,8 +20,9 @@ describe("UID-scoped Firebase Storage integration", () => {
 
   it("uses owner UID namespaces for every main-app attachment upload", () => {
     expect(bills).toContain(
-      "`users/${userId}/attachments/bills/${billId}/${safeFileName}`"
+      "`users/${userId}/attachments/bills/${billId}/${storedFileName}`"
     );
+    expect(bills).toContain('const storedFileName = safePathToken ? `${safePathToken}-${safeFileName}` : safeFileName');
     expect(expenses).toContain(
       "`users/${userId}/attachments/expenses/${expenseId}/${safeFileName}`"
     );
@@ -35,8 +36,9 @@ describe("UID-scoped Firebase Storage integration", () => {
   });
 
   it("passes the authenticated UID and retains paths for reads, replacement and deletion", () => {
-    expect(bills).toContain("uploadAttachment(selectedAttachment, billId, user.uid)");
+    expect(bills).toMatch(/uploadAttachment\(\s*selectedAttachment,\s*billId,\s*user\.uid,/);
     expect(bills).toContain("uploadAttachment(scannedAttachment, billId, user.uid)");
+    expect(bills).toContain('existingBill ? createRequestId() : ""');
     expect(bills).toContain("attachmentPath: attachment.attachmentPath || \"\"");
     expect(bills).toContain("await deleteAttachment(billToDelete.attachmentPath)");
     expect(bills).toContain("await deleteAttachment(replacedAttachmentPath)");

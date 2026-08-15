@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   BANK_CATEGORISATION_STATUS_MESSAGE,
   BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
+  BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE,
   BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE,
   BANK_SETTLEMENT_STATUS_MESSAGE,
   isBankCategorisedExpense,
@@ -61,6 +62,9 @@ describe("Banking-settled source status state", () => {
     expect(BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE).toBe(
       "This record is matched to a bank transaction. Unmatch it in Banking before changing accounting details."
     );
+    expect(BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE).toBe(
+      "This record is matched to a bank transaction. Unmatch it in Banking before changing accounting details."
+    );
   });
 
   it("locks invoice status toggling in rendering and in the action handler", () => {
@@ -69,7 +73,7 @@ describe("Banking-settled source status state", () => {
     expect(pages.invoice).toMatch(/if\(isBankingSettledSource\(invoice\)\)\{[\s\S]*?alert\(BANK_SETTLEMENT_STATUS_MESSAGE\)/);
   });
 
-  it("locks bill status controls while preserving unrelated edit saves", () => {
+  it("keeps the existing bill payment-status lock alongside the accounting edit lock", () => {
     expect(pages.bill).toContain('document.getElementById("status").disabled = isBankingSettledSource(bill)');
     expect(pages.bill).toContain("status: sourceStatusForSave(existingBill");
     expect(pages.bill).toMatch(/data-bill-action="toggle-paid"[\s\S]*?disabled title=/);
