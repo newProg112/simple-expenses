@@ -98,7 +98,8 @@ describe("Banking-settled source status state", () => {
     expect(pages.expense).toMatch(/function markExpensePaid[\s\S]*?isBankCategorisedExpense\(expense\)[\s\S]*?BANK_CATEGORISATION_STATUS_MESSAGE/);
     expect(pages.expense).toMatch(/function deleteExpense[\s\S]*?isBankCategorisedExpense\(expenseToDelete\)[\s\S]*?BANK_CATEGORISATION_STATUS_MESSAGE/);
     expect(pages.expense).toMatch(/data-expense-action="edit"[\s\S]*?editLocked \? ` disabled title=/);
-    expect(pages.expense).toMatch(/data-expense-action="delete"[\s\S]*?bankCategorised \? ` disabled title=/);
+    expect(pages.expense).toContain("const deleteLocked = bankCategorised || bankingSettled");
+    expect(pages.expense).toMatch(/data-expense-action="delete"[\s\S]*?deleteLocked \? ` disabled title=/);
   });
 
   it.each(Object.entries(pages))("keeps the %s inline module syntactically valid",(_name,html) => {

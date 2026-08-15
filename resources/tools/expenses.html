@@ -2068,14 +2068,17 @@
     } from "../js/ledger-firestore.js";
     import {
       BANK_CATEGORISATION_STATUS_MESSAGE,
+      BANK_SETTLED_EXPENSE_DELETE_ERROR_CODE,
       BANK_SETTLED_EXPENSE_EDIT_ERROR_CODE,
+      BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE,
       BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE,
       BANK_SETTLEMENT_STATUS_MESSAGE,
+      deleteExpenseRecordWithSettlementGuard,
       isBankCategorisedExpense,
       isBankingSettledSource,
       saveExpenseRecordWithSettlementGuard,
       sourceStatusForSave
-    } from "../js/bank-settlement-source-state.js?v=20260815-banking22";
+    } from "../js/bank-settlement-source-state.js?v=20260815-banking24";
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
@@ -2085,7 +2088,6 @@
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       collection,
-      deleteDoc,
       doc,
       getDoc,
       getDocs,
@@ -3792,20 +3794,34 @@
         alert(BANK_CATEGORISATION_STATUS_MESSAGE);
         return;
       }
+      if (isBankingSettledSource(expenseToDelete)) {
+        alert(BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE);
+        return;
+      }
       if (!confirm("Delete this expense?")) return;
+
+      const user = await getCurrentUser();
+      if (!user) {
+        alert("Sign in before deleting an expense or mileage claim.");
+        return;
+      }
+
+      try {
+        await deleteExpenseRecordWithSettlementGuard({
+          db,userId:user.uid,expenseId:id,
+          services:{ doc,runTransaction }
+        });
+      } catch (error) {
+        if (error?.code === BANK_SETTLED_EXPENSE_DELETE_ERROR_CODE) {
+          alert(BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE);
+          return;
+        }
+        alert(`Could not delete this expense or mileage claim: ${error.message}`);
+        return;
+      }
 
       saveExpenses(expenses.filter(expense => String(expense.id) !== String(id)));
       renderExpenses();
-
-      const ref = expenseDocRef(id);
-
-      if (ref) {
-        try {
-          await deleteDoc(ref);
-        } catch (error) {
-          console.error("Firestore expense delete failed", error);
-        }
-      }
 
       if (expenseToDelete?.attachmentPath) {
         await deleteAttachment(expenseToDelete.attachmentPath);
@@ -4102,6 +4118,10 @@
         const editLockMessage = bankCategorised
           ? BANK_CATEGORISATION_STATUS_MESSAGE
           : BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE;
+        const deleteLocked = bankCategorised || bankingSettled;
+        const deleteLockMessage = bankCategorised
+          ? BANK_CATEGORISATION_STATUS_MESSAGE
+          : BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE;
         const projectName = expense.projectName || (expense.projectReference ? "Project" : "Unassigned");
 
         return `
@@ -4147,7 +4167,7 @@
               ? `<button class="btn btn-positive" type="button" data-expense-action="mark-paid" data-expense-id="${expenseId}"${bankingSettled ? ` disabled title="${bankingMessage}"` : ""}>Mark paid</button>`
               : ""}
             ${bankingSettled ? `<span class="expense-secondary">${bankingMessage}</span>` : ""}
-            <button class="btn btn-danger-subtle" type="button" data-expense-action="delete" data-expense-id="${expenseId}"${bankCategorised ? ` disabled title="${BANK_CATEGORISATION_STATUS_MESSAGE}"` : ""}>Delete</button>
+            <button class="btn btn-danger-subtle" type="button" data-expense-action="delete" data-expense-id="${expenseId}"${deleteLocked ? ` disabled title="${deleteLockMessage}"` : ""}>Delete</button>
           </div>
         </div>
       `;

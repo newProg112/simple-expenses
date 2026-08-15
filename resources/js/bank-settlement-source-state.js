@@ -9,6 +9,11 @@ export const BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE =
 
 export const BANK_SETTLED_EXPENSE_EDIT_ERROR_CODE = "bank-settled-expense-edit";
 
+export const BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE =
+  "This record is matched to a bank transaction. Unmatch it in Banking before deleting it.";
+
+export const BANK_SETTLED_EXPENSE_DELETE_ERROR_CODE = "bank-settled-expense-delete";
+
 export const BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE =
   "This record is matched to a bank transaction. Unmatch it in Banking before changing accounting details.";
 
@@ -135,5 +140,30 @@ export async function saveExpenseRecordWithSettlementGuard(options = {}){
     if(typeof transaction.set !== "function") throw new Error("Firestore transaction set helper is required.");
     transaction.set(expenseRef,expense);
     return Object.freeze({ status:exists ? "updated" : "created",expenseId });
+  });
+}
+
+export async function deleteExpenseRecordWithSettlementGuard(options = {}){
+  const { db,services = {} } = options;
+  const userId = String(options.userId || "").trim();
+  const expenseId = String(options.expenseId || "").trim();
+  if(!userId) throw new Error("An authenticated user is required to delete an expense.");
+  if(!expenseId || expenseId.includes("/")) throw new Error("Expense ID is invalid.");
+  for(const helper of ["doc","runTransaction"]){
+    if(typeof services[helper] !== "function") throw new Error(`Firestore ${helper} helper is required.`);
+  }
+  const expenseRef = services.doc(db,"users",userId,"expenses",expenseId);
+
+  return services.runTransaction(db,async transaction => {
+    const snapshot = await transaction.get(expenseRef);
+    if(!snapshotExists(snapshot)) throw new Error("Could not find this expense or mileage claim.");
+    if(isBankingSettledSource(snapshot.data())){
+      const error = new Error(BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE);
+      error.code = BANK_SETTLED_EXPENSE_DELETE_ERROR_CODE;
+      throw error;
+    }
+    if(typeof transaction.delete !== "function") throw new Error("Firestore transaction delete helper is required.");
+    transaction.delete(expenseRef);
+    return Object.freeze({ status:"deleted",expenseId });
   });
 }
