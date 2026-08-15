@@ -171,8 +171,12 @@ function legacyMissingExpenseMarkerEligibility(transaction,targetData,recordType
   if(!hasOwn(transaction,"matchedAt") || !transaction.matchedAt){
     return { eligible:false,reason:"transaction-matched-at-missing" };
   }
-  if(!String(transaction.settlementStateFingerprint || "")){
+  const settlementStateFingerprint = String(transaction.settlementStateFingerprint || "");
+  if(!settlementStateFingerprint){
     return { eligible:false,reason:"transaction-settlement-fingerprint-missing" };
+  }
+  if(!/^[0-9a-f]{16}$/.test(settlementStateFingerprint)){
+    return { eligible:false,reason:"transaction-settlement-fingerprint-invalid" };
   }
   return { eligible:true,reason:"eligible" };
 }
@@ -315,7 +319,8 @@ function settlementJournalValidation(
 }
 
 function validatePersistedSettlement({
-  transaction,targetData,journal,userId,recordType,recordId,journalId,allowLegacyDate = false
+  transaction,targetData,journal,userId,recordType,recordId,journalId,allowLegacyDate = false,
+  allowMissingExpenseMarkerFallback = false
 }){
   let marker = targetData?.bankSettlement;
   let recoveredMissingSourceMarker = false;
@@ -360,6 +365,12 @@ function validatePersistedSettlement({
             : mismatch.nonstandardPreviousStatusMatches.length === 1
               ? "nonstandard-previous-status-match-found"
               : "no-reconstructed-marker-matches-persisted-fingerprint";
+      if(allowMissingExpenseMarkerFallback && reason === "no-reconstructed-marker-matches-persisted-fingerprint"){
+        return {
+          marker:null,amount:match.amount,recoveredManualPaymentState:false,
+          recoveredMissingSourceMarker:true,preserveSourceRecord:true
+        };
+      }
       throw legacyRecoveryError(reconstructed.matchCount > 1
         ? "multiple-reconstructed-markers-match"
         : reason,{
@@ -622,29 +633,37 @@ export async function unmatchBankTransaction(options = {}){
     const validated = validatePersistedSettlement({
       transaction:bankTransaction,targetData,journal:settlementSnapshot.data(),userId,
       recordType:matchedRecordType,recordId:matchedRecordId,journalId:expectedJournalId,
-      allowLegacyDate:true
+      allowLegacyDate:true,allowMissingExpenseMarkerFallback:true
     });
+    if(validated.preserveSourceRecord){
+      await requireOwnedBankAccountInTransaction({
+        db,services,userId,firestoreTransaction,bankTransaction
+      });
+    }
     if(typeof firestoreTransaction.delete !== "function") throw new Error("Firestore transaction delete helper is required.");
 
-    const removed = services.deleteField();
-    const sourceUpdate = {
-      status:validated.marker.previousStatus,
-      bankSettlement:removed,
-      updatedAt:timestamp
-    };
-    if(validated.marker.paymentDateApplied){
-      sourceUpdate.paidAt = validated.marker.hadPaidAt
-        ? validated.marker.previousPaidAt
-        : removed;
-    }
     firestoreTransaction.delete(settlementRef);
-    firestoreTransaction.update(targetRef,sourceUpdate);
+    if(!validated.preserveSourceRecord){
+      const removed = services.deleteField();
+      const sourceUpdate = {
+        status:validated.marker.previousStatus,
+        bankSettlement:removed,
+        updatedAt:timestamp
+      };
+      if(validated.marker.paymentDateApplied){
+        sourceUpdate.paidAt = validated.marker.hadPaidAt
+          ? validated.marker.previousPaidAt
+          : removed;
+      }
+      firestoreTransaction.update(targetRef,sourceUpdate);
+    }
     firestoreTransaction.update(transactionRef,clearMatchUpdate(services,timestamp));
     return Object.freeze({
       status:"unmatched",transactionId,settlementReversed:true,
-      restoredStatus:validated.marker.previousStatus,
+      ...(validated.marker ? { restoredStatus:validated.marker.previousStatus } : {}),
       recoveredManualPaymentState:validated.recoveredManualPaymentState,
-      recoveredMissingSourceMarker:validated.recoveredMissingSourceMarker
+      recoveredMissingSourceMarker:validated.recoveredMissingSourceMarker,
+      sourceRecordUnchanged:Boolean(validated.preserveSourceRecord)
     });
   });
 }

@@ -9,6 +9,7 @@ import {
 import { buildBalanceSheetReport } from "../resources/js/balance-sheet-view.js";
 import { buildProfitLossReport } from "../resources/js/profit-loss-view.js";
 import { journalFromFirestoreData } from "../resources/js/trial-balance-view.js";
+import { calculateBankReconciliation, reconciliationHistory } from "../resources/js/bank-reconciliation.js";
 
 const timestamp = "2026-08-12T12:00:00.000Z";
 
@@ -205,6 +206,60 @@ async function stripExpenseSettlementMarkerLikeLegacySave(testFixture,status = "
   delete source.paidAt;
   delete source.bankSettlement;
   testFixture.writes.length = 0;
+}
+
+async function liveShellMissingMarkerFixture(){
+  const testFixture = fixture("expense",{
+    source:{
+      id:"expense-1",type:"expense",merchant:"SHELL",date:"2026-08-03",gross:78.2,
+      net:65.17,vat:13.03,status:"Approved",notes:"Original",category:"Travel"
+    },
+    transaction:{ transactionDate:"05/08/26",description:"SHELL",moneyIn:null,moneyOut:78.2 },
+    accrualLines:[
+      { accountCode:"5000",description:"Expense",debit:78.2,credit:0 },
+      { accountCode:"2200",description:"Expense",debit:0,credit:78.2 }
+    ]
+  });
+  await confirmBankMatch(testFixture.confirmOptions);
+  const source = testFixture.documents.get(testFixture.sourcePath);
+  Object.assign(source,{
+    status:"Draft",type:"expense",from:"",to:"",businessPurpose:"",miles:0,ratePerMile:0,amount:0,
+    attachmentName:"",attachmentUrl:"",attachmentPath:"",attachmentSize:0,attachmentType:"",
+    projectId:"",projectName:"",projectReference:"",updatedAt:"2026-08-12T21:01:23.000Z"
+  });
+  delete source.paidAt;
+  delete source.bankSettlement;
+  Object.assign(testFixture.documents.get(testFixture.transactionPath),{
+    matchedAt:"2026-08-12T20:57:12.000Z",
+    settlementStateFingerprint:"024aa49a0ee9859a"
+  });
+  testFixture.writes.length = 0;
+  return testFixture;
+}
+
+function zeroOpeningAccount(){
+  return {
+    id:"account-1",accountName:"Current",bankName:"Bank",status:"Active",
+    openingBalance:0,openingBalanceDate:"2026-01-01",
+    openingBalanceAccounting:{
+      version:1,bankAccountId:"account-1",openingBalance:0,openingBalanceDate:"2026-01-01",
+      state:"not-required",journalId:"",
+      fingerprint:valueFingerprint({
+        bankAccountId:"account-1",openingBalance:0,openingBalanceDate:"2026-01-01",version:1
+      })
+    }
+  };
+}
+
+function reconciliationOptions(testFixture){
+  return {
+    userId:"user-1",bankAccountId:"account-1",account:zeroOpeningAccount(),
+    statementClosingDate:"2026-08-31",statementClosingBalance:-78.2,
+    journals:[testFixture.settlementPath,testFixture.accrualPath]
+      .filter(path => testFixture.documents.has(path))
+      .map(path => ({ id:path.slice("journals/".length),...testFixture.documents.get(path) })),
+    transactions:[{ id:testFixture.transactionId,...testFixture.documents.get(testFixture.transactionPath) }]
+  };
 }
 
 describe("Banking exact-payment settlement", () => {
@@ -512,26 +567,86 @@ describe("Banking settlement Unmatch safety", () => {
     expect(testFixture.documents.has("journals/manual_user-1_keep")).toBe(true);
   });
 
-  it("keeps a missing source marker blocked when its exact prior payment state cannot be proven",async () => {
+  it("safely removes the exact live SHELL-style settlement while leaving the Expense and accrual byte-for-byte unchanged",async () => {
+    const testFixture = await liveShellMissingMarkerFixture();
+    const sourceBefore = structuredClone(testFixture.documents.get(testFixture.sourcePath));
+    const accrualBefore = structuredClone(testFixture.documents.get(testFixture.accrualPath));
+
+    const result = await unmatchBankTransaction(testFixture.unmatchOptions);
+
+    expect(result).toMatchObject({
+      status:"unmatched",settlementReversed:true,recoveredMissingSourceMarker:true,
+      sourceRecordUnchanged:true
+    });
+    expect(result).not.toHaveProperty("restoredStatus");
+    expect(testFixture.writes).toEqual([
+      { operation:"delete",path:testFixture.settlementPath },
+      { operation:"update",path:testFixture.transactionPath }
+    ]);
+    expect(testFixture.documents.get(testFixture.sourcePath)).toEqual(sourceBefore);
+    expect(testFixture.documents.get(testFixture.accrualPath)).toEqual(accrualBefore);
+    expect(testFixture.documents.has(testFixture.settlementPath)).toBe(false);
+    expect(testFixture.documents.get(testFixture.transactionPath)).toMatchObject({ status:"unmatched" });
+    for(const marker of [
+      "matchedRecordType","matchedRecordId","matchedAt","matchedAmount","settlementJournalId",
+      "settlementVersion","settlementStateFingerprint"
+    ]) expect(testFixture.documents.get(testFixture.transactionPath)).not.toHaveProperty(marker);
+  });
+
+  it("applies the same source-preserving fallback to canonical mileage-as-expense matches",async () => {
+    const testFixture = fixture("mileage");
+    await stripExpenseSettlementMarkerLikeLegacySave(testFixture);
+    testFixture.documents.get(testFixture.transactionPath).settlementStateFingerprint = "024aa49a0ee9859a";
+    const sourceBefore = structuredClone(testFixture.documents.get(testFixture.sourcePath));
+
+    await expect(unmatchBankTransaction(testFixture.unmatchOptions)).resolves.toMatchObject({
+      sourceRecordUnchanged:true,recoveredMissingSourceMarker:true
+    });
+
+    expect(testFixture.documents.get(testFixture.sourcePath)).toEqual(sourceBefore);
+    expect(testFixture.writes).toEqual([
+      { operation:"delete",path:testFixture.settlementPath },
+      { operation:"update",path:testFixture.transactionPath }
+    ]);
+  });
+
+  it("preserves a signed reconciliation snapshot and lets existing fingerprint logic mark it Needs review",async () => {
+    const testFixture = await liveShellMissingMarkerFixture();
+    const before = calculateBankReconciliation(reconciliationOptions(testFixture));
+    expect(before).toMatchObject({ bookBalance:-78.2,difference:0,unresolvedCount:0,eligible:true });
+    const signed = {
+      id:"account-1_2026-08-31",version:1,userId:"user-1",bankAccountId:"account-1",
+      statementClosingDate:"2026-08-31",statementClosingBalance:-78.2,bookBalance:-78.2,
+      difference:0,unresolvedCount:0,status:"reconciled",sourceFingerprint:before.sourceFingerprint,
+      signedOffAt:"2026-08-12T21:05:00.000Z"
+    };
+    const reconciliationPath = "users/user-1/bankReconciliations/account-1_2026-08-31";
+    testFixture.documents.set(reconciliationPath,signed);
+    const signedBefore = structuredClone(signed);
+
+    await unmatchBankTransaction(testFixture.unmatchOptions);
+
+    expect(testFixture.documents.get(reconciliationPath)).toEqual(signedBefore);
+    expect(reconciliationHistory([signed],reconciliationOptions(testFixture))).toEqual([
+      expect.objectContaining({ displayStatus:"needs-review",reviewReason:"Underlying Banking data has changed since sign-off." })
+    ]);
+  });
+
+  it("can remove only the settlement when a lost legacy marker cannot prove its prior paidAt value",async () => {
     const testFixture = fixture("expense",{
       source:{ paidAt:"2026-01-01T00:00:00.000Z" }
     });
     await stripExpenseSettlementMarkerLikeLegacySave(testFixture);
 
-    const error = await unmatchBankTransaction(testFixture.unmatchOptions).then(() => null,failure => failure);
-    expect(error).toMatchObject({
-      message:expect.stringMatching(/expected Banking settlement marker/i),
-      code:"BANK_LEGACY_SETTLEMENT_RECOVERY_FAILED",
-      bankMatchDiagnostic:{
-        reason:"no-reconstructed-marker-matches-persisted-fingerprint",
-        reconstructedMarkerMatchCount:0,
-        attemptedPreviousStatuses:["Draft","Submitted","Approved"],
-        assumedPriorPaidAt:false
-      }
+    const sourceBefore = structuredClone(testFixture.documents.get(testFixture.sourcePath));
+    await expect(unmatchBankTransaction(testFixture.unmatchOptions)).resolves.toMatchObject({
+      sourceRecordUnchanged:true
     });
-    expect(testFixture.writes).toEqual([]);
-    expect(testFixture.documents.has(testFixture.settlementPath)).toBe(true);
-    expect(testFixture.documents.get(testFixture.transactionPath).status).toBe("matched");
+    expect(testFixture.writes).toEqual([
+      { operation:"delete",path:testFixture.settlementPath },
+      { operation:"update",path:testFixture.transactionPath }
+    ]);
+    expect(testFixture.documents.get(testFixture.sourcePath)).toEqual(sourceBefore);
   });
 
   it("identifies but does not recover a SHELL marker fingerprint from the initial expense schema",async () => {
@@ -571,6 +686,76 @@ describe("Banking settlement Unmatch safety", () => {
     expect(testFixture.writes).toEqual([]);
     expect(testFixture.documents.has(testFixture.settlementPath)).toBe(true);
     expect(testFixture.documents.get(testFixture.transactionPath).status).toBe("matched");
+  });
+
+  it.each([
+    ["amount",testFixture => { testFixture.documents.get(testFixture.sourcePath).gross = 79.2; }],
+    ["source record ID",testFixture => { testFixture.documents.get(testFixture.settlementPath).matchedRecordId = "expense-other"; }],
+    ["transaction ID",testFixture => { testFixture.documents.get(testFixture.settlementPath).bankTransactionId = "bank-other"; }],
+    ["owner",testFixture => { testFixture.documents.get(testFixture.settlementPath).userId = "user-2"; }],
+    ["journal ID",testFixture => { testFixture.documents.get(testFixture.settlementPath).journalId = "bank-settlement_user-1_other"; }],
+    ["persisted settlement journal ID",testFixture => {
+      testFixture.documents.get(testFixture.transactionPath).settlementJournalId = "bank-settlement_user-1_other";
+    }],
+    ["bankAccountId",testFixture => { testFixture.documents.get(testFixture.settlementPath).bankAccountId = "account-2"; }],
+    ["bank account ownership",testFixture => {
+      testFixture.documents.get(testFixture.transactionPath).bankAccountId = "account-2";
+      testFixture.documents.get(testFixture.settlementPath).bankAccountId = "account-2";
+    }],
+    ["debit nominal",testFixture => { testFixture.documents.get(testFixture.settlementPath).lines[0].accountCode = "9999"; }],
+    ["credit nominal",testFixture => { testFixture.documents.get(testFixture.settlementPath).lines[1].accountCode = "9999"; }],
+    ["journal amount",testFixture => {
+      testFixture.documents.get(testFixture.settlementPath).lines[0].debit = 79.2;
+      testFixture.documents.get(testFixture.settlementPath).lines[1].credit = 79.2;
+    }]
+  ])("rejects the SHELL fallback with zero writes when its %s is tampered",async (_label,mutate) => {
+    const testFixture = await liveShellMissingMarkerFixture();
+    mutate(testFixture);
+    const sourceBefore = structuredClone(testFixture.documents.get(testFixture.sourcePath));
+    const accrualBefore = structuredClone(testFixture.documents.get(testFixture.accrualPath));
+
+    await expect(unmatchBankTransaction(testFixture.unmatchOptions)).rejects.toThrow();
+
+    expect(testFixture.writes).toEqual([]);
+    expect(testFixture.documents.get(testFixture.sourcePath)).toEqual(sourceBefore);
+    expect(testFixture.documents.get(testFixture.accrualPath)).toEqual(accrualBefore);
+    expect(testFixture.documents.has(testFixture.settlementPath)).toBe(true);
+    expect(testFixture.documents.get(testFixture.transactionPath).status).toBe("matched");
+  });
+
+  it.each([
+    ["paidAt",source => { source.paidAt = "2026-08-05T00:00:00.000Z"; }],
+    ["Paid status",source => { source.status = "Paid"; }]
+  ])("keeps the SHELL fallback blocked when the source has %s",async (_label,mutate) => {
+    const testFixture = await liveShellMissingMarkerFixture();
+    mutate(testFixture.documents.get(testFixture.sourcePath));
+    await expect(unmatchBankTransaction(testFixture.unmatchOptions)).rejects.toThrow(/expected Banking settlement marker/i);
+    expect(testFixture.writes).toEqual([]);
+  });
+
+  it("keeps an existing source marker with a fingerprint mismatch blocked",async () => {
+    const testFixture = fixture("expense");
+    await confirmBankMatch(testFixture.confirmOptions);
+    testFixture.documents.get(testFixture.sourcePath).bankSettlement.previousStatus = "Draft";
+    testFixture.writes.length = 0;
+    await expect(unmatchBankTransaction(testFixture.unmatchOptions)).rejects.toThrow(/marker changed/i);
+    expect(testFixture.writes).toEqual([]);
+  });
+
+  it("keeps the changed-source ACME invoice blocked",async () => {
+    const testFixture = fixture("invoice",{
+      source:{ client:"ACME LTD" },transaction:{ description:"ACME LTD",moneyIn:850 }
+    });
+    testFixture.documents.get(testFixture.sourcePath).total = 850;
+    testFixture.documents.get(testFixture.accrualPath).lines = [
+      { accountCode:"1100",description:"Invoice",debit:850,credit:0 },
+      { accountCode:"4000",description:"Invoice",debit:0,credit:850 }
+    ];
+    await confirmBankMatch(testFixture.confirmOptions);
+    testFixture.documents.get(testFixture.sourcePath).notes = "Changed after settlement";
+    testFixture.writes.length = 0;
+    await expect(unmatchBankTransaction(testFixture.unmatchOptions)).rejects.toThrow(/source record changed/i);
+    expect(testFixture.writes).toEqual([]);
   });
 
   it("reports the exact failed legacy shape guard without exposing it in the user-facing message",async () => {

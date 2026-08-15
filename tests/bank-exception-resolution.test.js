@@ -5,6 +5,7 @@ import {
   bankExceptionEligibility,
   bankExceptionOptions,
   bankExceptionResolutionDocumentId,
+  normaliseBankExceptionResolution,
   resolveBankException,
   unresolveBankException
 } from "../resources/js/bank-exception-resolution.js";
@@ -17,6 +18,10 @@ import { generalLedgerViewFromJournals } from "../resources/js/general-ledger-vi
 import { normaliseBankTransaction } from "../resources/js/bank-transaction-import.js";
 import { journalFromFirestoreData } from "../resources/js/trial-balance-view.js";
 import { unmatchBankTransaction } from "../resources/js/bank-match-confirmation.js";
+import {
+  bankExceptionJournalDocumentId,
+  prepareBankExceptionJournal
+} from "../resources/js/ledger-firestore.js";
 
 const userId = "user-1";
 const timestamp = Object.freeze({ serverTimestamp:true });
@@ -97,6 +102,48 @@ function reportJournals(documents){
     .map(([path,data]) => journalFromFirestoreData(path.slice(9),data));
 }
 
+function stableValue(value){
+  if(value === null || value === undefined || typeof value !== "object") return value;
+  if(Array.isArray(value)) return value.map(stableValue);
+  return Object.fromEntries(Object.keys(value).sort().map(key => [key,stableValue(value[key])]));
+}
+
+function valueFingerprint(value){
+  const input = JSON.stringify(stableValue(value));
+  let hash = 14695981039346656037n;
+  for(let index = 0; index < input.length; index += 1){
+    hash ^= BigInt(input.charCodeAt(index));
+    hash = BigInt.asUintN(64,hash * 1099511628211n);
+  }
+  return hash.toString(16).padStart(16,"0");
+}
+
+function seedHistoricalTaxPayment(fixture){
+  const resolutionId = bankExceptionResolutionDocumentId("bank-row");
+  const journalId = bankExceptionJournalDocumentId(userId,resolutionId);
+  const resolutionPath = `users/${userId}/bankExceptionResolutions/${resolutionId}`;
+  const journalPath = `journals/${journalId}`;
+  const core = {
+    version:1,userId,resolutionId,bankTransactionId:"bank-row",bankAccountId:"account-1",
+    resolutionType:"taxPayment",direction:"moneyOut",amount:100,effectiveDate:"2026-08-12",
+    journalId,nominalAccountCode:"2300",reasonCode:"",notes:"",posting:"journal",
+    blocksReconciliation:false,status:"posted"
+  };
+  const fingerprint = valueFingerprint(core);
+  fixture.documents.set(resolutionPath,{ ...core,fingerprint,createdAt:"historical",updatedAt:"historical" });
+  fixture.documents.set(journalPath,prepareBankExceptionJournal(userId,resolutionId,core,{
+    createdAt:"historical",updatedAt:"historical"
+  }));
+  fixture.documents.set(transactionPath,{
+    ...moneyOut,status:"matched",matchedRecordType:"bankException",matchedRecordId:resolutionId,
+    matchedAmount:100,matchedAt:"historical",matchOrigin:"bankException",exceptionVersion:1,
+    exceptionResolutionId:resolutionId,exceptionResolutionType:"taxPayment",exceptionPosting:"journal",
+    exceptionJournalId:journalId,exceptionReasonCode:"",exceptionBlocksReconciliation:false,
+    exceptionStateFingerprint:fingerprint,updatedAt:"historical"
+  });
+  return { core,resolutionId,resolutionPath,journalId,journalPath };
+}
+
 function account(id = "account-1",status = "Active"){
   const input = JSON.stringify({ bankAccountId:id,openingBalance:0,openingBalanceDate:"2026-08-01",version:1 });
   let hash = 14695981039346656037n;
@@ -138,8 +185,11 @@ describe("Banking exception definitions and eligibility",() => {
       "ownerContribution","loanReceived","personalNonBusinessIn","ignoredReviewed"
     ]);
     expect(bankExceptionOptions("moneyOut").map(item => item.value)).toEqual([
-      "ownerDrawing","loanRepaymentPrincipal","taxPayment","personalNonBusinessOut","ignoredReviewed"
+      "ownerDrawing","loanRepaymentPrincipal","personalNonBusinessOut","ignoredReviewed"
     ]);
+    expect(BANK_EXCEPTION_TYPES.find(item => item.value === "taxPayment")).toMatchObject({
+      label:"Tax payment",direction:"moneyOut",accountCode:"2300",posting:"journal"
+    });
     expect(bankExceptionEligibility({ ...moneyIn,status:"matched" }).eligible).toBe(false);
     expect(bankExceptionResolutionDocumentId("bank/row")).toBe("bank-exception_bank%2Frow");
   });
@@ -159,8 +209,7 @@ describe.each([
   ["loan received","in","loanReceived","2400",100,0,{ assets:100,equity:0,liabilities:100 }],
   ["owner drawing","out","ownerDrawing","3200",0,100,{ assets:-100,equity:-100,liabilities:0 }],
   ["personal money out","out","personalNonBusinessOut","3200",0,100,{ assets:-100,equity:-100,liabilities:0 }],
-  ["principal loan repayment","out","loanRepaymentPrincipal","2400",0,100,{ assets:-100,equity:0,liabilities:-100 }],
-  ["tax payment","out","taxPayment","2300",0,100,{ assets:-100,equity:0,liabilities:-100 }]
+  ["principal loan repayment","out","loanRepaymentPrincipal","2400",0,100,{ assets:-100,equity:0,liabilities:-100 }]
 ])("accounting-posted exception: %s",(_label,direction,resolutionType,accountCode,bankDebit,bankCredit,expected) => {
   it("posts the exact bank/control movement with no P&L or VAT",async () => {
     const fixture = mockFirestore({ direction });
@@ -205,6 +254,106 @@ describe.each([
     expect(journals.flatMap(item => item.lines).some(line => ["1200","2100"].includes(line.accountCode))).toBe(false);
     expect(reconciliation(fixture,direction === "in" ? 100 : -100))
       .toMatchObject({ bookBalance:direction === "in" ? 100 : -100,unresolvedCount:0,eligible:true });
+  });
+});
+
+describe("generic Tax payment containment and historical compatibility",() => {
+  it("rejects a new direct Tax payment attempt with zero writes",async () => {
+    const fixture = mockFirestore({ direction:"out" });
+    const before = structuredClone([...fixture.documents.entries()]);
+
+    await expect(resolveBankException(options(fixture,"taxPayment")))
+      .rejects.toThrow(/not supported.*underlying tax liability/i);
+
+    expect(fixture.writes).toEqual([]);
+    expect([...fixture.documents.entries()]).toEqual(before);
+    expect(fixture.documents.get(accountPath)).not.toHaveProperty("bankingActivity");
+    expect(rawJournals(fixture.documents)).toEqual([]);
+  });
+
+  it("loads and validates an existing historical Tax payment without rewriting it",async () => {
+    const fixture = mockFirestore({ direction:"out" });
+    const historical = seedHistoricalTaxPayment(fixture);
+    const before = structuredClone([...fixture.documents.entries()]);
+    const resolution = normaliseBankExceptionResolution(
+      historical.resolutionId,fixture.documents.get(historical.resolutionPath)
+    );
+
+    expect(resolution).toMatchObject({
+      resolutionType:"taxPayment",nominalAccountCode:"2300",posting:"journal",status:"posted"
+    });
+    expect(BANK_EXCEPTION_TYPES.find(item => item.value === resolution.resolutionType)?.label).toBe("Tax payment");
+    await expect(resolveBankException(options(fixture,"taxPayment")))
+      .resolves.toMatchObject({ status:"already-resolved",resolutionId:historical.resolutionId });
+    expect(fixture.writes).toEqual([]);
+    expect([...fixture.documents.entries()]).toEqual(before);
+  });
+
+  it("preserves the historical Tax Control journal and reporting effects",() => {
+    const fixture = mockFirestore({ direction:"out" });
+    const historical = seedHistoricalTaxPayment(fixture);
+    const journal = fixture.documents.get(historical.journalPath);
+    expect(journal).toMatchObject({ bankAccountId:"account-1" });
+    expect(journal.lines.find(line => line.accountCode === "2300")).toMatchObject({ debit:100,credit:0 });
+    expect(journal.lines.find(line => line.accountCode === "1000")).toMatchObject({
+      debit:0,credit:100,bankAccountId:"account-1"
+    });
+
+    const journals = reportJournals(fixture.documents);
+    const trialBalance = buildTrialBalance(journals);
+    const balanceSheet = buildBalanceSheetReport(journals);
+    const profitLoss = buildProfitLossReport(journals);
+    const bankLedger = generalLedgerViewFromJournals(journals,{ accountCode:"1000" });
+    const taxLedger = generalLedgerViewFromJournals(journals,{ accountCode:"2300" });
+    expect(trialBalance).toMatchObject({ balanced:true,totalDebits:100,totalCredits:100 });
+    expect(balanceSheet).toMatchObject({ totalAssets:-100,totalLiabilities:-100,totalEquity:0,difference:0 });
+    expect(profitLoss).toMatchObject({ totalIncome:0,totalExpenses:0,netResult:0 });
+    expect(bankLedger).toMatchObject({ state:"loaded",entriesCount:1,closingBalance:-100 });
+    expect(bankLedger.rows[0]).toMatchObject({ bankAccountId:"account-1" });
+    expect(taxLedger).toMatchObject({ state:"loaded",entriesCount:1,closingBalance:100 });
+    expect(journals.flatMap(item => item.lines).some(line => ["1200","2100"].includes(line.accountCode))).toBe(false);
+  });
+
+  it("Unresolves a historical Tax payment through the existing integrity checks",async () => {
+    const fixture = mockFirestore({ direction:"out" });
+    const historical = seedHistoricalTaxPayment(fixture);
+    const originalAccount = structuredClone(fixture.documents.get(accountPath));
+
+    await expect(unresolveBankException({ db:{},userId,transactionId:"bank-row",services:fixture.services }))
+      .resolves.toMatchObject({
+        status:"unresolved",resolutionId:historical.resolutionId,journalId:historical.journalId
+      });
+
+    expect(fixture.documents.has(historical.resolutionPath)).toBe(false);
+    expect(fixture.documents.has(historical.journalPath)).toBe(false);
+    expect(fixture.documents.get(transactionPath)).toMatchObject({ status:"unmatched" });
+    expect(fixture.documents.get(transactionPath)).not.toHaveProperty("exceptionResolutionId");
+    expect(fixture.documents.get(accountPath)).toEqual(originalAccount);
+    expect(fixture.writes.map(write => [write.operation,write.path])).toEqual([
+      ["delete",historical.journalPath],
+      ["delete",historical.resolutionPath],
+      ["update",transactionPath]
+    ]);
+  });
+
+  it("keeps a signed historical reconciliation unchanged and marks it Needs review after Unresolve",async () => {
+    const fixture = mockFirestore({ direction:"out" });
+    seedHistoricalTaxPayment(fixture);
+    const signed = reconciliation(fixture,-100);
+    const record = {
+      id:"signed-tax",version:1,userId,bankAccountId:"account-1",statementClosingDate:"2026-08-31",
+      statementClosingBalance:-100,bookBalance:-100,difference:0,unresolvedCount:0,
+      status:"reconciled",sourceFingerprint:signed.sourceFingerprint
+    };
+
+    await unresolveBankException({ db:{},userId,transactionId:"bank-row",services:fixture.services });
+    const history = reconciliationHistory([record],{
+      userId,bankAccountId:"account-1",account:account(),statementClosingBalance:-100,
+      journals:rawJournals(fixture.documents),transactions:[{ id:"bank-row",...fixture.documents.get(transactionPath) }]
+    });
+
+    expect(record).toMatchObject({ status:"reconciled",sourceFingerprint:signed.sourceFingerprint });
+    expect(history[0]).toMatchObject({ displayStatus:"needs-review",sourceFingerprint:signed.sourceFingerprint });
   });
 });
 

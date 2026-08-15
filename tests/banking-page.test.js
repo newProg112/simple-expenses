@@ -39,6 +39,7 @@ import {
   confirmBankMatch,
   unmatchBankTransaction
 } from "../resources/js/bank-match-confirmation.js";
+import { bankExceptionOptions } from "../resources/js/bank-exception-resolution.js";
 import { DEMO_MANAGED_USER_COLLECTIONS } from "../assets/demo-seed-engine.js";
 import { DEMO_SEED } from "../assets/demo-seed.js";
 
@@ -835,6 +836,15 @@ describe("Banking Phase 5 import page", () => {
     ]) expect(html).toContain(marker);
   });
 
+  it("keeps an Unmatch failure visibly attached to its transaction row",() => {
+    expect(html).toContain("const unmatchErrors = new Map()");
+    expect(html).toContain("const unmatchError = unmatchErrors.get(transaction.id)");
+    expect(html).toContain('errorDetail.setAttribute("role","alert")');
+    expect(html).toContain("unmatchErrors.set(transactionId,message)");
+    expect(html).toMatch(/async function unmatchTransaction[\s\S]*?unmatchErrors\.delete\(transactionId\)[\s\S]*?unmatchErrors\.set\(transactionId,message\)/);
+    expect(html).toContain("setPageFeedback(message,true)");
+  });
+
   it("clears temporary CSV state only after successful import", () => {
     expect(html).toMatch(/await persistBankTransactions\([\s\S]*?resetStatementPreview\(\)[\s\S]*?Skipped duplicates/);
     expect(html).toMatch(/function resetStatementPreview[\s\S]*?elements\.fileInput\.value = ""[\s\S]*?clearStatementData\(\)/);
@@ -893,6 +903,14 @@ describe("Banking exception resolution page",() => {
     ]) expect(html).toContain(marker);
     expect(html).toContain("BANK_EXCEPTION_TYPES.find(item => item.value === elements.exceptionType.value)");
     expect(html).toContain("definition?.explanation");
+  });
+
+  it("does not offer Tax payment as a new Money Out resolution",() => {
+    expect(bankExceptionOptions("moneyOut").map(item => item.value)).toEqual([
+      "ownerDrawing","loanRepaymentPrincipal","personalNonBusinessOut","ignoredReviewed"
+    ]);
+    expect(html).toContain("bankExceptionOptions(eligibility.direction)");
+    expect(html).toContain("bank-exception-resolution.js?v=20260814-banking20");
   });
 
   it("dispatches only to atomic Resolve and Unresolve helpers",() => {

@@ -282,13 +282,13 @@
     import { MAPPING_FIELDS, normaliseStatementRows, statementMappingData, suggestColumnMappings, validateColumnMappings } from "/resources/js/bank-statement-mapping.js?v=20260807-banking4";
     import { BANK_TRANSACTION_STATUS, createSingleFlightImport, newestBankTransactions, normaliseBankTransaction, persistBankTransactions, readyMappedTransactions } from "/resources/js/bank-transaction-import.js?v=20260814-banking20";
     import { suggestBankMatches } from "/resources/js/bank-match-suggestions.js?v=20260812-banking9";
-    import { confirmBankMatch, unmatchBankTransaction } from "/resources/js/bank-match-confirmation.js?v=20260812-banking13";
+    import { confirmBankMatch, unmatchBankTransaction } from "/resources/js/bank-match-confirmation.js?v=20260814-banking21";
     import { BANK_CATEGORISED_EXPENSE_CATEGORIES, categoriseMoneyOut, moneyOutCategorisationEligibility, uncategoriseMoneyOut } from "/resources/js/bank-transaction-categorisation.js?v=20260813-banking14";
     import { BANK_INCOME_CATEGORIES, categoriseMoneyIn, moneyInCategorisationEligibility, uncategoriseMoneyIn } from "/resources/js/bank-income-categorisation.js?v=20260813-banking15";
     import { bankAccountOpeningBalanceLocked, createBankAccountWithOpeningBalance, postLegacyBankOpeningBalance, updateBankAccountWithOpeningBalance } from "/resources/js/bank-opening-balance.js?v=20260813-banking16";
     import { calculateBankReconciliation, normaliseBankReconciliation, reconciliationHistory, signOffBankReconciliation, validateBankReconciliationInput } from "/resources/js/bank-reconciliation.js?v=20260813-banking17";
     import { bankTransferCandidates, bankTransferEligibility, normaliseBankTransfer, transferBankTransaction, untransferBankTransaction } from "/resources/js/bank-transfer.js?v=20260814-banking18";
-    import { BANK_EXCEPTION_IGNORE_REASONS, BANK_EXCEPTION_TYPES, bankExceptionEligibility, bankExceptionOptions, normaliseBankExceptionResolution, resolveBankException, unresolveBankException } from "/resources/js/bank-exception-resolution.js?v=20260814-banking19";
+    import { BANK_EXCEPTION_IGNORE_REASONS, BANK_EXCEPTION_TYPES, bankExceptionEligibility, bankExceptionOptions, normaliseBankExceptionResolution, resolveBankException, unresolveBankException } from "/resources/js/bank-exception-resolution.js?v=20260814-banking20";
 
     const elements = {
       count:document.getElementById("bankAccountCount"), transactionCount:document.getElementById("bankTransactionCount"), needsReviewCount:document.getElementById("bankNeedsReviewCount"), matchedCount:document.getElementById("bankMatchedCount"), add:document.getElementById("addAccountButton"), list:document.getElementById("accountList"),
@@ -342,6 +342,7 @@
     let reconciliationDataLoaded = false;
     let isSigningReconciliation = false;
     const activeMatchActions = new Set();
+    const unmatchErrors = new Map();
 
     function escapeHtml(value){
       return String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
@@ -755,6 +756,14 @@
             ? (exceptionResolved ? "Unresolving..." : transferred ? "Untransferring..." : categorised ? "Uncategorising..." : "Unmatching...")
             : (exceptionResolved ? "Unresolve" : transferred ? "Untransfer" : categorised ? "Uncategorise" : "Unmatch");
           statusCell.append(detail,unmatch);
+          const unmatchError = unmatchErrors.get(transaction.id);
+          if(unmatchError){
+            const errorDetail = document.createElement("span");
+            errorDetail.className = "match-detail match-warning";
+            errorDetail.setAttribute("role","alert");
+            errorDetail.textContent = unmatchError;
+            statusCell.append(errorDetail);
+          }
         }else{
           const categorisationType = moneyOutCategorisationEligibility(transaction).eligible
             ? "money-out" : moneyInCategorisationEligibility(transaction).eligible ? "money-in" : "";
@@ -916,6 +925,7 @@
     async function unmatchTransaction(button){
       const transactionId = button.dataset.transactionId;
       if(!currentUser || !transactionId || activeMatchActions.has(transactionId)) return;
+      unmatchErrors.delete(transactionId);
       activeMatchActions.add(transactionId);
       renderTransactions();
       try{
@@ -926,14 +936,18 @@
         await loadTransactions(currentUser,false);
         await loadMatchSources(currentUser);
         await loadReconciliationData(currentUser);
-        setPageFeedback(result.settlementReversed
-          ? "Match removed. The Banking settlement was reversed and the source record was restored."
+        setPageFeedback(result.sourceRecordUnchanged
+          ? "Match removed. The Banking settlement was reversed and the legacy Expense was left unchanged."
+          : result.settlementReversed
+            ? "Match removed. The Banking settlement was reversed and the source record was restored."
           : "Legacy match removed. No source record or journal was changed.");
       }catch(error){
         console.error("Bank transaction unmatch failed",error,{
           bankMatchDiagnostic:error?.bankMatchDiagnostic || null
         });
-        setPageFeedback(error.message || "The match could not be removed. Refresh and try again.",true);
+        const message = error.message || "The match could not be removed. Refresh and try again.";
+        unmatchErrors.set(transactionId,message);
+        setPageFeedback(message,true);
       }finally{
         activeMatchActions.delete(transactionId);
         renderTransactions();

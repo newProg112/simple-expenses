@@ -137,7 +137,9 @@ export function bankExceptionEligibility(transaction){
 }
 
 export function bankExceptionOptions(direction){
-  return Object.freeze(BANK_EXCEPTION_TYPES.filter(item => item.direction === direction || item.direction === "both"));
+  return Object.freeze(BANK_EXCEPTION_TYPES.filter(item =>
+    item.value !== "taxPayment" && (item.direction === direction || item.direction === "both")
+  ));
 }
 
 export function bankExceptionResolutionDocumentId(transactionId){
@@ -305,6 +307,9 @@ export async function resolveBankException(options = {}){
     const transaction = { ...transactionSnapshot.data(),id:transactionId };
     const details = transactionDetails(transaction);
     const input = validatedInput(options.input || {},details.direction);
+    if(transaction.status === "unmatched" && input.definition.value === "taxPayment"){
+      throw new Error("New generic Tax payment resolutions are not supported because Simple Books does not currently track the underlying tax liability.");
+    }
     const core = expectedCore(userId,transactionId,details,input);
     const accountRef = services.doc(db,"users",userId,"bankAccounts",details.bankAccountId);
     const [accountSnapshot,resolutionSnapshot,journalSnapshot] = await Promise.all([
