@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   BANK_CATEGORISATION_STATUS_MESSAGE,
   BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
+  BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE,
   BANK_SETTLEMENT_STATUS_MESSAGE,
   isBankCategorisedExpense,
   isBankingSettledSource,
@@ -57,6 +58,9 @@ describe("Banking-settled source status state", () => {
     expect(BANK_SETTLEMENT_ACCOUNTING_MESSAGE).toBe(
       "This invoice is matched to a bank transaction. Unmatch it in Banking before changing accounting details."
     );
+    expect(BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE).toBe(
+      "This record is matched to a bank transaction. Unmatch it in Banking before changing accounting details."
+    );
   });
 
   it("locks invoice status toggling in rendering and in the action handler", () => {
@@ -89,7 +93,7 @@ describe("Banking-settled source status state", () => {
     expect(pages.expense).toMatch(/function editExpense[\s\S]*?isBankCategorisedExpense\(expense\)[\s\S]*?BANK_CATEGORISATION_STATUS_MESSAGE/);
     expect(pages.expense).toMatch(/function markExpensePaid[\s\S]*?isBankCategorisedExpense\(expense\)[\s\S]*?BANK_CATEGORISATION_STATUS_MESSAGE/);
     expect(pages.expense).toMatch(/function deleteExpense[\s\S]*?isBankCategorisedExpense\(expenseToDelete\)[\s\S]*?BANK_CATEGORISATION_STATUS_MESSAGE/);
-    expect(pages.expense).toMatch(/data-expense-action="edit"[\s\S]*?bankCategorised \? ` disabled title=/);
+    expect(pages.expense).toMatch(/data-expense-action="edit"[\s\S]*?editLocked \? ` disabled title=/);
     expect(pages.expense).toMatch(/data-expense-action="delete"[\s\S]*?bankCategorised \? ` disabled title=/);
   });
 

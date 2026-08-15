@@ -1608,6 +1608,7 @@
           </div>
 
           <p class="receipt-ai-apply-feedback" id="receiptAiApplyFeedback" role="status" tabindex="-1" hidden></p>
+          <p class="receipt-ai-apply-feedback has-warnings" id="expenseEditLockMessage" role="alert" hidden></p>
 
           <div class="claim-toggle" aria-label="Claim type">
             <button class="active" id="expenseModeButton" type="button" onclick="setClaimType('expense')">Expense</button>
@@ -2067,11 +2068,14 @@
     } from "../js/ledger-firestore.js";
     import {
       BANK_CATEGORISATION_STATUS_MESSAGE,
+      BANK_SETTLED_EXPENSE_EDIT_ERROR_CODE,
+      BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE,
       BANK_SETTLEMENT_STATUS_MESSAGE,
       isBankCategorisedExpense,
       isBankingSettledSource,
+      saveExpenseRecordWithSettlementGuard,
       sourceStatusForSave
-    } from "../js/bank-settlement-source-state.js?v=20260812-banking12";
+    } from "../js/bank-settlement-source-state.js?v=20260815-banking22";
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
@@ -2088,6 +2092,7 @@
       onSnapshot,
       orderBy,
       query,
+      runTransaction,
       setDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import {
@@ -3267,10 +3272,34 @@
       }
     }
 
+    const bankSettledExpenseEditControlIds = Object.freeze([
+      "expenseModeButton","mileageModeButton","openReceiptScanButton",
+      "expenseDate","merchant","category","expenseProjectSelect","netAmount","vatRate",
+      "vatAmount","grossAmount","status","description",
+      "mileageDate","mileageFrom","mileageTo","mileageProjectSelect","mileageMiles",
+      "mileageRate","mileageAmount","mileageStatus","mileagePurpose",
+      "notes","expenseAttachment","attachmentButtonLabel","removePendingScannedReceiptFileButton",
+      "saveExpenseButton"
+    ]);
+
+    function setBankSettledExpenseEditLock(locked,message = ""){
+      bankSettledExpenseEditControlIds.forEach(id => {
+        const control = document.getElementById(id);
+        if(!control) return;
+        control.disabled = Boolean(locked);
+        control.setAttribute("aria-readonly",locked ? "true" : "false");
+        control.title = locked ? message : "";
+      });
+      const lockMessage = document.getElementById("expenseEditLockMessage");
+      lockMessage.textContent = locked ? message : "";
+      lockMessage.hidden = !locked;
+    }
+
     function clearForm() {
       editingExpenseId = null;
       vatManuallyEdited = false;
       clearReceiptAiApplyFeedback();
+      setBankSettledExpenseEditLock(false);
 
       document.getElementById("saveExpenseButton").textContent = "Save expense";
       document.getElementById("cancelEditButton").hidden = true;
@@ -3400,6 +3429,18 @@
 
     async function saveExpense() {
       const isMileage = claimType === "mileage";
+      const existingExpense = editingExpenseId
+        ? expenses.find(expense => String(expense.id) === String(editingExpenseId))
+        : null;
+      if (isBankCategorisedExpense(existingExpense)) {
+        alert(BANK_CATEGORISATION_STATUS_MESSAGE);
+        return;
+      }
+      if (isBankingSettledSource(existingExpense)) {
+        setBankSettledExpenseEditLock(true,BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE);
+        alert(BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE);
+        return;
+      }
       const merchant = document.getElementById("merchant").value.trim();
       const mileageFrom = document.getElementById("mileageFrom").value.trim();
       const mileageTo = document.getElementById("mileageTo").value.trim();
@@ -3446,16 +3487,27 @@
         return;
       }
 
-      const existingExpense = editingExpenseId
-        ? expenses.find(expense => String(expense.id) === String(editingExpenseId))
-        : null;
       const expenseId = String(editingExpenseId || Date.now());
       const now = new Date().toISOString();
       const existingType = existingExpense?.type === "mileage" ? "mileage" : "expense";
-      if (isBankCategorisedExpense(existingExpense)) {
-        saveButton.disabled = false;
-        alert(BANK_CATEGORISATION_STATUS_MESSAGE);
-        return;
+      if (existingExpense) {
+        try {
+          const currentSnapshot = await getDoc(doc(db,"users",user.uid,"expenses",expenseId));
+          if (!currentSnapshot.exists()) {
+            saveButton.disabled = false;
+            alert("Could not find this expense or mileage claim.");
+            return;
+          }
+          if (isBankingSettledSource(currentSnapshot.data())) {
+            setBankSettledExpenseEditLock(true,BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE);
+            alert(BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE);
+            return;
+          }
+        } catch (error) {
+          saveButton.disabled = false;
+          alert(`Firestore read failed: ${error.message}`);
+          return;
+        }
       }
       const project = selectedProject(
         isMileage ? "mileageProjectSelect" : "expenseProjectSelect"
@@ -3558,8 +3610,16 @@
       }
 
       try {
-        await setDoc(doc(db, "users", user.uid, "expenses", String(expenseId)), expense);
+        await saveExpenseRecordWithSettlementGuard({
+          db,userId:user.uid,expenseId,expense,requireExisting:Boolean(existingExpense),
+          services:{ doc,runTransaction }
+        });
       } catch (error) {
+        if (error?.code === BANK_SETTLED_EXPENSE_EDIT_ERROR_CODE) {
+          setBankSettledExpenseEditLock(true,BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE);
+          alert(BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE);
+          return;
+        }
         saveButton.disabled = false;
         alert(`Firestore save failed: ${error.message}`);
         return;
@@ -3570,7 +3630,10 @@
         try {
           attachment = await uploadAttachment(scannedAttachment, expenseId, user.uid);
           expense = normaliseExpense({ ...expense, ...attachment });
-          await setDoc(doc(db, "users", user.uid, "expenses", String(expenseId)), expense);
+          await saveExpenseRecordWithSettlementGuard({
+            db,userId:user.uid,expenseId,expense,requireExisting:true,
+            services:{ doc,runTransaction }
+          });
         } catch (error) {
           console.error("Scanned receipt attachment upload failed after the expense was saved", error);
           scannedAttachmentWarning = "The expense was saved, but the scanned receipt could not be uploaded. You can edit the expense and attach the file manually.";
@@ -3622,12 +3685,17 @@
         alert(BANK_CATEGORISATION_STATUS_MESSAGE);
         return;
       }
+      if (isBankingSettledSource(expense)) {
+        alert(BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE);
+        return;
+      }
 
       const removedPendingScan = Boolean(pendingScannedReceiptFile);
       clearPendingScannedReceiptFile(false);
       clearReceiptAiApplyFeedback();
       editingExpenseId = expense.id;
       vatManuallyEdited = true;
+      setBankSettledExpenseEditLock(false);
 
       document.getElementById("saveExpenseButton").textContent = "Update expense";
       document.getElementById("cancelEditButton").hidden = false;
@@ -4030,6 +4098,10 @@
         const bankingMessage = bankCategorised
           ? BANK_CATEGORISATION_STATUS_MESSAGE
           : BANK_SETTLEMENT_STATUS_MESSAGE;
+        const editLocked = bankCategorised || bankingSettled;
+        const editLockMessage = bankCategorised
+          ? BANK_CATEGORISATION_STATUS_MESSAGE
+          : BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE;
         const projectName = expense.projectName || (expense.projectReference ? "Project" : "Unassigned");
 
         return `
@@ -4070,7 +4142,7 @@
             ${hasAttachment
               ? `<a class="btn btn-secondary" href="#" data-expense-attachment data-expense-id="${expenseId}">${isMileage ? "View attachment" : "View PDF"}</a>`
               : ""}
-            <button class="btn btn-secondary" type="button" data-expense-action="edit" data-expense-id="${expenseId}"${bankCategorised ? ` disabled title="${BANK_CATEGORISATION_STATUS_MESSAGE}"` : ""}>Edit</button>
+            <button class="btn btn-secondary" type="button" data-expense-action="edit" data-expense-id="${expenseId}"${editLocked ? ` disabled title="${editLockMessage}"` : ""}>Edit</button>
             ${expense.status !== "Paid"
               ? `<button class="btn btn-positive" type="button" data-expense-action="mark-paid" data-expense-id="${expenseId}"${bankingSettled ? ` disabled title="${bankingMessage}"` : ""}>Mark paid</button>`
               : ""}
@@ -4113,6 +4185,12 @@
         );
 
         saveExpenses(firestoreExpenses);
+        const currentEditingExpense = editingExpenseId
+          ? firestoreExpenses.find(expense => String(expense.id) === String(editingExpenseId))
+          : null;
+        if (isBankingSettledSource(currentEditingExpense)) {
+          setBankSettledExpenseEditLock(true,BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE);
+        }
         renderExpenses();
       }, error => {
         console.error("Firestore expenses load failed", error);
