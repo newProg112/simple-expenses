@@ -1,6 +1,9 @@
 export const BANK_SETTLEMENT_STATUS_MESSAGE =
   "This record is matched to a bank transaction. Unmatch it in Banking before changing its payment status.";
 
+export const BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE =
+  "This record is matched to a bank transaction. Unmatch it in Banking before editing, changing its payment status or deleting it.";
+
 export const BANK_SETTLEMENT_ACCOUNTING_MESSAGE =
   "This invoice is matched to a bank transaction. Unmatch it in Banking before changing accounting details.";
 

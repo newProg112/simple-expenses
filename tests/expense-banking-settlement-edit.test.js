@@ -216,7 +216,7 @@ describe("bank-settled Expense and Mileage edit lock",() => {
     expect(html).toContain("saveExpenseRecordWithSettlementGuard({");
     expect(html).toContain("services:{ doc,runTransaction }");
     expect(html).toContain("const editLocked = bankCategorised || bankingSettled");
-    expect(html).toContain('editLocked ? ` disabled title="${editLockMessage}"`');
+    expect(html).toContain('editLocked ? ` disabled title="${editLockMessage}" aria-describedby="${protectionNoteId}"`');
     expect(html).toMatch(/function editExpense[\s\S]*?isBankingSettledSource\(expense\)[\s\S]*?BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE/);
     expect(html).toMatch(/onSnapshot[\s\S]*?currentEditingExpense[\s\S]*?setBankSettledExpenseEditLock\(true,BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE\)/);
   });

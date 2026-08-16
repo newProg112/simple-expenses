@@ -1227,6 +1227,15 @@
       overflow-wrap:anywhere;
     }
 
+    .bank-settlement-note{
+      flex:1 0 100%;
+      color:#9a3412;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.4;
+      overflow-wrap:anywhere;
+    }
+
     .expense-description{
       margin-top:6px;
       color:#475569;
@@ -2072,13 +2081,14 @@
       BANK_SETTLED_EXPENSE_EDIT_ERROR_CODE,
       BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE,
       BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE,
+      BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE,
       BANK_SETTLEMENT_STATUS_MESSAGE,
       deleteExpenseRecordWithSettlementGuard,
       isBankCategorisedExpense,
       isBankingSettledSource,
       saveExpenseRecordWithSettlementGuard,
       sourceStatusForSave
-    } from "../js/bank-settlement-source-state.js?v=20260815-banking24";
+    } from "../js/bank-settlement-source-state.js?v=20260816-banking25";
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
@@ -4122,6 +4132,10 @@
         const deleteLockMessage = bankCategorised
           ? BANK_CATEGORISATION_STATUS_MESSAGE
           : BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE;
+        const protectionMessage = bankCategorised
+          ? BANK_CATEGORISATION_STATUS_MESSAGE
+          : BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE;
+        const protectionNoteId = `expense-settlement-note-${expenseId}`;
         const projectName = expense.projectName || (expense.projectReference ? "Project" : "Unassigned");
 
         return `
@@ -4162,12 +4176,12 @@
             ${hasAttachment
               ? `<a class="btn btn-secondary" href="#" data-expense-attachment data-expense-id="${expenseId}">${isMileage ? "View attachment" : "View PDF"}</a>`
               : ""}
-            <button class="btn btn-secondary" type="button" data-expense-action="edit" data-expense-id="${expenseId}"${editLocked ? ` disabled title="${editLockMessage}"` : ""}>Edit</button>
+            <button class="btn btn-secondary" type="button" data-expense-action="edit" data-expense-id="${expenseId}"${editLocked ? ` disabled title="${editLockMessage}" aria-describedby="${protectionNoteId}"` : ""}>Edit</button>
             ${expense.status !== "Paid"
-              ? `<button class="btn btn-positive" type="button" data-expense-action="mark-paid" data-expense-id="${expenseId}"${bankingSettled ? ` disabled title="${bankingMessage}"` : ""}>Mark paid</button>`
+              ? `<button class="btn btn-positive" type="button" data-expense-action="mark-paid" data-expense-id="${expenseId}"${bankingSettled ? ` disabled title="${bankingMessage}" aria-describedby="${protectionNoteId}"` : ""}>Mark paid</button>`
               : ""}
-            ${bankingSettled ? `<span class="expense-secondary">${bankingMessage}</span>` : ""}
-            <button class="btn btn-danger-subtle" type="button" data-expense-action="delete" data-expense-id="${expenseId}"${deleteLocked ? ` disabled title="${deleteLockMessage}"` : ""}>Delete</button>
+            <button class="btn btn-danger-subtle" type="button" data-expense-action="delete" data-expense-id="${expenseId}"${deleteLocked ? ` disabled title="${deleteLockMessage}" aria-describedby="${protectionNoteId}"` : ""}>Delete</button>
+            ${editLocked ? `<span class="bank-settlement-note" id="${protectionNoteId}">${protectionMessage}</span>` : ""}
           </div>
         </div>
       `;

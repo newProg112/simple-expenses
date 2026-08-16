@@ -5,6 +5,7 @@ import {
   BANK_SETTLED_EXPENSE_DELETE_ERROR_CODE,
   BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE,
   BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE,
+  BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE,
   BANK_SETTLEMENT_STATUS_MESSAGE,
   deleteExpenseRecordWithSettlementGuard,
   isBankCategorisedExpense,
@@ -101,6 +102,7 @@ function renderExpense(expense){
     isBankCategorisedExpense,isBankingSettledSource,
     BANK_CATEGORISATION_STATUS_MESSAGE,BANK_SETTLEMENT_STATUS_MESSAGE,
     BANK_SETTLEMENT_EXPENSE_ACCOUNTING_MESSAGE,BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE,
+    BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE,
     document:{ getElementById:id => elements[id] }
   };
   const render = Function(
@@ -146,6 +148,8 @@ describe("bank-settled Expense and Mileage delete protection",() => {
     const markup = renderExpense(settled);
     expect(deleteButton(markup)).toContain("disabled");
     expect(deleteButton(markup)).toContain(`title="${BANK_SETTLEMENT_EXPENSE_DELETE_MESSAGE}"`);
+    expect(markup).toContain(`>${BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE}</span>`);
+    expect(markup).toContain('aria-describedby="expense-settlement-note-expense-1"');
 
     const compiled = compileDeleteExpense(settled);
     await compiled.deleteExpense("expense-1");

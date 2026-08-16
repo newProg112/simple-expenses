@@ -3,6 +3,7 @@ import { describe,expect,it,vi } from "vitest";
 import {
   BANK_SETTLED_BILL_MUTATION_ERROR_CODE,
   BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE,
+  BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE,
   deleteBillRecordWithSettlementGuard,
   isBankingSettledSource,
   readBillRecordWithSettlementGuard,
@@ -358,9 +359,14 @@ describe("bank-settled Bill edit and delete protection",() => {
   });
 
   it("disables settled Edit and Delete while preserving the existing payment-status lock",() => {
-    expect(html).toMatch(/data-bill-action="edit"[\s\S]*?bankingSettled \? ` disabled title="\$\{BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE\}"`/);
-    expect(html).toMatch(/data-bill-action="delete"[\s\S]*?bankingSettled \? ` disabled title="\$\{BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE\}"`/);
+    expect(html).toMatch(/data-bill-action="edit"[\s\S]*?bankingSettled \? ` disabled title="\$\{BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE\}" aria-describedby="\$\{settlementNoteId\}"`/);
+    expect(html).toMatch(/data-bill-action="delete"[\s\S]*?bankingSettled \? ` disabled title="\$\{BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE\}" aria-describedby="\$\{settlementNoteId\}"`/);
     expect(html).toMatch(/data-bill-action="toggle-paid"[\s\S]*?BANK_SETTLEMENT_STATUS_MESSAGE/);
+    expect(html).toContain('aria-describedby="${settlementNoteId}"');
+    expect(html).toContain('${BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE}</span>');
+    expect(BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE).toContain(
+      "Unmatch it in Banking before editing, changing its payment status or deleting it."
+    );
     expect(html).toMatch(/async function deleteBill[\s\S]*?isBankingSettledSource\(billToDelete\)[\s\S]*?BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE/);
   });
 });

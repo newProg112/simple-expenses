@@ -159,6 +159,10 @@ describe("Banking Phase 2 page", () => {
     expect(html).toMatch(/@media\(max-width:640px\)[\s\S]*?\.kpi-grid,\.form-grid,\.preview-meta,\.mapping-grid,\.mapped-summary\{grid-template-columns:1fr\}/);
     expect(html).toContain(".app-content{min-width:0}");
     expect(html).toContain(".card{min-width:0");
+    expect(html).toContain(".reconciliation-form .field select,.reconciliation-form .field input{width:100%;min-width:0}");
+    expect(html).toContain(".reconciliation-form>.btn{width:100%}");
+    expect(html).toContain(".transaction-account{display:block;max-width:220px");
+    expect(html).toContain("overflow-wrap:anywhere");
   });
 
   it("does not add Open Banking, full reconciliation, or financial-report UI", () => {
@@ -235,7 +239,7 @@ describe("Banking Phase 3 statement preview page", () => {
     expect(html).toContain(".preview-table-wrap{width:100%;overflow-x:auto");
     expect(html).toContain('aria-label="CSV statement preview table, horizontally scrollable"');
     expect(html).toContain("This CSV could not be previewed. Check the file formatting and try again.");
-    expect(html).toContain('id="importFeedback" role="alert" hidden');
+    expect(html).toContain('id="importFeedback" role="status" aria-live="polite" hidden');
   });
 });
 
@@ -836,12 +840,15 @@ describe("Banking Phase 5 import page", () => {
     ]) expect(html).toContain(marker);
   });
 
-  it("keeps an Unmatch failure visibly attached to its transaction row",() => {
-    expect(html).toContain("const unmatchErrors = new Map()");
-    expect(html).toContain("const unmatchError = unmatchErrors.get(transaction.id)");
+  it("keeps Banking action failures visibly attached to the affected transaction row",() => {
+    expect(html).toContain("const rowActionErrors = new Map()");
+    expect(html).toContain("const rowActionError = rowActionErrors.get(transaction.id)");
     expect(html).toContain('errorDetail.setAttribute("role","alert")');
-    expect(html).toContain("unmatchErrors.set(transactionId,message)");
-    expect(html).toMatch(/async function unmatchTransaction[\s\S]*?unmatchErrors\.delete\(transactionId\)[\s\S]*?unmatchErrors\.set\(transactionId,message\)/);
+    expect(html).toMatch(/async function unmatchTransaction[\s\S]*?rowActionErrors\.delete\(transactionId\)[\s\S]*?rowActionErrors\.set\(transactionId,message\)/);
+    expect(html).toMatch(/async function uncategoriseTransaction[\s\S]*?rowActionErrors\.delete\(transactionId\)[\s\S]*?rowActionErrors\.set\(transactionId,message\)/);
+    expect(html).toMatch(/async function untransferTransaction[\s\S]*?rowActionErrors\.delete\(transactionId\)[\s\S]*?rowActionErrors\.set\(transactionId,message\)/);
+    expect(html).toMatch(/async function unresolveException[\s\S]*?rowActionErrors\.delete\(transactionId\)[\s\S]*?rowActionErrors\.set\(transactionId,message\)/);
+    expect(html).toMatch(/async function confirmSuggestedMatch[\s\S]*?rowActionErrors\.delete\(transactionId\)[\s\S]*?rowActionErrors\.set\(transactionId,message\)/);
     expect(html).toContain("setPageFeedback(message,true)");
   });
 
@@ -850,10 +857,15 @@ describe("Banking Phase 5 import page", () => {
     expect(html).toMatch(/function resetStatementPreview[\s\S]*?elements\.fileInput\.value = ""[\s\S]*?clearStatementData\(\)/);
   });
 
-  it("reports imported and skipped duplicate counts, including the all-duplicate case", () => {
+  it("keeps import and duplicate results beside the import controls with the destination account name", () => {
+    expect(html).toMatch(/id="importStatementButton"[\s\S]*?id="importFeedback" role="status" aria-live="polite"/);
+    expect(html).toContain("function setImportFeedback(message,error = true)");
+    expect(html).toContain('elements.importFeedback.classList.toggle("error",Boolean(message) && error)');
     expect(html).toContain("const destinationAccountName = bankAccountDisplayName(bankAccountId,accounts)");
     expect(html).toContain('`${result.importedCount} transaction${result.importedCount === 1 ? "" : "s"} imported into ${destinationAccountName}. Skipped duplicates: ${result.skippedDuplicateCount}.`');
     expect(html).toContain('`No new transactions were imported into ${destinationAccountName}. Everything in this statement already exists for that bank account.`');
+    expect(html).toMatch(/const importMessage = result\.importedCount[\s\S]*?setImportFeedback\(importMessage,false\)[\s\S]*?setPageFeedback\(importMessage\)/);
+    expect(html).toMatch(/async function previewStatementFile[\s\S]*?setImportFeedback\(""\)/);
   });
 
   it("includes imported bank transactions in canonical Demo reset storage", () => {
@@ -894,10 +906,10 @@ describe("Banking internal transfer page",() => {
 });
 
 describe("Banking exception resolution page",() => {
-  it("offers direction-specific Other / Resolve choices with plain-English explanations",() => {
+  it("offers direction-specific Resolve another way choices with plain-English explanations",() => {
     for(const marker of [
       'id="exceptionType"','id="exceptionExplanation"','id="exceptionReason"',
-      'resolve.textContent = "Other / Resolve"',
+      'resolve.textContent = "Resolve another way"',
       'bankExceptionOptions(eligibility.direction)',
       'getDocs(collection(db,"users",user.uid,"bankExceptionResolutions"))'
     ]) expect(html).toContain(marker);

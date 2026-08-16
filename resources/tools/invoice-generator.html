@@ -1705,6 +1705,15 @@
       overflow-wrap:anywhere;
     }
 
+    .invoice-settlement-note{
+      flex:1 0 100%;
+      color:#9a3412;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.4;
+      overflow-wrap:anywhere;
+    }
+
     .invoice-row-field{
       min-width:0;
     }
@@ -2644,7 +2653,7 @@
   import {
     BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
     isBankingSettledSource
-  } from "../js/bank-settlement-source-state.js?v=20260812-banking12";
+  } from "../js/bank-settlement-source-state.js?v=20260816-banking25";
 
   import {
     collection,
@@ -3225,7 +3234,7 @@
 <script>
 
 const bankSettlementSourceStatePromise =
-  import("../js/bank-settlement-source-state.js?v=20260812-banking12");
+  import("../js/bank-settlement-source-state.js?v=20260816-banking25");
 
 const bankSettledInvoiceEditControlIds = Object.freeze([
   "businessName",
@@ -4045,6 +4054,7 @@ function toggleDarkMode(){
 
 async function renderRecentInvoices(){
   const {
+    BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
     BANK_SETTLEMENT_STATUS_MESSAGE,
     isBankingSettledSource
   } = await bankSettlementSourceStatePromise;
@@ -4140,6 +4150,7 @@ async function renderRecentInvoices(){
         const statusText = overdue ? "Overdue" : (invoice.status || "Unpaid");
         const ageingText = getInvoiceAgeingText(invoice);
         const bankingSettled = isBankingSettledSource(invoice);
+        const settlementNoteId = `invoice-settlement-note-${invoice.id}`;
 
         const statusClass =
           statusText === "Paid"
@@ -4190,12 +4201,11 @@ async function renderRecentInvoices(){
             </div>
 
             <div class="invoice-row-actions invoice-row-field" data-label="Actions">
-              <button onclick="toggleInvoiceStatus('${invoice.id}')"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}"` : ""}>
+              <button onclick="toggleInvoiceStatus('${invoice.id}')"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}" aria-describedby="${settlementNoteId}"` : ""}>
                 ${statusText === "Paid" ? "Mark Unpaid" : "Mark Paid"}
               </button>
-              ${bankingSettled ? `<span class="invoice-row-sub">${BANK_SETTLEMENT_STATUS_MESSAGE}</span>` : ""}
 
-              <button onclick="reopenInvoice('${invoice.id}')">
+              <button onclick="reopenInvoice('${invoice.id}')"${bankingSettled ? ` aria-describedby="${settlementNoteId}"` : ""}>
                 Edit invoice
               </button>
 
@@ -4207,6 +4217,7 @@ async function renderRecentInvoices(){
                       onclick="deleteInvoice('${invoice.id}')">
                 Delete
               </button>
+              ${bankingSettled ? `<span class="invoice-settlement-note" id="${settlementNoteId}">${BANK_SETTLEMENT_ACCOUNTING_MESSAGE} ${BANK_SETTLEMENT_STATUS_MESSAGE}</span>` : ""}
             </div>
 
           </div>

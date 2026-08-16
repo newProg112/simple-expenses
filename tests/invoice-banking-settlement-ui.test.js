@@ -60,7 +60,7 @@ describe("Invoice Banking settlement UI", () => {
     expect(invoiceModuleScript).toContain("bank-settlement-source-state.js");
     expect(invoiceModuleScript).toContain("window.updateInvoiceInFirestore");
     expect(invoiceClassicScript).toContain(
-      'const bankSettlementSourceStatePromise =\n  import("../js/bank-settlement-source-state.js?v=20260812-banking12");'
+      'const bankSettlementSourceStatePromise =\n  import("../js/bank-settlement-source-state.js?v=20260816-banking25");'
     );
     expect(invoiceClassicScript).toMatch(
       /async function renderRecentInvoices\(\)\{[\s\S]*?\} = await bankSettlementSourceStatePromise;[\s\S]*?isBankingSettledSource\(invoice\)/
@@ -134,10 +134,16 @@ describe("Invoice Banking settlement UI", () => {
     expect(recentInvoices.innerHTML).not.toContain("No invoices saved yet.");
     expect(recentInvoices.innerHTML.match(/<div class="invoice-row">/g)).toHaveLength(2);
     expect(recentInvoices.innerHTML).toContain(
-      `onclick="toggleInvoiceStatus('settled')" disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}"`
+      `onclick="toggleInvoiceStatus('settled')" disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}" aria-describedby="invoice-settlement-note-settled"`
     );
     expect(recentInvoices.innerHTML).toContain(
       `onclick="toggleInvoiceStatus('ordinary')">`
+    );
+    expect(recentInvoices.innerHTML).toContain(
+      `onclick="reopenInvoice('settled')" aria-describedby="invoice-settlement-note-settled"`
+    );
+    expect(recentInvoices.innerHTML).toContain(
+      `${BANK_SETTLEMENT_ACCOUNTING_MESSAGE} ${BANK_SETTLEMENT_STATUS_MESSAGE}</span>`
     );
   });
 

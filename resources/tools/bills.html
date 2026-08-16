@@ -1056,6 +1056,15 @@
       white-space:nowrap;
     }
 
+    .bank-settlement-note{
+      flex:1 0 100%;
+      color:#9a3412;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.4;
+      overflow-wrap:anywhere;
+    }
+
     .bill-total{
       color:#102033;
       font-size:14px;
@@ -2174,13 +2183,14 @@
     import {
       BANK_SETTLED_BILL_MUTATION_ERROR_CODE,
       BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE,
+      BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE,
       BANK_SETTLEMENT_STATUS_MESSAGE,
       deleteBillRecordWithSettlementGuard,
       isBankingSettledSource,
       readBillRecordWithSettlementGuard,
       saveBillRecordWithSettlementGuard,
       sourceStatusForSave
-    } from "../js/bank-settlement-source-state.js?v=20260815-banking23";
+    } from "../js/bank-settlement-source-state.js?v=20260816-banking25";
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
@@ -3869,6 +3879,7 @@
         const paymentButtonText = bill.status === "Paid" ? "Mark unpaid" : "Mark paid";
         const paymentButtonClass = bill.status === "Paid" ? "btn btn-secondary" : "btn btn-positive";
         const bankingSettled = isBankingSettledSource(bill);
+        const settlementNoteId = `bill-settlement-note-${billId}`;
         const projectName = bill.projectName || (bill.projectReference ? "Project" : "Unassigned");
 
         return `
@@ -3900,10 +3911,10 @@
 
           <div class="row-actions">
             ${viewPdfButton}
-            <button class="btn btn-secondary" type="button" data-bill-action="edit" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE}"` : ""}>Edit</button>
-            <button class="${paymentButtonClass}" type="button" data-bill-action="toggle-paid" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}"` : ""}>${paymentButtonText}</button>
-            ${bankingSettled ? `<span class="bill-date-label">${BANK_SETTLEMENT_STATUS_MESSAGE}</span>` : ""}
-            <button class="btn btn-danger-subtle" type="button" data-bill-action="delete" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE}"` : ""}>Delete</button>
+            <button class="btn btn-secondary" type="button" data-bill-action="edit" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE}" aria-describedby="${settlementNoteId}"` : ""}>Edit</button>
+            <button class="${paymentButtonClass}" type="button" data-bill-action="toggle-paid" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}" aria-describedby="${settlementNoteId}"` : ""}>${paymentButtonText}</button>
+            <button class="btn btn-danger-subtle" type="button" data-bill-action="delete" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE}" aria-describedby="${settlementNoteId}"` : ""}>Delete</button>
+            ${bankingSettled ? `<span class="bank-settlement-note" id="${settlementNoteId}">${BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE}</span>` : ""}
           </div>
         </div>
       `;
