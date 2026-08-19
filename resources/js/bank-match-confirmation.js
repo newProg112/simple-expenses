@@ -91,6 +91,14 @@ function exactMatch(transaction,recordType,targetId,targetData,statusOverride){
   return { candidate,amount };
 }
 
+function assertAutomaticExpectedState(expected,bankTransaction,targetData,matchedRecordId){
+  if(!expected) return;
+  if(!sameValue(expected.bankTransaction,bankTransaction) ||
+    !sameValue(expected.source,{ ...targetData,id:matchedRecordId })){
+    throw new Error("Automatic match details changed; review required.");
+  }
+}
+
 function sourceTypeFor(recordType,targetData){
   if(recordType === "invoice") return "salesInvoice";
   if(recordType === "bill") return "supplierBill";
@@ -466,6 +474,9 @@ export async function confirmBankMatch(options = {}){
     const targetSnapshot = await firestoreTransaction.get(targetRef);
     if(!exists(targetSnapshot)) throw new Error("Matched record no longer exists.");
     const targetData = targetSnapshot.data();
+    assertAutomaticExpectedState(
+      options.automaticExpectedState,bankTransaction,targetData,matchedRecordId
+    );
     const sameRelationship = bankTransaction.status === "matched" &&
       bankTransaction.matchedRecordType === matchedRecordType &&
       String(bankTransaction.matchedRecordId || "") === matchedRecordId;
