@@ -5,6 +5,7 @@ import {
   BANK_SETTLEMENT_STATUS_MESSAGE,
   isBankingSettledSource
 } from "../resources/js/bank-settlement-source-state.js";
+import { calculateInvoiceTotals } from "../resources/js/business-logic.js";
 
 const invoiceHtml = readFileSync(
   new URL("../resources/tools/invoice-generator.html", import.meta.url),
@@ -23,6 +24,7 @@ const bankSettlementSourceStatePromise = Promise.resolve({
   BANK_SETTLEMENT_STATUS_MESSAGE,
   isBankingSettledSource
 });
+const invoiceBusinessLogicPromise = Promise.resolve({ calculateInvoiceTotals });
 const settlementMarker = Object.freeze({
   version:1,
   transactionId:"bank-transaction-1",
@@ -135,6 +137,7 @@ function compileUpdateExistingInvoice({ currentInvoice,elements,windowOverrides 
   const context = {
     editingInvoiceId:currentInvoice.id,
     bankSettlementSourceStatePromise,
+    invoiceBusinessLogicPromise,
     window:{
       getInvoicesFromFirestore:vi.fn().mockResolvedValue([currentInvoice]),
       updateInvoiceInFirestore,
@@ -173,6 +176,25 @@ function compileUpdateExistingInvoice({ currentInvoice,elements,windowOverrides 
 }
 
 describe("Bank-settled invoice editing", () => {
+  it("uses the trusted penny-normalised totals for new Invoice persistence",() => {
+    const generateInvoiceSource = declarationBetween(
+      invoiceClassicScript,
+      "async function generateInvoice(saveToHistory = true){",
+      "function printInvoice(){"
+    );
+
+    expect(generateInvoiceSource).toContain(
+      "const { calculateInvoiceTotals } = await invoiceBusinessLogicPromise"
+    );
+    expect(generateInvoiceSource).toContain(
+      "const { subtotal:amount,vat,total } = calculateInvoiceTotals(activeItems,vatRate)"
+    );
+    expect(generateInvoiceSource).toContain(
+      "saveInvoiceToHistory(invoiceNo, client, amount, vat, total, activeItems)"
+    );
+    expect(generateInvoiceSource).not.toContain("const vat = amount * vatRate");
+  });
+
   it("locks every field written by the whole-invoice update path", () => {
     const elements = editableInvoiceElements();
     const document = { getElementById:id => elements[id] || null };
@@ -301,6 +323,20 @@ describe("Bank-settled invoice editing", () => {
     );
     expect(postInvoiceJournalAfterInvoiceSave).toHaveBeenCalledOnce();
     expect(alert).toHaveBeenCalledWith("Invoice updated.");
+  });
+
+  it("persists edited Invoice net, VAT and total at penny precision",async () => {
+    const currentInvoice = { id:"ordinary",invoiceNo:"INV-ORDINARY" };
+    const { updateExistingInvoice,updateInvoiceInFirestore } = compileUpdateExistingInvoice({
+      currentInvoice,
+      elements:editableInvoiceElements({ amount1:"708.33",vatRate:"0.20" })
+    });
+
+    await updateExistingInvoice();
+
+    expect(updateInvoiceInFirestore).toHaveBeenCalledWith("ordinary",expect.objectContaining({
+      amount:708.33,vat:141.67,total:850
+    }));
   });
 
   it("does not rewrite an already-inconsistent settled invoice", async () => {

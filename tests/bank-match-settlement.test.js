@@ -4,7 +4,8 @@ import { normaliseBankTransaction } from "../resources/js/bank-transaction-impor
 import {
   buildTrialBalance,
   createBankSettlementJournal,
-  normaliseBankTransactionDate
+  normaliseBankTransactionDate,
+  validateJournal
 } from "../resources/js/ledger-engine.js";
 import { buildBalanceSheetReport } from "../resources/js/balance-sheet-view.js";
 import { buildProfitLossReport } from "../resources/js/profit-loss-view.js";
@@ -187,6 +188,12 @@ function valueFingerprint(value){
   return hash.toString(16).padStart(16,"0");
 }
 
+function sourceFingerprint(source){
+  return valueFingerprint(Object.fromEntries(Object.entries(source).filter(([key]) =>
+    !["status","paidAt","updatedAt","bankSettlement"].includes(key)
+  )));
+}
+
 async function createLegacyMisparsedSettlement(testFixture){
   await confirmBankMatch(testFixture.confirmOptions);
   const source = testFixture.documents.get(testFixture.sourcePath);
@@ -263,6 +270,64 @@ function reconciliationOptions(testFixture){
 }
 
 describe("Banking exact-payment settlement", () => {
+  it("confirms and safely unmatches an unchanged legacy sub-penny Invoice",async () => {
+    const testFixture = fixture("invoice",{
+      source:{ amount:708.33,vat:141.666,total:849.996 },
+      transaction:{ moneyIn:850 },
+      accrualLines:[
+        { accountCode:"1100",description:"Invoice",debit:850,credit:0 },
+        { accountCode:"4000",description:"Invoice",debit:0,credit:708.33 },
+        { accountCode:"2100",description:"VAT",debit:0,credit:141.67 }
+      ]
+    });
+    const originalSource = structuredClone(testFixture.documents.get(testFixture.sourcePath));
+
+    await expect(confirmBankMatch(testFixture.confirmOptions)).resolves.toMatchObject({
+      status:"confirmed",matchedAmount:850,settled:true
+    });
+
+    const settledSource = testFixture.documents.get(testFixture.sourcePath);
+    const settledTransaction = testFixture.documents.get(testFixture.transactionPath);
+    const settlementJournal = testFixture.documents.get(testFixture.settlementPath);
+    expect(settledSource).toMatchObject({
+      amount:708.33,vat:141.666,total:849.996,status:"Paid",
+      bankSettlement:{ amount:850,sourceFingerprint:sourceFingerprint(originalSource) }
+    });
+    expect(settledTransaction).toMatchObject({ matchedAmount:850 });
+    expect(settledTransaction.settlementStateFingerprint).toBe(valueFingerprint(settledSource.bankSettlement));
+    expect(validateJournal(testFixture.documents.get(testFixture.accrualPath))).toMatchObject({ valid:true });
+    expect(validateJournal(settlementJournal)).toMatchObject({ valid:true,totalDebits:850,totalCredits:850 });
+    await expect(confirmBankMatch(testFixture.confirmOptions)).resolves.toMatchObject({
+      status:"already-confirmed",matchedAmount:850,settled:true
+    });
+
+    await expect(unmatchBankTransaction(testFixture.unmatchOptions)).resolves.toMatchObject({
+      status:"unmatched",settlementReversed:true,restoredStatus:"Unpaid"
+    });
+    expect(testFixture.documents.get(testFixture.sourcePath)).toEqual({
+      ...originalSource,updatedAt:timestamp
+    });
+    expect(testFixture.documents.has(testFixture.settlementPath)).toBe(false);
+  });
+
+  it("keeps a genuine change to a legacy sub-penny Invoice fingerprint-protected",async () => {
+    const testFixture = fixture("invoice",{
+      source:{ amount:708.33,vat:141.666,total:849.996 },
+      transaction:{ moneyIn:850 },
+      accrualLines:[
+        { accountCode:"1100",description:"Invoice",debit:850,credit:0 },
+        { accountCode:"4000",description:"Invoice",debit:0,credit:708.33 },
+        { accountCode:"2100",description:"VAT",debit:0,credit:141.67 }
+      ]
+    });
+    await confirmBankMatch(testFixture.confirmOptions);
+    testFixture.documents.get(testFixture.sourcePath).total = 849.99;
+    testFixture.writes.length = 0;
+
+    await expect(unmatchBankTransaction(testFixture.unmatchOptions)).rejects.toThrow(/source record changed/i);
+    expect(testFixture.writes).toEqual([]);
+  });
+
   it.each([
     ["04/08/26","2026-08-04"],
     ["07/08/26","2026-08-07"],

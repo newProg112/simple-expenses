@@ -3235,6 +3235,8 @@
 
 const bankSettlementSourceStatePromise =
   import("../js/bank-settlement-source-state.js?v=20260816-banking25");
+const invoiceBusinessLogicPromise =
+  import("../js/business-logic.js?v=20260819-invoice-money1");
 
 const bankSettledInvoiceEditControlIds = Object.freeze([
   "businessName",
@@ -4460,11 +4462,9 @@ async function updateExistingInvoice(){
   ];
 
   const activeItems = items.filter(item => item.description && item.amount > 0);
-  const amount = activeItems.reduce((sum, item) => sum + item.amount, 0);
-
+  const { calculateInvoiceTotals } = await invoiceBusinessLogicPromise;
   const vatRate = parseFloat(document.getElementById("vatRate").value);
-  const vat = amount * vatRate;
-  const total = amount + vat;
+  const { subtotal:amount,vat,total } = calculateInvoiceTotals(activeItems,vatRate);
   const project = selectedInvoiceProject();
   updateDueDateFromInvoiceDate();
 
@@ -4891,11 +4891,9 @@ async function generateInvoice(saveToHistory = true){
   ];
 
   const activeItems = items.filter(item => item.description && item.amount > 0);
-  const amount = activeItems.reduce((sum, item) => sum + item.amount, 0);
-
+  const { calculateInvoiceTotals } = await invoiceBusinessLogicPromise;
   const vatRate = parseFloat(document.getElementById("vatRate").value);
-  const vat = amount * vatRate;
-  const total = amount + vat;
+  const { subtotal:amount,vat,total } = calculateInvoiceTotals(activeItems,vatRate);
 
   if(saveToHistory){
     const invoiceSaved =

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  accountingAmountsDiffer,
   calculateInvoiceSubtotal,
   calculateInvoiceTotals,
   calculateVat,
+  moneyToCents,
   roundMoney
 } from "../resources/js/business-logic.js";
 
@@ -63,5 +65,35 @@ describe("invoice calculations", () => {
       { description: "Two", amount: 0.2 }
     ])).toBe(0.3);
     expect(roundMoney(1.005)).toBe(1.01);
+  });
+
+  it.each([
+    [849.996,850,false],
+    ["850.00",850,false],
+    [849.99,850,true]
+  ])("compares %s and %s at accounting penny precision",(left,right,expected) => {
+    expect(accountingAmountsDiffer(left,right)).toBe(expected);
+  });
+
+  it("applies the same penny comparison to Invoice and Bill totals",() => {
+    for(const record of [{ type:"invoice",total:119.996 },{ type:"bill",total:119.996 }]){
+      expect(accountingAmountsDiffer(record.total,120)).toBe(false);
+      expect(accountingAmountsDiffer(119.99,120)).toBe(true);
+    }
+  });
+
+  it.each([null,undefined,"",NaN,Infinity,"not-money"])(
+    "treats invalid or missing matched amounts conservatively: %s",
+    value => {
+      expect(moneyToCents(value)).toBeNull();
+      expect(accountingAmountsDiffer(value,850)).toBe(true);
+      expect(accountingAmountsDiffer(850,value)).toBe(true);
+    }
+  );
+
+  it("normalises an £850 VAT-inclusive Invoice to penny precision",() => {
+    expect(calculateInvoiceTotals([
+      { description:"Services",amount:708.33 }
+    ],0.2)).toEqual({ subtotal:708.33,vat:141.67,total:850 });
   });
 });

@@ -85,6 +85,17 @@ function labelFor(recordType,record){
   return record.billNumber || record.invoiceNumber || `Bill ${sourceId(record)}`;
 }
 
+function partyFor(recordType,record){
+  return recordType === "invoice"
+    ? record.client || record.customerName || record.customer
+    : record.supplier || record.merchant;
+}
+
+function relevantDateFor(recordType,record){
+  if(recordType === "invoice") return record.date || record.invoiceDate || record.dueDate;
+  return dateValue(record.dueDate) !== null ? record.dueDate : record.billDate || record.date;
+}
+
 function eligibleCandidate(recordType,record,transaction,amountCents,alreadyMatched){
   const id = sourceId(record);
   if(!id || !isUnsettled(record) || alreadyMatched.has(`${recordType}:${id}`)) return null;
@@ -98,6 +109,8 @@ function eligibleCandidate(recordType,record,transaction,amountCents,alreadyMatc
     candidateType:recordType,
     candidateId:id,
     label:String(labelFor(recordType,record)).trim(),
+    partyName:String(partyFor(recordType,record) || "").trim(),
+    relevantDate:String(relevantDateFor(recordType,record) || "").trim(),
     amountCents:recordAmount,
     reasons:Object.freeze(["direction-compatible","exact-amount","date-compatible","source-unsettled"])
   });

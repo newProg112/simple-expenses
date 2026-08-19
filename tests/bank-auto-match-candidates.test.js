@@ -21,6 +21,7 @@ describe("automatic bank-match candidate classification",() => {
   it("classifies one eligible incoming Invoice as high confidence",() => {
     expect(classifyBankMatchCandidates(incoming,{ invoices:[invoice] })).toMatchObject({
       classification:"highConfidence",candidateType:"invoice",candidateId:"invoice-1",
+      candidates:[{ label:"INV-1",partyName:"",relevantDate:"2026-08-01",amountCents:120000 }],
       reasons:["direction-compatible","exact-amount","date-compatible","source-unsettled","single-eligible-candidate"]
     });
   });
@@ -38,8 +39,9 @@ describe("automatic bank-match candidate classification",() => {
   });
 
   it("classifies one eligible outgoing Bill as high confidence",() => {
-    expect(classifyBankMatchCandidates(outgoing,{ bills:[bill] })).toMatchObject({
-      classification:"highConfidence",candidateType:"bill",candidateId:"bill-1"
+    expect(classifyBankMatchCandidates(outgoing,{ bills:[{ ...bill,supplier:"Supplier Ltd" }] })).toMatchObject({
+      classification:"highConfidence",candidateType:"bill",candidateId:"bill-1",
+      candidates:[{ label:"BILL-1",partyName:"Supplier Ltd",relevantDate:"2026-07-31",amountCents:120000 }]
     });
   });
 

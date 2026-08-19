@@ -817,7 +817,9 @@ describe("Banking Phase 5 import page", () => {
     expect(html).toContain("elements.needsReviewCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.UNMATCHED).length)");
     expect(html).toContain("elements.matchedCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.MATCHED).length)");
     expect(html).toContain('id="transactionList" tabindex="0" aria-label="Imported bank transactions table, horizontally scrollable"');
-    expect(html).toContain('badge.textContent = exceptionResolved ? (exceptionDefinition?.label || "Other resolved") : transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"');
+    expect(html).toContain(': candidateClassification === "highConfidence" ? "High-confidence match"');
+    expect(html).toContain(': candidateClassification === "suggested" ? "Suggested match"');
+    expect(html).toContain(': matchSourcesLoaded ? "Needs attention" : "Unmatched"');
     expect(html).not.toMatch(/deleteBankTransaction|editBankTransaction/);
   });
 
@@ -832,7 +834,7 @@ describe("Banking Phase 5 import page", () => {
 
   it("keeps all existing matched and unresolved workflow status/actions while adding account attribution",() => {
     for(const marker of [
-      'transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"',
+      'transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched"',
       'exceptionResolved ? "unresolve" : transferred ? "untransfer" : categorised ? "uncategorise" : "unmatch"',
       'categorise.dataset.matchAction = "categorise"',
       'transfer.dataset.matchAction = "transfer"',
@@ -1010,17 +1012,47 @@ describe("Banking Phase 7A matching suggestions", () => {
   });
 });
 
-describe("Banking Phase 7A suggestions page", () => {
-  it("loads existing documents and renders read-only suggestion details", () => {
+describe("Banking automatic-match Phase 2 review UI", () => {
+  it("compares live matched source amounts at accounting penny precision",() => {
+    expect(html).toContain('import { accountingAmountsDiffer } from "/resources/js/business-logic.js');
+    expect(html).toContain("accountingAmountsDiffer(matchedRecordAmount(transaction,record),transaction.matchedAmount)");
+    expect(html).not.toContain("matchedRecordAmount(transaction,record) !== Number(transaction.matchedAmount)");
+  });
+  it("derives current candidate classifications and renders their review details", () => {
     expect(html).toContain('<h2 id="suggestedMatchesTitle">Suggested matches</h2>');
     for(const collectionName of ["invoices","bills","expenses"]){
       expect(html).toContain(`getDocs(collection(db,"users",user.uid,"${collectionName}"))`);
     }
-    expect(html).toContain("suggestBankMatches(transactions,matchSources)");
+    expect(html).toContain("discoverBankMatchCandidates(transactions,matchSources)");
+    expect(html).toContain('candidateResult.classification !== "none"');
     expect(html).toContain('transactionLabel.textContent = "Bank transaction"');
-    expect(html).toContain('documentLabel.textContent = "Suggested document"');
-    expect(html).toContain('confidence.textContent = `Confidence ${suggestion.confidence}%`');
-    expect(html).toContain("suggestion.reasons.forEach");
+    expect(html).toContain('? "High-confidence match" : "Suggested match"');
+    expect(html).toContain('["Exact amount","Date compatible","One eligible candidate"]');
+    expect(html).toContain('["Exact amount","Date compatible","Multiple eligible candidates — review required"]');
+    expect(html).toContain("candidate.partyName");
+    expect(html).toContain("candidate.relevantDate");
+  });
+
+  it("keeps no-candidate transactions as Needs attention without extra candidate detail",() => {
+    expect(html).toContain(': matchSourcesLoaded ? "Needs attention" : "Unmatched"');
+    expect(html).toContain('candidateResult && candidateResult.classification !== "none"');
+    expect(html).toContain('candidateResult && candidateResult.classification !== "none"');
+  });
+
+  it("uses Review match only to focus the existing manual confirmation workflow",() => {
+    expect(html).toContain('review.textContent = "Review match"');
+    expect(html).toContain('review.dataset.matchAction = "review"');
+    expect(html).toContain('if(button.dataset.matchAction === "review") reviewCandidateMatch(button)');
+    expect(html).toContain('item.dataset.automaticCandidate === "true"');
+    expect(html).toMatch(/function reviewCandidateMatch[\s\S]*?scrollIntoView[\s\S]*?record\.focus/);
+    const reviewWorkflow = html.match(/function reviewCandidateMatch[\s\S]*?\n    }\n    async function loadMatchSources/)?.[0] || "";
+    expect(reviewWorkflow).not.toContain("confirmBankMatch");
+  });
+
+  it("recalculates from refreshed persisted transactions and source records without persisting candidates",() => {
+    expect(html).toMatch(/async function loadTransactions[\s\S]*?normaliseBankTransaction[\s\S]*?renderTransactions\(\)/);
+    expect(html).toMatch(/async function loadMatchSources[\s\S]*?matchSources = [\s\S]*?renderTransactions\(\)/);
+    expect(html).not.toMatch(/candidateClassification\s*:|candidateResults\s*:/);
   });
 
   it("adds explicit settlement-aware Confirm match and reversible Unmatch actions", () => {
@@ -1037,6 +1069,7 @@ describe("Banking Phase 7A suggestions page", () => {
   it("keeps suggestion cards usable on mobile", () => {
     expect(html).toContain(".suggestion-record{grid-template-columns:1fr auto}");
     expect(html).toContain(".suggestion-reasons,.suggestion-action{grid-column:1/-1}");
+    expect(html).toContain(".suggestion-action{justify-self:stretch}");
   });
 });
 
@@ -1195,10 +1228,9 @@ describe("Banking Confirm Match settlement model", () => {
 
   it("renders confirmed, missing-target, amount-change, duplicate-target, and reversible states", () => {
     for(const marker of [
-      'badge.textContent = exceptionResolved ? (exceptionDefinition?.label || "Other resolved") : transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched" : "Unmatched"',
+      'transferred ? "Bank transfer" : categorised ? "Categorised" : matched ? "Matched"',
       '"Matched record no longer available"',
       '" — amount has changed"',
-      '"Another bank transaction is already matched to this record."',
       '" — settled"',
       'unmatch.dataset.matchAction = exceptionResolved ? "unresolve" : transferred ? "untransfer" : categorised ? "uncategorise" : "unmatch"'
     ]) expect(html).toContain(marker);

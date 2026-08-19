@@ -11,6 +11,20 @@ export function roundMoney(value) {
   return Math.round((safeNumber(value) + Number.EPSILON) * 100) / 100;
 }
 
+export function moneyToCents(value) {
+  if (value === null || value === undefined || value === "") return null;
+
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : null;
+}
+
+export function accountingAmountsDiffer(left, right) {
+  const leftCents = moneyToCents(left);
+  const rightCents = moneyToCents(right);
+
+  return leftCents === null || rightCents === null || leftCents !== rightCents;
+}
+
 export function calculateInvoiceSubtotal(items = []) {
   if (!Array.isArray(items)) return 0;
 
