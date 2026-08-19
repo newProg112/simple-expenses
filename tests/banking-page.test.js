@@ -44,6 +44,7 @@ import { DEMO_MANAGED_USER_COLLECTIONS } from "../assets/demo-seed-engine.js";
 import { DEMO_SEED } from "../assets/demo-seed.js";
 
 const html = readFileSync(new URL("../resources/tools/banking.html", import.meta.url), "utf8");
+const candidateEngine = readFileSync(new URL("../resources/js/bank-auto-match-candidates.js", import.meta.url), "utf8");
 
 describe("Banking Phase 2 account model", () => {
   it("requires account and bank names, a valid effective date, and defaults opening balance to zero", () => {
@@ -817,8 +818,9 @@ describe("Banking Phase 5 import page", () => {
     expect(html).toContain("elements.needsReviewCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.UNMATCHED).length)");
     expect(html).toContain("elements.matchedCount.textContent = String(ordered.filter(transaction => transaction.status === BANK_TRANSACTION_STATUS.MATCHED).length)");
     expect(html).toContain('id="transactionList" tabindex="0" aria-label="Imported bank transactions table, horizontally scrollable"');
-    expect(html).toContain(': candidateClassification === "highConfidence" ? "High-confidence match"');
-    expect(html).toContain(': candidateClassification === "suggested" ? "Suggested match"');
+    expect(html).toContain('if(result?.classification === "autoMatchEligible") return "Auto-match eligible"');
+    expect(html).toContain('return "Strong suggestion"');
+    expect(html).toContain('return "Suggested match"');
     expect(html).toContain(': matchSourcesLoaded ? "Needs attention" : "Unmatched"');
     expect(html).not.toMatch(/deleteBankTransaction|editBankTransaction/);
   });
@@ -1012,7 +1014,7 @@ describe("Banking Phase 7A matching suggestions", () => {
   });
 });
 
-describe("Banking automatic-match Phase 2 review UI", () => {
+describe("Banking automatic-match Phase 3A review UI", () => {
   it("compares live matched source amounts at accounting penny precision",() => {
     expect(html).toContain('import { accountingAmountsDiffer } from "/resources/js/business-logic.js');
     expect(html).toContain("accountingAmountsDiffer(matchedRecordAmount(transaction,record),transaction.matchedAmount)");
@@ -1026,8 +1028,12 @@ describe("Banking automatic-match Phase 2 review UI", () => {
     expect(html).toContain("discoverBankMatchCandidates(transactions,matchSources)");
     expect(html).toContain('candidateResult.classification !== "none"');
     expect(html).toContain('transactionLabel.textContent = "Bank transaction"');
-    expect(html).toContain('? "High-confidence match" : "Suggested match"');
-    expect(html).toContain('["Exact amount","Date compatible","One eligible candidate"]');
+    expect(html).toContain('candidateClassificationLabel(candidateResult)');
+    expect(html).toContain('candidateEvidenceExplanation(candidateResult)');
+    expect(html).toContain('["Exact amount","Date compatible","One eligible candidate"');
+    expect(html).toContain("exact unique reference");
+    expect(html).toContain("no safe ${type} reference was found");
+    expect(html).not.toContain("High-confidence match");
     expect(html).toContain('["Exact amount","Date compatible","Multiple eligible candidates — review required"]');
     expect(html).toContain("candidate.partyName");
     expect(html).toContain("candidate.relevantDate");
@@ -1047,6 +1053,9 @@ describe("Banking automatic-match Phase 2 review UI", () => {
     expect(html).toMatch(/function reviewCandidateMatch[\s\S]*?scrollIntoView[\s\S]*?record\.focus/);
     const reviewWorkflow = html.match(/function reviewCandidateMatch[\s\S]*?\n    }\n    async function loadMatchSources/)?.[0] || "";
     expect(reviewWorkflow).not.toContain("confirmBankMatch");
+    expect(candidateEngine).not.toContain("confirmBankMatch");
+    const transactionRows = html.match(/function renderTransactions\(\)[\s\S]*?\n    function renderSuggestions/)?.[0] || "";
+    expect(transactionRows).not.toContain('dataset.matchAction = "confirm"');
   });
 
   it("recalculates from refreshed persisted transactions and source records without persisting candidates",() => {

@@ -1,60 +1,99 @@
 import { describe,expect,it,vi } from "vitest";
-import {
-  classifyBankMatchCandidates,
-  discoverBankMatchCandidates
-} from "../resources/js/bank-auto-match-candidates.js";
+import { classifyBankMatchCandidates,discoverBankMatchCandidates } from "../resources/js/bank-auto-match-candidates.js";
 
 const incoming = Object.freeze({
-  id:"bank-in",transactionDate:"2026-08-04",moneyIn:1200,moneyOut:null,status:"unmatched"
+  id:"bank-in",transactionDate:"2026-08-04",description:"BANK PAYMENT",moneyIn:1200,moneyOut:null,status:"unmatched"
 });
 const outgoing = Object.freeze({
-  id:"bank-out",transactionDate:"2026-08-04",moneyIn:null,moneyOut:1200,status:"unmatched"
+  id:"bank-out",transactionDate:"2026-08-04",description:"BANK PAYMENT",moneyIn:null,moneyOut:1200,status:"unmatched"
 });
 const invoice = Object.freeze({
-  id:"invoice-1",invoiceNo:"INV-1",date:"2026-08-01",total:1200,status:"Unpaid"
+  id:"invoice-1",invoiceNo:"INV-001",client:"Acme Trading Limited",date:"2026-08-01",total:1200,status:"Unpaid"
 });
 const bill = Object.freeze({
-  id:"bill-1",billNumber:"BILL-1",billDate:"2026-07-01",dueDate:"2026-07-31",total:1200,status:"Unpaid"
+  id:"bill-1",billNumber:"BILL-001",supplier:"Supplier Services Ltd",billDate:"2026-07-01",dueDate:"2026-07-31",total:1200,status:"Unpaid"
 });
 
 describe("automatic bank-match candidate classification",() => {
-  it("classifies one eligible incoming Invoice as high confidence",() => {
-    expect(classifyBankMatchCandidates(incoming,{ invoices:[invoice] })).toMatchObject({
-      classification:"highConfidence",candidateType:"invoice",candidateId:"invoice-1",
-      candidates:[{ label:"INV-1",partyName:"",relevantDate:"2026-08-01",amountCents:120000 }],
-      reasons:["direction-compatible","exact-amount","date-compatible","source-unsettled","single-eligible-candidate"]
+  it("classifies one eligible Invoice with a safe unique reference as auto-match eligible",() => {
+    expect(classifyBankMatchCandidates(
+      { ...incoming,description:"ACME PAYMENT inv/002" },{ invoices:[{ ...invoice,invoiceNo:"INV-002" }] }
+    )).toMatchObject({
+      classification:"autoMatchEligible",candidateType:"invoice",candidateId:"invoice-1",
+      candidates:[{ label:"INV-002",documentReference:"INV-002",amountCents:120000 }],
+      evidence:{ amountExact:true,dateCompatible:true,singleEligibleCandidate:true,
+        referenceMatch:true,referenceSafe:true,referenceUnique:true }
     });
   });
 
-  it("classifies multiple eligible incoming Invoices as suggested",() => {
-    const result = classifyBankMatchCandidates(incoming,{ invoices:[
-      { ...invoice,id:"invoice-2",invoiceNo:"INV-2" },invoice
-    ] });
-    expect(result).toMatchObject({ classification:"suggested",candidateType:"invoice",candidateId:null });
+  it("classifies one eligible Bill with a safe unique reference as auto-match eligible",() => {
+    expect(classifyBankMatchCandidates(
+      { ...outgoing,description:"PAYMENT bill 001" },{ bills:[bill] }
+    )).toMatchObject({
+      classification:"autoMatchEligible",candidateType:"bill",candidateId:"bill-1",
+      candidates:[{ label:"BILL-001",documentReference:"BILL-001" }]
+    });
+  });
+
+  it.each([
+    ["customer","Acme Trading Limited",incoming,{ invoices:[invoice] }],
+    ["supplier","Supplier Services Limited",outgoing,{ bills:[bill] }]
+  ])("keeps an exact %s name as a strong suggestion rather than automatic",(_label,description,transaction,sources) => {
+    expect(classifyBankMatchCandidates({ ...transaction,description },sources)).toMatchObject({
+      classification:"suggested",
+      evidence:{ partyNameMatch:true,partyNameStrong:true,referenceMatch:false,singleEligibleCandidate:true }
+    });
+  });
+
+  it.each(["UNRELATED RECEIPT","JOHN SMITH","STRIPE PAYMENTS","PAYPAL SETTLEMENT"])(
+    "keeps a unique amount/date candidate suggested for descriptor %s",
+    description => expect(classifyBankMatchCandidates(
+      { ...incoming,description },{ invoices:[invoice] }
+    ).classification).toBe("suggested")
+  );
+
+  it("keeps a Direct Debit descriptor differing from the supplier suggested",() => {
+    expect(classifyBankMatchCandidates(
+      { ...outgoing,description:"DD COLLECTION GROUP PLC" },{ bills:[bill] }
+    ).classification).toBe("suggested");
+  });
+
+  it("does not treat a short party-name correspondence as strong identity",() => {
+    expect(classifyBankMatchCandidates(
+      { ...incoming,description:"ABC LIMITED" },{ invoices:[{ ...invoice,client:"ABC Ltd" }] }
+    )).toMatchObject({ classification:"suggested",evidence:{ partyNameMatch:true,partyNameStrong:false } });
+  });
+
+  it("never disambiguates multiple base candidates automatically",() => {
+    const result = classifyBankMatchCandidates(
+      { ...incoming,description:"PAYMENT INV-002" },
+      { invoices:[invoice,{ ...invoice,id:"invoice-2",invoiceNo:"INV-002" }] }
+    );
+    expect(result).toMatchObject({
+      classification:"suggested",candidateType:"invoice",candidateId:null,
+      evidence:{ singleEligibleCandidate:false,referenceMatch:false }
+    });
     expect(result.candidates.map(candidate => candidate.candidateId)).toEqual(["invoice-1","invoice-2"]);
   });
 
-  it("classifies an incoming transaction with no eligible Invoice as none",() => {
-    expect(classifyBankMatchCandidates(incoming,{ invoices:[] }).classification).toBe("none");
-  });
-
-  it("classifies one eligible outgoing Bill as high confidence",() => {
-    expect(classifyBankMatchCandidates(outgoing,{ bills:[{ ...bill,supplier:"Supplier Ltd" }] })).toMatchObject({
-      classification:"highConfidence",candidateType:"bill",candidateId:"bill-1",
-      candidates:[{ label:"BILL-1",partyName:"Supplier Ltd",relevantDate:"2026-07-31",amountCents:120000 }]
+  it("does not promote a duplicate normalized reference",() => {
+    const duplicate = { ...invoice,id:"old-invoice",invoiceNo:"inv / 001",date:"2025-01-01",total:99 };
+    expect(classifyBankMatchCandidates(
+      { ...incoming,description:"PAYMENT INV-001" },{ invoices:[invoice,duplicate] }
+    )).toMatchObject({
+      classification:"suggested",evidence:{ referenceSafe:true,referenceUnique:false,referenceMatch:true }
     });
   });
 
-  it("classifies multiple eligible outgoing Bills as suggested",() => {
-    const result = classifyBankMatchCandidates(outgoing,{ bills:[
-      { ...bill,id:"bill-2",billNumber:"BILL-2" },bill
-    ] });
-    expect(result.classification).toBe("suggested");
-    expect(result.candidates.map(candidate => candidate.candidateId)).toEqual(["bill-1","bill-2"]);
+  it.each(["002","123456"])("does not promote numeric-only reference %s",invoiceNo => {
+    expect(classifyBankMatchCandidates(
+      { ...incoming,description:`PAYMENT ${invoiceNo}` },{ invoices:[{ ...invoice,invoiceNo }] }
+    )).toMatchObject({ classification:"suggested",evidence:{ referenceSafe:false,referenceMatch:false } });
   });
 
-  it("classifies an outgoing transaction with no eligible Bill as none",() => {
-    expect(classifyBankMatchCandidates(outgoing,{ bills:[] }).classification).toBe("none");
+  it("classifies incompatible dates as none",() => {
+    expect(classifyBankMatchCandidates(incoming,{ invoices:[{ ...invoice,date:"2026-08-12" }] }).classification).toBe("none");
+    expect(classifyBankMatchCandidates(outgoing,{ bills:[{ ...bill,dueDate:"2026-09-01" }] }).classification).toBe("none");
   });
 
   it("excludes source types from the wrong transaction direction",() => {
@@ -65,9 +104,18 @@ describe("automatic bank-match candidate classification",() => {
   it("requires exact equality after conversion to integer cents",() => {
     expect(classifyBankMatchCandidates(incoming,{ invoices:[{ ...invoice,total:1199.99 }] }).classification).toBe("none");
     expect(classifyBankMatchCandidates(
-      { ...incoming,moneyIn:0.1 + 0.2 },
-      { invoices:[{ ...invoice,total:0.3 }] }
-    ).classification).toBe("highConfidence");
+      { ...incoming,moneyIn:0.1 + 0.2 },{ invoices:[{ ...invoice,total:0.3 }] }
+    ).classification).toBe("suggested");
+  });
+
+  it.each([
+    ["both directions",{ moneyIn:1200,moneyOut:1200 }],
+    ["zero",{ moneyIn:0,moneyOut:null }],
+    ["invalid",{ moneyIn:"invalid",moneyOut:null }]
+  ])("rejects a bank transaction with %s",(_label,override) => {
+    expect(classifyBankMatchCandidates({ ...incoming,...override },{ invoices:[invoice] })).toMatchObject({
+      classification:"none",reasons:["bank-transaction-direction-or-amount-invalid"]
+    });
   });
 
   it.each([
@@ -77,7 +125,7 @@ describe("automatic bank-match candidate classification",() => {
     expect(classifyBankMatchCandidates(incoming,{ invoices:[{ ...invoice,...override }] }).classification).toBe("none");
   });
 
-  it("excludes source records already linked by another matched bank transaction",() => {
+  it("excludes sources linked by another matched bank transaction",() => {
     const linked = { id:"other-bank",status:"matched",matchedRecordType:"invoice",matchedRecordId:"invoice-1" };
     expect(classifyBankMatchCandidates(incoming,{ invoices:[invoice] },{ transactions:[incoming,linked] }).classification).toBe("none");
   });
@@ -91,34 +139,30 @@ describe("automatic bank-match candidate classification",() => {
     });
   });
 
-  it("does not promote date-incompatible or invalidly dated records",() => {
-    expect(classifyBankMatchCandidates(incoming,{ invoices:[{ ...invoice,date:"2026-08-12" }] }).classification).toBe("none");
-    expect(classifyBankMatchCandidates(outgoing,{ bills:[{ ...bill,dueDate:"2026-09-01" }] }).classification).toBe("none");
-    expect(classifyBankMatchCandidates(incoming,{ invoices:[{ ...invoice,date:"invalid" }] }).classification).toBe("none");
-  });
-
   it("uses deterministic candidate and transaction ordering",() => {
     const transactions = [{ ...outgoing,id:"z-bank" },{ ...incoming,id:"a-bank" }];
     const first = discoverBankMatchCandidates(transactions,{
-      invoices:[{ ...invoice,id:"z-invoice" },{ ...invoice,id:"a-invoice" }],
-      bills:[{ ...bill,id:"z-bill" },{ ...bill,id:"a-bill" }]
+      invoices:[{ ...invoice,id:"z-invoice" },{ ...invoice,id:"a-invoice",invoiceNo:"INV-002" }],
+      bills:[{ ...bill,id:"z-bill" },{ ...bill,id:"a-bill",billNumber:"BILL-002" }]
     });
     const second = discoverBankMatchCandidates(transactions,{
-      invoices:[{ ...invoice,id:"a-invoice" },{ ...invoice,id:"z-invoice" }],
-      bills:[{ ...bill,id:"a-bill" },{ ...bill,id:"z-bill" }]
+      invoices:[{ ...invoice,id:"a-invoice",invoiceNo:"INV-002" },{ ...invoice,id:"z-invoice" }],
+      bills:[{ ...bill,id:"a-bill",billNumber:"BILL-002" },{ ...bill,id:"z-bill" }]
     });
     expect(first).toEqual(second);
     expect(first.map(result => result.transactionId)).toEqual(["z-bank","a-bank"]);
     expect(first[0].candidates.map(candidate => candidate.candidateId)).toEqual(["a-bill","z-bill"]);
   });
 
-  it("is read-only and never calls accounting or Firestore operations",() => {
+  it("is read-only, immutable, and never calls accounting or Firestore operations",() => {
     const write = vi.fn(() => { throw new Error("write attempted"); });
     const transactions = [{ ...incoming,update:write,set:write,delete:write }];
     const sources = { invoices:[{ ...invoice,update:write,set:write,delete:write }] };
     const before = JSON.stringify({ transactions,sources });
-    expect(() => discoverBankMatchCandidates(transactions,sources)).not.toThrow();
+    const results = discoverBankMatchCandidates(transactions,sources);
     expect(JSON.stringify({ transactions,sources })).toBe(before);
     expect(write).not.toHaveBeenCalled();
+    expect(Object.isFrozen(results)).toBe(true);
+    expect(Object.isFrozen(results[0].evidence)).toBe(true);
   });
 });

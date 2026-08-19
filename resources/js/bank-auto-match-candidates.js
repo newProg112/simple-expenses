@@ -1,8 +1,29 @@
+import {
+  descriptionContainsDocumentReference,
+  isSafeDocumentReference,
+  normaliseDocumentReference,
+  partyNameCorrespondence
+} from "./bank-match-identity.js";
+
 export const BANK_MATCH_CANDIDATE_CLASSIFICATION = Object.freeze({
-  HIGH_CONFIDENCE:"highConfidence",
+  AUTO_MATCH_ELIGIBLE:"autoMatchEligible",
   SUGGESTED:"suggested",
   NONE:"none"
 });
+
+function evidence(overrides = {}){
+  return Object.freeze({
+    amountExact:false,
+    dateCompatible:false,
+    singleEligibleCandidate:false,
+    referenceMatch:false,
+    referenceSafe:false,
+    referenceUnique:false,
+    partyNameMatch:false,
+    partyNameStrong:false,
+    ...overrides
+  });
+}
 
 function moneyInCents(value){
   if(value === null || value === undefined || value === "") return null;
@@ -85,6 +106,12 @@ function labelFor(recordType,record){
   return record.billNumber || record.invoiceNumber || `Bill ${sourceId(record)}`;
 }
 
+function referenceFor(recordType,record){
+  return recordType === "invoice"
+    ? record.invoiceNo || record.invoiceNumber
+    : record.billNumber || record.invoiceNumber;
+}
+
 function partyFor(recordType,record){
   return recordType === "invoice"
     ? record.client || record.customerName || record.customer
@@ -109,6 +136,7 @@ function eligibleCandidate(recordType,record,transaction,amountCents,alreadyMatc
     candidateType:recordType,
     candidateId:id,
     label:String(labelFor(recordType,record)).trim(),
+    documentReference:String(referenceFor(recordType,record) || "").trim(),
     partyName:String(partyFor(recordType,record) || "").trim(),
     relevantDate:String(relevantDateFor(recordType,record) || "").trim(),
     amountCents:recordAmount,
@@ -131,8 +159,17 @@ function none(transactionId,reason){
     candidateType:null,
     candidateId:null,
     candidates:Object.freeze([]),
-    reasons:Object.freeze([reason])
+    reasons:Object.freeze([reason]),
+    evidence:evidence()
   });
+}
+
+function referenceIsUnique(candidate,records){
+  const canonical = normaliseDocumentReference(candidate.documentReference);
+  if(!canonical) return false;
+  return records.filter(record =>
+    normaliseDocumentReference(referenceFor(candidate.candidateType,record)) === canonical
+  ).length === 1;
 }
 
 export function classifyBankMatchCandidates(transaction = {},sources = {},context = {}){
@@ -161,16 +198,46 @@ export function classifyBankMatchCandidates(transaction = {},sources = {},contex
       candidateType:recordType,
       candidateId:null,
       candidates,
-      reasons:Object.freeze(["multiple-eligible-candidates"])
+      reasons:Object.freeze(["multiple-eligible-candidates"]),
+      evidence:evidence({ amountExact:true,dateCompatible:true })
     });
   }
+  const selected = candidates[0];
+  const referenceSafe = isSafeDocumentReference(selected.documentReference);
+  const referenceUnique = referenceSafe && referenceIsUnique(selected,records);
+  const referenceMatch = referenceSafe && descriptionContainsDocumentReference(
+    transaction?.description,
+    selected.documentReference
+  );
+  const party = partyNameCorrespondence(transaction?.description,selected.partyName);
+  const autoMatchEligible = referenceSafe && referenceUnique && referenceMatch;
+  const resultEvidence = evidence({
+    amountExact:true,
+    dateCompatible:true,
+    singleEligibleCandidate:true,
+    referenceMatch,
+    referenceSafe,
+    referenceUnique,
+    partyNameMatch:party.match,
+    partyNameStrong:party.strong
+  });
   return Object.freeze({
     transactionId,
-    classification:BANK_MATCH_CANDIDATE_CLASSIFICATION.HIGH_CONFIDENCE,
+    classification:autoMatchEligible
+      ? BANK_MATCH_CANDIDATE_CLASSIFICATION.AUTO_MATCH_ELIGIBLE
+      : BANK_MATCH_CANDIDATE_CLASSIFICATION.SUGGESTED,
     candidateType:recordType,
-    candidateId:candidates[0].candidateId,
+    candidateId:selected.candidateId,
     candidates,
-    reasons:Object.freeze([...candidates[0].reasons,"single-eligible-candidate"])
+    reasons:Object.freeze([
+      ...selected.reasons,
+      "single-eligible-candidate",
+      ...(referenceSafe ? ["reference-safe"] : []),
+      ...(referenceUnique ? ["reference-unique"] : []),
+      ...(referenceMatch ? ["reference-found"] : []),
+      ...(party.match ? ["party-name-corresponds"] : [])
+    ]),
+    evidence:resultEvidence
   });
 }
 
