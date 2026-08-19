@@ -3654,8 +3654,14 @@
           return;
         }
         const nextStatus = bill.status === "Paid" ? "Unpaid" : "Paid";
-        bill.status = nextStatus;
-        bill.paidAt = nextStatus === "Paid" ? new Date().toISOString() : "";
+        const updatedBill = {
+          ...bill,
+          status: nextStatus,
+          paidAt: nextStatus === "Paid" ? new Date().toISOString() : ""
+        };
+        currentBills = currentBills.map(item =>
+          String(item.id) === String(id) ? updatedBill : item
+        );
         saveBills(currentBills);
         renderBills(currentBills);
 
@@ -3665,7 +3671,7 @@
           try {
             await updateDoc(ref, {
               status: nextStatus,
-              paidAt: bill.paidAt
+              paidAt: updatedBill.paidAt
             });
           } catch (error) {
             console.error("Firestore bill update failed", error);

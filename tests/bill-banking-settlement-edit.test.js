@@ -4,6 +4,7 @@ import {
   BANK_SETTLED_BILL_MUTATION_ERROR_CODE,
   BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE,
   BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE,
+  BANK_SETTLEMENT_STATUS_MESSAGE,
   deleteBillRecordWithSettlementGuard,
   isBankingSettledSource,
   readBillRecordWithSettlementGuard,
@@ -24,6 +25,7 @@ function declarationBetween(start,next){
 }
 
 const editDeclaration = declarationBetween("async function editBill(id) {","async function markBillPaid(id) {");
+const markPaidDeclaration = declarationBetween("async function markBillPaid(id) {","async function deleteBill(id) {");
 const lockDeclaration = declarationBetween(
   "const bankSettledBillEditControlIds = Object.freeze([",
   "async function saveBill() {"
@@ -64,6 +66,25 @@ function compileEditBill(bill){
       "return {editBill,getEditingBillId:()=>editingBillId};"
   )(...Object.values(context));
   return { ...compiled,alert,elements,setBankSettledBillEditLock };
+}
+
+function compileMarkBillPaid(bill){
+  let persistedBill = structuredClone(bill);
+  const mocks = {
+    alert:vi.fn(),loadBills:vi.fn(),saveBills:vi.fn(),renderBills:vi.fn(),
+    updateDoc:vi.fn(async (_reference,update) => {
+      persistedBill = { ...persistedBill,...structuredClone(update) };
+    })
+  };
+  const context = {
+    currentBills:[bill],isBankingSettledSource,BANK_SETTLEMENT_STATUS_MESSAGE,
+    billDocRef:vi.fn(id => ({ id })),...mocks
+  };
+  const compiled = Function(
+    ...Object.keys(context),
+    `"use strict";${markPaidDeclaration};return {markBillPaid,getCurrentBills:()=>currentBills};`
+  )(...Object.values(context));
+  return { ...compiled,mocks,getPersistedBill:() => persistedBill };
 }
 
 function compileSaveBill({ persistedRead,transactionSave }){
@@ -155,6 +176,63 @@ function deleteOptions(testFixture){
 }
 
 describe("bank-settled Bill edit and delete protection",() => {
+  it("marks a frozen Bill Paid after Unmatch without mutating the read-only object",async () => {
+    const afterUnmatch = {
+      id:"bill-1",supplier:"Supplier",status:"Unpaid",previousBankSettlement:settlementMarker
+    };
+    const testFixture = firestoreFixture(afterUnmatch);
+    const frozenAfterUnmatch = await readBillRecordWithSettlementGuard({
+      db:{},userId:"user-1",billId:"bill-1",
+      services:{ doc:testFixture.services.doc,getDoc:testFixture.services.getDoc }
+    });
+    const compiled = compileMarkBillPaid(frozenAfterUnmatch);
+
+    await compiled.markBillPaid("bill-1");
+
+    const updated = compiled.getCurrentBills()[0];
+    expect(Object.isFrozen(frozenAfterUnmatch)).toBe(true);
+    expect(frozenAfterUnmatch.status).toBe("Unpaid");
+    expect(updated).not.toBe(frozenAfterUnmatch);
+    expect(updated).toMatchObject({ id:"bill-1",status:"Paid",previousBankSettlement:settlementMarker });
+    expect(updated.paidAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(compiled.getPersistedBill()).toMatchObject({ status:"Paid",paidAt:updated.paidAt });
+    expect(compiled.mocks.saveBills).toHaveBeenCalledWith(compiled.getCurrentBills());
+    expect(compiled.mocks.renderBills).toHaveBeenCalledWith(compiled.getCurrentBills());
+  });
+
+  it("marks a frozen ordinary Bill unpaid without direct mutation",async () => {
+    const frozenPaidBill = Object.freeze({
+      id:"bill-1",supplier:"Supplier",status:"Paid",paidAt:"2026-08-01T00:00:00.000Z"
+    });
+    const compiled = compileMarkBillPaid(frozenPaidBill);
+
+    await compiled.markBillPaid("bill-1");
+
+    expect(frozenPaidBill).toMatchObject({ status:"Paid",paidAt:"2026-08-01T00:00:00.000Z" });
+    expect(compiled.getCurrentBills()[0]).toMatchObject({ status:"Unpaid",paidAt:"" });
+    expect(compiled.getPersistedBill()).toMatchObject({ status:"Unpaid",paidAt:"" });
+  });
+
+  it.each(["Unpaid","Paid"])("keeps a frozen bank-matched %s Bill protected from manual status changes",async status => {
+    const settled = Object.freeze({ id:"bill-1",supplier:"Supplier",status,bankSettlement:settlementMarker });
+    const compiled = compileMarkBillPaid(settled);
+
+    await compiled.markBillPaid("bill-1");
+
+    expect(compiled.getCurrentBills()[0]).toBe(settled);
+    expect(compiled.mocks.alert).toHaveBeenCalledWith(BANK_SETTLEMENT_STATUS_MESSAGE);
+    expect(compiled.mocks.updateDoc).not.toHaveBeenCalled();
+    expect(compiled.mocks.saveBills).not.toHaveBeenCalled();
+    expect(compiled.mocks.renderBills).not.toHaveBeenCalled();
+  });
+
+  it("uses immutable replacement in the shared Mark paid and Mark unpaid path",() => {
+    expect(markPaidDeclaration).toContain("const updatedBill = {");
+    expect(markPaidDeclaration).toContain("currentBills = currentBills.map(item =>");
+    expect(markPaidDeclaration).not.toMatch(/bill\.(?:status|paidAt)\s*=(?!=)/);
+    expect(markPaidDeclaration).not.toContain("postBillJournalAfterSave");
+  });
+
   it("does not let a settled Bill enter writable edit mode",async () => {
     const compiled = compileEditBill({ id:"bill-1",supplier:"Supplier",bankSettlement:settlementMarker });
 
