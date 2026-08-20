@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-const {readFile, writeFile} = require("node:fs/promises");
+const {readFile} = require("node:fs/promises");
 const {resolve} = require("node:path");
 const {createRequire} = require("node:module");
 const functionsRequire = createRequire(resolve(__dirname, "../functions/package.json"));
@@ -11,27 +11,53 @@ const {GoogleAuth} = functionsRequire("google-auth-library");
 const {
   compareAuditReports,
   createProductionReferenceAudit,
-  validatePageSize,
 } = require("./lib/production-reference-audit.cjs");
 const {createReadOnlyFirestoreAdapter} = require("./lib/read-only-firestore-adapter.cjs");
-
-const PRODUCTION_PROJECT_ALLOWLIST = Object.freeze(["simple-books-office"]);
-const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
+const {APPROVED_PRODUCTION_AUDIT_TARGET} = require("./lib/production-reference-audit-config.cjs");
+const {
+  EMULATOR_VARIABLES,
+  assertExecutionBoundary,
+  atomicWriteJson,
+  formatPreflight,
+  incompleteArtifactPath,
+  inspectOutputPath,
+  localJsonPath,
+  preflightSummary,
+  requireHumanConfirmation,
+  scopeLabel,
+  verifyCredentialProject,
+} = require("./lib/production-reference-audit-preflight.cjs");
 
 function parseArguments(argv) {
   const options = {
-    projectId: "", databaseId: "(default)", uid: "", pageSize: undefined,
-    comparePath: "", outputPath: "", productionReadOnly: false, help: false,
+    projectId: "", databaseId: "(default)", databaseProvided: false,
+    uid: "", pageSize: undefined, comparePath: "", outputPath: "",
+    productionReadOnly: false, preflightOnly: false, help: false,
+    safetyLimits: {maxDocuments: undefined, maxPages: undefined, maxUids: undefined, maxElapsedMs: undefined},
   };
+  function valueAfter(index, flag) {
+    const value = String(argv[index + 1] || "").trim();
+    if (!value || value.startsWith("--")) throw new Error(`${flag} requires a value.`);
+    return value;
+  }
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
-    if (argument === "--project") options.projectId = String(argv[++index] || "").trim();
-    else if (argument === "--database") options.databaseId = String(argv[++index] || "").trim();
-    else if (argument === "--uid") options.uid = String(argv[++index] || "").trim();
-    else if (argument === "--page-size") options.pageSize = String(argv[++index] || "").trim();
-    else if (argument === "--compare") options.comparePath = String(argv[++index] || "").trim();
-    else if (argument === "--output") options.outputPath = String(argv[++index] || "").trim();
-    else if (argument === "--production-read-only") options.productionReadOnly = true;
+    if (argument === "--project") options.projectId = valueAfter(index++, argument);
+    else if (argument === "--database") {
+      options.databaseId = valueAfter(index++, argument);
+      options.databaseProvided = true;
+    } else if (argument === "--uid") options.uid = valueAfter(index++, argument);
+    else if (argument === "--page-size") options.pageSize = valueAfter(index++, argument);
+    else if (argument === "--compare") options.comparePath = valueAfter(index++, argument);
+    else if (argument === "--output") options.outputPath = valueAfter(index++, argument);
+    else if (argument === "--max-documents") options.safetyLimits.maxDocuments = valueAfter(index++, argument);
+    else if (argument === "--max-pages") options.safetyLimits.maxPages = valueAfter(index++, argument);
+    else if (argument === "--max-uids") options.safetyLimits.maxUids = valueAfter(index++, argument);
+    else if (argument === "--max-elapsed-seconds") {
+      const seconds = Number(valueAfter(index++, argument));
+      options.safetyLimits.maxElapsedMs = Number.isSafeInteger(seconds) ? seconds * 1000 : Number.NaN;
+    } else if (argument === "--production-read-only") options.productionReadOnly = true;
+    else if (argument === "--preflight-only") options.preflightOnly = true;
     else if (argument === "--help" || argument === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${argument}`);
   }
@@ -45,85 +71,88 @@ function usage() {
     "Emulator census:",
     "  node scripts/audit-production-reference-registry.cjs --project demo-simple-books",
     "",
-    "Single emulator UID:",
-    "  node scripts/audit-production-reference-registry.cjs --project demo-simple-books --uid <uid> --page-size 25",
+    "Future production preflight (performs zero Firestore business-data reads):",
+    `  node scripts/audit-production-reference-registry.cjs --production-read-only --preflight-only --project ${APPROVED_PRODUCTION_AUDIT_TARGET.projectId} --database '${APPROVED_PRODUCTION_AUDIT_TARGET.databaseId}' --output <new-report.json> --page-size <n> --max-documents <n> --max-pages <n> --max-uids <n> --max-elapsed-seconds <n>`,
     "",
-    "Future production read-only census (does not unlock writes):",
-    "  node scripts/audit-production-reference-registry.cjs --production-read-only --project simple-books-office --database '(default)'",
-    "",
-    "Optional local artifacts:",
-    "  --output <report.json> --compare <prior-report.json>",
+    "Remove --preflight-only only after a separately approved production read.",
+    "A production data read always requires an exact interactive typed confirmation.",
+    "Single-UID --uid mode is diagnostic and can never be approval-ready.",
   ].join("\n");
 }
 
-function emulatorHostname(environment) {
-  const host = String(environment.FIRESTORE_EMULATOR_HOST || "").trim();
-  if (!host) return "";
-  if (host.startsWith("[")) return host.slice(1).split("]")[0].toLowerCase();
-  if (host === "::1") return host;
-  return host.split(":")[0].toLowerCase();
+async function loadComparison(pathValue) {
+  if (!pathValue) return null;
+  const path = localJsonPath(pathValue, "Comparison path");
+  return JSON.parse(await readFile(path, "utf8"));
 }
 
-function assertExecutionBoundary(options, environment = process.env) {
-  if (!options.projectId || options.projectId.includes("/") || /\s/.test(options.projectId)) {
-    throw new Error("An explicit valid --project is required.");
-  }
-  if (!options.databaseId || options.databaseId.includes("/")) throw new Error("Database ID is invalid.");
-  if (options.uid && (options.uid.includes("/") || /\s/.test(options.uid))) throw new Error("UID is invalid.");
-  validatePageSize(options.pageSize);
-  const emulatorHost = emulatorHostname(environment);
-  if (options.productionReadOnly) {
-    const emulatorVariables = [
-      "FIRESTORE_EMULATOR_HOST", "FIREBASE_AUTH_EMULATOR_HOST",
-      "FIREBASE_STORAGE_EMULATOR_HOST", "FIREBASE_DATABASE_EMULATOR_HOST",
-    ].filter((name) => String(environment[name] || "").trim());
-    if (emulatorVariables.length) throw new Error("Production read-only mode refuses all Firebase emulator variables.");
-    if (!PRODUCTION_PROJECT_ALLOWLIST.includes(options.projectId)) {
-      throw new Error(`Production read-only mode refuses project: ${options.projectId}`);
-    }
-    return;
-  }
-  if (!emulatorHost || !LOCAL_HOSTS.has(emulatorHost)) {
-    throw new Error("Refusing non-emulator Firestore reads without --production-read-only.");
-  }
-}
-
-async function verifyCredentialProject(options) {
-  if (!options.productionReadOnly) return;
-  const detectedProject = String(await new GoogleAuth().getProjectId() || "").trim();
-  if (!detectedProject || detectedProject !== options.projectId) {
-    throw new Error(`Credential project mismatch: expected ${options.projectId}, received ${detectedProject || "(missing)"}.`);
-  }
-}
-
-async function main(argv = process.argv.slice(2), environment = process.env) {
+async function main(argv = process.argv.slice(2), environment = process.env, dependencies = {}) {
   const options = parseArguments(argv);
   if (options.help) {
     process.stdout.write(`${usage()}\n`);
     return null;
   }
-  assertExecutionBoundary(options, environment);
-  await verifyCredentialProject(options);
-  process.stderr.write("=== SIMPLE BOOKS REFERENCE AUDIT: STRICTLY READ ONLY ===\n");
+
+  const runtimeVersion = dependencies.runtimeVersion || process.version;
+  assertExecutionBoundary(options, environment, runtimeVersion);
+  let outputPath = null;
+  if (options.outputPath) outputPath = await (dependencies.inspectOutputPath || inspectOutputPath)(options.outputPath);
+  const previousReport = await loadComparison(options.comparePath);
+
+  let credentialProjectId = null;
+  if (options.productionReadOnly) {
+    const credentialResolver = dependencies.resolveCredentialProject || (() => new GoogleAuth().getProjectId());
+    credentialProjectId = await verifyCredentialProject(options.projectId, credentialResolver);
+  }
+  const summary = preflightSummary(options, {
+    credentialProjectId,
+    emulatorVariablesPresent: EMULATOR_VARIABLES.filter((name) => String(environment[name] || "").trim()),
+    nodeVersion: runtimeVersion,
+    outputPath,
+  });
+  process.stderr.write(`${formatPreflight(summary)}\n`);
+  if (options.preflightOnly) {
+    process.stderr.write("PREFLIGHT READY: zero Firestore census/business-data reads were performed.\n");
+    return {preflight: summary, firestoreReadsStarted: false};
+  }
+
+  process.stderr.write(`SCAN SCOPE CONFIRMATION: ${scopeLabel(options)}\n`);
+  if (options.productionReadOnly) {
+    await (dependencies.requireHumanConfirmation || requireHumanConfirmation)(options);
+  }
+
   const appName = `reference-audit-${process.pid}-${Date.now()}`;
-  const app = admin.initializeApp({projectId: options.projectId}, appName);
+  const initializeApp = dependencies.initializeApp || ((configuration, name) => admin.initializeApp(configuration, name));
+  const app = initializeApp({projectId: options.projectId}, appName);
   try {
-    const firestore = options.databaseId === "(default)" ? admin.firestore(app) : getFirestore(app, options.databaseId);
-    const adapter = createReadOnlyFirestoreAdapter(firestore, FieldPath);
+    const firestore = dependencies.firestore || (options.databaseId === "(default)" ?
+      admin.firestore(app) : getFirestore(app, options.databaseId));
+    const adapter = (dependencies.createAdapter || createReadOnlyFirestoreAdapter)(firestore, FieldPath);
     const report = await createProductionReferenceAudit(adapter, {
       projectId: options.projectId,
       databaseId: options.databaseId,
       uid: options.uid,
       pageSize: options.pageSize,
+      safetyLimits: options.safetyLimits,
     });
-    if (options.comparePath) {
-      const previous = JSON.parse(await readFile(resolve(options.comparePath), "utf8"));
-      report.comparison = compareAuditReports(previous, report);
+    if (previousReport) report.comparison = compareAuditReports(previousReport, report);
+
+    let artifactPath = null;
+    const artifactStatus = report.scan.complete ? "complete" : "incomplete";
+    if (outputPath) {
+      artifactPath = report.scan.complete ? outputPath : incompleteArtifactPath(outputPath);
+      await (dependencies.atomicWriteJson || atomicWriteJson)(artifactPath, report, artifactStatus);
+      process.stderr.write(`${artifactStatus.toUpperCase()} local artifact: ${artifactPath}\n`);
     }
-    const output = `${JSON.stringify(report, null, 2)}\n`;
-    if (options.outputPath) await writeFile(resolve(options.outputPath), output, {encoding: "utf8", flag: "wx"});
-    process.stdout.write(output);
-    return report;
+    const printable = {...report, artifact: {status: artifactStatus, path: artifactPath}};
+    process.stdout.write(`${JSON.stringify(printable, null, 2)}\n`);
+    if (!report.scan.complete) {
+      const error = new Error("Audit scan is incomplete; the requested completed output artifact was not created.");
+      error.code = "audit-incomplete";
+      error.report = printable;
+      throw error;
+    }
+    return printable;
   } finally {
     await app.delete();
   }
@@ -137,11 +166,9 @@ if (require.main === module) {
 }
 
 module.exports = {
-  PRODUCTION_PROJECT_ALLOWLIST,
   assertExecutionBoundary,
-  emulatorHostname,
+  loadComparison,
   main,
   parseArguments,
   usage,
-  verifyCredentialProject,
 };

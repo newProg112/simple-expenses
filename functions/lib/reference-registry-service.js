@@ -7,14 +7,11 @@ const {
   referenceRegistryKey,
   sourceReference,
 } = require("./reference-registry-key");
-
-const REGISTRY_SCHEMA_VERSION = 1;
-const REGISTRY_STATES = Object.freeze({
-  ACTIVE: "active",
-  RETIRED: "retired",
-  LEGACY_CONFLICT: "legacy-conflict",
-});
-const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const {
+  REGISTRY_SCHEMA_VERSION,
+  REGISTRY_STATES,
+  REQUEST_ID_PATTERN,
+} = require("./reference-registry-constants");
 
 class ReferenceRegistryError extends Error {
   constructor(code, message) {

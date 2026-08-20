@@ -6,7 +6,7 @@ const {referenceRegistryKey, sourceReference} = require("./reference-registry-ke
 const {
   REGISTRY_SCHEMA_VERSION,
   REGISTRY_STATES,
-} = require("./reference-registry-service");
+} = require("./reference-registry-constants");
 const {
   BACKFILL_REQUEST_ID,
   BACKFILL_SCHEMA_VERSION,

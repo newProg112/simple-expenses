@@ -169,8 +169,13 @@ async function main() {
     ], {encoding: "utf8", env: process.env, maxBuffer: 5 * 1024 * 1024});
     assert.equal(cli.status, 0, cli.stderr || cli.stdout);
     assert.match(cli.stderr, /STRICTLY READ ONLY/);
+    assert.match(cli.stderr, /SINGLE UID DIAGNOSTIC/);
     const cliReport = JSON.parse(cli.stdout);
     assert.equal(cliReport.census.mode, "explicit-uid");
+    assert.equal(cliReport.census.approvalScopeComplete, false);
+    assert.equal(cliReport.readiness.readyForApprovalScan, false);
+    assert.equal(cliReport.scan.complete, true);
+    assert.equal(cliReport.artifact.status, "complete");
     assert.deepEqual(cliReport.census.orderedUids, [uids.valid]);
     assert.equal(cliReport.perUid[0].hashes.combinedAuditHash, valid.hashes.combinedAuditHash);
 

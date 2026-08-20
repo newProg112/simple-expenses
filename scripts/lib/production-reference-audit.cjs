@@ -13,12 +13,18 @@ const {
 const {
   REGISTRY_SCHEMA_VERSION,
   REGISTRY_STATES,
-} = require("../../functions/lib/reference-registry-service");
+} = require("../../functions/lib/reference-registry-constants");
 
 const AUDIT_SCHEMA_VERSION = 1;
 const AUDIT_VERSION = "phase3c3c-step2a-v1";
 const DEFAULT_PAGE_SIZE = 200;
 const MAX_PAGE_SIZE = 500;
+const SAFETY_LIMIT_NAMES = Object.freeze([
+  "maxDocuments",
+  "maxPages",
+  "maxUids",
+  "maxElapsedMs",
+]);
 const COLLECTIONS = Object.freeze({
   invoice: "invoices",
   bill: "bills",
@@ -124,6 +130,63 @@ function validatePageSize(value) {
   return pageSize;
 }
 
+class AuditSafetyLimitError extends Error {
+  constructor(limit, configured, observed) {
+    super(`Read-only audit safety limit exceeded: ${limit}.`);
+    this.name = "AuditSafetyLimitError";
+    this.code = "audit-safety-limit-exceeded";
+    this.limit = limit;
+    this.configured = configured;
+    this.observed = observed;
+  }
+}
+
+function validateSafetyLimits(input = {}) {
+  const limits = {};
+  for (const name of SAFETY_LIMIT_NAMES) {
+    const raw = input[name];
+    if (raw === undefined || raw === null || raw === "") {
+      limits[name] = null;
+      continue;
+    }
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value) || value < 1) {
+      throw new TypeError(`${name} must be a positive safe integer.`);
+    }
+    limits[name] = value;
+  }
+  return Object.freeze(limits);
+}
+
+function createSafetyGuard(limits, metrics, started, now = Date.now) {
+  function assertWithin(limit, observed) {
+    const configured = limits[limit];
+    if (configured !== null && observed > configured) {
+      throw new AuditSafetyLimitError(limit, configured, observed);
+    }
+  }
+  return Object.freeze({
+    beforeRead() {
+      assertWithin("maxElapsedMs", now() - started);
+    },
+    recordPage(documentCount) {
+      metrics.pagesFetched += 1;
+      metrics.documentsRead += documentCount;
+      assertWithin("maxPages", metrics.pagesFetched);
+      assertWithin("maxDocuments", metrics.documentsRead);
+      assertWithin("maxElapsedMs", now() - started);
+    },
+    recordDiscoveredUids(count) {
+      assertWithin("maxUids", count);
+    },
+    recordScannedUid() {
+      metrics.uidsScanned += 1;
+      assertWithin("maxUids", metrics.uidsScanned);
+      assertWithin("maxElapsedMs", now() - started);
+    },
+  });
+}
+
 function requiredIdentifier(value, label) {
   const result = String(value || "").trim();
   if (!result || result.includes("/") || /\s/.test(result)) throw new TypeError(`${label} is invalid.`);
@@ -147,16 +210,16 @@ function exactUserDocument(path, collectionName) {
   return segments.length === 4 && segments[0] === "users" && segments[2] === collectionName ? segments[1] : "";
 }
 
-async function readAllPages(fetchPage, metrics) {
+async function readAllPages(fetchPage, guard) {
   const documents = [];
   let cursor = null;
   for (;;) {
+    guard.beforeRead();
     const page = await fetchPage(cursor);
     if (!page || !Array.isArray(page.documents) || typeof page.nextCursor === "undefined") {
       throw new TypeError("Read-only adapter returned an invalid page.");
     }
-    metrics.pagesFetched += 1;
-    metrics.documentsRead += page.documents.length;
+    guard.recordPage(page.documents.length);
     documents.push(...page.documents);
     if (!page.nextCursor) break;
     cursor = page.nextCursor;
@@ -164,7 +227,7 @@ async function readAllPages(fetchPage, metrics) {
   return documents;
 }
 
-async function discoverUidUniverse(adapter, pageSize, metrics) {
+async function discoverUidUniverse(adapter, pageSize, guard) {
   const uids = new Set();
   const sources = {};
   const failures = [];
@@ -175,12 +238,12 @@ async function discoverUidUniverse(adapter, pageSize, metrics) {
     try {
       let cursor = null;
       for (;;) {
+        guard.beforeRead();
         const page = await adapter.readCollectionGroupPage(collectionName, pageSize, cursor);
         if (!page || !Array.isArray(page.documents) || typeof page.nextCursor === "undefined") {
           throw new TypeError("Read-only adapter returned an invalid page.");
         }
-        metrics.pagesFetched += 1;
-        metrics.documentsRead += page.documents.length;
+        guard.recordPage(page.documents.length);
         documentsRead += page.documents.length;
         for (const document of page.documents) {
           const uid = exactUserDocument(document.path, collectionName);
@@ -190,11 +253,23 @@ async function discoverUidUniverse(adapter, pageSize, metrics) {
           }
           uids.add(uid);
           sourceUids.add(uid);
+          guard.recordDiscoveredUids(uids.size);
         }
         if (!page.nextCursor) break;
         cursor = page.nextCursor;
       }
     } catch (error) {
+      if (error instanceof AuditSafetyLimitError) {
+        sources[collectionName] = {documentsRead, uidsDiscovered: sourceUids.size, complete: false};
+        error.partialCensus = {
+          complete: false,
+          orderedUids: [...uids].sort(),
+          sources,
+          failures,
+          unexpectedPaths: unexpectedPaths.sort(diagnosticSort),
+        };
+        throw error;
+      }
       failures.push(issue("uid-discovery-read-failed", {collectionName, errorCode: safeReadErrorCode(error)}));
       sources[collectionName] = {documentsRead, uidsDiscovered: sourceUids.size, complete: false};
       continue;
@@ -345,15 +420,16 @@ function consistentConflict(registry, group) {
     canonicalSerialize(storedIds) === canonicalSerialize(liveIds);
 }
 
-async function auditUid(adapter, uid, pageSize, metrics) {
+async function auditUid(adapter, uid, pageSize, metrics, guard) {
   const collectionResults = {};
   const readFailures = [];
   for (const collectionName of Object.values(COLLECTIONS)) {
     try {
       collectionResults[collectionName] = await readAllPages(
-          (cursor) => adapter.readUserCollectionPage(uid, collectionName, pageSize, cursor), metrics,
+          (cursor) => adapter.readUserCollectionPage(uid, collectionName, pageSize, cursor), guard,
       );
     } catch (error) {
+      if (error instanceof AuditSafetyLimitError) throw error;
       collectionResults[collectionName] = [];
       readFailures.push(issue("uid-collection-read-failed", {
         uid, collectionName, errorCode: safeReadErrorCode(error),
@@ -550,9 +626,12 @@ async function createProductionReferenceAudit(adapter, input = {}) {
   const databaseId = String(input.databaseId || "(default)").trim();
   if (!databaseId || databaseId.includes("/")) throw new TypeError("Database ID is invalid.");
   const pageSize = validatePageSize(input.pageSize);
+  const safetyLimits = validateSafetyLimits(input.safetyLimits);
   const started = Date.now();
   const metrics = {documentsRead: 0, pagesFetched: 0, uidsScanned: 0, peakCanonicalGroupSize: 0};
+  const guard = createSafetyGuard(safetyLimits, metrics, started, input.now || Date.now);
   let census;
+  let limitFailure = null;
   if (input.uid) {
     census = {
       complete: true,
@@ -561,18 +640,39 @@ async function createProductionReferenceAudit(adapter, input = {}) {
       failures: [], unexpectedPaths: [], mode: "explicit-uid",
     };
   } else {
-    census = {...await discoverUidUniverse(adapter, pageSize, metrics), mode: "complete-census"};
+    try {
+      census = {...await discoverUidUniverse(adapter, pageSize, guard), mode: "complete-census"};
+    } catch (error) {
+      if (!(error instanceof AuditSafetyLimitError)) throw error;
+      limitFailure = issue(error.code, {
+        limit: error.limit, configured: error.configured, observed: error.observed,
+      });
+      census = {...(error.partialCensus || {
+        complete: false, orderedUids: [], sources: {}, failures: [], unexpectedPaths: [],
+      }), mode: "complete-census"};
+    }
   }
 
   const perUid = [];
-  for (const uid of census.orderedUids) {
-    perUid.push(await auditUid(adapter, uid, pageSize, metrics));
-    metrics.uidsScanned += 1;
+  for (const uid of limitFailure ? [] : census.orderedUids) {
+    try {
+      perUid.push(await auditUid(adapter, uid, pageSize, metrics, guard));
+      guard.recordScannedUid();
+    } catch (error) {
+      if (!(error instanceof AuditSafetyLimitError)) throw error;
+      limitFailure = issue(error.code, {
+        limit: error.limit, configured: error.configured, observed: error.observed,
+      });
+      break;
+    }
   }
+  const scanComplete = !limitFailure && census.complete && perUid.every((result) => result.readComplete) &&
+    perUid.length === census.orderedUids.length;
   const blockers = [
     ...census.failures,
     ...(!census.complete ? [issue("incomplete-uid-census")] : []),
     ...(census.mode !== "complete-census" ? [issue("incomplete-uid-census", {reason: "explicit-uid-scope"})] : []),
+    ...(limitFailure ? [limitFailure, issue("incomplete-audit-scan", {reason: "safety-limit"})] : []),
     ...perUid.flatMap((result) => result.blockers),
   ].sort(diagnosticSort);
   const warnings = [
@@ -601,6 +701,12 @@ async function createProductionReferenceAudit(adapter, input = {}) {
     databaseId,
     generatedAt: new Date().toISOString(),
     pageSize,
+    safetyLimits,
+    scan: {
+      complete: scanComplete,
+      status: scanComplete ? "complete" : "incomplete",
+      stopReason: limitFailure ? "safety-limit" : (scanComplete ? null : "read-or-census-failure"),
+    },
     census: {
       mode: census.mode,
       complete: census.complete,
@@ -616,7 +722,7 @@ async function createProductionReferenceAudit(adapter, input = {}) {
     blockers,
     warnings,
     hashes: {censusHash, overallAuditHash},
-    readiness: {readyForApprovalScan: census.complete && census.mode === "complete-census" && blockers.length === 0},
+    readiness: {readyForApprovalScan: scanComplete && census.mode === "complete-census" && blockers.length === 0},
     metrics: {...metrics, elapsedMs: Date.now() - started},
   };
 }
@@ -667,9 +773,12 @@ module.exports = {
   AUDIT_VERSION,
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
+  SAFETY_LIMIT_NAMES,
+  AuditSafetyLimitError,
   canonicalSerialize,
   compareAuditReports,
   createProductionReferenceAudit,
   sha256,
   validatePageSize,
+  validateSafetyLimits,
 };

@@ -104,10 +104,16 @@ describe("production reference audit primitives",()=>{
     expect(()=>assertExecutionBoundary({projectId:"demo-simple-books",databaseId:"(default)"},{FIRESTORE_EMULATOR_HOST:"firestore.googleapis.com:443"}))
       .toThrow("Refusing non-emulator");
     expect(()=>assertExecutionBoundary({projectId:"simple-books-office",databaseId:"(default)",productionReadOnly:true},{FIRESTORE_EMULATOR_HOST:"127.0.0.1:8080"}))
-      .toThrow("refuses all Firebase emulator variables");
+      .toThrow("refuses emulator variables");
     expect(()=>assertExecutionBoundary({projectId:"other-project",databaseId:"(default)",productionReadOnly:true},{}))
       .toThrow("refuses project");
-    expect(()=>assertExecutionBoundary({projectId:"simple-books-office",databaseId:"(default)",productionReadOnly:true},{})).not.toThrow();
+    const production={
+      projectId:"simple-books-office",databaseId:"(default)",databaseProvided:true,
+      productionReadOnly:true,outputPath:"audit.json",
+      safetyLimits:{maxDocuments:100,maxPages:100,maxUids:10,maxElapsedMs:1000}
+    };
+    expect(()=>assertExecutionBoundary(production,{},"v24.0.0")).toThrow("Node 22.x");
+    expect(()=>assertExecutionBoundary(production,{},"v22.20.0")).not.toThrow();
   });
 
   it("exposes only two read methods and rejects any adapter with write reachability",async()=>{
@@ -119,7 +125,7 @@ describe("production reference audit primitives",()=>{
     await expect(createProductionReferenceAudit({...readOnlyAdapter([]),set(){}},{projectId:"demo-simple-books"}))
       .rejects.toThrow("exact read-only");
     const cli=readFileSync(new URL("../scripts/audit-production-reference-registry.cjs",import.meta.url),"utf8");
-    expect(cli).not.toMatch(/writeBatch|runTransaction|transaction\.|--apply|firestore\.doc\(/);
+    expect(cli).not.toMatch(/writeBatch|runTransaction|transaction\.|--apply|--write|--backfill|--repair|--migrate|--delete|firestore\.doc\(/);
   });
 });
 
@@ -254,10 +260,31 @@ describe("production reference audit results",()=>{
     });
     expect(report.census.complete).toBe(false);
     expect(report.readiness.readyForApprovalScan).toBe(false);
+    expect(report.scan).toMatchObject({complete:false,status:"incomplete"});
     expect(report.blockers.map(item=>item.code)).toEqual(expect.arrayContaining([
       "uid-discovery-read-failed","incomplete-uid-census","uid-collection-read-failed"
     ]));
     expect(JSON.stringify(report)).not.toMatch(/private|Supplier secret|customer@example/);
+  });
+
+  it("stops at explicit read limits without changing stable hashes for generous guard metadata",async()=>{
+    const entries=[document("users/limited/invoices/one",{invoiceNo:"INV-1"})];
+    const baseline=await createProductionReferenceAudit(readOnlyAdapter(entries),{
+      projectId:"demo-simple-books",pageSize:1
+    });
+    const generous=await createProductionReferenceAudit(readOnlyAdapter(entries),{
+      projectId:"demo-simple-books",pageSize:1,
+      safetyLimits:{maxDocuments:100,maxPages:100,maxUids:100,maxElapsedMs:100000}
+    });
+    expect(generous.hashes).toEqual(baseline.hashes);
+    const limited=await createProductionReferenceAudit(readOnlyAdapter(entries),{
+      projectId:"demo-simple-books",pageSize:1,safetyLimits:{maxPages:1}
+    });
+    expect(limited.scan).toMatchObject({complete:false,status:"incomplete",stopReason:"safety-limit"});
+    expect(limited.readiness.readyForApprovalScan).toBe(false);
+    expect(limited.blockers.map(item=>item.code)).toEqual(expect.arrayContaining([
+      "audit-safety-limit-exceeded","incomplete-audit-scan"
+    ]));
   });
 
   it("rejects malformed prior audit artifacts",async()=>{
