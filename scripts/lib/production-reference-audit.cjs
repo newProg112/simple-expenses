@@ -289,6 +289,32 @@ function exactUserDocument(path, collectionName) {
   return segments.length === 4 && segments[0] === "users" && segments[2] === collectionName ? segments[1] : "";
 }
 
+function safePathStructure(path, collectionName) {
+  const value = typeof path === "string" ? path : "";
+  const segments = value ? value.split("/") : [];
+  const segmentCount = segments.length;
+  const collectionDepth = Math.ceil(segmentCount / 2);
+  const validDocumentStructure = segmentCount >= 2 && segmentCount % 2 === 0 &&
+    segments.every(Boolean) && segments.at(-2) === collectionName;
+  let pathShape = "invalid-structure";
+  if (validDocumentStructure && segmentCount === 2) {
+    pathShape = "top-level-collection";
+  } else if (validDocumentStructure && segments[0] === "users" && segmentCount === 4) {
+    pathShape = "direct-user-collection";
+  } else if (validDocumentStructure && segments[0] === "users") {
+    pathShape = "nested-under-user";
+  } else if (validDocumentStructure && segmentCount === 4) {
+    pathShape = "direct-non-user-parent";
+  } else if (validDocumentStructure) {
+    pathShape = "nested-non-user";
+  }
+  return {segmentCount, collectionDepth, pathShape};
+}
+
+function stateUnexpectedPath(item) {
+  return {collectionName: item.collectionName, pathHash: item.pathHash};
+}
+
 async function readAllPages(fetchPage, guard) {
   const documents = [];
   let cursor = null;
@@ -327,7 +353,11 @@ async function discoverUidUniverse(adapter, pageSize, guard) {
         for (const document of page.documents) {
           const uid = exactUserDocument(document.path, collectionName);
           if (!uid) {
-            unexpectedPaths.push({collectionName, pathHash: sha256(String(document.path || ""))});
+            unexpectedPaths.push({
+              collectionName,
+              pathHash: sha256(String(document.path || "")),
+              ...safePathStructure(document.path, collectionName),
+            });
             continue;
           }
           uids.add(uid);
@@ -763,15 +793,18 @@ async function createProductionReferenceAudit(adapter, input = {}) {
     activeClaimsToCreate: sum(perUid, (result) => result.expectedBackfillWrites.activeClaimsToCreate),
     legacyConflictsToCreate: sum(perUid, (result) => result.expectedBackfillWrites.legacyConflictsToCreate),
   };
+  const stateUnexpectedPaths = census.unexpectedPaths.map(stateUnexpectedPath).sort(diagnosticSort);
+  const stateWarnings = warnings.map((warning) => warning.code === "unexpected-census-document-path" ?
+    issue(warning.code, stateUnexpectedPath(warning)) : warning).sort(diagnosticSort);
   const censusHash = sha256({
     projectId, databaseId, mode: census.mode, orderedUids: census.orderedUids, sources: census.sources,
-    complete: census.complete, unexpectedPaths: census.unexpectedPaths,
+    complete: census.complete, unexpectedPaths: stateUnexpectedPaths,
   });
   const overallAuditHash = sha256({
     schemaVersion: AUDIT_SCHEMA_VERSION, auditVersion: AUDIT_VERSION,
     projectId, databaseId, censusHash,
     perUid: perUid.map((result) => ({uid: result.uid, combinedAuditHash: result.hashes.combinedAuditHash})),
-    totals, expectedBackfillWrites, blockers, warnings,
+    totals, expectedBackfillWrites, blockers, warnings: stateWarnings,
   });
   return {
     schemaVersion: AUDIT_SCHEMA_VERSION,

@@ -12,6 +12,7 @@ const {FieldPath} = functionsRequire("firebase-admin/firestore");
 const {
   compareAuditReports,
   createProductionReferenceAudit,
+  sha256,
 } = require("../scripts/lib/production-reference-audit.cjs");
 const {createReadOnlyFirestoreAdapter} = require("../scripts/lib/read-only-firestore-adapter.cjs");
 const {referenceRegistryKey} = require("../functions/lib/reference-registry-key");
@@ -26,6 +27,12 @@ const uids = {
   conflicts: `${prefix}-conflicts`,
   orphan: `${prefix}-orphan`,
 };
+const unexpectedUserUid = `${prefix}-unexpected-private-user`;
+const unexpectedPaths = Object.freeze({
+  top: `invoices/${prefix}-top-private-document`,
+  nestedUser: `users/${unexpectedUserUid}/private-child/${prefix}-private-parent/invoices/${prefix}-nested-private-document`,
+  nestedOther: `private-root/${prefix}-private-root-document/private-child/${prefix}-private-parent/invoices/${prefix}-deep-private-document`,
+});
 if (!admin.apps.length) admin.initializeApp({projectId});
 const firestore = admin.firestore();
 const adapter = createReadOnlyFirestoreAdapter(firestore, FieldPath);
@@ -58,6 +65,9 @@ async function registry(uid, recordType, reference, data) {
 
 async function seedFixtures() {
   const fixtures = [
+    source(unexpectedPaths.top, {invoiceNo: "EMU-PRIVATE-TOP"}),
+    source(unexpectedPaths.nestedUser, {invoiceNo: "EMU-PRIVATE-USER-NESTED"}),
+    source(unexpectedPaths.nestedOther, {invoiceNo: "EMU-PRIVATE-NON-USER"}),
     source(`users/${uids.legacy}/invoices/invoice-unique`, {invoiceNo: "EMU-INV-001", client: "Must not leak"}),
     source(`users/${uids.legacy}/bills/bill-unique-alpha`, {billNumber: "EMU-BILL-001", supplier: "Must not leak"}),
     source(`users/${uids.legacy}/invoices/invoice-blank`, {invoiceNo: "", amount: 12345}),
@@ -104,6 +114,10 @@ async function snapshotFixtureDocuments() {
       }
     }
   }
+  for (const path of Object.values(unexpectedPaths)) {
+    const document = await firestore.doc(path).get();
+    results[path] = {data: document.data(), updateTime: document.updateTime.toDate().toISOString()};
+  }
   return results;
 }
 
@@ -124,11 +138,30 @@ async function main() {
     const after = await snapshotFixtureDocuments();
 
     for (const uid of Object.values(uids)) assert.ok(first.census.orderedUids.includes(uid));
+    assert.equal(first.census.orderedUids.includes(unexpectedUserUid), false,
+        "A nested unexpected path incorrectly contributed a UID.");
     assert.equal(first.census.complete, true);
     assert.ok(first.metrics.pagesFetched > 20, "Page size 1 did not exercise multiple pages.");
     assert.deepEqual(after, before, "The read-only audit changed emulator fixtures.");
     assert.deepEqual(second.hashes, first.hashes, "Stable audit hashes changed without a fixture mutation.");
     assert.deepEqual(second.perUid.map((entry) => entry.hashes), first.perUid.map((entry) => entry.hashes));
+
+    const unexpectedWarnings = first.warnings.filter((entry) =>
+      entry.code === "unexpected-census-document-path" && entry.collectionName === "invoices");
+    assert.deepEqual(unexpectedWarnings.map((entry) => ({
+      pathHash: entry.pathHash,
+      segmentCount: entry.segmentCount,
+      collectionDepth: entry.collectionDepth,
+      pathShape: entry.pathShape,
+    })).sort((left, right) => left.pathHash.localeCompare(right.pathHash)), [
+      {pathHash: sha256(unexpectedPaths.top), segmentCount: 2, collectionDepth: 1, pathShape: "top-level-collection"},
+      {pathHash: sha256(unexpectedPaths.nestedUser), segmentCount: 6, collectionDepth: 3, pathShape: "nested-under-user"},
+      {pathHash: sha256(unexpectedPaths.nestedOther), segmentCount: 6, collectionDepth: 3, pathShape: "nested-non-user"},
+    ].sort((left, right) => left.pathHash.localeCompare(right.pathHash)));
+    assert.equal(first.census.unexpectedPathCount, 3);
+    assert.equal(first.globalTotals.invoices.totalCount, 6,
+        "Unexpected invoice paths were included in canonical per-user totals.");
+    assert.equal(first.blockers.some((entry) => entry.code === "unexpected-census-document-path"), false);
 
     const legacy = result(first, uids.legacy);
     assert.deepEqual(legacy.invoices, {
@@ -162,6 +195,10 @@ async function main() {
     const serialized = JSON.stringify(first);
     assert.equal(serialized.includes("Must not leak"), false);
     assert.equal(serialized.includes("EMU-INV-001"), false);
+    for (const secret of [
+      unexpectedUserUid, `${prefix}-top-private-document`, `${prefix}-private-root-document`,
+      `${prefix}-private-parent`, `${prefix}-nested-private-document`, `${prefix}-deep-private-document`,
+    ]) assert.equal(serialized.includes(secret), false, `Unexpected path segment leaked: ${secret}`);
 
     const cli = spawnSync(process.execPath, [
       resolve(__dirname, "../scripts/audit-production-reference-registry.cjs"),
@@ -196,7 +233,12 @@ async function main() {
 
     console.log("Production reference read-only census/audit emulator integration passed.");
   } finally {
-    await Promise.all(Object.values(uids).map((uid) => firestore.recursiveDelete(firestore.doc(`users/${uid}`))));
+    await Promise.all([
+      ...Object.values(uids).map((uid) => firestore.recursiveDelete(firestore.doc(`users/${uid}`))),
+      firestore.recursiveDelete(firestore.doc(`users/${unexpectedUserUid}`)),
+      firestore.doc(unexpectedPaths.top).delete(),
+      firestore.recursiveDelete(firestore.doc(`private-root/${prefix}-private-root-document`)),
+    ]);
   }
 }
 

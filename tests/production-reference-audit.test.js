@@ -165,6 +165,66 @@ describe("production reference audit results",()=>{
     expect(report.perUid.find(item=>item.uid==="no-parent").invoices.totalCount).toBe(2);
   });
 
+  it("classifies unexpected collection-group paths without exposing their segments",async()=>{
+    const paths={
+      canonical:"users/canonical-uid/invoices/canonical-doc",
+      top:"invoices/top-doc",
+      directOther:"other/parent/invoices/direct-doc",
+      nestedUser:"users/private-user/nested/private-parent/invoices/nested-doc",
+      nestedOther:"other/root/child/parent/invoices/deep-doc"
+    };
+    const entries=[
+      document(paths.canonical,{invoiceNo:"INV-1"}),
+      document(paths.top,{invoiceNo:"INV-2"}),
+      document(paths.directOther,{invoiceNo:"INV-3"}),
+      document(paths.nestedUser,{invoiceNo:"INV-4"}),
+      document(paths.nestedOther,{invoiceNo:"INV-5"})
+    ];
+    const report=await audit(entries,{pageSize:20});
+    const warnings=report.warnings.filter(item=>item.code==="unexpected-census-document-path");
+    expect(warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({pathHash:sha256(paths.top),segmentCount:2,collectionDepth:1,pathShape:"top-level-collection"}),
+      expect.objectContaining({pathHash:sha256(paths.directOther),segmentCount:4,collectionDepth:2,pathShape:"direct-non-user-parent"}),
+      expect.objectContaining({pathHash:sha256(paths.nestedUser),segmentCount:6,collectionDepth:3,pathShape:"nested-under-user"}),
+      expect.objectContaining({pathHash:sha256(paths.nestedOther),segmentCount:6,collectionDepth:3,pathShape:"nested-non-user"})
+    ]));
+    expect(warnings).toHaveLength(4);
+    expect(report.census).toMatchObject({complete:true,totalDiscoveredUids:1,orderedUids:["canonical-uid"],unexpectedPathCount:4});
+    expect(report.globalTotals.invoices.totalCount).toBe(1);
+    expect(report.blockers.some(item=>item.code==="unexpected-census-document-path")).toBe(false);
+    expect(report.scan).toMatchObject({complete:true,status:"complete"});
+    expect(report.hashes).toEqual({
+      censusHash:"1d00359f020f2cfd7964dd8bf132fabaf9268e4a270a12ce07f6fcac61ebe31d",
+      overallAuditHash:"42c77863cf33266f1cfc62b2d8562e487c84707b99105a260e6d9ae3a97548bc"
+    });
+    const serializedWarnings=JSON.stringify(warnings);
+    for(const secret of [
+      "top-doc","direct-doc","private-user","private-parent","nested-doc","deep-doc"
+    ])expect(serializedWarnings).not.toContain(secret);
+  });
+
+  it("classifies malformed odd path structures without leaking path values",async()=>{
+    const malformedPath="users/private-malformed-uid/invoices";
+    const empty=readOnlyAdapter([]);
+    const adapter=Object.freeze({
+      readCollectionGroupPage(collection){
+        return collection==="invoices"?
+          Promise.resolve({documents:[document(malformedPath,{invoiceNo:"PRIVATE-REF"})],nextCursor:null}):
+          empty.readCollectionGroupPage(collection,20,null);
+      },
+      readUserCollectionPage:empty.readUserCollectionPage
+    });
+    const report=await createProductionReferenceAudit(adapter,{projectId:"demo-simple-books",pageSize:20});
+    const warning=report.warnings.find(item=>item.code==="unexpected-census-document-path");
+    expect(warning).toMatchObject({
+      collectionName:"invoices",pathHash:sha256(malformedPath),segmentCount:3,collectionDepth:2,
+      pathShape:"invalid-structure"
+    });
+    expect(JSON.stringify(warning)).not.toMatch(/private-malformed-uid|PRIVATE-REF/);
+    expect(report.census.totalDiscoveredUids).toBe(0);
+    expect(report.globalTotals.invoices.totalCount).toBe(0);
+  });
+
   it("reports unique, blank, collision, valid active, and consistent conflict states privately",async()=>{
     const uid="audit-user";
     const active=await registry(uid,"invoice","INV-OK",{sourceId:"invoice-ok"});
