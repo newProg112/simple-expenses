@@ -14,6 +14,8 @@
     "test:reference-audit:guardrails": "vitest run tests/production-reference-audit.test.js tests/production-reference-audit-guardrails.test.js",
     "test:invoice-residue-probe:guardrails": "vitest run tests/top-level-invoice-metadata-probe.test.js tests/top-level-invoice-probe-guardrails.test.js",
     "test:invoice-residue-probe:emulator": "firebase emulators:exec --project demo-simple-books --only firestore \"node tests/top-level-invoice-metadata-probe-emulator.cjs\"",
+    "test:bill-collision-diagnostic:guardrails": "vitest run tests/bill-collision-diagnostic.test.js tests/bill-collision-diagnostic-guardrails.test.js",
+    "test:bill-collision-diagnostic:emulator": "firebase emulators:exec --project demo-simple-books --only firestore \"node tests/bill-collision-diagnostic-emulator.cjs\"",
     "test": "vitest run",
     "test:guides:hosting": "firebase emulators:exec --only hosting:main \"node scripts/smoke-guides-hosting.mjs\"",
     "test:watch": "vitest"
