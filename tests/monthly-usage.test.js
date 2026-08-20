@@ -363,7 +363,7 @@ describe("Account page monthly usage integration", () => {
       'import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260806-demo-pro2"'
     );
     expect(assistantHtml).toContain(
-      "cloudfunctions.net/getMonthlyUsage"
+      'firebaseFunctionUrl("getMonthlyUsage")'
     );
     expect(assistantHtml).toContain("loadMonthlyUsage(user)");
     expect(assistantHtml).toContain(

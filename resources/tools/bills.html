@@ -2192,6 +2192,7 @@
       sourceStatusForSave
     } from "../js/bank-settlement-source-state.js?v=20260816-banking25";
     import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
+    import { sourceEditExpectedState } from "../js/source-edit-state.js?v=20260820-phase3c3b";
     import { trackInvoiceScanned } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
     import { openAttachment } from "../js/attachment-opening.js?v=20260812-storage1";
@@ -2230,6 +2231,7 @@
     let projectsLoaded = false;
     let projectsLoadError = false;
     let editingBillId = null;
+    let editingBillExpectedState = null;
     let selectedBillScanFile = null;
     let billScanPreviewUrl = "";
     let billScanPreviousFocus = null;
@@ -2240,6 +2242,16 @@
       functions,
       "scanBusinessDocument",
       { timeout: 60000 }
+    );
+    const createBillWithReference = httpsCallable(
+      functions,
+      "createBillWithReference",
+      { timeout: 30000 }
+    );
+    const updateBillWithReference = httpsCallable(
+      functions,
+      "updateBillWithReference",
+      { timeout: 30000 }
     );
     const currentUserPromise = new Promise(resolve => {
       const unsubscribe = onAuthStateChanged(auth, user => {
@@ -2726,7 +2738,8 @@
 
         currentBills = snapshot.docs.map(snap => ({
           id: snap.id,
-          ...snap.data()
+          ...snap.data(),
+          sourceId: snap.id
         }));
         billsLoadError = false;
         saveBills(currentBills);
@@ -3149,6 +3162,10 @@
       return doc(db, "users", user.uid, "bills", String(id));
     }
 
+    function billEditSourceId(bill) {
+      return String(bill?.sourceId ?? bill?.id ?? "");
+    }
+
     async function getCurrentUser() {
       return auth.currentUser || await currentUserPromise;
     }
@@ -3367,7 +3384,7 @@
     async function saveBill() {
       let existingBill = editingBillId === null
         ? null
-        : currentBills.find(bill => String(bill.id) === String(editingBillId));
+        : currentBills.find(bill => billEditSourceId(bill) === String(editingBillId));
       if (isBankingSettledSource(existingBill)) {
         rejectBankSettledBillEdit();
         return;
@@ -3472,21 +3489,67 @@
         attachmentType: attachment.attachmentType || "",
         createdAt: existingBill?.createdAt || new Date().toISOString()
       };
+      const billEditPayload = existingBill ? {
+        supplier:bill.supplier,billNumber:bill.billNumber,billDate:bill.billDate,
+        dueDate:bill.dueDate,category:bill.category,net:bill.net,vatRate:bill.vatRate,
+        vat:bill.vat,total:bill.total,status:bill.status,notes:bill.notes,
+        projectId:bill.projectId,projectName:bill.projectName,projectReference:bill.projectReference,
+        attachmentName:bill.attachmentName,attachmentUrl:bill.attachmentUrl,
+        attachmentPath:bill.attachmentPath,attachmentSize:bill.attachmentSize,
+        attachmentType:bill.attachmentType
+      } : null;
 
       try {
-        await saveBillRecordWithSettlementGuard({
-          db,userId:user.uid,billId,bill,requireExisting:Boolean(existingBill),
-          services:{ doc,runTransaction }
-        });
+        if (existingBill) {
+          const requestId = createRequestId();
+          let response;
+          try {
+            response = await updateBillWithReference({
+              sourceId:String(billId),payload:billEditPayload,
+              expectedState:editingBillExpectedState,requestId
+            });
+          } catch (error) {
+            if (!["functions/unavailable","functions/deadline-exceeded"].includes(error?.code)) throw error;
+            response = await updateBillWithReference({
+              sourceId:String(billId),payload:billEditPayload,
+              expectedState:editingBillExpectedState,requestId
+            });
+          }
+          bill.updatedAt = response.data.editedAt;
+        } else {
+          const { createdAt:_clientCreatedAt, ...payload } = bill;
+          const requestId = createRequestId();
+          let response;
+          try {
+            response = await createBillWithReference({
+              sourceId:String(billId),payload,requestId
+            });
+          } catch (error) {
+            if (!["functions/unavailable", "functions/deadline-exceeded"].includes(error?.code)) {
+              throw error;
+            }
+            response = await createBillWithReference({
+              sourceId:String(billId),payload,requestId
+            });
+          }
+          bill.createdAt = response.data.createdAt;
+        }
       } catch (error) {
-        if (uploadedReplacementPath) await deleteAttachment(uploadedReplacementPath);
-        if (error?.code === BANK_SETTLED_BILL_MUTATION_ERROR_CODE) {
+        const ambiguousCommit = ["functions/unavailable","functions/deadline-exceeded"].includes(error?.code);
+        if (uploadedReplacementPath && !ambiguousCommit) await deleteAttachment(uploadedReplacementPath);
+        const reason = error?.details?.reason || "";
+        if (error?.code === BANK_SETTLED_BILL_MUTATION_ERROR_CODE || reason === "bank-settled-source") {
           await loadBills();
           renderBills(currentBills);
           rejectBankSettledBillEdit();
           return;
         }
-        setAttachmentStatus(`Firestore save failed: ${error.message}`, true);
+        let message = `Firestore save failed: ${error.message}`;
+        if (error?.code === "functions/already-exists") message = "A bill with this reference already exists. Use a different reference or leave it blank.";
+        if (error?.code === "functions/aborted" || reason === "stale-source") message = "This bill changed after you opened it. Refresh and review the latest bill before saving.";
+        if (["retired-reference","legacy-conflict"].includes(reason)) message = "This bill reference is retired or has a legacy conflict and cannot be used.";
+        if (ambiguousCommit) message = "The update result is uncertain after a network error. Refresh before retrying; the uploaded replacement was kept to avoid breaking a completed save.";
+        setAttachmentStatus(message,true);
         saveButton.disabled = false;
         return;
       }
@@ -3521,15 +3584,9 @@
         await deleteAttachment(replacedAttachmentPath);
       }
 
-      const ledgerPostingWarning = await postBillJournalAfterSave(
-        user.uid,
-        billId,
-        bill
-      );
-
       if (existingBill) {
         currentBills = currentBills.map(item =>
-          String(item.id) === String(billId) ? bill : item
+          billEditSourceId(item) === String(billId) ? bill : item
         );
       } else {
         currentBills.unshift(bill);
@@ -3542,7 +3599,7 @@
       clearForm();
       renderBills(currentBills);
       saveButton.disabled = false;
-      const saveWarnings = [scannedAttachmentWarning, ledgerPostingWarning].filter(Boolean);
+      const saveWarnings = [scannedAttachmentWarning].filter(Boolean);
       if (saveWarnings.length) {
         showBillFormFeedback(saveWarnings.join(" "), true);
       } else {
@@ -3552,6 +3609,7 @@
 
     function clearForm() {
       editingBillId = null;
+      editingBillExpectedState = null;
       clearBillAiApplyFeedback();
       setBankSettledBillEditLock(false);
       document.getElementById("supplier").value = "";
@@ -3572,7 +3630,7 @@
     }
 
     async function editBill(id) {
-      let bill = currentBills.find(item => String(item.id) === String(id));
+      let bill = currentBills.find(item => billEditSourceId(item) === String(id));
       if (!bill) return;
       if (isBankingSettledSource(bill)) {
         alert(BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE);
@@ -3587,7 +3645,7 @@
             services:{ doc,getDoc }
           });
           currentBills = currentBills.map(item =>
-            String(item.id) === String(id) ? bill : item
+            billEditSourceId(item) === String(id) ? bill : item
           );
           saveBills(currentBills);
         } catch (error) {
@@ -3605,7 +3663,8 @@
       const removedPendingScan = Boolean(pendingScannedBillFile);
       clearPendingScannedBillFile(false);
       clearBillAiApplyFeedback();
-      editingBillId = bill.id;
+      editingBillId = billEditSourceId(bill);
+      editingBillExpectedState = sourceEditExpectedState("bill",bill);
       setBankSettledBillEditLock(false);
       document.getElementById("supplier").value = bill.supplier || "";
       document.getElementById("billNumber").value = bill.billNumber || "";
@@ -3917,7 +3976,7 @@
 
           <div class="row-actions">
             ${viewPdfButton}
-            <button class="btn btn-secondary" type="button" data-bill-action="edit" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE}" aria-describedby="${settlementNoteId}"` : ""}>Edit</button>
+            <button class="btn btn-secondary" type="button" data-bill-action="edit" data-bill-id="${billId}" data-bill-source-id="${escapeHtml(billEditSourceId(bill))}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE}" aria-describedby="${settlementNoteId}"` : ""}>Edit</button>
             <button class="${paymentButtonClass}" type="button" data-bill-action="toggle-paid" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_STATUS_MESSAGE}" aria-describedby="${settlementNoteId}"` : ""}>${paymentButtonText}</button>
             <button class="btn btn-danger-subtle" type="button" data-bill-action="delete" data-bill-id="${billId}"${bankingSettled ? ` disabled title="${BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE}" aria-describedby="${settlementNoteId}"` : ""}>Delete</button>
             ${bankingSettled ? `<span class="bank-settlement-note" id="${settlementNoteId}">${BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE}</span>` : ""}
@@ -3958,7 +4017,7 @@
       }
 
       if (button.dataset.billAction === "edit") {
-        editBill(billId);
+        editBill(button.dataset.billSourceId || billId);
         return;
       }
 

@@ -2645,7 +2645,7 @@
 
   <script type="module">
 
-  import { app, auth, db } from "../../firebase-config.js";
+  import { app, auth, db, functions } from "../../firebase-config.js";
   import {
     getJournalForSource,
     replaceInvoiceJournal
@@ -2670,8 +2670,25 @@
   import {
     onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    httpsCallable
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+  import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
+  import { sourceEditExpectedState } from "../js/source-edit-state.js?v=20260820-phase3c3b";
 
   const ledgerFirestoreApi = { doc, getDoc, setDoc };
+  const createInvoiceWithReference = httpsCallable(
+    functions,
+    "createInvoiceWithReference",
+    { timeout: 30000 }
+  );
+  const updateInvoiceWithReference = httpsCallable(
+    functions,
+    "updateInvoiceWithReference",
+    { timeout: 30000 }
+  );
+  window.captureInvoiceEditExpectedState = invoice =>
+    sourceEditExpectedState("invoice",invoice);
 
   function isLocalInvoiceDevelopment(){
     return ["localhost", "127.0.0.1"].includes(window.location.hostname);
@@ -2973,7 +2990,7 @@
     });
   };
 
-  window.saveInvoiceToFirestore = async function(invoice){
+  async function saveInvoiceDirectToFirestore(invoice){
     if(!window.currentUser){
       alert("Please log in first.");
       return;
@@ -2983,8 +3000,32 @@
       collection(db, "users", window.currentUser.uid, "invoices"),
       invoice
     );
-    console.log("Invoice saved to Firestore");
     return invoiceRef.id;
+  }
+
+  window.saveInvoiceToFirestore = async function(invoice){
+    if(!window.currentUser){
+      alert("Please log in first.");
+      return;
+    }
+
+    const invoiceId = doc(
+      collection(db, "users", window.currentUser.uid, "invoices")
+    ).id;
+    const { createdAt:_clientCreatedAt, ...payload } = invoice;
+    const requestId = createRequestId();
+    let response;
+    try{
+      response = await createInvoiceWithReference({ sourceId:invoiceId, payload, requestId });
+    }catch(error){
+      if(!["functions/unavailable", "functions/deadline-exceeded"].includes(error?.code)){
+        throw error;
+      }
+      response = await createInvoiceWithReference({ sourceId:invoiceId, payload, requestId });
+    }
+    invoice.createdAt = response.data.createdAt;
+    console.log("Invoice saved to Firestore");
+    return invoiceId;
   };
 
   window.saveInvoiceJournalToFirestore = async function(invoiceId, invoice){
@@ -3037,42 +3078,27 @@
     console.log("Invoice status updated in Firestore");
   };
 
-  window.updateInvoiceInFirestore = async function(invoiceId, updatedInvoice){
+  window.updateInvoiceInFirestore = async function(invoiceId, updatedInvoice, expectedState){
     if(!window.currentUser){
       alert("Please log in first.");
       return false;
     }
 
-    const invoiceRef =
-      doc(db, "users", window.currentUser.uid, "invoices", String(invoiceId));
-
+    const requestId = createRequestId();
+    let response;
     try{
-      await runTransaction(db, async transaction => {
-        const invoiceSnapshot = await transaction.get(invoiceRef);
-
-        if(!invoiceSnapshot.exists()){
-          throw new Error("Could not find this invoice.");
-        }
-
-        if(isBankingSettledSource(invoiceSnapshot.data())){
-          const error = new Error(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
-          error.code = "bank-settled-invoice-edit";
-          throw error;
-        }
-
-        transaction.update(invoiceRef, updatedInvoice);
+      response = await updateInvoiceWithReference({
+        sourceId:String(invoiceId),payload:updatedInvoice,expectedState,requestId
       });
     }catch(error){
-      if(error?.code === "bank-settled-invoice-edit"){
-        alert(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
-        return false;
-      }
-
-      throw error;
+      if(!["functions/unavailable", "functions/deadline-exceeded"].includes(error?.code)) throw error;
+      response = await updateInvoiceWithReference({
+        sourceId:String(invoiceId),payload:updatedInvoice,expectedState,requestId
+      });
     }
 
     console.log("Invoice updated in Firestore");
-    return true;
+    return response.data;
   };
 
   window.deleteInvoiceFromFirestore = async function(invoiceId){
@@ -3308,6 +3334,7 @@ window.trackInvoiceCreated = async function(parameters){
 };
 
 let editingInvoiceId = null;
+let editingInvoiceExpectedState = null;
 
 let editingInvoiceIndex = null;
 
@@ -3719,10 +3746,17 @@ async function saveInvoiceToHistory(invoiceNo, client, amount, vat, total, items
     }
 
     console.log("Invoice generation: saving invoice to Firestore", invoiceNo);
-    const invoiceId = await window.saveInvoiceToFirestore(invoice);
+    let invoiceId;
+    try{
+      invoiceId = await window.saveInvoiceToFirestore(invoice);
+    }catch(error){
+      console.error("Invoice create failed", error);
+      alert(error?.code === "functions/already-exists"
+        ? "An invoice with this reference already exists. Please use a different invoice number."
+        : error?.message || "The invoice could not be saved. Please try again.");
+      return false;
+    }
     console.log("Invoice generation: Firestore save complete", invoiceNo);
-
-    await postInvoiceJournalAfterInvoiceSave(invoiceId, invoice, "saved");
     window.lastSavedInvoiceActivityKey = String(invoiceId);
     return true;
   }
@@ -4358,6 +4392,7 @@ async function reopenInvoice(invoiceId){
   }
 
   editingInvoiceId = invoice.id;
+  editingInvoiceExpectedState = window.captureInvoiceEditExpectedState(invoice);
   const bankingSettled = isBankingSettledSource(invoice);
 
   setBankSettledInvoiceEditLock(false);
@@ -4398,6 +4433,7 @@ async function duplicateInvoice(invoiceId){
   }
 
   editingInvoiceId = null;
+  editingInvoiceExpectedState = null;
   setBankSettledInvoiceEditLock(false);
   document.getElementById("updateInvoiceBtn").disabled = true;
   document.getElementById("editModeStatus").textContent =
@@ -4486,7 +4522,6 @@ async function updateExistingInvoice(){
     vat: vat,
     total: total,
     items: activeItems,
-    updatedAt: new Date().toISOString(),
     recurringInvoice: document.getElementById("recurringInvoice")?.value || "No",
     recurringFrequency: document.getElementById("recurringFrequency")?.value || "",
     nextInvoiceDate: document.getElementById("nextInvoiceDate")?.value || "",
@@ -4496,28 +4531,35 @@ async function updateExistingInvoice(){
     projectReference: project.projectReference,
   };
 
-  let journalSaved = true;
-
   if(window.updateInvoiceInFirestore){
-    const invoiceUpdated =
-      await window.updateInvoiceInFirestore(editingInvoiceId, updatedInvoice);
-
-    if(invoiceUpdated === false){
-      setBankSettledInvoiceEditLock(true,BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
-      document.getElementById("editModeStatus").textContent =
-        "Viewing settled invoice " + (currentInvoice.invoiceNo || "") + ". " +
-        BANK_SETTLEMENT_ACCOUNTING_MESSAGE;
+    try{
+      const result = await window.updateInvoiceInFirestore(
+        editingInvoiceId,updatedInvoice,editingInvoiceExpectedState
+      );
+      updatedInvoice.updatedAt = result.editedAt;
+    }catch(error){
+      const reason = error?.details?.reason || "";
+      if(reason === "bank-settled-source"){
+        setBankSettledInvoiceEditLock(true,BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+        document.getElementById("editModeStatus").textContent =
+          "Viewing settled invoice " + (currentInvoice.invoiceNo || "") + ". " +
+          BANK_SETTLEMENT_ACCOUNTING_MESSAGE;
+        alert(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+      }else if(error?.code === "functions/aborted" || reason === "stale-source"){
+        alert("This invoice changed after you opened it. Refresh and review the latest invoice before saving.");
+      }else if(error?.code === "functions/already-exists"){
+        alert("An invoice with this reference already exists. Please use a different invoice number.");
+      }else if(["retired-reference","legacy-conflict"].includes(reason)){
+        alert("This invoice reference is retired or has a legacy conflict and cannot be used.");
+      }else{
+        alert(error?.message || "The invoice could not be updated. Please try again.");
+      }
       return;
     }
-
-    journalSaved = await postInvoiceJournalAfterInvoiceSave(
-      editingInvoiceId,
-      updatedInvoice,
-      "updated"
-    );
   }
 
   editingInvoiceId = null;
+  editingInvoiceExpectedState = null;
   setBankSettledInvoiceEditLock(false);
 
   document.getElementById("updateInvoiceBtn").disabled = true;
@@ -4529,13 +4571,12 @@ async function updateExistingInvoice(){
   resetInvoiceDateToToday();
   renderRecentInvoices();
 
-  if(journalSaved){
-    alert("Invoice updated.");
-  }
+  alert("Invoice updated.");
 }
 
 function cancelInvoiceEdit(){
   editingInvoiceId = null;
+  editingInvoiceExpectedState = null;
   setBankSettledInvoiceEditLock(false);
 
   document.getElementById("updateInvoiceBtn").disabled = true;
@@ -5239,7 +5280,7 @@ function importInvoiceBackup(event){
             continue;
           }
 
-          await window.saveInvoiceToFirestore({
+          await saveInvoiceDirectToFirestore({
             ...invoice
           });
 

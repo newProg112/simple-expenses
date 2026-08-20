@@ -268,13 +268,13 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(javascript).toContain('state.kind === "unauthenticated"');
   });
 
-  it("provides an explicit localhost-only emulator integration switch", () => {
-    expect(firebaseConfigSource).toContain('window.location.hostname === "127.0.0.1"');
-    expect(firebaseConfigSource).toContain('window.location.hostname === "localhost"');
-    expect(firebaseConfigSource).toContain('sessionStorage.getItem("simpleBooksUseFirebaseEmulators")');
+  it("automatically connects every shared Firebase service on local hosts", () => {
+    expect(firebaseConfigSource).toContain("isLocalFirebaseHost(window)");
+    expect(firebaseConfigSource).not.toContain("simpleBooksUseFirebaseEmulators");
     expect(firebaseConfigSource).toContain("connectAuthEmulator(auth");
     expect(firebaseConfigSource).toContain("connectFirestoreEmulator(db");
     expect(firebaseConfigSource).toContain("connectFunctionsEmulator(functions");
+    expect(firebaseConfigSource).toContain("connectStorageEmulator(storage");
   });
 
   it("formats safe metrics, GBP MRR, dates, and statuses", () => {

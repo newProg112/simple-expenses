@@ -12,6 +12,7 @@ const {onCall, onRequest} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const functionsV1 = require("firebase-functions/v1");
 const admin = require("firebase-admin");
+const {FieldValue} = require("firebase-admin/firestore");
 const Stripe = require("stripe");
 const {
   isBillingPortalStatus,
@@ -54,6 +55,18 @@ const {
 const {
   createAdminCustomerAnalyticsHandler,
 } = require("./lib/admin-customer-analytics-handler");
+const {
+  createSourceWithReferenceService,
+} = require("./lib/source-create-service");
+const {
+  createSourceCreateHandlers,
+} = require("./lib/source-create-handlers");
+const {
+  createSourceEditService,
+} = require("./lib/source-edit-service");
+const {
+  createSourceEditHandlers,
+} = require("./lib/source-edit-handlers");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -67,6 +80,19 @@ const {
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
 admin.initializeApp();
+
+const createSourceWithReference = createSourceWithReferenceService({
+  firestore: admin.firestore(),
+  serverTimestamp: () => FieldValue.serverTimestamp(),
+});
+const sourceCreateHandlers = createSourceCreateHandlers(
+    createSourceWithReference,
+);
+const updateSourceWithReference = createSourceEditService({
+  firestore: admin.firestore(),
+  serverTimestamp: () => FieldValue.serverTimestamp(),
+});
+const sourceEditHandlers = createSourceEditHandlers(updateSourceWithReference);
 
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -91,7 +117,7 @@ function defaultUserProfile(user) {
     billingOverride: false,
     billingOverrideReason: "",
     email: user.email || "",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     subscriptionUpdatedAt: null,
   };
 }
@@ -824,6 +850,34 @@ const {
 exports.askBusinessAssistantPreview = askBusinessAssistantPreview;
 exports.askBusinessAssistant = askBusinessAssistant;
 exports.scanBusinessDocument = scanBusinessDocument;
+exports.createInvoiceWithReference = onCall(
+    {
+      region: "us-central1", maxInstances: 10,
+      timeoutSeconds: 30, memory: "256MiB",
+    },
+    sourceCreateHandlers.createInvoiceWithReference,
+);
+exports.createBillWithReference = onCall(
+    {
+      region: "us-central1", maxInstances: 10,
+      timeoutSeconds: 30, memory: "256MiB",
+    },
+    sourceCreateHandlers.createBillWithReference,
+);
+exports.updateInvoiceWithReference = onCall(
+    {
+      region: "us-central1", maxInstances: 10,
+      timeoutSeconds: 30, memory: "256MiB",
+    },
+    sourceEditHandlers.updateInvoiceWithReference,
+);
+exports.updateBillWithReference = onCall(
+    {
+      region: "us-central1", maxInstances: 10,
+      timeoutSeconds: 30, memory: "256MiB",
+    },
+    sourceEditHandlers.updateBillWithReference,
+);
 exports.getMonthlyUsage = onRequest(
     {
       cors: [

@@ -15,8 +15,9 @@ import { loadBusinessInsightsData } from "./business-insights-data.js?v=20260807
 import {
   partialJournalDataMessage
 } from "/resources/js/journal-source.js?v=20260806-insights2";
+import { firebaseFunctionUrl } from "/resources/js/firebase-runtime.js";
 
-const CHECKOUT_FUNCTION_URL = "https://us-central1-simple-books-office.cloudfunctions.net/createCheckoutSession";
+const CHECKOUT_FUNCTION_URL = firebaseFunctionUrl("createCheckoutSession");
 const money = value => value === null ? "Not available" : new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(Number(value) || 0);
 const number = value => new Intl.NumberFormat("en-GB").format(Number(value) || 0);
 let currentUser = null;

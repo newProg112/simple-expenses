@@ -1051,6 +1051,7 @@
     import {
       buildMonthlyUsageView
     } from "./resources/js/monthly-usage.js?v=20260806-demo-pro2";
+    import { firebaseFunctionUrl } from "./resources/js/firebase-runtime.js";
 
     import {
       onAuthStateChanged,
@@ -1084,13 +1085,13 @@
     const checkoutStatus = document.getElementById("checkoutStatus");
 
     const CHECKOUT_FUNCTION_URL =
-      "https://us-central1-simple-books-office.cloudfunctions.net/createCheckoutSession";
+      firebaseFunctionUrl("createCheckoutSession");
     const BILLING_PORTAL_FUNCTION_URL =
-      "https://us-central1-simple-books-office.cloudfunctions.net/createBillingPortalSession";
+      firebaseFunctionUrl("createBillingPortalSession");
     const ENSURE_PROFILE_FUNCTION_URL =
-      "https://us-central1-simple-books-office.cloudfunctions.net/ensureUserProfile";
+      firebaseFunctionUrl("ensureUserProfile");
     const MONTHLY_USAGE_FUNCTION_URL =
-      "https://us-central1-simple-books-office.cloudfunctions.net/getMonthlyUsage";
+      firebaseFunctionUrl("getMonthlyUsage");
 
     let currentUser = null;
     let billingProfile = {};

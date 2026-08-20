@@ -16,8 +16,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
 import {
+  connectStorageEmulator,
+  getStorage
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+import {
   getAnalytics
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+
+import { isLocalFirebaseHost } from "./resources/js/firebase-runtime.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCnQPQiBGOK3FCyU_Xl3j3d9qmjWWGxuo4",
@@ -44,24 +51,17 @@ if(typeof window !== "undefined" && !analyticsHostIsLocal){
 const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app, "us-central1");
+const storage = getStorage(app);
 
 function shouldUseFirebaseEmulators(){
-  if(typeof window === "undefined") return false;
-  const isLocalHost = window.location.hostname === "127.0.0.1" ||
-    window.location.hostname === "localhost";
-
-  try{
-    return isLocalHost &&
-      window.sessionStorage.getItem("simpleBooksUseFirebaseEmulators") === "true";
-  }catch(_error){
-    return false;
-  }
+  return typeof window !== "undefined" && isLocalFirebaseHost(window);
 }
 
 if(shouldUseFirebaseEmulators()){
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
   connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+  connectStorageEmulator(storage, "127.0.0.1", 9199);
   console.log("Firebase emulators enabled for this local browser session");
 }
 
@@ -76,5 +76,6 @@ export {
   auth,
   businessAssistantMode,
   db,
-  functions
+  functions,
+  storage
 };

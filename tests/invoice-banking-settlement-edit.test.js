@@ -66,7 +66,7 @@ const updateExistingInvoiceDeclaration = declarationBetween(
 );
 const updateInvoiceFirestoreDeclaration = declarationBetween(
   invoiceModuleScript,
-  "window.updateInvoiceInFirestore = async function(invoiceId, updatedInvoice){",
+  "window.updateInvoiceInFirestore = async function(invoiceId, updatedInvoice, expectedState){",
   "window.deleteInvoiceFromFirestore = async function(invoiceId){"
 );
 
@@ -132,10 +132,11 @@ function editableInvoiceElements(overrides = {}){
 function compileUpdateExistingInvoice({ currentInvoice,elements,windowOverrides = {} }){
   const alert = vi.fn();
   const setBankSettledInvoiceEditLock = vi.fn();
-  const updateInvoiceInFirestore = vi.fn().mockResolvedValue(true);
+  const updateInvoiceInFirestore = vi.fn().mockResolvedValue({ editedAt:"2026-08-20T12:00:00.000Z" });
   const postInvoiceJournalAfterInvoiceSave = vi.fn().mockResolvedValue(true);
   const context = {
     editingInvoiceId:currentInvoice.id,
+    editingInvoiceExpectedState:{ expected:true },
     bankSettlementSourceStatePromise,
     invoiceBusinessLogicPromise,
     window:{
@@ -270,9 +271,13 @@ describe("Bank-settled invoice editing", () => {
       "reopenInvoice",
       {
         bankSettlementSourceStatePromise,
-        window:{ getInvoicesFromFirestore:vi.fn().mockResolvedValue([invoice]) },
+        window:{
+          getInvoicesFromFirestore:vi.fn().mockResolvedValue([invoice]),
+          captureInvoiceEditExpectedState:vi.fn(() => ({ expected:true }))
+        },
         localStorage:{ getItem:vi.fn(() => "[]") },
         editingInvoiceId:null,
+        editingInvoiceExpectedState:null,
         document:{ getElementById:id => elements[id] },
         populateInvoiceForm,
         setBankSettledInvoiceEditLock,
@@ -319,9 +324,10 @@ describe("Bank-settled invoice editing", () => {
         total:120,
         date:"14/08/2026",
         projectId:"project-1"
-      })
+      }),
+      { expected:true }
     );
-    expect(postInvoiceJournalAfterInvoiceSave).toHaveBeenCalledOnce();
+    expect(postInvoiceJournalAfterInvoiceSave).not.toHaveBeenCalled();
     expect(alert).toHaveBeenCalledWith("Invoice updated.");
   });
 
@@ -334,9 +340,9 @@ describe("Bank-settled invoice editing", () => {
 
     await updateExistingInvoice();
 
-    expect(updateInvoiceInFirestore).toHaveBeenCalledWith("ordinary",expect.objectContaining({
-      amount:708.33,vat:141.67,total:850
-    }));
+    expect(updateInvoiceInFirestore).toHaveBeenCalledWith(
+      "ordinary",expect.objectContaining({amount:708.33,vat:141.67,total:850}),{expected:true}
+    );
   });
 
   it("does not rewrite an already-inconsistent settled invoice", async () => {
@@ -363,45 +369,28 @@ describe("Bank-settled invoice editing", () => {
     expect(currentInvoice).toEqual(originalInvoice);
   });
 
-  it("transactionally rejects a direct save-layer bypass in the authenticated user path", async () => {
-    const alert = vi.fn();
-    const transactionUpdate = vi.fn();
-    const runTransaction = vi.fn(async (_db,callback) => callback({
-      get:vi.fn().mockResolvedValue({
-        exists:() => true,
-        data:() => ({ bankSettlement:settlementMarker })
-      }),
-      update:transactionUpdate
-    }));
-    const doc = vi.fn((_db,...segments) => ({ path:segments.join("/") }));
+  it("routes a direct save-layer call through the server gateway with expected state", async () => {
+    const updateInvoiceWithReference = vi.fn().mockRejectedValue(Object.assign(
+      new Error(BANK_SETTLEMENT_ACCOUNTING_MESSAGE),
+      { code:"functions/failed-precondition",details:{ reason:"bank-settled-source" } }
+    ));
     const window = { currentUser:{ uid:"user-1" } };
     const updateInvoiceInFirestore = compileDeclaration(
       updateInvoiceFirestoreDeclaration,
       "window.updateInvoiceInFirestore",
       {
         window,
-        alert,
-        doc,
-        db:{},
-        runTransaction,
-        isBankingSettledSource,
-        BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
+        updateInvoiceWithReference,
+        createRequestId:vi.fn(() => "123e4567-e89b-42d3-a456-426614174000"),
         console
       }
     );
 
     await expect(
-      updateInvoiceInFirestore("settled",{ total:999 })
-    ).resolves.toBe(false);
-
-    expect(doc).toHaveBeenCalledWith(
-      expect.anything(),
-      "users",
-      "user-1",
-      "invoices",
-      "settled"
-    );
-    expect(transactionUpdate).not.toHaveBeenCalled();
-    expect(alert).toHaveBeenCalledWith(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+      updateInvoiceInFirestore("settled",{ total:999 },{ bankSettlement:settlementMarker })
+    ).rejects.toMatchObject({ details:{ reason:"bank-settled-source" } });
+    expect(updateInvoiceWithReference).toHaveBeenCalledWith(expect.objectContaining({
+      sourceId:"settled",payload:{total:999},expectedState:{bankSettlement:settlementMarker}
+    }));
   });
 });

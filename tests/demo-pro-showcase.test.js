@@ -66,8 +66,8 @@ describe("demo Pro showcase integration contracts", () => {
     expect(account).toContain("Shared demo account settings are locked and were not changed.");
     expect(account).toContain("Shared demo logo settings are locked.");
     expect(rules).toContain("allow update, delete: if isOwner(uid) && resource.data.demoMode != true;");
-    expect(rules).toContain("match /users/{uid}/{document=**}");
-    expect(rules).toContain("allow read, write: if isOwner(uid);");
+    expect(rules).toContain("match /users/{uid}/{collectionName}/{document=**}");
+    expect(rules).toContain("collectionName != 'referenceKeys'");
   });
 
   it("rejects authoritative demo checkout, portal, and webhook billing updates", () => {

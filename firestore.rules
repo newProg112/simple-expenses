@@ -18,8 +18,26 @@ service cloud.firestore {
       allow update, delete: if isOwner(uid) && resource.data.demoMode != true;
     }
 
-    match /users/{uid}/{document=**} {
-      allow read, write: if isOwner(uid);
+    // Registry claims are owner-readable for diagnostics; all coordination
+    // writes and internal idempotency markers remain Admin SDK only.
+    match /users/{uid}/referenceKeys/{key} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    match /users/{uid}/referenceCreateRequests/{requestId} {
+      allow read, write: if false;
+    }
+
+    match /users/{uid}/referenceEditRequests/{requestId} {
+      allow read, write: if false;
+    }
+
+    match /users/{uid}/{collectionName}/{document=**} {
+      allow read, write: if isOwner(uid)
+        && collectionName != 'referenceKeys'
+        && collectionName != 'referenceCreateRequests'
+        && collectionName != 'referenceEditRequests';
     }
 
     match /userProfiles/{uid} {

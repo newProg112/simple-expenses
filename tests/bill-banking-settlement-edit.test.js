@@ -55,14 +55,16 @@ function compileEditBill(bill){
     isBankingSettledSource,BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE,
     BANK_SETTLED_BILL_MUTATION_ERROR_CODE,alert,getCurrentUser:vi.fn(async () => null),
     readBillRecordWithSettlementGuard,db:{},doc:vi.fn(),getDoc:vi.fn(),
+    billEditSourceId:item => String(item?.sourceId ?? item?.id ?? ""),
     saveBills:vi.fn(),loadBills:vi.fn(),renderBills:vi.fn(),
     clearPendingScannedBillFile:vi.fn(),clearBillAiApplyFeedback:vi.fn(),
     setBankSettledBillEditLock,normaliseVatRateOptionValue:vi.fn(() => "0.20"),
-    renderProjectDropdown:vi.fn(),setAttachmentStatus:vi.fn(),document:{ getElementById:id => elements[id] }
+    renderProjectDropdown:vi.fn(),setAttachmentStatus:vi.fn(),sourceEditExpectedState:vi.fn(() => ({expected:true})),
+    document:{ getElementById:id => elements[id] }
   };
   const compiled = Function(
     ...Object.keys(context),
-    `"use strict";let editingBillId=null;${editDeclaration};` +
+    `"use strict";let editingBillId=null;let editingBillExpectedState=null;${editDeclaration};` +
       "return {editBill,getEditingBillId:()=>editingBillId};"
   )(...Object.values(context));
   return { ...compiled,alert,elements,setBankSettledBillEditLock };
@@ -109,12 +111,17 @@ function compileSaveBill({ persistedRead,transactionSave }){
   const mocks = {
     rejectBankSettledBillEdit:vi.fn(),loadBills:vi.fn(async () => []),renderBills:vi.fn(),
     uploadAttachment:vi.fn(async () => uploaded),deleteAttachment:vi.fn(async () => {}),
-    postBillJournalAfterSave:vi.fn(),setAttachmentStatus:vi.fn()
+    postBillJournalAfterSave:vi.fn(),setAttachmentStatus:vi.fn(),
+    updateBillWithReference:vi.fn(async ({payload}) => {
+      await transactionSave(payload);
+      return { data:{ editedAt:"2026-08-20T12:00:00.000Z" } };
+    })
   };
   const context = {
-    editingBillId:"bill-1",currentBills:[existingBill],selectedAttachment:{ name:"replacement.pdf" },
+    editingBillId:"bill-1",editingBillExpectedState:{expected:true},currentBills:[existingBill],selectedAttachment:{ name:"replacement.pdf" },
     pendingScannedBillFile:null,isBankingSettledSource,BANK_SETTLED_BILL_MUTATION_ERROR_CODE,
     readBillRecordWithSettlementGuard:vi.fn(persistedRead),
+    billEditSourceId:item => String(item?.sourceId ?? item?.id ?? ""),
     saveBillRecordWithSettlementGuard:vi.fn(transactionSave),sourceStatusForSave:(_record,status) => status,
     document:{ getElementById:id => elements[id] },alert:vi.fn(),getCurrentUser:vi.fn(async () => ({ uid:"user-1" })),
     db:{},doc:vi.fn(),getDoc:vi.fn(),runTransaction:vi.fn(),calculateBillAmounts:vi.fn(() => ({
@@ -176,6 +183,25 @@ function deleteOptions(testFixture){
 }
 
 describe("bank-settled Bill edit and delete protection",() => {
+  it.each([
+    [1787211129743,"number"],
+    ["legacy-payload-id","string"],
+    [undefined,"undefined"]
+  ])("preserves persisted Bill id %s while carrying sourceId separately",async(persistedId,expectedType)=>{
+    const persisted={supplier:"Supplier",status:"Unpaid"};
+    if(persistedId !== undefined) persisted.id=persistedId;
+    const testFixture=firestoreFixture(persisted);
+    const guarded=await readBillRecordWithSettlementGuard({
+      db:{},userId:"user-1",billId:"legacy-document-id",
+      services:{doc:(_db,...parts)=>({path:parts.join("/")}),getDoc:async()=>({exists:()=>true,data:()=>structuredClone(persisted)})}
+    });
+    expect(guarded.sourceId).toBe("legacy-document-id");
+    expect(typeof guarded.id).toBe(expectedType);
+    if(persistedId === undefined) expect(guarded).not.toHaveProperty("id");
+    else expect(guarded.id).toBe(persistedId);
+    expect(testFixture.documents.size).toBe(1);
+  });
+
   it("marks a frozen Bill Paid after Unmatch without mutating the read-only object",async () => {
     const afterUnmatch = {
       id:"bill-1",supplier:"Supplier",status:"Unpaid",previousBankSettlement:settlementMarker
@@ -429,9 +455,8 @@ describe("bank-settled Bill edit and delete protection",() => {
     expect(saveDeclaration.indexOf("readBillRecordWithSettlementGuard({"))
       .toBeLessThan(saveDeclaration.indexOf("uploadAttachment(\n            selectedAttachment"));
     expect(saveDeclaration).toContain("existingBill ? createRequestId() : \"\"");
-    expect(saveDeclaration).toMatch(/uploadedReplacementPath[\s\S]*?saveBillRecordWithSettlementGuard\([\s\S]*?deleteAttachment\(uploadedReplacementPath\)/);
-    expect(saveDeclaration.indexOf("saveBillRecordWithSettlementGuard({"))
-      .toBeLessThan(saveDeclaration.indexOf("postBillJournalAfterSave("));
+    expect(saveDeclaration).toMatch(/uploadedReplacementPath[\s\S]*?updateBillWithReference\([\s\S]*?deleteAttachment\(uploadedReplacementPath\)/);
+    expect(saveDeclaration).not.toMatch(/existingBill[\s\S]*?saveBillRecordWithSettlementGuard\([\s\S]*?postBillJournalAfterSave\(/);
     expect(html).toContain("deleteBillRecordWithSettlementGuard({");
     expect(html).toMatch(/deleteBillRecordWithSettlementGuard\([\s\S]*?currentBills = currentBills\.filter[\s\S]*?deleteAttachment\(billToDelete\.attachmentPath\)/);
   });

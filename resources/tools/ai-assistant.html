@@ -843,6 +843,7 @@
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
     import { buildMonthlyUsageView } from "../js/monthly-usage.js?v=20260806-demo-pro2";
+    import { firebaseFunctionUrl } from "../js/firebase-runtime.js";
     import { trackAiQuestionAsked } from "../../assets/analytics-events.js?v=20260802-analytics1";
     import { createActivityIdempotencyKey, logActivityEvent } from "../../assets/activity-logger.js?v=20260802-admin5a";
 
@@ -874,7 +875,7 @@
       const usageReset = document.getElementById("usageReset");
       const usageDescription = document.getElementById("usageDescription");
       const monthlyUsageFunctionUrl =
-        "https://us-central1-simple-books-office.cloudfunctions.net/getMonthlyUsage";
+        firebaseFunctionUrl("getMonthlyUsage");
       const maxCharacters = 2000;
       const allowedSources = new Map([
         ["Invoices|/resources/tools/invoice-generator.html", "/resources/tools/invoice-generator.html"],

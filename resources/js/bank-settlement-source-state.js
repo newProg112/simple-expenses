@@ -77,7 +77,7 @@ export async function readBillRecordWithSettlementGuard(options = {}){
   if(!snapshotExists(snapshot)) throw new Error("Could not find this bill.");
   const bill = snapshot.data();
   if(isBankingSettledSource(bill)) throw bankSettledBillMutationError();
-  return Object.freeze({ ...bill,id:billId });
+  return Object.freeze({ ...bill,sourceId:billId });
 }
 
 export async function saveBillRecordWithSettlementGuard(options = {}){
