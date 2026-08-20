@@ -9,6 +9,7 @@
     "test:firestore:rules": "firebase emulators:exec --project demo-simple-books --only firestore \"node tests/firestore-rules-emulator.cjs\"",
     "test:functions:create:emulator": "firebase emulators:exec --project simple-books-office --only auth,firestore,functions \"node tests/functions-source-create-emulator.cjs\"",
     "test:functions:edit:emulator": "firebase emulators:exec --project simple-books-office --only auth,firestore,functions \"node tests/functions-source-edit-emulator.cjs\"",
+    "test:reference-backfill:emulator": "firebase emulators:exec --project demo-simple-books --only firestore \"node tests/legacy-reference-backfill-emulator.cjs\"",
     "test": "vitest run",
     "test:guides:hosting": "firebase emulators:exec --only hosting:main \"node scripts/smoke-guides-hosting.mjs\"",
     "test:watch": "vitest"

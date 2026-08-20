@@ -33,11 +33,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /users/{uid}/referenceBackfillMigrations/{migrationId} {
+      allow read, write: if false;
+    }
+
     match /users/{uid}/{collectionName}/{document=**} {
       allow read, write: if isOwner(uid)
         && collectionName != 'referenceKeys'
         && collectionName != 'referenceCreateRequests'
-        && collectionName != 'referenceEditRequests';
+        && collectionName != 'referenceEditRequests'
+        && collectionName != 'referenceBackfillMigrations';
     }
 
     match /userProfiles/{uid} {

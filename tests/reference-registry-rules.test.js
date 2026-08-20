@@ -11,8 +11,8 @@ describe("server-owned reference rule boundary",() => {
     expect(block).toContain("allow write: if false;");
   });
 
-  it("denies all browser access to internal idempotency markers",() => {
-    const block=rules.match(/match \/users\/\{uid\}\/referenceCreateRequests\/\{requestId\} \{([\s\S]*?)\n    \}/)?.[1] || "";
+  it.each(["referenceCreateRequests","referenceEditRequests","referenceBackfillMigrations"])("denies all browser access to internal %s documents",collection => {
+    const block=rules.match(new RegExp(`match /users/\\{uid\\}/${collection}/\\{[^}]+\\} \\{([\\s\\S]*?)\\n    \\}`))?.[1] || "";
     expect(block).toContain("allow read, write: if false;");
   });
 
@@ -20,5 +20,7 @@ describe("server-owned reference rule boundary",() => {
     expect(rules).toContain("match /users/{uid}/{collectionName}/{document=**}");
     expect(rules).toContain("collectionName != 'referenceKeys'");
     expect(rules).toContain("collectionName != 'referenceCreateRequests'");
+    expect(rules).toContain("collectionName != 'referenceEditRequests'");
+    expect(rules).toContain("collectionName != 'referenceBackfillMigrations'");
   });
 });
