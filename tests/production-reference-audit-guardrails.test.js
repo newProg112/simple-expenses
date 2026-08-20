@@ -168,6 +168,32 @@ describe("production reference audit Step 2B guardrails",()=>{
     }finally{await rm(directory,{recursive:true,force:true});}
   });
 
+  it("publishes only a clearly incomplete diagnostic artifact after a read failure",async()=>{
+    const directory=await mkdtemp(join(tmpdir(),"reference-audit-read-failure-"));
+    try{
+      const output=join(directory,"audit.json");
+      const readFailure=Object.freeze({
+        readCollectionGroupPage:()=>Promise.reject(Object.assign(new Error("permission denied"),{code:7})),
+        readUserCollectionPage:()=>Promise.resolve({documents:[],nextCursor:null})
+      });
+      await expect(main([
+        "--project","demo-simple-books","--output",output
+      ],{FIRESTORE_EMULATOR_HOST:"127.0.0.1:8080"},{
+        initializeApp:()=>({delete:async()=>{}}),firestore:{},createAdapter:()=>readFailure,
+      })).rejects.toMatchObject({code:"audit-incomplete"});
+      const files=await readdir(directory);
+      expect(files).toHaveLength(1);
+      expect(files[0]).toMatch(/^audit\.json\.incomplete-/);
+      const artifact=JSON.parse(await readFile(join(directory,files[0]),"utf8"));
+      expect(artifact.artifact.status).toBe("incomplete");
+      expect(artifact.scan).toMatchObject({complete:false,status:"incomplete",stopReason:"read-or-census-failure"});
+      expect(artifact.blockers).toEqual(expect.arrayContaining([
+        expect.objectContaining({code:"uid-discovery-read-failed",errorCategory:"permission-denied",errorCode:"7"})
+      ]));
+      await expect(readFile(output,"utf8")).rejects.toMatchObject({code:"ENOENT"});
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
   it("keeps the guard layer structurally separate from Firestore writes and Step 1 apply",async()=>{
     const paths=[
       "../scripts/audit-production-reference-registry.cjs",

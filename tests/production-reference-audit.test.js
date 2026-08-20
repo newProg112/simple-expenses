@@ -65,6 +65,26 @@ function readOnlyAdapter(entries,{reversePages=false,failGroup="",failUserCollec
   });
 }
 
+function failingDiscoveryAdapter(error){
+  const page=()=>Promise.resolve({documents:[],nextCursor:null});
+  return Object.freeze({
+    readCollectionGroupPage(collection){
+      return collection==="invoices"?Promise.reject(error):page();
+    },
+    readUserCollectionPage:page
+  });
+}
+
+async function discoveryFailure(error){
+  const report=await createProductionReferenceAudit(failingDiscoveryAdapter(error),{
+    projectId:"demo-simple-books",pageSize:2
+  });
+  return {
+    report,
+    blocker:report.blockers.find(item=>item.code==="uid-discovery-read-failed")
+  };
+}
+
 async function registry(uid,type,reference,overrides={}){
   const key=await referenceRegistryKey(type,reference);
   return document(`users/${uid}/referenceKeys/${key.registryDocumentId}`,{
@@ -265,6 +285,75 @@ describe("production reference audit results",()=>{
       "uid-discovery-read-failed","incomplete-uid-census","uid-collection-read-failed"
     ]));
     expect(JSON.stringify(report)).not.toMatch(/private|Supplier secret|customer@example/);
+  });
+
+  it("retains only safe structured read-error diagnostics",async()=>{
+    const numeric=await discoveryFailure(Object.assign(new Error("denied"),{code:7}));
+    expect(numeric.blocker).toMatchObject({
+      errorCategory:"permission-denied",errorCode:"7",errorName:"Error",errorStatus:7
+    });
+
+    const stringCode=await discoveryFailure(Object.assign(new Error("denied"),{code:"PERMISSION_DENIED"}));
+    expect(stringCode.blocker).toMatchObject({errorCategory:"permission-denied",errorCode:"permission-denied"});
+
+    const generic=await discoveryFailure(new Error("an unexplained failure"));
+    expect(generic.blocker).toMatchObject({errorCategory:"unknown",errorName:"Error"});
+    expect(generic.blocker).not.toHaveProperty("errorCode");
+    expect(generic.blocker).not.toHaveProperty("errorStatus");
+  });
+
+  it("classifies evidenced Firestore, API, database, and network failures",async()=>{
+    const cases=[
+      [Object.assign(new Error("request was unauthenticated"),{code:16}),"unauthenticated"],
+      [Object.assign(new Error("query requires an index; create_index at https://example.test/?secret=x"),
+        {code:"failed-precondition"}),"missing-index"],
+      [Object.assign(new Error("database does not exist"),{code:"not-found"}),"database-not-found"],
+      [Object.assign(new Error("Firestore API has not been used or it is disabled"),{code:7}),"api-disabled"],
+      [Object.assign(new Error("deadline exceeded"),{code:4}),"network-timeout"],
+      [Object.assign(new Error("getaddrinfo failed"),{code:"ENOTFOUND"}),"dns"],
+      [Object.assign(new Error("service unavailable"),{code:14}),"unavailable"],
+      [Object.assign(new Error("gateway unavailable"),{response:{status:503}}),"unavailable"],
+      [Object.assign(new Error("invalid query"),{code:3}),"invalid-query"]
+    ];
+    for(const [error,category] of cases){
+      expect((await discoveryFailure(error)).blocker.errorCategory).toBe(category);
+    }
+    const unsupportedPrecondition=await discoveryFailure(Object.assign(new Error("precondition failed"),{
+      code:"failed-precondition"
+    }));
+    expect(unsupportedPrecondition.blocker.errorCategory).toBe("unknown");
+  });
+
+  it("never serializes read-error messages, secrets, paths, references, or opaque identifiers",async()=>{
+    const secrets=[
+      "Bearer top-secret-access-token",
+      "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjdXN0b21lciJ9.signature",
+      "AIzaSyA12345678901234567890123456789012",
+      "principal@example.test",
+      "C:\\Users\\person\\AppData\\credentials.json",
+      "/home/person/.config/gcloud/application_default_credentials.json",
+      "users/customer-42/invoices/invoice-private-reference",
+      "INV-PRIVATE-00991",
+      "\"Private Customer Limited\"",
+      "https://example.test/create-index?token=secret-id",
+      "550e8400e29b41d4a716446655440000"
+    ];
+    const {report,blocker}=await discoveryFailure(Object.assign(new Error(secrets.join(" | ")),{
+      code:"AIzaSyA12345678901234567890123456789012",name:"FirebaseError"
+    }));
+    expect(blocker).toMatchObject({errorCategory:"missing-index",errorName:"FirebaseError"});
+    expect(blocker).not.toHaveProperty("errorCode");
+    const serialized=JSON.stringify(report);
+    for(const secret of secrets)expect(serialized).not.toContain(secret);
+    expect(serialized).not.toMatch(/Bearer|eyJhbGci|AIza|principal@example|Private Customer|INV-PRIVATE|credentials\.json|token=secret/);
+  });
+
+  it("keeps the empty successful audit hash golden values unchanged",async()=>{
+    const report=await audit([]);
+    expect(report.hashes).toEqual({
+      censusHash:"6f93429b0b380964b57b782ed7d4653fc01b362789b8e5b75c28bf6095786d1b",
+      overallAuditHash:"81461570d7a3dd347f9f7f3b50b2354b10f2c0f60483a7ba41bffcc8802fbdb7"
+    });
   });
 
   it("stops at explicit read limits without changing stable hashes for generous guard metadata",async()=>{

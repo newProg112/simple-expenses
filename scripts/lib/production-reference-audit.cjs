@@ -37,6 +37,22 @@ const DISCOVERY_COLLECTIONS = Object.freeze([
   COLLECTIONS.registry,
   COLLECTIONS.metadata,
 ]);
+const SAFE_READ_ERROR_CODES = new Set([
+  "aborted", "access-not-configured", "already-exists", "cancelled", "data-loss",
+  "deadline-exceeded", "eai-again", "econnrefused", "econnreset", "enotfound", "etimedout",
+  "failed-precondition", "internal", "invalid-argument", "not-found", "out-of-range",
+  "permission-denied", "resource-exhausted", "service-disabled", "unauthenticated",
+  "unavailable", "unimplemented", "unknown",
+]);
+const SAFE_READ_ERROR_NAMES = new Map([
+  ["aborterror", "AbortError"],
+  ["error", "Error"],
+  ["fetcherror", "FetchError"],
+  ["firebaseerror", "FirebaseError"],
+  ["gaxioserror", "GaxiosError"],
+  ["googleautherror", "GoogleAuthError"],
+  ["typeerror", "TypeError"],
+]);
 
 function plainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value) &&
@@ -201,8 +217,71 @@ function issue(code, details = {}) {
   return {code, ...details};
 }
 
-function safeReadErrorCode(error) {
-  return String(error?.code || error?.name || "read-error").replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 80);
+function safeErrorCode(value) {
+  if (Number.isInteger(value) && value >= 0 && value <= 599) return String(value);
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase().replaceAll("_", "-");
+  if (SAFE_READ_ERROR_CODES.has(normalized)) return normalized;
+  const prefixed = /^(auth|firebase|firestore|google|grpc)\/([a-z0-9.-]+)$/.exec(normalized);
+  return prefixed && SAFE_READ_ERROR_CODES.has(prefixed[2]) ? `${prefixed[1]}/${prefixed[2]}` : null;
+}
+
+function safeErrorName(value) {
+  if (typeof value !== "string") return null;
+  return SAFE_READ_ERROR_NAMES.get(value.trim().toLowerCase()) || null;
+}
+
+function safeNumericStatus(error) {
+  const candidates = [error?.status, error?.statusCode, error?.response?.status, error?.code];
+  return candidates.find((value) => Number.isInteger(value) && value >= 0 && value <= 599) ?? null;
+}
+
+function errorEvidence(error) {
+  const candidates = [
+    error?.message,
+    error?.details,
+    error?.cause?.message,
+    error?.response?.data?.error?.message,
+  ];
+  return candidates.filter((value) => typeof value === "string")
+      .map((value) => value.slice(0, 4096)).join("\n").toLowerCase();
+}
+
+function readErrorCategory(code, status, evidence) {
+  const bareCode = String(code || "").split("/").at(-1);
+  if (/access[_ -]?not[_ -]?configured|service[_ -]?disabled/.test(evidence) ||
+      /(?:firestore|datastore).{0,80}(?:api|service).{0,80}(?:disabled|not enabled|has not been used)/.test(evidence) ||
+      ["access-not-configured", "service-disabled"].includes(bareCode)) return "api-disabled";
+  if (/(?:database|firestore).{0,100}(?:not found|does not exist)|(?:not found|does not exist).{0,100}database/.test(evidence)) {
+    return "database-not-found";
+  }
+  if (/requires? (?:a |an )?(?:composite |collection group )?index|index (?:is )?(?:required|missing)|missing (?:a )?required index|create[_ -]?index/.test(evidence)) {
+    return "missing-index";
+  }
+  if (bareCode === "unauthenticated" || status === 16 || status === 401 ||
+      /unauthenticated|invalid credentials?|could not load (?:the )?default credentials?/.test(evidence)) return "unauthenticated";
+  if (bareCode === "permission-denied" || status === 7 || status === 403 ||
+      /permission denied|insufficient permissions?/.test(evidence)) return "permission-denied";
+  if (["enotfound", "eai-again"].includes(bareCode) || /getaddrinfo|dns lookup/.test(evidence)) return "dns";
+  if (["deadline-exceeded", "etimedout"].includes(bareCode) || status === 4 || status === 408 || status === 504 ||
+      /timed? out|deadline exceeded/.test(evidence)) return "network-timeout";
+  if (["unavailable", "econnrefused", "econnreset"].includes(bareCode) || status === 14 ||
+      status === 502 || status === 503) return "unavailable";
+  if (bareCode === "invalid-argument" || status === 3 || /invalid (?:firestore )?query/.test(evidence)) return "invalid-query";
+  return "unknown";
+}
+
+function safeReadErrorDiagnostic(error) {
+  const errorCode = safeErrorCode(error?.code);
+  const errorName = safeErrorName(error?.name);
+  const errorStatus = safeNumericStatus(error);
+  const diagnostic = {
+    errorCategory: readErrorCategory(errorCode, errorStatus, errorEvidence(error)),
+  };
+  if (errorCode !== null) diagnostic.errorCode = errorCode;
+  if (errorName !== null) diagnostic.errorName = errorName;
+  if (errorStatus !== null) diagnostic.errorStatus = errorStatus;
+  return diagnostic;
 }
 
 function exactUserDocument(path, collectionName) {
@@ -270,7 +349,7 @@ async function discoverUidUniverse(adapter, pageSize, guard) {
         };
         throw error;
       }
-      failures.push(issue("uid-discovery-read-failed", {collectionName, errorCode: safeReadErrorCode(error)}));
+      failures.push(issue("uid-discovery-read-failed", {collectionName, ...safeReadErrorDiagnostic(error)}));
       sources[collectionName] = {documentsRead, uidsDiscovered: sourceUids.size, complete: false};
       continue;
     }
@@ -432,7 +511,7 @@ async function auditUid(adapter, uid, pageSize, metrics, guard) {
       if (error instanceof AuditSafetyLimitError) throw error;
       collectionResults[collectionName] = [];
       readFailures.push(issue("uid-collection-read-failed", {
-        uid, collectionName, errorCode: safeReadErrorCode(error),
+        uid, collectionName, ...safeReadErrorDiagnostic(error),
       }));
     }
   }
