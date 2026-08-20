@@ -7,12 +7,13 @@ const {
   REGISTRY_SCHEMA_VERSION,
   REGISTRY_STATES,
 } = require("./reference-registry-service");
-
-const BACKFILL_VERSION = "phase3c3c-v1";
-const BACKFILL_SCHEMA_VERSION = 1;
-const CONFLICT_SOURCE_ID = "__legacy_conflict__";
-const BACKFILL_REQUEST_ID = "00000000-0000-433c-833c-000000000001";
-const MIGRATION_COLLECTION = "referenceBackfillMigrations";
+const {
+  BACKFILL_REQUEST_ID,
+  BACKFILL_SCHEMA_VERSION,
+  BACKFILL_VERSION,
+  CONFLICT_SOURCE_ID,
+  MIGRATION_COLLECTION,
+} = require("./legacy-reference-backfill-constants");
 const RECORD_TYPES = Object.freeze([
   Object.freeze({recordType: "invoice", collectionName: "invoices"}),
   Object.freeze({recordType: "bill", collectionName: "bills"}),

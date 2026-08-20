@@ -1,0 +1,15 @@
+"use strict";
+
+const BACKFILL_VERSION = "phase3c3c-v1";
+const BACKFILL_SCHEMA_VERSION = 1;
+const CONFLICT_SOURCE_ID = "__legacy_conflict__";
+const BACKFILL_REQUEST_ID = "00000000-0000-433c-833c-000000000001";
+const MIGRATION_COLLECTION = "referenceBackfillMigrations";
+
+module.exports = Object.freeze({
+  BACKFILL_REQUEST_ID,
+  BACKFILL_SCHEMA_VERSION,
+  BACKFILL_VERSION,
+  CONFLICT_SOURCE_ID,
+  MIGRATION_COLLECTION,
+});
