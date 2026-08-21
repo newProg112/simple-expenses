@@ -2674,6 +2674,7 @@
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
   import { createRequestId } from "../js/request-id.js?v=20260728-phase4d";
   import { sourceEditExpectedState } from "../js/source-edit-state.js?v=20260820-phase3c3b";
+  import { importInvoicesWithProtectedCreate } from "../js/invoice-import.js?v=20260821-phase3c-import";
 
   const ledgerFirestoreApi = { doc, getDoc, setDoc };
   const createInvoiceWithReference = httpsCallable(
@@ -2994,19 +2995,6 @@
     });
   };
 
-  async function saveInvoiceDirectToFirestore(invoice){
-    if(!window.currentUser){
-      alert("Please log in first.");
-      return;
-    }
-
-    const invoiceRef = await addDoc(
-      collection(db, "users", window.currentUser.uid, "invoices"),
-      invoice
-    );
-    return invoiceRef.id;
-  }
-
   window.saveInvoiceToFirestore = async function(invoice){
     if(!window.currentUser){
       alert("Please log in first.");
@@ -3080,6 +3068,16 @@
     );
 
     console.log("Invoice status updated in Firestore");
+  };
+
+  window.importInvoicesToFirestore = async function(invoices, existingInvoices){
+    return importInvoicesWithProtectedCreate({
+      invoices,
+      existingInvoices,
+      createInvoice: invoice => window.saveInvoiceToFirestore(invoice),
+      updateStatus: (invoiceId, status) =>
+        window.updateInvoiceStatusInFirestore(invoiceId, status)
+    });
   };
 
   window.updateInvoiceInFirestore = async function(invoiceId, updatedInvoice, expectedState){
@@ -5306,41 +5304,29 @@ function importInvoiceBackup(event){
             ? await window.getInvoicesFromFirestore()
             : [];
 
-        const existingInvoiceNumbers = new Set(
+        const result = await window.importInvoicesToFirestore(
+          backup.invoices,
           existingInvoices
-            .map(invoice => (invoice.invoiceNo || "").toLowerCase())
-            .filter(Boolean)
         );
-
-        let importedCount = 0;
-        let skippedCount = 0;
-
-        for(const invoice of backup.invoices){
-          const invoiceNo =
-            (invoice.invoiceNo || "").toLowerCase();
-
-          if(invoiceNo && existingInvoiceNumbers.has(invoiceNo)){
-            skippedCount += 1;
-            continue;
-          }
-
-          await saveInvoiceDirectToFirestore({
-            ...invoice
-          });
-
-          if(invoiceNo){
-            existingInvoiceNumbers.add(invoiceNo);
-          }
-
-          importedCount += 1;
-        }
 
         alert(
-          "Backup imported successfully. " +
-          importedCount +
+          "Backup import complete. " +
+          result.importedCount +
           " invoices imported to Firestore." +
-          (skippedCount ? " " + skippedCount + " duplicates skipped." : "")
+          (result.skippedDuplicateCount
+            ? " " + result.skippedDuplicateCount + " duplicates skipped."
+            : "") +
+          (result.failedCount
+            ? " " + result.failedCount + " records could not be imported."
+            : "") +
+          (result.statusRestoreFailedCount
+            ? " " + result.statusRestoreFailedCount + " Paid statuses could not be restored."
+            : "")
         );
+
+        for(const failure of result.failures){
+          console.error("Invoice backup record import failed", failure.reference, failure.error);
+        }
 
         await renderRecentInvoices();
         return;

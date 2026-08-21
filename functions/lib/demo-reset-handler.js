@@ -134,6 +134,7 @@ function createDemoResetHandler(options) {
       seedVersion: seedResult.seedVersion,
       clearedDocuments: clearResult.deletedDocuments,
       writtenDocuments: seedResult.writtenDocuments,
+      referenceClaims: seedResult.referenceClaims,
       committedBatches: {
         clearing: clearResult.committedBatches,
         seeding: seedResult.committedBatches,

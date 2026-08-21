@@ -6,6 +6,8 @@ const path = require("node:path");
 const {pathToFileURL} = require("node:url");
 const {access} = require("node:fs/promises");
 const {HttpsError} = require("firebase-functions/v2/https");
+const {FieldValue} = require("firebase-admin/firestore");
+const {referenceRegistryKey} = require("./reference-registry-key");
 const {
   AdminConfigurationError,
   adminAuthorizationDecision,
@@ -38,6 +40,8 @@ function createAdminFirestoreServices(firestore) {
         constraint.value,
     ),
     writeBatch: (db) => db.batch(),
+    referenceRegistryKey,
+    serverTimestamp: () => FieldValue.serverTimestamp(),
   };
 }
 
@@ -218,6 +222,7 @@ function createAdminDemoSeedHandler(options) {
       seedVersion: seedResult.seedVersion,
       clearedDocuments: clearResult.deletedDocuments,
       writtenDocuments: seedResult.writtenDocuments,
+      referenceClaims: seedResult.referenceClaims,
       committedBatches: {
         clearing: clearResult.committedBatches,
         seeding: seedResult.committedBatches,

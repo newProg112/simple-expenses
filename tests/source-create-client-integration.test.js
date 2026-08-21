@@ -27,10 +27,12 @@ describe("create-only callable integration",() => {
     expect(history).not.toContain("postInvoiceJournalAfterInvoiceSave(");
   });
 
-  it("leaves Invoice backup import on its existing direct Firestore path",() => {
+  it("routes Invoice backup import through the protected create adapter",() => {
     const restore=between(invoice,"function importInvoiceBackup(event){","function clearInvoiceHistory");
-    expect(restore).toContain("saveInvoiceDirectToFirestore({");
-    expect(restore).not.toContain("window.saveInvoiceToFirestore({");
+    expect(invoice).toContain('import { importInvoicesWithProtectedCreate } from "../js/invoice-import.js');
+    expect(invoice).toContain("createInvoice: invoice => window.saveInvoiceToFirestore(invoice)");
+    expect(restore).toContain("window.importInvoicesToFirestore(");
+    expect(invoice).not.toContain("saveInvoiceDirectToFirestore");
   });
 
   it("routes new Bills through create and normal edits through edit callables",() => {
@@ -62,7 +64,7 @@ describe("edit and delete callable integration",() => {
     expect(save).not.toContain("postInvoiceJournalAfterInvoiceSave(");
   });
 
-  it("captures expected state for edits and deletes while leaving status, import, and Demo paths unchanged",() => {
+  it("captures expected state for edits and deletes while preserving narrow status updates",() => {
     expect(invoiceModule).toContain('import { sourceEditExpectedState } from "../js/source-edit-state.js');
     expect(invoiceModule).toContain('window.captureInvoiceEditExpectedState = invoice =>');
     expect(invoiceModule).toContain('sourceEditExpectedState("invoice",invoice)');
@@ -74,7 +76,7 @@ describe("edit and delete callable integration",() => {
     expect(billModule).toContain("editingBillId = billEditSourceId(bill)");
     expect(between(invoice,"async function deleteInvoice(","async function generateStatement")).toContain("window.deleteInvoiceFromFirestore");
     expect(between(invoice,"async function deleteInvoice(","async function generateStatement")).toContain("window.captureInvoiceEditExpectedState(invoice)");
-    expect(between(invoice,"function importInvoiceBackup(event){","function clearInvoiceHistory")).toContain("saveInvoiceDirectToFirestore");
+    expect(between(invoice,"function importInvoiceBackup(event){","function clearInvoiceHistory")).toContain("window.importInvoicesToFirestore");
     expect(between(bills,"async function markBillPaid(","async function deleteBill(")).not.toContain("updateBillWithReference");
     expect(between(bills,"async function deleteBill(","function billSortDateValue")).toContain("deleteBillWithReference(request)");
   });

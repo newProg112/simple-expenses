@@ -31,7 +31,11 @@ export const DEMO_MANAGED_USER_COLLECTIONS = Object.freeze([
   "bankReconciliations",
   "bankTransfers",
   "bankTransferLinks",
-  "bankExceptionResolutions"
+  "bankExceptionResolutions",
+  "referenceKeys",
+  "referenceCreateRequests",
+  "referenceEditRequests",
+  "referenceDeleteRequests"
 ]);
 
 const BATCH_OPERATION_LIMIT = 450;
@@ -246,6 +250,14 @@ function requireFirestoreServices(services){
   }
 }
 
+function requireServerReferenceServices(services){
+  for(const method of ["referenceRegistryKey", "serverTimestamp"]){
+    if(typeof services?.[method] !== "function"){
+      throw new Error(`Server-owned Demo ${method} helper is required.`);
+    }
+  }
+}
+
 async function resolveDemoContext(options){
   const services = options.services || await defaultFirestoreServices();
   requireFirestoreServices(services);
@@ -296,7 +308,8 @@ async function commitOperations(services, operations){
   return committedBatches;
 }
 
-function seedWriteOperations(services, userId, seed){
+async function seedWriteOperations(services, userId, seed){
+  requireServerReferenceServices(services);
   const operations = [{
     type: "set",
     reference: services.doc(services.db, "users", userId),
@@ -311,6 +324,42 @@ function seedWriteOperations(services, userId, seed){
         reference: services.doc(services.db, "users", userId, collectionName, record.id),
         data: record.data
       });
+
+      const recordType = section === "invoices"
+        ? "invoice"
+        : section === "bills" ? "bill" : "";
+      if(recordType){
+        const rawReference = recordType === "invoice"
+          ? record.data.invoiceNo
+          : record.data.billNumber;
+        const key = await services.referenceRegistryKey(recordType, rawReference);
+        if(key.registryDocumentId){
+          const registryReference = services.doc(
+            services.db,
+            "users",
+            userId,
+            "referenceKeys",
+            key.registryDocumentId
+          );
+          if(operations.some(operation => operation.reference.path === registryReference.path)){
+            throw new Error(`Duplicate canonical Demo ${recordType} reference.`);
+          }
+          operations.push({
+            type: "set",
+            reference: registryReference,
+            data: {
+              schemaVersion: 1,
+              recordType,
+              canonicalReference: key.canonicalReference,
+              sourceId: record.id,
+              state: "active",
+              claimedAt: services.serverTimestamp(),
+              retiredAt: null,
+              claimRequestId: `demo-seed-v${DEMO_SEED_VERSION}:${recordType}:${record.id}`
+            }
+          });
+        }
+      }
     }
   }
 
@@ -329,13 +378,20 @@ export async function seedDemoBusiness(options = {}){
   const seed = options.seed || DEMO_SEED;
   assertValidDemoSeed(seed);
   const { services, user } = await resolveDemoContext(options);
-  const operations = seedWriteOperations(services, user.uid, seed);
+  const operations = await seedWriteOperations(services, user.uid, seed);
+  if(operations.length > BATCH_OPERATION_LIMIT){
+    throw new Error("The canonical Demo seed must fit in one atomic Firestore batch.");
+  }
+  const referenceClaims = operations.filter(operation =>
+    operation.reference.path.startsWith(`users/${user.uid}/referenceKeys/`)
+  ).length;
   const committedBatches = await commitOperations(services, operations);
 
   return {
     seedVersion: DEMO_SEED_VERSION,
     writtenDocuments: operations.length,
-    committedBatches
+    committedBatches,
+    referenceClaims
   };
 }
 

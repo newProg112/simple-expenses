@@ -78,7 +78,15 @@ function createFirestoreServices(documentsByCollection = {}){
       };
       batches.push(batch);
       return batch;
-    })
+    }),
+    referenceRegistryKey: vi.fn(async (recordType, rawReference) => ({
+      recordType,
+      canonicalReference: String(rawReference || "").trim().toLowerCase(),
+      registryDocumentId: rawReference
+        ? `${recordType}-${String(rawReference).trim().toLowerCase().replaceAll("/", "-")}`
+        : null
+    })),
+    serverTimestamp: vi.fn(() => ({ __type: "server-timestamp" }))
   };
 
   return { services, batches };
@@ -256,12 +264,14 @@ describe("demo seed engine", () => {
     });
     const operations = batches.flatMap(batch => batch.operations);
     const journalCount = demoJournals().length;
-    const expectedWrites = 1 + seededDocumentCount() + journalCount;
+    const referenceClaimCount = DEMO_SEED.invoices.length + DEMO_SEED.bills.length;
+    const expectedWrites = 1 + seededDocumentCount() + journalCount + referenceClaimCount;
 
     expect(result).toEqual({
       seedVersion: 2,
       writtenDocuments: expectedWrites,
-      committedBatches: 1
+      committedBatches: 1,
+      referenceClaims: referenceClaimCount
     });
     expect(operations).toHaveLength(expectedWrites);
     expect(operations[0]).toMatchObject({
@@ -271,6 +281,20 @@ describe("demo seed engine", () => {
     });
     expect(operations.filter(operation => operation.documentReference.path.startsWith("journals/")))
       .toHaveLength(journalCount);
+    const claims = operations.filter(operation =>
+      operation.documentReference.path.includes("/referenceKeys/")
+    );
+    expect(claims).toHaveLength(referenceClaimCount);
+    expect(claims.every(operation => operation.data.state === "active")).toBe(true);
+    for(const claim of claims){
+      const collectionName = claim.data.recordType === "invoice" ? "invoices" : "bills";
+      expect(operations).toContainEqual(expect.objectContaining({
+        type: "set",
+        documentReference: {
+          path: `users/${demoUser.uid}/${collectionName}/${claim.data.sourceId}`
+        }
+      }));
+    }
   });
 
   it("clears all managed demo records and all owned journals, including bank opening balances, while preserving the account marker", async () => {
@@ -281,6 +305,10 @@ describe("demo seed engine", () => {
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransfers");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankTransferLinks");
     expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("bankExceptionResolutions");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("referenceKeys");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("referenceCreateRequests");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("referenceEditRequests");
+    expect(DEMO_MANAGED_USER_COLLECTIONS).toContain("referenceDeleteRequests");
     expect(DEMO_SEED).not.toHaveProperty("bankAccounts");
     const collectionCounts = Object.fromEntries(
       DEMO_MANAGED_USER_COLLECTIONS.map(collectionName => [collectionName, 1])
@@ -305,6 +333,25 @@ describe("demo seed engine", () => {
     expect(services.where).toHaveBeenCalledWith("userId", "==", demoUser.uid);
     expect(operations.filter(operation => operation.documentReference.path.startsWith("journals/")))
       .toHaveLength(2);
+  });
+
+  it("rejects canonical Demo reference collisions before committing any writes", async () => {
+    const duplicate = {
+      ...DEMO_SEED,
+      invoices: DEMO_SEED.invoices.map((record, index) => index === 1 ? {
+        ...record,
+        data: { ...record.data, invoiceNo: DEMO_SEED.invoices[0].data.invoiceNo.toLowerCase() }
+      } : record)
+    };
+    const { services, batches } = createFirestoreServices();
+
+    await expect(seedDemoBusiness({
+      user: demoUser,
+      accountData: { demoMode: true },
+      seed: duplicate,
+      services
+    })).rejects.toThrow("Duplicate canonical Demo invoice reference");
+    expect(batches).toHaveLength(0);
   });
 
   it.each([
