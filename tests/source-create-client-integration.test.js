@@ -51,7 +51,7 @@ describe("create-only callable integration",() => {
   });
 });
 
-describe("edit-only callable integration",() => {
+describe("edit and delete callable integration",() => {
   it("routes normal Invoice edit Save through its callable with expected state and no direct or journal fallback",() => {
     const update=between(invoice,"window.updateInvoiceInFirestore = async function","window.deleteInvoiceFromFirestore");
     const save=between(invoice,"async function updateExistingInvoice(){","function cancelInvoiceEdit(){");
@@ -62,7 +62,7 @@ describe("edit-only callable integration",() => {
     expect(save).not.toContain("postInvoiceJournalAfterInvoiceSave(");
   });
 
-  it("captures edit-open state and leaves delete, status, import, and Demo paths unchanged",() => {
+  it("captures expected state for edits and deletes while leaving status, import, and Demo paths unchanged",() => {
     expect(invoiceModule).toContain('import { sourceEditExpectedState } from "../js/source-edit-state.js');
     expect(invoiceModule).toContain('window.captureInvoiceEditExpectedState = invoice =>');
     expect(invoiceModule).toContain('sourceEditExpectedState("invoice",invoice)');
@@ -72,15 +72,18 @@ describe("edit-only callable integration",() => {
     expect(billModule).toContain('sourceEditExpectedState("bill",bill)');
     expect(billModule).toContain("sourceId: snap.id");
     expect(billModule).toContain("editingBillId = billEditSourceId(bill)");
-    expect(between(invoice,"async function deleteInvoice(","async function generateStatement")).not.toContain("updateInvoiceWithReference");
+    expect(between(invoice,"async function deleteInvoice(","async function generateStatement")).toContain("window.deleteInvoiceFromFirestore");
+    expect(between(invoice,"async function deleteInvoice(","async function generateStatement")).toContain("window.captureInvoiceEditExpectedState(invoice)");
     expect(between(invoice,"function importInvoiceBackup(event){","function clearInvoiceHistory")).toContain("saveInvoiceDirectToFirestore");
     expect(between(bills,"async function markBillPaid(","async function deleteBill(")).not.toContain("updateBillWithReference");
-    expect(between(bills,"async function deleteBill(","function billSortDateValue")).not.toContain("updateBillWithReference");
+    expect(between(bills,"async function deleteBill(","function billSortDateValue")).toContain("deleteBillWithReference(request)");
   });
 
-  it("exports only the narrow create and edit gateways, not raw registry lifecycle operations",() => {
+  it("exports only the narrow create, edit, and delete gateways, not raw registry lifecycle operations",() => {
     expect(functions).toContain("exports.updateInvoiceWithReference = onCall(");
     expect(functions).toContain("exports.updateBillWithReference = onCall(");
+    expect(functions).toContain("exports.deleteInvoiceWithReference = onCall(");
+    expect(functions).toContain("exports.deleteBillWithReference = onCall(");
     expect(functions).not.toMatch(/exports\.(claimReference|changeReference|retireReferenceForDelete)\s*=/);
   });
 });

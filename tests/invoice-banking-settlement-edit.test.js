@@ -67,7 +67,7 @@ const updateExistingInvoiceDeclaration = declarationBetween(
 const updateInvoiceFirestoreDeclaration = declarationBetween(
   invoiceModuleScript,
   "window.updateInvoiceInFirestore = async function(invoiceId, updatedInvoice, expectedState){",
-  "window.deleteInvoiceFromFirestore = async function(invoiceId){"
+  "window.deleteInvoiceFromFirestore = async function(invoiceId, expectedState){"
 );
 
 function createControl(value = ""){

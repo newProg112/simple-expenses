@@ -121,4 +121,4 @@ function billJournal(uid, sourceId, source, createdAt) {
   })};
 }
 
-module.exports = {billJournal, invoiceJournal};
+module.exports = {billJournal, invoiceJournal, journalId};

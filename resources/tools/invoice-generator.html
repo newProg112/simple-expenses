@@ -2663,7 +2663,6 @@
     getDoc,
     doc,
     updateDoc,
-    deleteDoc,
     runTransaction
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -2685,6 +2684,11 @@
   const updateInvoiceWithReference = httpsCallable(
     functions,
     "updateInvoiceWithReference",
+    { timeout: 30000 }
+  );
+  const deleteInvoiceWithReference = httpsCallable(
+    functions,
+    "deleteInvoiceWithReference",
     { timeout: 30000 }
   );
   window.captureInvoiceEditExpectedState = invoice =>
@@ -3101,17 +3105,27 @@
     return response.data;
   };
 
-  window.deleteInvoiceFromFirestore = async function(invoiceId){
+  window.deleteInvoiceFromFirestore = async function(invoiceId, expectedState){
     if(!window.currentUser){
       alert("Please log in first.");
-      return;
+      return false;
     }
 
-    await deleteDoc(
-      doc(db, "users", window.currentUser.uid, "invoices", invoiceId)
-    );
+    const requestId = createRequestId();
+    let response;
+    try{
+      response = await deleteInvoiceWithReference({
+        sourceId:String(invoiceId),expectedState,requestId
+      });
+    }catch(error){
+      if(!["functions/unavailable", "functions/deadline-exceeded"].includes(error?.code)) throw error;
+      response = await deleteInvoiceWithReference({
+        sourceId:String(invoiceId),expectedState,requestId
+      });
+    }
 
     console.log("Invoice deleted from Firestore");
+    return response.data;
   };
 
   window.getInvoicesFromFirestore = async function(){
@@ -4598,12 +4612,42 @@ function cancelInvoiceEdit(){
 
 async function deleteInvoice(invoiceId){
   // TODO GL Stage 2B: post an immutable reversal before deleting an invoiced journal source.
+  const {
+    BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
+    isBankingSettledSource
+  } = await bankSettlementSourceStatePromise;
+  const invoices = window.getInvoicesFromFirestore
+    ? await window.getInvoicesFromFirestore()
+    : JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]");
+  const invoice = invoices.find(item => String(item.id) === String(invoiceId));
+  if(!invoice) return;
+  if(isBankingSettledSource(invoice)){
+    alert(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+    return;
+  }
   if(!confirm("Delete this invoice?")){
     return;
   }
 
   if(window.deleteInvoiceFromFirestore){
-    await window.deleteInvoiceFromFirestore(invoiceId);
+    try{
+      await window.deleteInvoiceFromFirestore(
+        invoiceId,
+        window.captureInvoiceEditExpectedState(invoice)
+      );
+    }catch(error){
+      const reason = error?.details?.reason;
+      if(reason === "bank-settled-source"){
+        alert(BANK_SETTLEMENT_ACCOUNTING_MESSAGE);
+      }else if(reason === "stale-source"){
+        alert("This invoice changed after it was loaded. Refresh and review it before deleting.");
+      }else if(reason === "source-not-found"){
+        alert("This invoice has already been deleted.");
+      }else{
+        alert(`Could not delete this invoice: ${error.message}`);
+      }
+      return;
+    }
   }
 
   renderRecentInvoices();

@@ -2185,7 +2185,6 @@
       BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE,
       BANK_SETTLEMENT_PROTECTED_ACTIONS_MESSAGE,
       BANK_SETTLEMENT_STATUS_MESSAGE,
-      deleteBillRecordWithSettlementGuard,
       isBankingSettledSource,
       readBillRecordWithSettlementGuard,
       saveBillRecordWithSettlementGuard,
@@ -2251,6 +2250,11 @@
     const updateBillWithReference = httpsCallable(
       functions,
       "updateBillWithReference",
+      { timeout: 30000 }
+    );
+    const deleteBillWithReference = httpsCallable(
+      functions,
+      "deleteBillWithReference",
       { timeout: 30000 }
     );
     const currentUserPromise = new Promise(resolve => {
@@ -3754,22 +3758,45 @@
       if (!confirm("Delete this bill?")) return;
 
       const user = await getCurrentUser();
-      if (user) {
+      if (!user) {
+        alert("Please log in first.");
+        return;
+      }
+      const requestId = createRequestId();
+      const request = {
+        sourceId:String(id),
+        expectedState:sourceEditExpectedState("bill",billToDelete),
+        requestId
+      };
+      try {
         try {
-          await deleteBillRecordWithSettlementGuard({
-            db,userId:user.uid,billId:id,
-            services:{ doc,runTransaction }
-          });
+          await deleteBillWithReference(request);
         } catch (error) {
-          if (error?.code === BANK_SETTLED_BILL_MUTATION_ERROR_CODE) {
+          if (!["functions/unavailable", "functions/deadline-exceeded"].includes(error?.code)) throw error;
+          await deleteBillWithReference(request);
+        }
+      } catch (error) {
+          const reason = error?.details?.reason;
+          if (error?.code === BANK_SETTLED_BILL_MUTATION_ERROR_CODE || reason === "bank-settled-source") {
             await loadBills();
             alert(BANK_SETTLEMENT_BILL_ACCOUNTING_MESSAGE);
             renderBills(currentBills);
             return;
           }
+          if (reason === "stale-source") {
+            await loadBills();
+            alert("This bill changed after it was loaded. Refresh and review it before deleting.");
+            renderBills(currentBills);
+            return;
+          }
+          if (reason === "source-not-found") {
+            await loadBills();
+            alert("This bill has already been deleted.");
+            renderBills(currentBills);
+            return;
+          }
           alert(`Could not delete this bill: ${error.message}`);
           return;
-        }
       }
 
       currentBills = currentBills.filter(b => String(b.id) !== String(id));

@@ -29,14 +29,69 @@ async function main() {
   await db.doc("users/owner/referenceKeys/key-1").set({state:"active"});
   await db.doc("users/owner/referenceCreateRequests/request-1").set({operation:"create"});
   await db.doc("users/owner/referenceEditRequests/request-1").set({operation:"edit"});
+  await db.doc("users/owner/referenceDeleteRequests/request-1").set({operation:"delete"});
   await db.doc("users/owner/referenceBackfillMigrations/migration-1").set({status:"complete"});
+  await db.doc("users/owner/invoices/invoice-1").set({invoiceNo:"INV-001",invoiceNumber:"INV-001",status:"Unpaid",amount:100,updatedAt:"old"});
+  await db.doc("users/owner/bills/bill-1").set({billNumber:"BILL-001",invoiceNumber:"BILL-001",status:"Unpaid",total:120,updatedAt:"old",attachmentName:""});
 
-  const ordinaryCreate=await request("users/owner/invoices?documentId=invoice-1","owner",{
-    method:"POST",body:JSON.stringify({fields:{invoiceNo:{stringValue:"INV-001"}}})
+  for(const collection of ["invoices","bills"]){
+    const directCreate=await request(`users/owner/${collection}?documentId=forged-source`,"owner",{
+      method:"POST",body:JSON.stringify({fields:{status:{stringValue:"Unpaid"}}})
+    });
+    assert.equal(directCreate.status,403,`${collection} direct create must be denied`);
+    const sourceId=collection === "invoices" ? "invoice-1" : "bill-1";
+    const directDelete=await request(`users/owner/${collection}/${sourceId}`,"owner",{method:"DELETE"});
+    assert.equal(directDelete.status,403,`${collection} direct delete must be denied`);
+    const referenceField=collection === "invoices" ? "invoiceNo" : "billNumber";
+    const directReferenceChange=await request(`users/owner/${collection}/${sourceId}?updateMask.fieldPaths=${referenceField}`,"owner",{
+      method:"PATCH",body:JSON.stringify({fields:{[referenceField]:{stringValue:"FORGED"}}})
+    });
+    assert.equal(directReferenceChange.status,403,`${collection} direct reference update must be denied`);
+    const legacyReferenceChange=await request(`users/owner/${collection}/${sourceId}?updateMask.fieldPaths=invoiceNumber`,"owner",{
+      method:"PATCH",body:JSON.stringify({fields:{invoiceNumber:{stringValue:"FORGED-LEGACY"}}})
+    });
+    assert.equal(legacyReferenceChange.status,403,`${collection} legacy reference update must be denied`);
+  }
+
+  const invoiceStatus=await request("users/owner/invoices/invoice-1?updateMask.fieldPaths=status&updateMask.fieldPaths=updatedAt","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{status:{stringValue:"Paid"},updatedAt:{stringValue:"new"}}})
   });
-  assert.equal(ordinaryCreate.status,200,"ordinary owner create must remain allowed");
+  assert.equal(invoiceStatus.status,200,"Invoice status/payment metadata update must remain allowed");
+  const invoiceSettlement=await request("users/owner/invoices/invoice-1?updateMask.fieldPaths=bankSettlement&updateMask.fieldPaths=updatedAt","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{bankSettlement:{mapValue:{fields:{transactionId:{stringValue:"bank-1"}}}},updatedAt:{stringValue:"newer"}}})
+  });
+  assert.equal(invoiceSettlement.status,200,"Invoice Banking settlement update must remain allowed");
+  const invoiceUnmatch=await request("users/owner/invoices/invoice-1?updateMask.fieldPaths=bankSettlement&updateMask.fieldPaths=updatedAt","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{updatedAt:{stringValue:"unmatched"}}})
+  });
+  assert.equal(invoiceUnmatch.status,200,"Invoice Banking unmatch must remain allowed");
+  const invoiceAmount=await request("users/owner/invoices/invoice-1?updateMask.fieldPaths=amount","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{amount:{integerValue:"999"}}})
+  });
+  assert.equal(invoiceAmount.status,403,"Invoice accounting fields must remain server-owned");
 
-  for(const collection of ["referenceKeys","referenceCreateRequests","referenceEditRequests","referenceBackfillMigrations"]){
+  const billPayment=await request("users/owner/bills/bill-1?updateMask.fieldPaths=status&updateMask.fieldPaths=paidAt&updateMask.fieldPaths=updatedAt","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{status:{stringValue:"Paid"},paidAt:{stringValue:"2026-08-21"},updatedAt:{stringValue:"new"}}})
+  });
+  assert.equal(billPayment.status,200,"Bill payment metadata update must remain allowed");
+  const billSettlement=await request("users/owner/bills/bill-1?updateMask.fieldPaths=bankSettlement&updateMask.fieldPaths=updatedAt","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{bankSettlement:{mapValue:{fields:{transactionId:{stringValue:"bank-1"}}}},updatedAt:{stringValue:"newer"}}})
+  });
+  assert.equal(billSettlement.status,200,"Bill Banking settlement update must remain allowed");
+  const billUnmatch=await request("users/owner/bills/bill-1?updateMask.fieldPaths=bankSettlement&updateMask.fieldPaths=paidAt&updateMask.fieldPaths=updatedAt","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{updatedAt:{stringValue:"unmatched"}}})
+  });
+  assert.equal(billUnmatch.status,200,"Bill Banking unmatch must remain allowed");
+  const billAttachment=await request("users/owner/bills/bill-1?updateMask.fieldPaths=attachmentName&updateMask.fieldPaths=attachmentPath","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{attachmentName:{stringValue:"receipt.pdf"},attachmentPath:{stringValue:"users/owner/attachments/bills/bill-1/receipt.pdf"}}})
+  });
+  assert.equal(billAttachment.status,200,"Bill attachment metadata update must remain allowed");
+  const billTotal=await request("users/owner/bills/bill-1?updateMask.fieldPaths=total","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{total:{integerValue:"999"}}})
+  });
+  assert.equal(billTotal.status,403,"Bill accounting fields must remain server-owned");
+
+  for(const collection of ["referenceKeys","referenceCreateRequests","referenceEditRequests","referenceDeleteRequests","referenceBackfillMigrations"]){
     const documentId=collection === "referenceKeys" ? "key-1" : collection === "referenceBackfillMigrations" ? "migration-1" : "request-1";
     const ownerRead=await request(`users/owner/${collection}/${documentId}`,"owner");
     assert.equal(ownerRead.status,collection === "referenceKeys" ? 200 : 403,

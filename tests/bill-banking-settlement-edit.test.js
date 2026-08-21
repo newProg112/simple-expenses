@@ -457,8 +457,9 @@ describe("bank-settled Bill edit and delete protection",() => {
     expect(saveDeclaration).toContain("existingBill ? createRequestId() : \"\"");
     expect(saveDeclaration).toMatch(/uploadedReplacementPath[\s\S]*?updateBillWithReference\([\s\S]*?deleteAttachment\(uploadedReplacementPath\)/);
     expect(saveDeclaration).not.toMatch(/existingBill[\s\S]*?saveBillRecordWithSettlementGuard\([\s\S]*?postBillJournalAfterSave\(/);
-    expect(html).toContain("deleteBillRecordWithSettlementGuard({");
-    expect(html).toMatch(/deleteBillRecordWithSettlementGuard\([\s\S]*?currentBills = currentBills\.filter[\s\S]*?deleteAttachment\(billToDelete\.attachmentPath\)/);
+    expect(html).toContain('"deleteBillWithReference"');
+    expect(html).toMatch(/deleteBillWithReference\(request\)[\s\S]*?currentBills = currentBills\.filter[\s\S]*?deleteAttachment\(billToDelete\.attachmentPath\)/);
+    expect(html).toContain('expectedState:sourceEditExpectedState("bill",billToDelete)');
   });
 
   it("disables settled Edit and Delete while preserving the existing payment-status lock",() => {

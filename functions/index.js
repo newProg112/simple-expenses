@@ -67,6 +67,12 @@ const {
 const {
   createSourceEditHandlers,
 } = require("./lib/source-edit-handlers");
+const {
+  createSourceDeleteService,
+} = require("./lib/source-delete-service");
+const {
+  createSourceDeleteHandlers,
+} = require("./lib/source-delete-handlers");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -93,6 +99,13 @@ const updateSourceWithReference = createSourceEditService({
   serverTimestamp: () => FieldValue.serverTimestamp(),
 });
 const sourceEditHandlers = createSourceEditHandlers(updateSourceWithReference);
+const deleteSourceWithReference = createSourceDeleteService({
+  firestore: admin.firestore(),
+  serverTimestamp: () => FieldValue.serverTimestamp(),
+});
+const sourceDeleteHandlers = createSourceDeleteHandlers(
+    deleteSourceWithReference,
+);
 
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -877,6 +890,20 @@ exports.updateBillWithReference = onCall(
       timeoutSeconds: 30, memory: "256MiB",
     },
     sourceEditHandlers.updateBillWithReference,
+);
+exports.deleteInvoiceWithReference = onCall(
+    {
+      region: "us-central1", maxInstances: 10,
+      timeoutSeconds: 30, memory: "256MiB",
+    },
+    sourceDeleteHandlers.deleteInvoiceWithReference,
+);
+exports.deleteBillWithReference = onCall(
+    {
+      region: "us-central1", maxInstances: 10,
+      timeoutSeconds: 30, memory: "256MiB",
+    },
+    sourceDeleteHandlers.deleteBillWithReference,
 );
 exports.getMonthlyUsage = onRequest(
     {

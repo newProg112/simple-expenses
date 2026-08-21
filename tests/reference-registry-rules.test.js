@@ -11,16 +11,25 @@ describe("server-owned reference rule boundary",() => {
     expect(block).toContain("allow write: if false;");
   });
 
-  it.each(["referenceCreateRequests","referenceEditRequests","referenceBackfillMigrations"])("denies all browser access to internal %s documents",collection => {
+  it.each(["referenceCreateRequests","referenceEditRequests","referenceDeleteRequests","referenceBackfillMigrations"])("denies all browser access to internal %s documents",collection => {
     const block=rules.match(new RegExp(`match /users/\\{uid\\}/${collection}/\\{[^}]+\\} \\{([\\s\\S]*?)\\n    \\}`))?.[1] || "";
     expect(block).toContain("allow read, write: if false;");
   });
 
-  it("excludes both server-owned collections from the recursive owner write grant",() => {
+  it("excludes server-owned and lifecycle-controlled collections from the recursive owner write grant",() => {
     expect(rules).toContain("match /users/{uid}/{collectionName}/{document=**}");
     expect(rules).toContain("collectionName != 'referenceKeys'");
     expect(rules).toContain("collectionName != 'referenceCreateRequests'");
     expect(rules).toContain("collectionName != 'referenceEditRequests'");
+    expect(rules).toContain("collectionName != 'referenceDeleteRequests'");
     expect(rules).toContain("collectionName != 'referenceBackfillMigrations'");
+    expect(rules).toContain("collectionName != 'invoices'");
+    expect(rules).toContain("collectionName != 'bills'");
+  });
+
+  it.each(["invoices","bills"])("denies direct %s create/delete and limits updates to an allowlist",collection => {
+    const block=rules.match(new RegExp(`match /users/\\{uid\\}/${collection}/\\{[^}]+\\} \\{([\\s\\S]*?)\\n    \\}`))?.[1] || "";
+    expect(block).toContain("allow create, delete: if false;");
+    expect(block).toMatch(/affectedKeys\(\)\s*\.hasOnly\(/);
   });
 });
