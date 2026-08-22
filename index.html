@@ -631,6 +631,16 @@
         text-decoration:none;
       }
     }
+    .account-deleted-notice{
+      margin:18px auto 0;
+      border:1px solid #bbf7d0;
+      border-radius:16px;
+      background:#f0fdf4;
+      color:#166534;
+      padding:13px 16px;
+      font-weight:700;
+    }
+    .account-deleted-notice[hidden]{ display:none; }
 
     @media (max-width: 900px){
       .hero-grid{ grid-template-columns: 1fr; }
@@ -774,6 +784,16 @@
     </div>
   </div>
 </header>
+
+<div
+  class="wrap account-deleted-notice"
+  id="accountDeletedNotice"
+  role="status"
+  aria-live="polite"
+  hidden
+>
+  Your Simple Books account has been deleted.
+</div>
 
 <main id="top">
   <section class="hero">
@@ -1330,6 +1350,18 @@
 <script>
   (function () {
     const EMAIL_TO = "adam@simple-books.co.uk";
+
+    const completionParameters = new URLSearchParams(window.location.search);
+    if (completionParameters.get("account") === "deleted") {
+      document.getElementById("accountDeletedNotice").hidden = false;
+      completionParameters.delete("account");
+      const remainingQuery = completionParameters.toString();
+      history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ""}${window.location.hash}`
+      );
+    }
 
     // Footer year
     document.getElementById("year").textContent = new Date().getFullYear();

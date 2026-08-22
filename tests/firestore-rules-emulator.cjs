@@ -26,6 +26,8 @@ async function request(path,uid,options={}) {
 async function main() {
   if (!admin.apps.length) admin.initializeApp({projectId});
   const db=admin.firestore();
+  await db.doc("users/owner").set({uid:"owner",demoMode:false});
+  await db.doc("users/other").set({uid:"other",demoMode:false});
   await db.doc("users/owner/referenceKeys/key-1").set({state:"active"});
   await db.doc("users/owner/referenceCreateRequests/request-1").set({operation:"create"});
   await db.doc("users/owner/referenceEditRequests/request-1").set({operation:"edit"});
@@ -109,7 +111,58 @@ async function main() {
     const remove=await request(`users/owner/${collection}/${documentId}`,"owner",{method:"DELETE"});
     assert.equal(remove.status,403,`${collection} client delete must be denied`);
   }
-  console.log("Firestore registry rules checks passed.");
+
+  const clientJobCreate=await request("accountDeletionJobs?documentId=owner","owner",{
+    method:"POST",body:JSON.stringify({fields:{status:{stringValue:"active"}}})
+  });
+  assert.equal(clientJobCreate.status,403,"Deletion jobs must remain server-owned");
+  const clientMarker=await request("users/owner?updateMask.fieldPaths=deletionInProgress","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{deletionInProgress:{booleanValue:true}}})
+  });
+  assert.equal(clientMarker.status,403,"Deletion barrier fields must remain server-owned");
+
+  const activeExpense=await request("users/owner/expenses?documentId=expense-1","owner",{
+    method:"POST",body:JSON.stringify({fields:{description:{stringValue:"Before deletion"}}})
+  });
+  assert.equal(activeExpense.status,200,"An active account can write its own data");
+  const otherExpense=await request("users/other/expenses?documentId=expense-1","other",{
+    method:"POST",body:JSON.stringify({fields:{description:{stringValue:"Independent user"}}})
+  });
+  assert.equal(otherExpense.status,200,"User B remains independently writable");
+
+  await db.doc("accountDeletionJobs/owner").set({
+    schemaVersion:1,uid:"owner",status:"active",stage:"requested"
+  });
+  await db.doc("users/owner").set({
+    deletionInProgress:true,accountDeletionState:"requested"
+  },{merge:true});
+
+  const deletingRead=await request("users/owner/expenses/expense-1","owner");
+  assert.equal(deletingRead.status,200,"A deleting account retains read/export access");
+  const deletingCreate=await request("users/owner/expenses?documentId=expense-2","owner",{
+    method:"POST",body:JSON.stringify({fields:{description:{stringValue:"Blocked"}}})
+  });
+  assert.equal(deletingCreate.status,403,"Deleting account creates must be denied");
+  const deletingUpdate=await request("users/owner/expenses/expense-1?updateMask.fieldPaths=description","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{description:{stringValue:"Blocked"}}})
+  });
+  assert.equal(deletingUpdate.status,403,"Deleting account updates must be denied");
+  const deletingDelete=await request("users/owner/expenses/expense-1","owner",{method:"DELETE"});
+  assert.equal(deletingDelete.status,403,"Deleting account deletes must be denied");
+  const deletingInvoiceUpdate=await request("users/owner/invoices/invoice-1?updateMask.fieldPaths=status","owner",{
+    method:"PATCH",body:JSON.stringify({fields:{status:{stringValue:"Unpaid"}}})
+  });
+  assert.equal(deletingInvoiceUpdate.status,403,"Deleting account invoice updates must be denied");
+  const deletingJournalCreate=await request("journals?documentId=journal-after-delete","owner",{
+    method:"POST",body:JSON.stringify({fields:{userId:{stringValue:"owner"}}})
+  });
+  assert.equal(deletingJournalCreate.status,403,"Deleting account journal creates must be denied");
+  const unaffectedUser=await request("users/other/expenses/expense-1?updateMask.fieldPaths=description","other",{
+    method:"PATCH",body:JSON.stringify({fields:{description:{stringValue:"Still active"}}})
+  });
+  assert.equal(unaffectedUser.status,200,"User B must not be blocked by User A deletion");
+
+  console.log("Firestore registry and account-deletion rules checks passed.");
 }
 
 main().catch(error => {

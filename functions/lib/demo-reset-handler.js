@@ -59,6 +59,9 @@ function createDemoResetHandler(options) {
     }
 
     const accountData = accountSnapshot.exists ? accountSnapshot.data() || {} : {};
+    if (source.deletionGuard) {
+      await source.deletionGuard.assertAccountNotDeleting(uid);
+    }
     if (accountData.demoMode !== true) {
       throw resetError(
           "failed-precondition",

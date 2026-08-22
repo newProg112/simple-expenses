@@ -591,6 +591,172 @@
       font-size:17px;
     }
 
+    .delete-account-section{
+      margin-top:18px;
+      border-color:#fecaca;
+      background:#fffafa;
+      box-shadow:none;
+    }
+
+    .delete-account-section[hidden],
+    .account-deletion-modal[hidden],
+    .account-deletion-panel[hidden]{
+      display:none;
+    }
+
+    .delete-account-heading{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:24px;
+    }
+
+    .delete-account-heading h2{
+      margin:0 0 8px;
+    }
+
+    .delete-account-heading p{
+      max-width:68ch;
+      margin:0;
+    }
+
+    .btn-danger{
+      flex:0 0 auto;
+      border-color:#b91c1c;
+      background:#b91c1c;
+      color:#ffffff;
+    }
+
+    .btn-danger:hover:not(:disabled){
+      border-color:#991b1b;
+      background:#991b1b;
+    }
+
+    .btn-danger:disabled{
+      border-color:#fecaca;
+      background:#fee2e2;
+      color:#991b1b;
+      cursor:not-allowed;
+    }
+
+    .account-deletion-modal{
+      position:fixed;
+      inset:0;
+      z-index:3000;
+      display:grid;
+      place-items:center;
+      overflow-y:auto;
+      padding:24px;
+      background:rgba(15,23,42,.62);
+    }
+
+    .account-deletion-dialog{
+      width:min(620px, 100%);
+      max-height:calc(100dvh - 48px);
+      overflow-y:auto;
+      border:1px solid #fecaca;
+      border-radius:22px;
+      background:#ffffff;
+      box-shadow:0 24px 70px rgba(15,23,42,.28);
+      padding:24px;
+    }
+
+    .account-deletion-dialog:focus{
+      outline:none;
+    }
+
+    .account-deletion-dialog-header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:18px;
+    }
+
+    .account-deletion-dialog-header h2{
+      margin:0;
+      font-size:24px;
+    }
+
+    .account-deletion-close{
+      min-width:40px;
+      min-height:40px;
+      padding:6px;
+      font-size:22px;
+      line-height:1;
+    }
+
+    .account-deletion-summary{
+      margin:18px 0;
+      padding-left:22px;
+      color:#475569;
+    }
+
+    .account-deletion-summary li + li{
+      margin-top:7px;
+    }
+
+    .account-deletion-warning{
+      border-left:4px solid #b91c1c;
+      border-radius:10px;
+      background:#fef2f2;
+      color:#7f1d1d;
+      padding:12px 14px;
+      font-weight:700;
+    }
+
+    .account-deletion-form{
+      display:grid;
+      gap:14px;
+      margin-top:20px;
+    }
+
+    .account-deletion-form label{
+      margin:0 0 6px;
+    }
+
+    .account-deletion-form input{
+      margin-bottom:0;
+    }
+
+    .account-deletion-status{
+      min-height:24px;
+      margin:14px 0 0;
+      color:#475569;
+      font-weight:700;
+      line-height:1.5;
+    }
+
+    .account-deletion-status.error{
+      color:#b91c1c;
+    }
+
+    .account-deletion-processing{
+      padding:20px 0 4px;
+      text-align:center;
+    }
+
+    .account-deletion-processing h2{
+      margin:0 0 10px;
+    }
+
+    .account-deletion-spinner{
+      width:38px;
+      height:38px;
+      margin:0 auto 18px;
+      border:4px solid #dbeafe;
+      border-top-color:var(--primary);
+      border-radius:50%;
+      animation:account-deletion-spin .9s linear infinite;
+    }
+
+    body.account-deletion-modal-open{
+      overflow:hidden;
+    }
+
+    @keyframes account-deletion-spin{
+      to{ transform:rotate(360deg); }
+    }
+
     .monthly-usage-details{
       display:grid;
       gap:9px;
@@ -653,6 +819,29 @@
       .monthly-usage-grid{
         grid-template-columns:1fr;
       }
+
+      .delete-account-heading{
+        display:grid;
+      }
+
+      .btn-danger{
+        width:100%;
+      }
+
+      .account-deletion-modal{
+        align-items:end;
+        padding:12px;
+      }
+
+      .account-deletion-dialog{
+        max-height:calc(100dvh - 24px);
+        border-radius:18px;
+        padding:20px;
+      }
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      .account-deletion-spinner{ animation:none; }
     }
   </style>
   <link rel="stylesheet" href="/assets/app-shell.css?v=20260806-demo-pro2">
@@ -660,7 +849,7 @@
 </head>
 
 <body>
-  <div data-app-navigation></div>
+  <div data-app-navigation id="accountNavigationRoot"></div>
   <div class="app-content">
 
   <div class="wrap">
@@ -1037,10 +1226,134 @@
 
     </div>
 
+    <section
+      class="card delete-account-section"
+      id="deleteAccountSection"
+      aria-labelledby="deleteAccountSectionTitle"
+      hidden
+    >
+      <div class="delete-account-heading">
+        <div>
+          <h2 id="deleteAccountSectionTitle">Delete account</h2>
+          <p class="muted">
+            Permanently delete your Simple Books account and associated data.
+            Your Simple Books subscription will be cancelled as part of the
+            deletion process. This cannot be undone and does not delete a
+            separate Simple Expenses account.
+          </p>
+        </div>
+        <button class="btn btn-danger" id="openDeleteAccountBtn" type="button">
+          Delete account
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  </div>
+
+  <div class="account-deletion-modal" id="deleteAccountModal" hidden>
+    <section
+      class="account-deletion-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deleteAccountModalTitle"
+      aria-describedby="deleteAccountModalDescription"
+    >
+      <div class="account-deletion-dialog-header">
+        <h2 id="deleteAccountModalTitle">Permanently delete Simple Books?</h2>
+        <button
+          class="btn account-deletion-close"
+          id="closeDeleteAccountModalBtn"
+          type="button"
+          aria-label="Close delete account dialog"
+        >&times;</button>
+      </div>
+
+      <div class="account-deletion-panel" id="deleteAccountConfirmationPanel">
+        <p id="deleteAccountModalDescription">
+          This permanently removes your Simple Books business settings and
+          records, including invoices, bills, expenses and mileage, clients,
+          projects, budgets, Banking and accounting data, uploaded files, and
+          applicable AI usage/history.
+        </p>
+        <ul class="account-deletion-summary">
+          <li>Your Simple Books subscription will be cancelled.</li>
+          <li>This action cannot be undone.</li>
+          <li>Only Simple Books is deleted; Simple Expenses is separate.</li>
+        </ul>
+        <p>
+          <a class="quick-action-link" href="/exports.html">Download a backup first</a>
+        </p>
+        <p class="account-deletion-warning">
+          Enter DELETE exactly and confirm your current password to continue.
+        </p>
+
+        <form class="account-deletion-form" id="deleteAccountForm" novalidate>
+          <div>
+            <label for="deleteAccountConfirmation">Type DELETE</label>
+            <input
+              id="deleteAccountConfirmation"
+              name="confirmation"
+              type="text"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              aria-describedby="deleteAccountConfirmationHelp"
+            >
+            <div class="muted" id="deleteAccountConfirmationHelp">
+              This is case-sensitive and must not contain spaces.
+            </div>
+          </div>
+          <div>
+            <label for="deleteAccountPassword">Current password</label>
+            <input
+              id="deleteAccountPassword"
+              name="current-password"
+              type="password"
+              autocomplete="current-password"
+              required
+            >
+          </div>
+          <button
+            class="btn btn-danger"
+            id="confirmDeleteAccountBtn"
+            type="submit"
+            disabled
+          >Permanently delete Simple Books account</button>
+        </form>
+      </div>
+
+      <div
+        class="account-deletion-panel account-deletion-processing"
+        id="deleteAccountProcessingPanel"
+        tabindex="-1"
+        hidden
+      >
+        <div class="account-deletion-spinner" aria-hidden="true"></div>
+        <h2 id="deleteAccountProcessingTitle">Deleting your account...</h2>
+        <p class="muted">
+          Keep this page open if convenient. You can also close the app; the
+          secure server process will continue.
+        </p>
+        <p id="deleteAccountSupport" hidden>
+          <a href="mailto:adam@simple-books.co.uk?subject=Simple%20Books%20account%20deletion">
+            Contact Simple Books support
+          </a>
+        </p>
+      </div>
+
+      <p
+        class="account-deletion-status"
+        id="deleteAccountStatus"
+        role="status"
+        aria-live="polite"
+      ></p>
+    </section>
   </div>
 
   <script type="module">
-    import { app, auth, db } from "./firebase-config.js";
+    import { app, auth, db, functions } from "./firebase-config.js";
     import { trackBeginCheckout } from "./assets/analytics-events.js?v=20260802-analytics1";
     import { trackDemoAnalyticsEvent } from "./assets/demo-analytics.js?v=20260805-demo-analytics1";
     import { resolveProductAccess } from "./assets/demo-mode.js?v=20260806-demo-pro3";
@@ -1052,11 +1365,21 @@
       buildMonthlyUsageView
     } from "./resources/js/monthly-usage.js?v=20260806-demo-pro2";
     import { firebaseFunctionUrl } from "./resources/js/firebase-runtime.js";
+    import { createRequestId } from "./resources/js/request-id.js";
+    import {
+      createAccountDeletionController
+    } from "./assets/account-deletion.js?v=20260821-delete-account1";
 
     import {
+      EmailAuthProvider,
       onAuthStateChanged,
+      reauthenticateWithCredential,
       signOut
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    import {
+      httpsCallable
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
     import {
       collection,
@@ -1083,6 +1406,14 @@
     const upgradePlanBtn = document.getElementById("upgradePlanBtn");
     const manageSubscriptionBtn = document.getElementById("manageSubscriptionBtn");
     const checkoutStatus = document.getElementById("checkoutStatus");
+    const callRequestAccountDeletion = httpsCallable(
+      functions,
+      "requestAccountDeletion"
+    );
+    const callGetAccountDeletionStatus = httpsCallable(
+      functions,
+      "getAccountDeletionStatus"
+    );
 
     const CHECKOUT_FUNCTION_URL =
       firebaseFunctionUrl("createCheckoutSession");
@@ -1119,6 +1450,62 @@
       expenses: 0
     };
     let monthlyUsage = {};
+
+    const accountDeletionController = createAccountDeletionController({
+      elements: {
+        section: document.getElementById("deleteAccountSection"),
+        open: document.getElementById("openDeleteAccountBtn"),
+        modal: document.getElementById("deleteAccountModal"),
+        close: document.getElementById("closeDeleteAccountModalBtn"),
+        form: document.getElementById("deleteAccountForm"),
+        confirmation: document.getElementById("deleteAccountConfirmation"),
+        password: document.getElementById("deleteAccountPassword"),
+        submit: document.getElementById("confirmDeleteAccountBtn"),
+        confirmationPanel: document.getElementById("deleteAccountConfirmationPanel"),
+        processingPanel: document.getElementById("deleteAccountProcessingPanel"),
+        processingTitle: document.getElementById("deleteAccountProcessingTitle"),
+        status: document.getElementById("deleteAccountStatus"),
+        support: document.getElementById("deleteAccountSupport"),
+        background: [
+          document.getElementById("accountNavigationRoot"),
+          document.querySelector(".app-content")
+        ].filter(Boolean)
+      },
+      services: {
+        getCurrentUser: () => auth.currentUser,
+        reauthenticate: async (_email, password) => {
+          const user = auth.currentUser;
+          if(!user?.email){
+            const error = new Error("Authenticated email is unavailable.");
+            error.code = "auth/user-mismatch";
+            throw error;
+          }
+          const credential = EmailAuthProvider.credential(user.email, password);
+          await reauthenticateWithCredential(user, credential);
+        },
+        requestDeletion: async payload => {
+          const response = await callRequestAccountDeletion(payload);
+          return response.data;
+        },
+        getStatus: async () => {
+          const response = await callGetAccountDeletionStatus({});
+          return response.data;
+        },
+        authUserIsMissing: async () => {
+          const user = auth.currentUser;
+          if(!user) return true;
+          try{
+            await user.reload();
+            return false;
+          }catch(error){
+            return error?.code === "auth/user-not-found";
+          }
+        },
+        signOut: () => signOut(auth)
+      },
+      runtime: window,
+      createRequestId
+    });
 
     function accountStorageKey(user = currentUser){
       return user ? `simpleBooksAccount:${user.uid}` : "simpleBooksAccount";
@@ -1198,6 +1585,11 @@
       const locked = demoSettingsLocked();
       setProtectedSettingsDisabled(locked || (Boolean(currentUser) && productAccess === null));
       document.getElementById("demoAccountLockNotice").hidden = !locked;
+      accountDeletionController.renderAvailability({
+        signedIn: Boolean(currentUser),
+        demo: locked,
+        loading: Boolean(currentUser) && productAccess === null
+      });
     }
 
     function clearAccountCacheForUserChange(user){
@@ -2252,11 +2644,19 @@
     onAuthStateChanged(auth, async (user) => {
       const accessRequest = accountAccessRequests.begin(user?.uid || "");
       currentUser = user;
+      accountDeletionController.handleAuthState(user);
       resetUsageStats();
       clearAccountCacheForUserChange(user);
+      accountDeletionController.renderAvailability({
+        signedIn: Boolean(user),
+        demo: false,
+        loading: Boolean(user)
+      });
+      if(user && await accountDeletionController.resumeIfNeeded()){
+        return;
+      }
       await loadAccount(user, accessRequest);
     });
   </script>
-  </div>
 </body>
 </html>

@@ -12,6 +12,7 @@ const {
   createMonthlyUsageManager,
   monthlyAllowanceMessage,
 } = require("./lib/ai-usage");
+const {createAccountDeletionGuard} = require("./lib/account-deletion-guard");
 
 const REGION = "us-central1";
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -326,6 +327,9 @@ async function handleBusinessDocumentScan(request, dependencies) {
   const supplied = dependencies || {};
   const log = supplied.logger || logger;
   const firestore = supplied.firestore || admin.firestore();
+  const deletionGuard = supplied.deletionGuard ||
+    createAccountDeletionGuard(firestore);
+  await deletionGuard.assertAccountNotDeleting(request.auth.uid);
   const usageCountingEnabled =
     supplied.usageCountingEnabled === undefined ?
       INVOICE_SCANNING_USAGE_COUNTING_ENABLED :
@@ -339,6 +343,7 @@ async function handleBusinessDocumentScan(request, dependencies) {
       firestore,
       now: () => supplied.now || new Date(),
       serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+      deletionGuard,
     }) :
     null;
   let usageReservation;

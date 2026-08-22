@@ -222,6 +222,9 @@ const callableRequest = {
 const silentLogger = {error() {}, info() {}, warn() {}};
 
 async function run() {
+  const activeDeletionGuard = {
+    assertAccountNotDeleting: async () => {},
+  };
   assert.equal(AI_USAGE_COUNTING_ENABLED, true);
   assert.equal(AI_USAGE_ENFORCEMENT_ENABLED, true);
 
@@ -290,6 +293,7 @@ async function run() {
   let disabledUsageCalls = 0;
   const aiResponse = await handleAssistantRequest(callableRequest, {
     firestore: {},
+    deletionGuard: activeDeletionGuard,
     now,
     buildBusinessSummary: async () => summary,
     openaiClient: {
@@ -323,6 +327,7 @@ async function run() {
   const successUsageEvents = [];
   const meteredSuccess = await handleAssistantRequest(callableRequest, {
     firestore: {},
+    deletionGuard: activeDeletionGuard,
     now,
     buildBusinessSummary: async () => summary,
     openaiClient: {
@@ -374,6 +379,7 @@ async function run() {
     await assert.rejects(
         handleAssistantRequest(callableRequest, {
           firestore: {},
+          deletionGuard: activeDeletionGuard,
           now,
           buildBusinessSummary: async () => summary,
           openaiClient: {
@@ -407,6 +413,7 @@ async function run() {
   await assert.rejects(
       handleAssistantRequest(callableRequest, {
         firestore: {},
+        deletionGuard: activeDeletionGuard,
         now,
         buildBusinessSummary: async () => summary,
         openaiClient: {
@@ -432,6 +439,7 @@ async function run() {
       callableRequest,
       {
         firestore: {},
+        deletionGuard: activeDeletionGuard,
         now,
         buildBusinessSummary: async () => summary,
         openaiClient: {
@@ -463,6 +471,7 @@ async function run() {
   const failedUsageEvents = [];
   const fallback = await handleAssistantRequest(callableRequest, {
     firestore: {},
+    deletionGuard: activeDeletionGuard,
     now,
     buildBusinessSummary: async () => summary,
     openaiClient: {
@@ -529,6 +538,7 @@ async function run() {
   await assert.rejects(
       handleAssistantRequest(callableRequest, {
         firestore: {},
+        deletionGuard: activeDeletionGuard,
         logger: silentLogger,
         buildBusinessSummary: async () => {
           throw new Error("users/private/path");

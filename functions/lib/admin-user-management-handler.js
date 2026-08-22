@@ -44,6 +44,9 @@ function createUpdateAdminUserNotesHandler(options) {
       throw new HttpsError("invalid-argument", "A valid UID and admin notes are required.");
     }
     try {
+      if (source.deletionGuard) {
+        await source.deletionGuard.assertAccountNotDeleting(data.uid);
+      }
       const result = await (source.notesUpdater || updateAdminNotes)({
         firestore: source.firestore, fieldValue: source.fieldValue,
         uid: data.uid, notes: data.notes, adminUid,
@@ -67,6 +70,9 @@ function createResetAdminUserUsageHandler(options) {
       throw new HttpsError("invalid-argument", "A valid UID and usage counter are required.");
     }
     try {
+      if (source.deletionGuard) {
+        await source.deletionGuard.assertAccountNotDeleting(data.uid);
+      }
       const result = await (source.usageResetter || resetMonthlyUsage)({
         firestore: source.firestore, fieldValue: source.fieldValue,
         uid: data.uid, usageType: data.usageType, adminUid,

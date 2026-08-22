@@ -5,7 +5,7 @@
   "scripts": {
     "generate:guides": "node scripts/generate-guides.mjs",
     "migration:legacy-storage:dry-run": "node scripts/migrate-legacy-storage-attachments.mjs --project simple-books-office --report migration-reports/legacy-storage-dry-run.json",
-    "test:storage:rules": "firebase emulators:exec --only auth,storage \"node tests/storage-rules-emulator.cjs\"",
+    "test:storage:rules": "firebase emulators:exec --only auth,firestore,storage \"node tests/storage-rules-emulator.cjs\"",
     "test:firestore:rules": "firebase emulators:exec --project demo-simple-books --only firestore \"node tests/firestore-rules-emulator.cjs\"",
     "test:functions:create:emulator": "firebase emulators:exec --project simple-books-office --only auth,firestore,functions \"node tests/functions-source-create-emulator.cjs\"",
     "test:functions:edit:emulator": "firebase emulators:exec --project simple-books-office --only auth,firestore,functions \"node tests/functions-source-edit-emulator.cjs\"",

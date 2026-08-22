@@ -3,12 +3,14 @@ import sourceCreateModule from "../functions/lib/source-create-service.js";
 import accountingModule from "../functions/lib/source-create-accounting.js";
 import handlerModule from "../functions/lib/source-create-handlers.js";
 import registryKeyModule from "../functions/lib/reference-registry-key.js";
+import deletionGuardModule from "../functions/lib/account-deletion-guard.js";
 import { prepareBillJournal, prepareInvoiceJournal } from "../resources/js/ledger-firestore.js";
 
 const { createSourceWithReferenceService } = sourceCreateModule;
 const { billJournal, invoiceJournal } = accountingModule;
 const { createSourceCreateHandlers } = handlerModule;
 const { referenceRegistryKey } = registryKeyModule;
+const { createAccountDeletionGuard } = deletionGuardModule;
 const REQUEST_A = "123e4567-e89b-42d3-a456-426614174000";
 const REQUEST_B = "223e4567-e89b-42d3-a456-426614174001";
 
@@ -75,11 +77,12 @@ function bill(overrides={}){
     attachmentName:"",attachmentUrl:"",attachmentPath:"",attachmentSize:0,attachmentType:"",...overrides
   };
 }
-function fixture(entries=[]){
+function fixture(entries=[], options={}){
   const firestore=new MemoryFirestore(entries);
   let timestamp=0;
   const create=createSourceWithReferenceService({
-    firestore,serverTimestamp:() => `server-${++timestamp}`,now:() => "2026-08-20T12:00:00.000Z"
+    firestore,serverTimestamp:() => `server-${++timestamp}`,now:() => "2026-08-20T12:00:00.000Z",
+    deletionGuard:options.guardDeletion ? createAccountDeletionGuard(firestore) : undefined
   });
   return {firestore,create};
 }
@@ -91,6 +94,19 @@ const createBill=(create,overrides={}) => create({
 });
 
 describe("atomic source creation",() => {
+  it("refuses a privileged source mutation once deletion has started", async () => {
+    const {firestore,create}=fixture([
+      ["users/user-1",{uid:"user-1",deletionInProgress:true}],
+      ["accountDeletionJobs/user-1",{uid:"user-1",stage:"requested",status:"active"}]
+    ],{guardDeletion:true});
+    await expect(createInvoice(create)).rejects.toMatchObject({
+      code:"failed-precondition",
+      details:{reason:"account-deletion-in-progress"}
+    });
+    expect(firestore.paths("users/user-1/invoices/")).toHaveLength(0);
+    expect(firestore.paths("journals/")).toHaveLength(0);
+  });
+
   it.each([
     ["invoice",createInvoice,"users/user-1/invoices/","invoice_user-1_"],
     ["bill",createBill,"users/user-1/bills/","bill_user-1_"]

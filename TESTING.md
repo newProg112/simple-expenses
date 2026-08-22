@@ -835,6 +835,122 @@ npm.cmd test
 git diff --check
 ```
 
+# Account deletion Phase 1
+
+`requestAccountDeletion` requires the existing admin and Demo secrets plus a
+backend-only protected UID allowlist:
+
+```powershell
+firebase functions:secrets:set SIMPLE_BOOKS_PROTECTED_UIDS
+```
+
+The value is one or more comma-separated Firebase Authentication UIDs. It may
+include the Demo/admin UIDs as deliberate redundancy. The callable fails
+closed if any of the three protection configurations is absent or malformed.
+For local Functions emulation, add a development-only value to the ignored
+`functions/.secret.local` file.
+
+Run the focused account deletion and rules coverage with:
+
+```powershell
+npm.cmd test -- --run tests/account-deletion-foundation.test.js tests/account-deletion-wiring.test.js
+npm.cmd run test:firestore:rules
+npm.cmd run test:storage:rules
+```
+
+The Storage rules suite now starts the Firestore emulator because Storage
+writes consult the server-owned account deletion state.
+
+## Account deletion Phase 2
+
+`requestAccountDeletion` now enqueues the private `processAccountDeletion`
+task. The task is the only destructive entry point and processes the durable
+job through `requested`, `stripe`, `storage`, `firestore`, `auth`, and
+`completed`. A transaction-backed 35-minute lease is longer than the task's
+30-minute execution deadline; a crashed task can recover after the lease
+expires. Eight recorded stage failures move the job to `needs_attention`
+without removing its write barrier.
+
+Successful deletion replaces the job with a minimal completion tombstone for
+48 hours. Firebase ID tokens normally expire much sooner; the additional
+buffer also covers delayed tasks and webhooks. Configure a Firestore TTL policy
+in the `simple-books-office` project for collection group
+`accountDeletionJobs`, field `tombstoneExpiresAt`. TTL deletion is asynchronous,
+so a tombstone may remain beyond 48 hours, which is safe. Do not configure TTL
+on any other job timestamp.
+
+Before deployment, verify that the runtime identity used by
+`requestAccountDeletion` can enqueue the generated task queue and invoke the
+private worker. It needs the narrowly scoped Cloud Tasks enqueuer and Cloud
+Functions invoker permissions described by the deployed Firebase task queue.
+Do not make `processAccountDeletion` public.
+
+`SIMPLE_BOOKS_DEMO_IDENTIFIERS` must include at least one `uid:` identifier for
+deletion. Email-only Demo configuration is no longer sufficient because the
+worker must continue protecting Demo even if its Auth record becomes
+temporarily unavailable. The callable and worker continue to fail closed when
+admin, Demo, or protected UID configuration is missing or malformed.
+
+Focused verification:
+
+```powershell
+npm.cmd test -- --run tests/account-deletion-foundation.test.js tests/account-deletion-wiring.test.js tests/account-deletion-stripe.test.js tests/account-deletion-storage.test.js tests/account-deletion-firestore.test.js tests/account-deletion-worker.test.js
+npm.cmd --prefix functions run lint
+```
+
+Phase 2 intentionally contained no customer-facing Account-page deletion UI.
+The confirmation, reauthentication, progress, and completion experience is
+documented in Phase 3 below.
+
+## Account deletion Phase 3
+
+The Account page now presents a Simple Books-only danger section to ordinary
+email/password users. The shared Demo hides the action. One accessible modal
+requires exact `DELETE` plus the current password, reauthenticates directly
+with Firebase Authentication, and sends only `{confirmation, requestId}` to
+`requestAccountDeletion`. The password and UID are never included in the
+callable payload.
+
+The authenticated `getAccountDeletionStatus` callable exposes only
+`not_requested`, `processing`, `needs_attention`, or `completed`, with an
+optional coarse user-facing phase. The page polls every three seconds, resumes
+monitoring after reload, tolerates transient status failures, and never treats
+queue acceptance as completed deletion. Completion requires the callable's
+completed state or confirmed Auth disappearance after deletion has started.
+
+On completion, account-specific Simple Books local/session caches are removed,
+Firebase sign-out is attempted, and the existing homepage displays a
+non-identifying completion message. Theme and navigation preferences, static
+PWA assets, and the separate Simple Expenses filter storage are retained.
+This project does not enable Firestore IndexedDB persistence, so no additional
+business-data IndexedDB cleanup is required.
+
+Focused automated verification:
+
+```powershell
+npm.cmd test -- --run tests/account-deletion-ui.test.js tests/account-deletion-status.test.js tests/account-deletion-foundation.test.js tests/account-deletion-worker.test.js tests/account-deletion-wiring.test.js
+npm.cmd --prefix functions run lint
+```
+
+Manual QA before deployment:
+
+1. Use disposable Firebase Auth and Stripe test-mode accounts only. Confirm an
+   ordinary account sees the bottom danger section and Demo does not.
+2. Open the modal by pointer and keyboard. Confirm focus enters it, Tab remains
+   inside, Escape/backdrop closes it before submission, and mobile virtual
+   keyboard/scrolling remain usable.
+3. Confirm `delete`, `Delete`, `DELETE `, missing password, and a wrong password
+   cannot start deletion. Inspect the callable payload and confirm it contains
+   only exact `DELETE` and a UUID.
+4. After a valid request, confirm the UI says deletion is processing rather
+   than complete. Reload and verify status monitoring resumes while normal
+   account editing is not presented as available.
+5. Exercise transient status failure and `needs_attention`; confirm polling is
+   calm, the barrier remains, and the existing support email is offered.
+6. Complete a disposable test deletion and verify account caches are removed,
+   sign-out occurs, and `/?account=deleted` becomes the homepage confirmation
+   without retaining its query marker after rendering.
+
 # Admin Dashboard Phase 2A
 
 The callable `getAdminMetrics` requires two backend-only Secret Manager values:

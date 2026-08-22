@@ -6,6 +6,20 @@ service firebase.storage {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    function accountIsDeleting(userId) {
+      return firestore.exists(
+        /databases/(default)/documents/accountDeletionJobs/$(userId)
+      ) || (firestore.exists(
+        /databases/(default)/documents/users/$(userId)
+      ) && firestore.get(
+        /databases/(default)/documents/users/$(userId)
+      ).data.get('deletionInProgress', false) == true);
+    }
+
+    function canWriteAccount(userId) {
+      return isOwner(userId) && !accountIsDeleting(userId);
+    }
+
     function isBusinessDocument() {
       return request.resource != null
         && request.resource.size <= 10 * 1024 * 1024
@@ -27,23 +41,29 @@ service firebase.storage {
     }
 
     match /users/{userId}/attachments/bills/{billId}/{fileName} {
-      allow get, delete: if isOwner(userId);
-      allow create, update: if isOwner(userId) && isBusinessDocument();
+      allow get: if isOwner(userId);
+      allow delete: if canWriteAccount(userId);
+      allow create, update: if canWriteAccount(userId)
+        && isBusinessDocument();
     }
 
     match /users/{userId}/attachments/expenses/{expenseId}/{fileName} {
-      allow get, delete: if isOwner(userId);
-      allow create, update: if isOwner(userId) && isBusinessDocument();
+      allow get: if isOwner(userId);
+      allow delete: if canWriteAccount(userId);
+      allow create, update: if canWriteAccount(userId)
+        && isBusinessDocument();
     }
 
     match /users/{userId}/attachments/clients/{clientId}/{fileName} {
-      allow get, delete: if isOwner(userId);
-      allow create, update: if isOwner(userId) && isPdf();
+      allow get: if isOwner(userId);
+      allow delete: if canWriteAccount(userId);
+      allow create, update: if canWriteAccount(userId) && isPdf();
     }
 
     match /users/{userId}/branding/company-logo {
-      allow get, delete: if isOwner(userId);
-      allow create, update: if isOwner(userId) && isCompanyLogo();
+      allow get: if isOwner(userId);
+      allow delete: if canWriteAccount(userId);
+      allow create, update: if canWriteAccount(userId) && isCompanyLogo();
     }
   }
 }

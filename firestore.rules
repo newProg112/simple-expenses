@@ -10,12 +10,46 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function accountIsDeleting(uid) {
+      return exists(
+        /databases/$(database)/documents/accountDeletionJobs/$(uid)
+      ) || (
+        exists(/databases/$(database)/documents/users/$(uid))
+        && get(/databases/$(database)/documents/users/$(uid))
+          .data.get('deletionInProgress', false) == true
+      );
+    }
+
+    function canWriteAccount(uid) {
+      return isOwner(uid) && !accountIsDeleting(uid);
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
-      allow create: if isOwner(uid);
+      allow create: if canWriteAccount(uid)
+        && !request.resource.data.keys().hasAny([
+          'deletionInProgress',
+          'accountDeletionState',
+          'deletionRequestedAt',
+          'deletionProtected'
+        ]);
       // Shared demo business/account settings are immutable to the demo user.
       // Nested transactional collections retain the separate owner rule below.
-      allow update, delete: if isOwner(uid) && resource.data.demoMode != true;
+      allow update: if canWriteAccount(uid)
+        && resource.data.demoMode != true
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'deletionInProgress',
+          'accountDeletionState',
+          'deletionRequestedAt',
+          'deletionProtected'
+        ]);
+      allow delete: if canWriteAccount(uid) && resource.data.demoMode != true;
+    }
+
+    // Server-owned job state. Customers use requestAccountDeletion rather
+    // than reading or mutating orchestration internals directly.
+    match /accountDeletionJobs/{uid} {
+      allow read, write: if false;
     }
 
     // Registry claims are owner-readable for diagnostics; all coordination
@@ -44,7 +78,7 @@ service cloud.firestore {
     match /users/{uid}/invoices/{invoiceId} {
       allow read: if isOwner(uid);
       allow create, delete: if false;
-      allow update: if isOwner(uid)
+      allow update: if canWriteAccount(uid)
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['status', 'paidAt', 'bankSettlement', 'updatedAt']);
     }
@@ -52,7 +86,7 @@ service cloud.firestore {
     match /users/{uid}/bills/{billId} {
       allow read: if isOwner(uid);
       allow create, delete: if false;
-      allow update: if isOwner(uid)
+      allow update: if canWriteAccount(uid)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'paidAt', 'bankSettlement', 'updatedAt',
           'attachmentName', 'attachmentUrl', 'attachmentPath',
@@ -61,7 +95,15 @@ service cloud.firestore {
     }
 
     match /users/{uid}/{collectionName}/{document=**} {
-      allow read, write: if isOwner(uid)
+      allow read: if isOwner(uid)
+        && collectionName != 'invoices'
+        && collectionName != 'bills'
+        && collectionName != 'referenceKeys'
+        && collectionName != 'referenceCreateRequests'
+        && collectionName != 'referenceEditRequests'
+        && collectionName != 'referenceDeleteRequests'
+        && collectionName != 'referenceBackfillMigrations';
+      allow write: if canWriteAccount(uid)
         && collectionName != 'invoices'
         && collectionName != 'bills'
         && collectionName != 'referenceKeys'
@@ -82,6 +124,7 @@ service cloud.firestore {
 
     match /demoAnalyticsEvents/{eventId} {
       allow create: if isSignedIn()
+        && !accountIsDeleting(request.auth.uid)
         && request.resource.data.keys().hasOnly([
           'timestamp',
           'uid',
@@ -122,11 +165,16 @@ service cloud.firestore {
           || resource.data.userId == request.auth.uid
         );
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && !accountIsDeleting(request.auth.uid)
+        && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn()
+        && !accountIsDeleting(request.auth.uid)
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn()
+        && !accountIsDeleting(request.auth.uid)
+        && resource.data.userId == request.auth.uid;
     }
   }
 }

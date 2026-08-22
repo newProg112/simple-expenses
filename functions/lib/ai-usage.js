@@ -14,6 +14,7 @@ const {
   normaliseUsageCount,
   remainingMonthlyAllowance,
 } = require("./plan-entitlements");
+const {createAccountDeletionGuard} = require("./account-deletion-guard");
 
 const RESERVATION_TTL_MS = 2 * 60 * 1000;
 const UUID_PATTERN =
@@ -238,6 +239,8 @@ function createAiUsageManager(options) {
   }
   const nowProvider = options.now || (() => new Date());
   const serverTimestamp = options.serverTimestamp || (() => new Date());
+  const deletionGuard = options.deletionGuard ||
+    createAccountDeletionGuard(firestore);
 
   async function reserve({
     uid,
@@ -261,6 +264,11 @@ function createAiUsageManager(options) {
           transaction.get(refs.profile),
           transaction.get(refs.usage),
         ]);
+      await deletionGuard.assertAccountNotDeletingInTransaction(
+          transaction,
+          uid,
+          accountSnapshot,
+      );
       const profile = profileSnapshot.exists ? profileSnapshot.data() : {};
       const account = accountSnapshot.exists ? accountSnapshot.data() : {};
       const demoMode = account.demoMode === true;
@@ -336,6 +344,10 @@ function createAiUsageManager(options) {
     const configuration = usageConfiguration(usageType);
 
     return firestore.runTransaction(async (transaction) => {
+      await deletionGuard.assertAccountNotDeletingInTransaction(
+          transaction,
+          uid,
+      );
       const snapshot = await transaction.get(refs.usage);
       const state = usageState(
           snapshot.exists ? snapshot.data() : {},
@@ -380,6 +392,10 @@ function createAiUsageManager(options) {
     const configuration = usageConfiguration(usageType);
 
     return firestore.runTransaction(async (transaction) => {
+      await deletionGuard.assertAccountNotDeletingInTransaction(
+          transaction,
+          uid,
+      );
       const snapshot = await transaction.get(refs.usage);
       const state = usageState(
           snapshot.exists ? snapshot.data() : {},

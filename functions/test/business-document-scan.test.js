@@ -139,6 +139,9 @@ assert.throws(
 );
 
 async function run() {
+  const activeDeletionGuard = {
+    assertAccountNotDeleting: async () => {},
+  };
   await assert.rejects(
       handleBusinessDocumentScan({data: fileData("supplier.pdf", "application/pdf", pdfBuffer)}, {}),
       (error) => error.code === "unauthenticated",
@@ -151,6 +154,7 @@ async function run() {
     data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
   }, {
     firestore: {},
+    deletionGuard: activeDeletionGuard,
     logger: {info() {}, warn() {}},
     openaiClient: {
       responses: {
@@ -198,6 +202,7 @@ async function run() {
         data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
       }, {
         firestore: {},
+        deletionGuard: activeDeletionGuard,
         logger: {info() {}, warn() {}},
         openaiClient: {responses: {create: async () => ({output_text: "not json"})}},
         usageManager: {
@@ -217,6 +222,7 @@ async function run() {
         data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
       }, {
         firestore: {},
+        deletionGuard: activeDeletionGuard,
         logger: {error() {}, info() {}, warn() {}},
         openaiClient: {responses: {create: async () => {
           const error = new Error("private provider details");
@@ -241,6 +247,7 @@ async function run() {
         data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
       }, {
         firestore: {},
+        deletionGuard: activeDeletionGuard,
         logger: {info() {}, warn() {}},
         openaiClient: {responses: {create: async () => {
           duplicateProviderCalls += 1;
@@ -266,6 +273,7 @@ async function run() {
           data: fileData("supplier.pdf", "application/pdf", pdfBuffer),
         }, {
           firestore: {},
+          deletionGuard: activeDeletionGuard,
           logger: {info() {}, warn() {}},
           openaiClient: {responses: {create: async () => {
             overLimitProviderCalls += 1;

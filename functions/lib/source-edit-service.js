@@ -102,6 +102,7 @@ function createSourceEditService(options = {}) {
   const serverTimestamp = options.serverTimestamp;
   const now = options.now || (() => new Date().toISOString());
   const keyForReference = options.keyForReference || referenceRegistryKey;
+  const deletionGuard = options.deletionGuard || null;
   if (!firestore || typeof firestore.runTransaction !== "function" || typeof firestore.collection !== "function") throw new TypeError("A Firestore transaction service is required.");
   if (typeof serverTimestamp !== "function" || typeof now !== "function") throw new TypeError("Timestamp providers are required.");
 
@@ -128,6 +129,12 @@ function createSourceEditService(options = {}) {
     const expectedRequest = {recordType, sourceId, requestHash, journalId: preparedId};
 
     return firestore.runTransaction(async (transaction) => {
+      if (deletionGuard) {
+        await deletionGuard.assertAccountNotDeletingInTransaction(
+            transaction,
+            uid,
+        );
+      }
       const requestSnapshot = await transaction.get(requestRef);
       const sourceSnapshot = await transaction.get(sourceRef);
       const journalSnapshot = await transaction.get(journalRef);

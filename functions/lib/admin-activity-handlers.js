@@ -32,6 +32,9 @@ function createActivityLoggerHandler(options) {
       throw new HttpsError("unauthenticated", "You must be signed in to record activity.");
     }
     try {
+      if (source.deletionGuard) {
+        await source.deletionGuard.assertAccountNotDeleting(request.auth.uid);
+      }
       const adminUids = parseAdminUidAllowList(source.adminUidConfiguration);
       const demoIdentifiers = parseDemoIdentifiers(source.demoConfiguration);
       const input = validateFrontendActivityRequest(request.data);

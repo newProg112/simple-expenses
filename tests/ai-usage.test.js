@@ -320,6 +320,21 @@ describe("usage counter safety", () => {
 });
 
 describe("transaction-safe reservations", () => {
+  it("refuses AI usage mutations after account deletion begins", async () => {
+    const {firestore, manager} = createFixture({
+      account: {uid, deletionInProgress: true},
+    });
+    firestore.documents.set(`accountDeletionJobs/${uid}`, {
+      uid, stage: "requested", status: "active",
+    });
+    await expect(manager.reserve({uid, requestId: requestIds[0]}))
+        .rejects.toMatchObject({
+          code: "failed-precondition",
+          details: {reason: "account-deletion-in-progress"},
+        });
+    expect(firestore.read(usagePath)).toBeUndefined();
+  });
+
   it.each([
     {
       label: "Starter AI Assistant use 10",

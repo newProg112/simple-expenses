@@ -65,17 +65,19 @@ describe("demo Pro showcase integration contracts", () => {
     ]) expect(account).toContain(`"${field}"`);
     expect(account).toContain("Shared demo account settings are locked and were not changed.");
     expect(account).toContain("Shared demo logo settings are locked.");
-    expect(rules).toContain("allow update, delete: if isOwner(uid) && resource.data.demoMode != true;");
+    expect(rules).toContain("allow update: if canWriteAccount(uid)");
+    expect(rules).toContain("allow delete: if canWriteAccount(uid) && resource.data.demoMode != true;");
     expect(rules).toContain("match /users/{uid}/{collectionName}/{document=**}");
     expect(rules).toContain("collectionName != 'referenceKeys'");
   });
 
   it("rejects authoritative demo checkout, portal, and webhook billing updates", () => {
     const functions = read("functions/index.js");
+    const stripeWriter = read("functions/lib/stripe-profile-writer.js");
     expect(functions).toContain("const accountSnapshot = await users.doc(decodedToken.uid).get();");
     expect(functions).toContain('error: "Subscription changes are unavailable in the shared " +');
     expect(functions).toContain('error: "Subscription management is unavailable in the shared " +');
-    expect(functions).toContain("Ignoring subscription update for demo account");
+    expect(stripeWriter).toContain("Ignoring subscription update for demo account");
     expect(functions.indexOf("accountSnapshot.data().demoMode === true"))
       .toBeLessThan(functions.indexOf("stripe.checkout.sessions.create"));
     expect(functions.indexOf("accountSnap.data().demoMode === true"))

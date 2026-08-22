@@ -9,6 +9,7 @@
 
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onCall, onRequest} = require("firebase-functions/v2/https");
+const {onTaskDispatched} = require("firebase-functions/v2/tasks");
 const {defineSecret} = require("firebase-functions/params");
 const functionsV1 = require("firebase-functions/v1");
 const admin = require("firebase-admin");
@@ -73,6 +74,33 @@ const {
 const {
   createSourceDeleteHandlers,
 } = require("./lib/source-delete-handlers");
+const {
+  createAccountDeletionGuard,
+} = require("./lib/account-deletion-guard");
+const {
+  createRequestAccountDeletionHandler,
+} = require("./lib/account-deletion-handler");
+const {
+  createStripeProfileWriter,
+} = require("./lib/stripe-profile-writer");
+const {
+  createAccountDeletionTaskEnqueuer,
+} = require("./lib/account-deletion-task-enqueuer");
+const {
+  createAccountDeletionWorker,
+} = require("./lib/account-deletion-worker");
+const {
+  createStripeAccountDeletionService,
+} = require("./lib/account-deletion-stripe");
+const {
+  createStorageAccountDeletionService,
+} = require("./lib/account-deletion-storage");
+const {
+  createFirestoreAccountDeletionService,
+} = require("./lib/account-deletion-firestore");
+const {
+  createGetAccountDeletionStatusHandler,
+} = require("./lib/account-deletion-status-handler");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -86,22 +114,28 @@ const {
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
 admin.initializeApp();
+const firestore = admin.firestore();
+const accountDeletionGuard = createAccountDeletionGuard(firestore);
+const enqueueAccountDeletion = createAccountDeletionTaskEnqueuer();
 
 const createSourceWithReference = createSourceWithReferenceService({
-  firestore: admin.firestore(),
+  firestore,
   serverTimestamp: () => FieldValue.serverTimestamp(),
+  deletionGuard: accountDeletionGuard,
 });
 const sourceCreateHandlers = createSourceCreateHandlers(
     createSourceWithReference,
 );
 const updateSourceWithReference = createSourceEditService({
-  firestore: admin.firestore(),
+  firestore,
   serverTimestamp: () => FieldValue.serverTimestamp(),
+  deletionGuard: accountDeletionGuard,
 });
 const sourceEditHandlers = createSourceEditHandlers(updateSourceWithReference);
 const deleteSourceWithReference = createSourceDeleteService({
-  firestore: admin.firestore(),
+  firestore,
   serverTimestamp: () => FieldValue.serverTimestamp(),
+  deletionGuard: accountDeletionGuard,
 });
 const sourceDeleteHandlers = createSourceDeleteHandlers(
     deleteSourceWithReference,
@@ -111,12 +145,13 @@ const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 const adminUidsSecret = defineSecret("SIMPLE_BOOKS_ADMIN_UIDS");
 const demoIdentifiersSecret = defineSecret("SIMPLE_BOOKS_DEMO_IDENTIFIERS");
+const protectedUidsSecret = defineSecret("SIMPLE_BOOKS_PROTECTED_UIDS");
 const simpleBooksProPriceId = "price_1TnLTCJmLqrFk5SqusEJiIhu";
 const successUrl = "https://simple-books.co.uk/account.html?checkout=success";
 const cancelUrl = "https://simple-books.co.uk/account.html?checkout=cancelled";
 const billingPortalReturnUrl = "https://simple-books.co.uk/account.html";
-const userProfiles = admin.firestore().collection("userProfiles");
-const users = admin.firestore().collection("users");
+const userProfiles = firestore.collection("userProfiles");
+const users = firestore.collection("users");
 
 /**
  * Builds the default Simple Books billing profile for a Firebase user.
@@ -142,16 +177,19 @@ function defaultUserProfile(user) {
  * @return {Promise<boolean>} True when a profile was created.
  */
 async function createUserProfileIfMissing(uid, user) {
-  try {
-    await userProfiles.doc(uid).create(defaultUserProfile(user));
-    return true;
-  } catch (error) {
-    if (error && (error.code === 6 || error.code === "already-exists")) {
+  const profileReference = userProfiles.doc(uid);
+  return firestore.runTransaction(async (transaction) => {
+    const profileSnapshot = await transaction.get(profileReference);
+    await accountDeletionGuard.assertAccountNotDeletingInTransaction(
+        transaction,
+        uid,
+    );
+    if (profileSnapshot.exists) {
       return false;
     }
-
-    throw error;
-  }
+    transaction.create(profileReference, defaultUserProfile(user));
+    return true;
+  });
 }
 
 exports.createUserProfile = functionsV1.auth.user().onCreate(async (user) => {
@@ -433,29 +471,19 @@ async function findUidForSubscription(subscription) {
  * @return {Promise<void>} Resolves when Firestore has been updated.
  */
 async function updateSubscriptionProfile(uid, data) {
-  const accountSnapshot = await users.doc(uid).get();
-  if (accountSnapshot.exists && accountSnapshot.data().demoMode === true) {
-    console.warn("Ignoring subscription update for demo account", {uid});
-    return;
-  }
   console.log("Writing subscription billing fields", {
     uid,
     subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd || null,
     paymentMethodBrand: data.paymentMethodBrand || "",
     paymentMethodLast4: data.paymentMethodLast4 || "",
   });
-
-  await userProfiles.doc(uid).set({
-    currentPlan: "Pro",
-    subscriptionStatus: data.subscriptionStatus,
-    stripeCustomerId: data.stripeCustomerId,
-    stripeSubscriptionId: data.stripeSubscriptionId,
-    stripePriceId: data.stripePriceId,
-    subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd || null,
-    paymentMethodBrand: data.paymentMethodBrand || "",
-    paymentMethodLast4: data.paymentMethodLast4 || "",
-    subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  }, {merge: true});
+  return createStripeProfileWriter({
+    firestore,
+    auth: admin.auth(),
+    fieldValue: admin.firestore.FieldValue,
+    deletionGuard: accountDeletionGuard,
+    logger: console,
+  })(uid, data);
 }
 
 exports.createCheckoutSession = onRequest(
@@ -486,6 +514,7 @@ exports.createCheckoutSession = onRequest(
 
       try {
         const decodedToken = await admin.auth().verifyIdToken(match[1]);
+        await accountDeletionGuard.assertAccountNotDeleting(decodedToken.uid);
         const accountSnapshot = await users.doc(decodedToken.uid).get();
         if (accountSnapshot.exists &&
           accountSnapshot.data().demoMode === true) {
@@ -530,6 +559,7 @@ exports.createCheckoutSession = onRequest(
         }
 
         try {
+          await accountDeletionGuard.assertAccountNotDeleting(uid);
           const identity = await trustedActivityIdentity({
             auth: admin.auth(),
             firestore: admin.firestore(),
@@ -559,6 +589,8 @@ exports.createCheckoutSession = onRequest(
           "Unknown checkout error.";
         const errorStack = error && error.stack ? String(error.stack) : "";
         const isAuthError = errorCode.startsWith("auth/");
+        const isDeleting = error && error.details &&
+          error.details.reason === "account-deletion-in-progress";
 
         console.error(
             `createCheckoutSession failed:
@@ -568,10 +600,12 @@ exports.createCheckoutSession = onRequest(
         ${errorStack}`,
         );
 
-        response.status(isAuthError ? 401 : 500).json({
+        response.status(isAuthError ? 401 : (isDeleting ? 409 : 500)).json({
           error: isAuthError ?
             "You must be signed in to start checkout." :
-            "Checkout session could not be created.",
+            (isDeleting ?
+              "Checkout is unavailable while your account is being deleted." :
+              "Checkout session could not be created."),
         });
         return;
       }
@@ -624,6 +658,7 @@ exports.createBillingPortalSession = onRequest(
 
       try {
         const decodedToken = await admin.auth().verifyIdToken(match[1]);
+        await accountDeletionGuard.assertAccountNotDeleting(decodedToken.uid);
         const [accountSnap, profileSnap] = await Promise.all([
           users.doc(decodedToken.uid).get(),
           userProfiles.doc(decodedToken.uid).get(),
@@ -673,6 +708,8 @@ exports.createBillingPortalSession = onRequest(
           "Unknown billing portal error.";
         const errorStack = error && error.stack ? String(error.stack) : "";
         const isAuthError = errorCode.startsWith("auth/");
+        const isDeleting = error && error.details &&
+          error.details.reason === "account-deletion-in-progress";
 
         console.error(
             `createBillingPortalSession failed:
@@ -682,10 +719,12 @@ exports.createBillingPortalSession = onRequest(
         ${errorStack}`,
         );
 
-        response.status(isAuthError ? 401 : 500).json({
+        response.status(isAuthError ? 401 : (isDeleting ? 409 : 500)).json({
           error: isAuthError ?
             "You must be signed in to manage your subscription." :
-            "Billing Portal session could not be created.",
+            (isDeleting ?
+              "Billing is unavailable while your account is being deleted." :
+              "Billing Portal session could not be created."),
         });
       }
     },
@@ -746,14 +785,14 @@ exports.stripeWebhook = onRequest(
             {};
 
           const subscriptionStatus = stripeSubscriptionStatus(subscription);
-          await updateSubscriptionProfile(uid, {
+          const profileUpdate = await updateSubscriptionProfile(uid, {
             subscriptionStatus: stripeSubscriptionStatus(subscription),
             stripeCustomerId: session.customer || "",
             stripeSubscriptionId: session.subscription || "",
             stripePriceId,
             ...billingDetails,
           });
-          if (subscription &&
+          if (profileUpdate.updated && subscription &&
             ["active", "trialing"].includes(subscriptionStatus)) {
             try {
               const user = await admin.auth().getUser(uid);
@@ -806,14 +845,15 @@ exports.stripeWebhook = onRequest(
               subscription,
           );
 
-          await updateSubscriptionProfile(uid, {
+          const profileUpdate = await updateSubscriptionProfile(uid, {
             subscriptionStatus: stripeSubscriptionStatus(subscription),
             stripeCustomerId: subscriptionCustomerId(subscription),
             stripeSubscriptionId: subscription.id,
             stripePriceId: subscriptionPriceId(subscription),
             ...billingDetails,
           });
-          if (event.type === "customer.subscription.deleted") {
+          if (profileUpdate.updated &&
+            event.type === "customer.subscription.deleted") {
             try {
               const user = await admin.auth().getUser(uid);
               await writeActivityEvent({
@@ -863,6 +903,83 @@ const {
 exports.askBusinessAssistantPreview = askBusinessAssistantPreview;
 exports.askBusinessAssistant = askBusinessAssistant;
 exports.scanBusinessDocument = scanBusinessDocument;
+exports.processAccountDeletion = onTaskDispatched(
+    {
+      region: "us-central1",
+      invoker: "private",
+      maxInstances: 5,
+      concurrency: 1,
+      timeoutSeconds: 1800,
+      memory: "512MiB",
+      retryConfig: {
+        maxAttempts: 30,
+        maxRetrySeconds: 86400,
+        minBackoffSeconds: 30,
+        maxBackoffSeconds: 300,
+        maxDoublings: 4,
+      },
+      rateLimits: {
+        maxConcurrentDispatches: 5,
+        maxDispatchesPerSecond: 5,
+      },
+      secrets: [
+        stripeSecretKey,
+        adminUidsSecret,
+        demoIdentifiersSecret,
+        protectedUidsSecret,
+      ],
+    },
+    (request) => createAccountDeletionWorker({
+      auth: admin.auth(),
+      firestore,
+      fieldValue: admin.firestore.FieldValue,
+      timestampFactory: admin.firestore.Timestamp,
+      adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
+      protectedUidConfiguration: protectedUidsSecret.value(),
+      logger: console,
+      stripeCleanup: createStripeAccountDeletionService({
+        stripe: new Stripe(stripeSecretKey.value()),
+        firestore,
+      }),
+      storageCleanup: createStorageAccountDeletionService({
+        bucket: admin.storage().bucket(),
+        firestore,
+      }),
+      firestoreCleanup: createFirestoreAccountDeletionService({firestore}),
+    })(request),
+);
+exports.requestAccountDeletion = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 5,
+      timeoutSeconds: 30,
+      memory: "256MiB",
+      secrets: [
+        adminUidsSecret,
+        demoIdentifiersSecret,
+        protectedUidsSecret,
+      ],
+    },
+    (request) => createRequestAccountDeletionHandler({
+      auth: admin.auth(),
+      firestore,
+      fieldValue: admin.firestore.FieldValue,
+      adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
+      protectedUidConfiguration: protectedUidsSecret.value(),
+      enqueueDeletionTask: enqueueAccountDeletion,
+    })(request),
+);
+exports.getAccountDeletionStatus = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 10,
+      timeoutSeconds: 15,
+      memory: "256MiB",
+    },
+    createGetAccountDeletionStatusHandler({firestore}),
+);
 exports.createInvoiceWithReference = onCall(
     {
       region: "us-central1", maxInstances: 10,
@@ -992,6 +1109,7 @@ exports.logActivityEvent = onCall(
       fieldValue: admin.firestore.FieldValue,
       adminUidConfiguration: adminUidsSecret.value(),
       demoConfiguration: demoIdentifiersSecret.value(),
+      deletionGuard: accountDeletionGuard,
     })(request),
 );
 
@@ -1091,6 +1209,7 @@ exports.updateAdminUserNotes = onCall(
     (request) => createUpdateAdminUserNotesHandler({
       firestore: admin.firestore(), fieldValue: admin.firestore.FieldValue,
       adminUidConfiguration: adminUidsSecret.value(), logger: console,
+      deletionGuard: accountDeletionGuard,
     })(request),
 );
 
@@ -1105,6 +1224,7 @@ exports.resetAdminUserUsage = onCall(
     (request) => createResetAdminUserUsageHandler({
       firestore: admin.firestore(), fieldValue: admin.firestore.FieldValue,
       adminUidConfiguration: adminUidsSecret.value(), logger: console,
+      deletionGuard: accountDeletionGuard,
     })(request),
 );
 
@@ -1166,5 +1286,6 @@ exports.resetDemoEnvironment = onCall(
     (request) => createDemoResetHandler({
       firestore: admin.firestore(),
       logger: console,
+      deletionGuard: accountDeletionGuard,
     })(request),
 );

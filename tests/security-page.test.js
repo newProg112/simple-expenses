@@ -81,7 +81,8 @@ describe("public Security page", () => {
     expect(login).toContain("sendPasswordResetEmail");
     expect(authGuard).toContain('window.location.replace("/login.html")');
     expect(firestoreRules).toContain("request.auth.uid == uid");
-    expect(firestoreRules).toContain("allow read, write: if isOwner(uid)");
+    expect(firestoreRules).toContain("allow read: if isOwner(uid)");
+    expect(firestoreRules).toContain("allow write: if canWriteAccount(uid)");
 
     expect(html).toContain("email and password sign-in through Firebase Authentication");
     expect(html).toContain("is not written into Simple Books business records or browser storage");

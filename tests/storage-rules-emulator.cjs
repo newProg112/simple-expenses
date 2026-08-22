@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const admin = require("../functions/node_modules/firebase-admin");
 
 const projectId = process.env.GCLOUD_PROJECT || "simple-books-office";
 const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || "{}");
@@ -85,6 +86,10 @@ function expectSignedOutDenied(response, action) {
 (async () => {
   const userA = await createUser("storage-user-a");
   const userB = await createUser("storage-user-b");
+  if (!admin.apps.length) admin.initializeApp({projectId});
+  const db = admin.firestore();
+  await db.doc(`users/${userA.uid}`).set({uid:userA.uid,demoMode:false});
+  await db.doc(`users/${userB.uid}`).set({uid:userB.uid,demoMode:false});
   const billPath = `users/${userA.uid}/attachments/bills/bill-1/receipt.pdf`;
 
   await expectAllowed(await upload(billPath, userA.token, "application/pdf"), "User A uploads bill PDF");
@@ -159,7 +164,45 @@ function expectSignedOutDenied(response, action) {
   await expectAllowed(await remove(expensePath, userA.token), "User A deletes expense attachment");
   await expectAllowed(await remove(clientPath, userA.token), "User A deletes client attachment");
 
-  console.log("Storage rules emulator tests passed.");
+  const barrierPath = `users/${userA.uid}/attachments/bills/barrier/existing.pdf`;
+  await expectAllowed(
+    await upload(barrierPath, userA.token, "application/pdf"),
+    "User A uploads before requesting deletion"
+  );
+  await db.doc(`users/${userA.uid}`).set({
+    deletionInProgress:true,accountDeletionState:"requested"
+  },{merge:true});
+  await db.doc(`accountDeletionJobs/${userA.uid}`).set({
+    schemaVersion:1,uid:userA.uid,status:"active",stage:"requested"
+  });
+
+  await expectAllowed(await read(barrierPath, userA.token), "Deleting User A can still read/export");
+  expectDenied(await remove(barrierPath, userA.token), "Deleting User A cannot delete files");
+  expectDenied(
+    await upload(`users/${userA.uid}/attachments/bills/barrier/new.pdf`, userA.token, "application/pdf"),
+    "Deleting User A cannot upload bill attachments"
+  );
+  expectDenied(
+    await upload(`users/${userA.uid}/attachments/expenses/barrier/new.png`, userA.token, "image/png"),
+    "Deleting User A cannot upload expense attachments"
+  );
+  expectDenied(
+    await upload(`users/${userA.uid}/attachments/clients/barrier/new.pdf`, userA.token, "application/pdf"),
+    "Deleting User A cannot upload client attachments"
+  );
+  expectDenied(
+    await upload(`users/${userA.uid}/branding/company-logo`, userA.token, "image/png"),
+    "Deleting User A cannot upload a company logo"
+  );
+
+  const userBPath = `users/${userB.uid}/attachments/bills/independent/file.pdf`;
+  await expectAllowed(
+    await upload(userBPath, userB.token, "application/pdf"),
+    "User B remains writable during User A deletion"
+  );
+  await expectAllowed(await remove(userBPath, userB.token), "User B can remove own file");
+
+  console.log("Storage rules and account-deletion barrier tests passed.");
 })().catch((error) => {
   console.error(error);
   process.exit(1);

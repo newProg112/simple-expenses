@@ -14,6 +14,7 @@ const {
   createAiUsageManager,
   monthlyAllowanceMessage,
 } = require("./lib/ai-usage");
+const {createAccountDeletionGuard} = require("./lib/account-deletion-guard");
 const {
   createPreviewResponse,
   routeQuestion,
@@ -100,6 +101,9 @@ async function handleAssistantRequest(request, dependencies) {
   const log = supplied.logger || logger;
   const summaryBuilder = supplied.buildBusinessSummary || buildBusinessSummary;
   const firestore = supplied.firestore || admin.firestore();
+  const deletionGuard = supplied.deletionGuard ||
+    createAccountDeletionGuard(firestore);
+  await deletionGuard.assertAccountNotDeleting(request.auth.uid);
   let summary;
 
   try {
@@ -141,6 +145,7 @@ async function handleAssistantRequest(request, dependencies) {
       firestore,
       now: () => supplied.now || new Date(),
       serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+      deletionGuard,
     }) :
     null;
   let usageReservation;
