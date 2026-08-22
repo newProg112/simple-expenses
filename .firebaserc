@@ -7,9 +7,6 @@
       "hosting": {
         "main": [
           "simple-expenses-8ab54"
-        ],
-        "expenses": [
-          "simple-expenses-app-a9ef1"
         ]
       }
     },
@@ -17,9 +14,6 @@
       "hosting": {
         "main": [
           "simple-books-office"
-        ],
-        "expenses": [
-          "simple-expenses-app-a9ef1"
         ]
       }
     }

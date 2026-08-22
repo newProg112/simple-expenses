@@ -146,15 +146,6 @@
           "destination": "/guide-pages/input-vat-and-output-vat.html"
         }
       ]
-    },
-    {
-      "target": "expenses",
-      "public": "expenses",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ]
     }
   ],
   "functions": [
