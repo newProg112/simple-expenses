@@ -53,13 +53,14 @@ describe("account-deletion production wiring", () => {
     expect(source).toContain("enqueueDeletionTask: enqueueAccountDeletion");
   });
 
-  it("exposes only a private retrying task worker for destructive cleanup", () => {
+  it("exposes only a non-public retrying task worker for destructive cleanup", () => {
     const worker = between(
         "exports.processAccountDeletion",
         "exports.requestAccountDeletion",
     );
     expect(worker).toContain("onTaskDispatched(");
-    expect(worker).toContain('invoker: "private"');
+    expect(worker).not.toMatch(/invoker\s*:/);
+    expect(worker).not.toContain("onCall(");
     expect(worker).toContain("retryConfig:");
     expect(worker).toContain("createAccountDeletionWorker(");
   });

@@ -906,7 +906,6 @@ exports.scanBusinessDocument = scanBusinessDocument;
 exports.processAccountDeletion = onTaskDispatched(
     {
       region: "us-central1",
-      invoker: "private",
       maxInstances: 5,
       concurrency: 1,
       timeoutSeconds: 1800,

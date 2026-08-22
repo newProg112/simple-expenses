@@ -180,7 +180,7 @@ function fixture({job = activeJob(), account = {uid: USER_A}, authExists = true,
 }
 
 describe("account deletion worker", () => {
-  it("rejects untrusted payload shapes and production wiring keeps the trigger private", async () => {
+  it("rejects untrusted task payload shapes", async () => {
     const {worker} = fixture();
     await expect(worker({data: {uid: USER_A, stage: "auth"}}))
         .rejects.toMatchObject({deletionCode: "account-deletion-task-invalid"});
