@@ -1038,7 +1038,7 @@
         <h2>Import Excel Data</h2>
 
         <p class="muted">
-          Download the Simple Books Excel import template with example rows for clients, invoices, bills, expenses and mileage.
+          Download a blank Simple Books workbook for clients, invoices, bills, expenses, mileage, projects and budgets.
         </p>
 
         <div class="import-actions">
@@ -1297,8 +1297,12 @@
         });
   </script>
 
+  <script type="module" src="/resources/js/canonical-workbook-template.js?v=20260826-canonical-workbook2"></script>
+  <script type="module" src="/resources/js/canonical-workbook-preflight.js?v=20260826-canonical-workbook3"></script>
+
   <script>
     let validatedImportWorkbook = null;
+    let validatedWorkbookPreflight = null;
 
     async function downloadFullBackup(){
 
@@ -1372,17 +1376,19 @@
           return;
         }
 
-        const workbook = XLSX.utils.book_new();
-        const template = buildExcelImportTemplateData();
+        const template = window.simpleBooksCanonicalWorkbookTemplate;
 
-        appendFormattedSheet(XLSX, workbook, "README", template.readme);
-        appendFormattedSheet(XLSX, workbook, "Clients", template.clients);
-        appendFormattedSheet(XLSX, workbook, "Invoices", template.invoices);
-        appendFormattedSheet(XLSX, workbook, "Bills", template.bills);
-        appendFormattedSheet(XLSX, workbook, "Expenses", template.expenses);
-        appendFormattedSheet(XLSX, workbook, "Mileage", template.mileage);
+        if(!template){
+          console.error("Canonical workbook template module failed to load");
+          alert("Could not prepare the Excel template. Please refresh the page and try again.");
+          return;
+        }
 
-        XLSX.writeFile(workbook, "simple-books-import-template.xlsx");
+        const workbook = template.buildWorkbook(XLSX);
+        XLSX.writeFile(workbook, template.filename, {
+          cellStyles: true,
+          compression: true
+        });
     }
 
     async function validateExcelImportWorkbook(event){
@@ -1393,6 +1399,7 @@
         }
 
         validatedImportWorkbook = null;
+        validatedWorkbookPreflight = null;
         setUploadButtonEnabled(false);
         setAllImportButtonsEnabled(false);
         setExcelImportMessage("Validating workbook...", "loading", { loading: true });
@@ -1420,18 +1427,31 @@
         }
 
         try{
-          const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
-          const missingSheet = findMissingImportTemplateSheet(workbook);
-
-          if(missingSheet){
-            setExcelImportMessage(`Missing sheet: ${missingSheet}`, "error");
+          const workbook = XLSX.read(await file.arrayBuffer(), {
+            type: "array",
+            cellDates: true
+          });
+          const preflightModule = window.simpleBooksWorkbookPreflight;
+          if(!preflightModule){
+            setExcelImportMessage("Workbook preflight is not available. Please refresh and try again.", "error");
             return;
           }
+          const accountContext = await readOnlyWorkbookPreflightContext();
+          validatedWorkbookPreflight = preflightModule.preflight(workbook, {
+            rowsFromSheet: sheet => XLSX.utils.sheet_to_json(sheet, {
+              header: 1,
+              defval: "",
+              blankrows: true,
+              raw: true
+            }),
+            ...accountContext
+          });
 
-          validatedImportWorkbook = workbook;
-          setUploadButtonEnabled(true);
-          setAllImportButtonsEnabled(true);
-          setWorkbookValidatedMessage();
+          setAllImportButtonsEnabled(false);
+          setExcelImportMessage(
+            formatWorkbookPreflightMessage(validatedWorkbookPreflight),
+            validatedWorkbookPreflight.safeToProceed ? "success" : "error"
+          );
         }catch(error){
           console.error("Excel import validation failed", error);
           setExcelImportMessage("Workbook is not a Simple Books import template.", "error");
@@ -1439,6 +1459,46 @@
           setUploadButtonEnabled(true);
           event.target.value = "";
         }
+    }
+
+    async function readOnlyWorkbookPreflightContext(){
+        const { services, user } = await getBackupUserAndServices();
+        if(!services || !user){
+          return {};
+        }
+
+        const [clients, invoices, bills, allExpenses, projects, account, profile] = await Promise.all([
+          readFirestoreCollection(user, services, "clients"),
+          readFirestoreCollection(user, services, "invoices"),
+          readFirestoreCollection(user, services, "bills"),
+          readFirestoreCollection(user, services, "expenses"),
+          readFirestoreCollection(user, services, "projects"),
+          services.getDoc(services.doc(services.db, "users", user.uid)),
+          services.getDoc(services.doc(services.db, "userProfiles", user.uid))
+        ]);
+
+        return {
+          existing: {
+            clients,
+            invoices,
+            bills,
+            expenses: allExpenses.filter(record => record.type !== "mileage"),
+            mileage: allExpenses.filter(record => record.type === "mileage"),
+            projects
+          },
+          plan: profile.exists() ? profile.data().currentPlan : undefined,
+          demoMode: account.exists() && account.data().demoMode === true
+        };
+    }
+
+    function formatWorkbookPreflightMessage(result){
+        const totalRecords = Object.values(result.counts).reduce((total, count) => total + count, 0);
+        const summary = `${result.workbookType === "canonical" ? "Canonical" : "Legacy"} workbook preflight: ${totalRecords} records, ${result.errors.length} errors, ${result.warnings.length} warnings.`;
+        if(result.errors.length){
+          const first = result.errors[0];
+          return `${summary} First error: ${first.sheet}${first.row ? ` row ${first.row}` : ""}${first.field ? `, ${first.field}` : ""}: ${first.message}`;
+        }
+        return `${summary} No data has been imported. Import execution is not enabled in this phase.`;
     }
 
     async function importValidatedClients(){
@@ -2803,105 +2863,6 @@
 
     function setImportMileageButtonEnabled(enabled){
         setButtonEnabled("importMileageButton", enabled);
-    }
-
-    function buildExcelImportTemplateData(){
-        return {
-          readme: [
-            {
-              "Section": "Purpose",
-              "Details": "Use this workbook to prepare data for a future Simple Books Excel import."
-            },
-            {
-              "Section": "MVP status",
-              "Details": "This version only downloads the template. Upload/import is not active yet."
-            },
-            {
-              "Section": "Dates",
-              "Details": "Use YYYY-MM-DD format for date fields."
-            },
-            {
-              "Section": "Money",
-              "Details": "Enter money values as numbers without currency symbols."
-            },
-            {
-              "Section": "VAT Rate",
-              "Details": "Use decimals such as 0.20 for 20% VAT, or 0 for no VAT."
-            }
-          ],
-          clients: [
-            {
-              "Client Name": "Acme Ltd",
-              "Contact Name": "Jamie Carter",
-              "Email": "jamie@example.com",
-              "Phone": "07123 456789",
-              "Address Line 1": "12 High Street",
-              "Address Line 2": "",
-              "Town/City": "Manchester",
-              "Postcode": "M1 1AA",
-              "Country": "United Kingdom",
-              "Payment Terms": "14 days",
-              "Notes": "Example client"
-            }
-          ],
-          invoices: [
-            {
-              "Invoice Number": "INV-1001",
-              "Client Name": "Acme Ltd",
-              "Invoice Date": "2026-07-01",
-              "Due Date": "2026-07-15",
-              "Description": "Consulting services",
-              "Net": 500,
-              "VAT Rate": 0.20,
-              "VAT": 100,
-              "Total": 600,
-              "Status": "Unpaid",
-              "Notes": "Example invoice"
-            }
-          ],
-          bills: [
-            {
-              "Supplier": "Office Supplies Co",
-              "Bill Number": "BILL-2001",
-              "Bill Date": "2026-07-02",
-              "Due Date": "2026-07-30",
-              "Category": "Office costs",
-              "Description": "Printer paper and stationery",
-              "Net": 75,
-              "VAT Rate": 0.20,
-              "VAT": 15,
-              "Total": 90,
-              "Status": "Unpaid",
-              "Notes": "Example bill"
-            }
-          ],
-          expenses: [
-            {
-              "Date": "2026-07-03",
-              "Merchant": "Trainline",
-              "Category": "Travel",
-              "Description": "Train ticket to client meeting",
-              "Net": 42,
-              "VAT Rate": 0,
-              "VAT": 0,
-              "Gross": 42,
-              "Payment Method": "Business card",
-              "Notes": "Example expense"
-            }
-          ],
-          mileage: [
-            {
-              "Date": "2026-07-04",
-              "From": "Office",
-              "To": "Client site",
-              "Business Purpose": "Client meeting",
-              "Miles": 24,
-              "Rate Per Mile": 0.45,
-              "Amount": 10.80,
-              "Notes": "Example mileage claim"
-            }
-          ]
-        };
     }
 
     async function loadExcelLibrary(){
