@@ -126,6 +126,15 @@ const createSourceWithReference = createSourceWithReferenceService({
 const sourceCreateHandlers = createSourceCreateHandlers(
     createSourceWithReference,
 );
+const createWorkbookSourceWithReference = createSourceWithReferenceService({
+  firestore,
+  serverTimestamp: () => FieldValue.serverTimestamp(),
+  deletionGuard: accountDeletionGuard,
+  allowInitialPaidInvoice: true,
+});
+const workbookSourceCreateHandlers = createSourceCreateHandlers(
+    createWorkbookSourceWithReference,
+);
 const updateSourceWithReference = createSourceEditService({
   firestore,
   serverTimestamp: () => FieldValue.serverTimestamp(),
@@ -985,6 +994,13 @@ exports.createInvoiceWithReference = onCall(
       timeoutSeconds: 30, memory: "256MiB",
     },
     sourceCreateHandlers.createInvoiceWithReference,
+);
+exports.createWorkbookInvoiceWithReference = onCall(
+    {
+      region: "us-central1", maxInstances: 10,
+      timeoutSeconds: 30, memory: "256MiB",
+    },
+    workbookSourceCreateHandlers.createInvoiceWithReference,
 );
 exports.createBillWithReference = onCall(
     {

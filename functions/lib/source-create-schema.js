@@ -6,7 +6,7 @@ const {ReferenceRegistryError} = require("./reference-registry-service");
 
 const INVOICE_FIELDS = new Set([
   "invoiceNo", "client", "clientEmail", "clientAddress", "paymentTerms", "dueDate",
-  "amount", "vat", "total", "items", "status", "date", "recurringInvoice",
+  "amount", "vatRate", "vat", "total", "items", "status", "date", "recurringInvoice",
   "recurringFrequency", "nextInvoiceDate", "reminderDate", "projectId", "projectName",
   "projectReference",
 ]);
@@ -57,9 +57,11 @@ function project(payload) {
   };
 }
 
-function invoice(payload, {edit = false} = {}) {
+function invoice(payload, {edit = false, allowInitialPaid = false} = {}) {
   exactFields(payload, edit ? INVOICE_EDIT_FIELDS : INVOICE_FIELDS);
-  if (!edit && payload.status !== "Unpaid") invalid("A new Invoice must have Unpaid status.");
+  if (!edit && (allowInitialPaid ? !["Unpaid", "Paid"].includes(payload.status) : payload.status !== "Unpaid")) {
+    invalid(allowInitialPaid ? "Invoice status is invalid." : "A new Invoice must have Unpaid status.");
+  }
   if (!Array.isArray(payload.items) || !payload.items.length || payload.items.length > 3) invalid("Invoice items are invalid.");
   const items = payload.items.map((item) => {
     if (!plainObject(item) || Object.keys(item).some((field) => !["description", "amount"].includes(field))) invalid("Invoice item is invalid.");
@@ -73,8 +75,9 @@ function invoice(payload, {edit = false} = {}) {
     paymentTerms: string(payload.paymentTerms, "paymentTerms", 128),
     dueDate: string(payload.dueDate, "dueDate", 32),
     amount: number(payload.amount, "amount", {positive: true}),
+    ...(payload.vatRate === undefined ? {} : {vatRate: number(payload.vatRate, "vatRate")}),
     vat: number(payload.vat, "vat"), total: number(payload.total, "total", {positive: true}),
-    items, ...(edit ? {} : {status: "Unpaid"}), date: string(payload.date, "date", 32),
+    items, ...(edit ? {} : {status: allowInitialPaid ? payload.status : "Unpaid"}), date: string(payload.date, "date", 32),
     recurringInvoice: string(payload.recurringInvoice, "recurringInvoice", 32),
     recurringFrequency: string(payload.recurringFrequency, "recurringFrequency", 64),
     nextInvoiceDate: string(payload.nextInvoiceDate, "nextInvoiceDate", 32),
@@ -118,8 +121,12 @@ function bill(payload, {edit = false} = {}) {
 
 module.exports = {
   BILL_EDIT_FIELDS, BILL_FIELDS, INVOICE_EDIT_FIELDS, INVOICE_FIELDS,
-  validateCreatePayload(recordType, payload) {
-    if (recordType === "invoice") return invoice(payload);
+  validateCreatePayload(recordType, payload, options = {}) {
+    if (recordType === "invoice") {
+      return invoice(payload, {
+        allowInitialPaid: options.allowInitialPaidInvoice === true,
+      });
+    }
     if (recordType === "bill") return bill(payload);
     invalid("Record type is invalid.");
   },

@@ -8,6 +8,7 @@ const DATA_SHEETS = CANONICAL_WORKBOOK_SCHEMA.sheets.filter(sheet => !sheet.impo
 const DATA_SHEET_NAMES = new Set(DATA_SHEETS.map(sheet => sheet.name));
 const IGNORED_SHEETS = new Set(["Summary", "README"]);
 const MONEY_TOLERANCE = 0.02;
+const trustedPreflightResults = new WeakSet();
 
 const FIELD_KEYS = Object.freeze({
   "From": "from",
@@ -498,22 +499,34 @@ function validateBudgetPeriod(state, budget) {
   }
 }
 
-function addLegacyInvoiceItems(state) {
+function addLegacyInvoiceItems(state, workbookType) {
   const invoicesWithItems = new Set(
     state.records.invoiceItems.map(item => identity(item.invoiceNumber)).filter(Boolean)
   );
   for(const invoice of state.records.invoices){
-    if(invoice._legacyDescription && !invoicesWithItems.has(identity(invoice.invoiceNumber))){
+    const invoiceKey = identity(invoice.invoiceNumber);
+    if(workbookType === "legacy" && !invoicesWithItems.has(invoiceKey) && invoice.net !== null){
+      const description = invoice._legacyDescription || "Imported legacy invoice";
       const item = {
         _sheet: "Invoices",
         _row: invoice._row,
         invoiceNumber: invoice.invoiceNumber,
         lineNumber: 1,
-        description: invoice._legacyDescription,
+        description,
         netAmount: invoice.net
       };
       state.records.invoiceItems.push(item);
-      addWarning(state, "legacy-invoice-item-created", "Invoices", invoice._row, "Description", "Legacy invoice Description was normalized into Invoice Items line 1.");
+      invoicesWithItems.add(invoiceKey);
+      addWarning(
+        state,
+        invoice._legacyDescription ? "legacy-invoice-item-created" : "legacy-invoice-item-synthesized",
+        "Invoices",
+        invoice._row,
+        "Invoice Number",
+        invoice._legacyDescription
+          ? "Legacy invoice Description was normalized into Invoice Items line 1."
+          : "Historical line-item detail was unavailable, so one neutral compatibility line was reconstructed from the legacy invoice net amount."
+      );
     }
     delete invoice._legacyDescription;
   }
@@ -602,6 +615,9 @@ function resolveRelationships(state, existing) {
       invoice.total = expectedTotal;
     }else{
       addWarning(state, "invoice-items-missing", ...recordContext(invoice), "Invoice Number", "No invoice-item detail is available; line-level fidelity cannot be confirmed.");
+      if(state.workbookType === "canonical"){
+        addError(state, "invoice-items-required", ...recordContext(invoice), "Invoice Number", "Canonical invoices require at least one Invoice Items row.");
+      }
       if(invoice.net === null){
         addError(state, "required-field", ...recordContext(invoice), "Net", "Invoice Net or Invoice Items are required to validate the invoice amount.");
       }else{
@@ -711,8 +727,21 @@ function detectWorkbookType(sheetNames) {
 function cleanRecords(records) {
   return Object.fromEntries(Object.entries(records).map(([moduleName, moduleRecords]) => [
     moduleName,
-    moduleRecords.map(record => Object.fromEntries(Object.entries(record).filter(([key]) => !key.startsWith("_"))))
+    moduleRecords.map(record => ({
+      ...Object.fromEntries(Object.entries(record).filter(([key]) => !key.startsWith("_"))),
+      source: { sheet: record._sheet, row: record._row }
+    }))
   ]));
+}
+
+function deepFreeze(value) {
+  if(!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  Object.values(value).forEach(deepFreeze);
+  return Object.freeze(value);
+}
+
+export function isTrustedWorkbookPreflightResult(value) {
+  return Boolean(value && trustedPreflightResults.has(value));
 }
 
 export function preflightCanonicalWorkbook(workbook, options = {}) {
@@ -723,6 +752,7 @@ export function preflightCanonicalWorkbook(workbook, options = {}) {
 
   const workbookType = detectWorkbookType(sheetNames);
   const state = {
+    workbookType,
     records: {
       clients: [], invoices: [], invoiceItems: [], bills: [], expenses: [],
       mileage: [], projects: [], budgets: []
@@ -757,7 +787,7 @@ export function preflightCanonicalWorkbook(workbook, options = {}) {
   });
 
   captureLegacyFields(state, workbook, options.rowsFromSheet);
-  addLegacyInvoiceItems(state);
+  addLegacyInvoiceItems(state, workbookType);
   validateRows(state);
   detectDuplicates(state, options.existing || {});
   resolveRelationships(state, options.existing || {});
@@ -768,7 +798,8 @@ export function preflightCanonicalWorkbook(workbook, options = {}) {
     Object.entries(normalizedRecords).map(([moduleName, records]) => [moduleName, records.length])
   );
 
-  return {
+  const result = deepFreeze({
+    contract: "simple-books-workbook-preflight-v1",
     schema: {
       id: CANONICAL_WORKBOOK_SCHEMA.id,
       version: workbookType === "canonical" ? CANONICAL_WORKBOOK_SCHEMA.version : null,
@@ -782,7 +813,9 @@ export function preflightCanonicalWorkbook(workbook, options = {}) {
     duplicateCandidates: state.duplicateCandidates,
     unresolvedRelationships: state.unresolvedRelationships,
     safeToProceed: state.errors.length === 0
-  };
+  });
+  trustedPreflightResults.add(result);
+  return result;
 }
 
 if(typeof window !== "undefined"){
