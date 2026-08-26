@@ -9,11 +9,13 @@ import {
   planPhase4BExecution
 } from "../resources/js/canonical-workbook-phase4b.js";
 import {
+  prepareBankSettlementJournal,
   prepareBillJournal,
   prepareExpenseJournal,
   prepareInvoiceJournal,
   prepareMileageJournal
 } from "../resources/js/ledger-firestore.js";
+import { buildTrialBalance } from "../resources/js/ledger-engine.js";
 
 const DATA_SHEETS = CANONICAL_WORKBOOK_SCHEMA.sheets.filter(sheet => !sheet.importIgnored);
 const USER_ID = "user-1";
@@ -209,6 +211,10 @@ function balanced(journal) {
   return Math.round(debit * 100) === Math.round(credit * 100);
 }
 
+function accountBalance(journals, accountCode) {
+  return buildTrialBalance(journals).accounts.find(account => account.accountCode === accountCode)?.balance ?? 0;
+}
+
 describe("canonical workbook Phase 4B execution", () => {
   it("does not let accounting execution bypass trusted safe preflight", async () => {
     const memory = memoryPersistence();
@@ -294,14 +300,94 @@ describe("canonical workbook Phase 4B execution", () => {
       ]));
   });
 
-  it("preserves an accepted imported Invoice Paid status without creating a settlement", async () => {
-    const rows = accountingRows({ invoice: { Status: "Paid" } });
+  it("posts the actual Unpaid Invoice and Bill accounting positions", async () => {
     const memory = memoryPersistence();
+    const rows = {
+      Clients: [client()],
+      Invoices: [invoice({ "Project Reference": "" })],
+      "Invoice Items": [invoiceItem()],
+      Bills: [bill({ "Project Reference": "" })]
+    };
     const result = await executePhase4B(checked(rows), { persistence: memory.persistence });
     expect(result.success).toBe(true);
-    expect(memory.state.invoices[0].status).toBe("Paid");
-    expect(memory.state.invoices[0]).not.toHaveProperty("bankSettlement");
-    expect(memory.state.journals.some(item => item.sourceType === "bankSettlement")).toBe(false);
+    expect(memory.state.invoices[0]).toMatchObject({ status: "Unpaid", total: 120 });
+    expect(memory.state.bills[0]).toMatchObject({ status: "Unpaid", total: 120 });
+    expect(memory.state.invoices[0]).not.toHaveProperty("paidAt");
+    expect(memory.state.bills[0]).not.toHaveProperty("paidAt");
+    expect(accountBalance(memory.state.journals, "1100")).toBe(120);
+    expect(accountBalance(memory.state.journals, "2000")).toBe(-120);
+    expect(buildTrialBalance(memory.state.journals).balanced).toBe(true);
+  });
+
+  it.each([
+    ["Invoice", "invoices", { Clients: [client()], Invoices: [invoice({ Status: "Paid", "Project Reference": "" })], "Invoice Items": [invoiceItem()] }],
+    ["Bill", "bills", { Bills: [bill({ Status: "Paid", "Project Reference": "" })] }]
+  ])("stops a new Paid %s before all writes because payment history is absent", async (_label, moduleName, rows) => {
+    const memory = memoryPersistence();
+    const preflight = checked(rows);
+    const first = await executePhase4B(preflight, { persistence: memory.persistence });
+    const retry = await executePhase4B(preflight, { persistence: memory.persistence });
+    expect(first.errors).toContainEqual(expect.objectContaining({
+      code: "paid-accounting-history-required", module: moduleName
+    }));
+    expect(retry.errors).toContainEqual(expect.objectContaining({
+      code: "paid-accounting-history-required", module: moduleName
+    }));
+    expect(memory.calls).toEqual([]);
+    expect(memory.state[moduleName]).toEqual([]);
+    expect(memory.state.journals).toEqual([]);
+  });
+
+  it("skips an exact existing Paid Invoice only when its Banking clearing journal is valid", async () => {
+    const unpaidRows = {
+      Clients: [client()],
+      Invoices: [invoice({ "Project Reference": "" })],
+      "Invoice Items": [invoiceItem()]
+    };
+    const paidRows = {
+      ...unpaidRows,
+      Invoices: [invoice({ Status: "Paid", "Project Reference": "" })]
+    };
+    const memory = memoryPersistence();
+    await executePhase4B(checked(unpaidRows), { persistence: memory.persistence });
+    const source = memory.state.invoices[0];
+    source.status = "Paid";
+    source.bankSettlement = {
+      version: 1, transactionId: "bank-1",
+      journalId: `bank-settlement_${USER_ID}_bank-1`
+    };
+    const settlement = prepareBankSettlementJournal(USER_ID, "bank-1", {
+      transactionDate: "2026-08-21", bankAccountId: "account-1",
+      recordType: "invoice", recordId: source.id, amount: source.total
+    }, { createdAt: "2026-08-26T12:00:00.000Z", updatedAt: "2026-08-26T12:00:00.000Z" });
+    memory.state.journals.push({ id: settlement.journalId, ...settlement });
+
+    const journalCount = memory.state.journals.length;
+    const result = await executePhase4B(checked(paidRows), { persistence: memory.persistence });
+    expect(result.success).toBe(true);
+    expect(result.skipped.invoices).toBe(1);
+    expect(memory.state.journals).toHaveLength(journalCount);
+    expect(accountBalance(memory.state.journals, "1100")).toBe(0);
+    expect(memory.state.journals.filter(item => item.sourceType === "bankSettlement")).toHaveLength(1);
+  });
+
+  it("refuses to treat a matching manual-status Paid Invoice as accounting-safe without a settlement", async () => {
+    const unpaidRows = {
+      Clients: [client()],
+      Invoices: [invoice({ "Project Reference": "" })],
+      "Invoice Items": [invoiceItem()]
+    };
+    const memory = memoryPersistence();
+    await executePhase4B(checked(unpaidRows), { persistence: memory.persistence });
+    memory.state.invoices[0].status = "Paid";
+    const result = await executePhase4B(checked({
+      ...unpaidRows,
+      Invoices: [invoice({ Status: "Paid", "Project Reference": "" })]
+    }), { persistence: memory.persistence });
+    expect(result.conflicts).toContainEqual(expect.objectContaining({
+      code: "invoices-paid-settlement-integrity-conflict"
+    }));
+    expect(accountBalance(memory.state.journals, "1100")).toBe(120);
   });
 
   it("rejects a canonical invoice without required Invoice Items before writes", async () => {
@@ -424,6 +510,23 @@ describe("canonical workbook Phase 4B execution", () => {
     ]));
   });
 
+  it.each(["Draft", "Submitted", "Approved", "Paid"])(
+    "imports an Expense in %s with the same accrued-liability journal as the application",
+    async status => {
+      const memory = memoryPersistence();
+      const result = await executePhase4B(checked({
+        Expenses: [expense({ Status: status, "Project Reference": "" })]
+      }), { persistence: memory.persistence });
+      expect(result.success).toBe(true);
+      expect(memory.state.expenses[0].status).toBe(status);
+      expect(memory.state.expenses[0]).not.toHaveProperty("paidAt");
+      expect(memory.state.expenses[0]).not.toHaveProperty("bankSettlement");
+      expect(memory.state.journals[0].lines.map(line => line.accountCode)).toEqual(["5000", "1200", "2200"]);
+      expect(accountBalance(memory.state.journals, "2200")).toBe(-117);
+      expect(buildTrialBalance(memory.state.journals).balanced).toBe(true);
+    }
+  );
+
   it("skips duplicate Expenses and conflicts on changed same-identity details", async () => {
     const preflight = checked({ Expenses: [expense({ "Project Reference": "" })] });
     const memory = memoryPersistence();
@@ -442,6 +545,23 @@ describe("canonical workbook Phase 4B execution", () => {
     expect((await executePhase4B(preflight, { persistence: memory.persistence })).skipped.mileage).toBe(1);
     expect(memory.state.journals.filter(item => item.sourceType === "mileageClaim")).toHaveLength(1);
   });
+
+  it.each(["Draft", "Submitted", "Approved", "Paid"])(
+    "imports Mileage in %s with the same accrued-liability journal as the application",
+    async status => {
+      const memory = memoryPersistence();
+      const result = await executePhase4B(checked({
+        Mileage: [mileage({ Status: status, "Project Reference": "" })]
+      }), { persistence: memory.persistence });
+      expect(result.success).toBe(true);
+      expect(memory.state.mileage[0].status).toBe(status);
+      expect(memory.state.mileage[0]).not.toHaveProperty("paidAt");
+      expect(memory.state.mileage[0]).not.toHaveProperty("bankSettlement");
+      expect(memory.state.journals[0].lines.map(line => line.accountCode)).toEqual(["5200", "2200"]);
+      expect(accountBalance(memory.state.journals, "2200")).toBe(-5.5);
+      expect(buildTrialBalance(memory.state.journals).balanced).toBe(true);
+    }
+  );
 
   it("accepts blank optional Project References for every accounting module", async () => {
     const rows = accountingRows({
@@ -582,7 +702,7 @@ describe("canonical workbook Phase 4B execution", () => {
       serverTimestamp: vi.fn(() => "server-time")
     };
     const callables = {
-      createWorkbookInvoiceWithReference: vi.fn()
+      createInvoiceWithReference: vi.fn()
         .mockRejectedValueOnce(Object.assign(new Error("ambiguous"), { code: "functions/unavailable" }))
         .mockImplementation(async request => ({
           data: { status: "already-created", journalId: `invoice_${USER_ID}_${request.sourceId}` }
@@ -596,8 +716,12 @@ describe("canonical workbook Phase 4B execution", () => {
     });
 
     await persistence.readExecutionContext();
-    await persistence.createInvoiceAccounting({ status: "Paid", invoiceNo: "INV-1" });
-    await persistence.createBillAccounting({ supplier: "Supplier" });
+    await expect(persistence.createInvoiceAccounting({ status: "Paid", invoiceNo: "INV-PAID" }))
+      .rejects.toThrow(/requires payment or Banking settlement history/);
+    await expect(persistence.createBillAccounting({ status: "Paid", supplier: "Supplier" }))
+      .rejects.toThrow(/requires payment or Banking settlement history/);
+    await persistence.createInvoiceAccounting({ status: "Unpaid", invoiceNo: "INV-1" });
+    await persistence.createBillAccounting({ status: "Unpaid", supplier: "Supplier" });
     const expenseResult = await persistence.createExpenseAccounting({
       type: "expense", date: "2026-08-20", merchant: "Shop", category: "Office",
       description: "Supplies", net: 100, vatRate: 0.2, vat: 17, gross: 117,
@@ -613,12 +737,12 @@ describe("canonical workbook Phase 4B execution", () => {
       attachmentName: "", attachmentUrl: "", attachmentPath: "", attachmentSize: 0, attachmentType: ""
     });
 
-    expect(callables.createWorkbookInvoiceWithReference).toHaveBeenCalledWith(
-      expect.objectContaining({ payload: expect.objectContaining({ status: "Paid" }) })
+    expect(callables.createInvoiceWithReference).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: expect.objectContaining({ status: "Unpaid" }) })
     );
-    expect(callables.createWorkbookInvoiceWithReference).toHaveBeenCalledTimes(2);
-    expect(callables.createWorkbookInvoiceWithReference.mock.calls[0][0]).toEqual(
-      callables.createWorkbookInvoiceWithReference.mock.calls[1][0]
+    expect(callables.createInvoiceWithReference).toHaveBeenCalledTimes(2);
+    expect(callables.createInvoiceWithReference.mock.calls[0][0]).toEqual(
+      callables.createInvoiceWithReference.mock.calls[1][0]
     );
     expect(callables.createBillWithReference).toHaveBeenCalledWith(
       expect.objectContaining({ sourceId: "1724140800000", payload: expect.objectContaining({ id: 1724140800000 }) })
@@ -632,14 +756,16 @@ describe("canonical workbook Phase 4B execution", () => {
     expect(writes.some(write => write.reference.name === "banking")).toBe(false);
   });
 
-  it("keeps Import All disabled and Phase 4B disconnected from the upload path", () => {
+  it("keeps Import All initially disabled and connects Phase 4B only through Phase 4C", () => {
     const source = readFileSync(fileURLToPath(new URL("../exports.html", import.meta.url)), "utf8");
     const start = source.indexOf("async function validateExcelImportWorkbook");
     const end = source.indexOf("async function readOnlyWorkbookPreflightContext", start);
     const uploadPath = source.slice(start, end);
     expect(source).toContain('id="importAllButton" onclick="importValidatedWorkbookAll()" disabled');
     expect(uploadPath).toContain("setAllImportButtonsEnabled(false)");
+    expect(uploadPath).toContain("importController.arm(validatedWorkbookPreflight)");
     expect(uploadPath).not.toContain("executePhase4B");
     expect(uploadPath).not.toContain("createFirestorePhase4BPersistence");
+    expect(source).toContain("canonical-workbook-phase4c.js");
   });
 });

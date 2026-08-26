@@ -834,6 +834,34 @@
       margin-top: 3px;
     }
 
+    .workbook-preflight-lead,
+    .workbook-result-lead {
+      margin: 0 0 10px;
+      color: #334155;
+    }
+
+    .workbook-issue-group {
+      margin-top: 10px;
+      border-top: 1px solid rgba(148, 163, 184, 0.35);
+      padding-top: 8px;
+    }
+
+    .workbook-issue-group summary {
+      cursor: pointer;
+      color: #102033;
+      font-weight: 800;
+    }
+
+    .workbook-issue-list {
+      margin: 8px 0 0 18px;
+      padding: 0;
+      color: #475569;
+    }
+
+    .workbook-issue-list li + li {
+      margin-top: 6px;
+    }
+
     .import-spinner {
       width: 16px;
       height: 16px;
@@ -1064,7 +1092,11 @@
         </div>
 
         <details class="advanced-import-options">
-          <summary>Advanced import options</summary>
+          <summary>Legacy per-module import options (disabled)</summary>
+
+          <p class="muted">
+            Safe workbook imports must use Import All so validation and relationship ordering cannot be bypassed.
+          </p>
 
           <div class="advanced-import-buttons">
             <button class="btn" id="importClientsButton" onclick="importValidatedClients()" disabled>
@@ -1089,7 +1121,7 @@
           </div>
         </details>
 
-        <div class="import-message" id="excelImportMessage" aria-live="polite"></div>
+        <div class="import-message" id="excelImportMessage" role="status" aria-live="polite"></div>
       </div>
 
       <div class="card accountant-pack-card" id="accountantPackCard">
@@ -1191,21 +1223,16 @@
     >
       <h2 id="importAllConfirmTitle">Import workbook?</h2>
 
-      <p id="importAllConfirmBody">
-        This will import workbook data into Simple Books.
-      </p>
+      <p id="importAllConfirmBody">Importing will create business records in Simple Books.</p>
 
-      <ul>
-        <li>Clients</li>
-        <li>Invoices</li>
-        <li>Bills</li>
-        <li>Expenses</li>
-        <li>Mileage</li>
-      </ul>
+      <div class="import-summary-grid" id="importAllConfirmCounts"></div>
+
+      <ul id="importAllConfirmModules"></ul>
 
       <div class="import-modal-notes">
-        <span>Existing records will be skipped.</span>
-        <span>New records will be added.</span>
+        <span id="importAllConfirmWarnings">Review any workbook warnings before continuing.</span>
+        <span id="importAllConfirmPaidNote" hidden></span>
+        <span>Existing matching records shown as skipped will not be imported again.</span>
         <span>This cannot be undone.</span>
       </div>
 
@@ -1222,7 +1249,7 @@
   </div>
 
   <script type="module">
-    import { app, auth, db } from "/firebase-config.js";
+    import { app, auth, db, functions } from "/firebase-config.js";
     import { createActivityIdempotencyKey, logActivityEvent } from "/assets/activity-logger.js?v=20260805-customer-analytics1b";
     import {
       getAccountantPackAccess
@@ -1234,12 +1261,21 @@
       doc,
       getDoc,
       getDocs,
-      setDoc
+      query,
+      runTransaction,
+      serverTimestamp,
+      setDoc,
+      where,
+      writeBatch
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    import {
+      httpsCallable
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
     import {
       getBlob,
@@ -1257,11 +1293,30 @@
       doc,
       getDoc,
       getDocs,
+      query,
+      runTransaction,
+      serverTimestamp,
       setDoc,
+      where,
+      writeBatch,
+      createRequestId: () => crypto.randomUUID(),
+      now: () => new Date().toISOString(),
       getBlob,
       getDownloadURL,
       storageRef
     };
+    window.simpleBooksWorkbookImportCallables = Object.freeze({
+      createInvoiceWithReference: httpsCallable(functions, "createInvoiceWithReference"),
+      createBillWithReference: httpsCallable(functions, "createBillWithReference")
+    });
+    let workbookImportAuthUid = auth.currentUser?.uid || "";
+    onAuthStateChanged(auth, (user) => {
+      const nextUid = user?.uid || "";
+      if(workbookImportAuthUid && nextUid !== workbookImportAuthUid){
+        window.simpleBooksInvalidateCanonicalWorkbookImport?.("account-context-changed");
+      }
+      workbookImportAuthUid = nextUid;
+    });
     window.simpleBooksActivityLogger = {
       createActivityIdempotencyKey,
       logActivityEvent
@@ -1299,10 +1354,12 @@
 
   <script type="module" src="/resources/js/canonical-workbook-template.js?v=20260826-canonical-workbook2"></script>
   <script type="module" src="/resources/js/canonical-workbook-preflight.js?v=20260826-canonical-workbook3"></script>
+  <script type="module" src="/resources/js/canonical-workbook-phase4c.js?v=20260826-canonical-workbook4c1"></script>
 
   <script>
     let validatedImportWorkbook = null;
     let validatedWorkbookPreflight = null;
+    let canonicalWorkbookImportController = null;
 
     async function downloadFullBackup(){
 
@@ -1391,6 +1448,76 @@
         });
     }
 
+    function getCanonicalWorkbookImportController(){
+        if(canonicalWorkbookImportController){
+          return canonicalWorkbookImportController;
+        }
+
+        const phase4C = window.simpleBooksCanonicalWorkbookPhase4C;
+        if(!phase4C){
+          return null;
+        }
+
+        canonicalWorkbookImportController = phase4C.createController({
+          getSession: async () => {
+            const { services, user } = await getBackupUserAndServices();
+            return {
+              services,
+              user,
+              callables: window.simpleBooksWorkbookImportCallables || {}
+            };
+          },
+          createPersistence: phase4C.createPersistence,
+          planExecution: phase4C.planExecution,
+          executeExecution: phase4C.executeExecution,
+          confirmExecution: showImportAllConfirmationModal,
+          onStateChange: applyCanonicalWorkbookImportState
+        });
+        window.simpleBooksInvalidateCanonicalWorkbookImport = reason =>
+          canonicalWorkbookImportController?.invalidate(reason);
+        return canonicalWorkbookImportController;
+    }
+
+    function applyCanonicalWorkbookImportState(state){
+        const locked = ["checking", "confirming", "executing"].includes(state.status);
+        if(state.status === "consumed" ||
+          (state.status === "empty" && state.reason !== "workbook-changed")){
+          validatedWorkbookPreflight = null;
+          validatedImportWorkbook = null;
+        }
+        setUploadButtonEnabled(!locked);
+        setButtonEnabled("importAllButton", state.canExecute === true);
+        setLegacyModuleImportButtonsEnabled(false);
+
+        if(state.status === "executing"){
+          setExcelImportMessage("Importing workbook\u2026", "loading", { loading: true });
+          return;
+        }
+        if(state.status === "checking" && state.reason !== "execution-preview"){
+          setExcelImportMessage("Checking that the workbook is still safe to import\u2026", "loading", { loading: true });
+          return;
+        }
+        if(state.presentation?.kind === "preflight"){
+          setWorkbookPreflightPresentation(state.presentation);
+          return;
+        }
+        if(state.presentation?.kind === "execution"){
+          setWorkbookExecutionPresentation(state.presentation);
+          return;
+        }
+        if(state.reason === "preflight-stale"){
+          setExcelImportMessage("This workbook preflight has expired. Upload the workbook again to run a fresh safety check.", "error");
+          return;
+        }
+        if(state.reason === "account-context-changed"){
+          setExcelImportMessage("The selected account or plan changed after preflight. Upload the workbook again before importing.", "error");
+          return;
+        }
+        if(["execution-constraints-changed", "execution-preview-changed"].includes(state.reason)){
+          setExcelImportMessage("Current account data changed after preflight. Upload the workbook again so it can be checked safely.", "error");
+        }
+    }
+
     async function validateExcelImportWorkbook(event){
         const file = event.target.files[0];
 
@@ -1400,6 +1527,8 @@
 
         validatedImportWorkbook = null;
         validatedWorkbookPreflight = null;
+        const importController = getCanonicalWorkbookImportController();
+        importController?.invalidate("workbook-changed");
         setUploadButtonEnabled(false);
         setAllImportButtonsEnabled(false);
         setExcelImportMessage("Validating workbook...", "loading", { loading: true });
@@ -1432,8 +1561,8 @@
             cellDates: true
           });
           const preflightModule = window.simpleBooksWorkbookPreflight;
-          if(!preflightModule){
-            setExcelImportMessage("Workbook preflight is not available. Please refresh and try again.", "error");
+          if(!preflightModule || !importController){
+            setExcelImportMessage("Workbook safety checks are not available. Please refresh and try again.", "error");
             return;
           }
           const accountContext = await readOnlyWorkbookPreflightContext();
@@ -1446,17 +1575,13 @@
             }),
             ...accountContext
           });
-
-          setAllImportButtonsEnabled(false);
-          setExcelImportMessage(
-            formatWorkbookPreflightMessage(validatedWorkbookPreflight),
-            validatedWorkbookPreflight.safeToProceed ? "success" : "error"
-          );
+          await importController.arm(validatedWorkbookPreflight);
         }catch(error){
           console.error("Excel import validation failed", error);
           setExcelImportMessage("Workbook is not a Simple Books import template.", "error");
         }finally{
-          setUploadButtonEnabled(true);
+          const state = importController?.snapshot();
+          setUploadButtonEnabled(!["checking", "confirming", "executing"].includes(state?.status));
           event.target.value = "";
         }
     }
@@ -1491,14 +1616,102 @@
         };
     }
 
-    function formatWorkbookPreflightMessage(result){
-        const totalRecords = Object.values(result.counts).reduce((total, count) => total + count, 0);
-        const summary = `${result.workbookType === "canonical" ? "Canonical" : "Legacy"} workbook preflight: ${totalRecords} records, ${result.errors.length} errors, ${result.warnings.length} warnings.`;
-        if(result.errors.length){
-          const first = result.errors[0];
-          return `${summary} First error: ${first.sheet}${first.row ? ` row ${first.row}` : ""}${first.field ? `, ${first.field}` : ""}: ${first.message}`;
-        }
-        return `${summary} No data has been imported. Import execution is not enabled in this phase.`;
+    function setWorkbookPreflightPresentation(presentation){
+        const type = presentation.canProceed
+          ? presentation.warnings.length || presentation.duplicates.length ? "warning" : "success"
+          : "error";
+        const messageElement = document.getElementById("excelImportMessage");
+        if(!messageElement) return;
+        messageElement.className = `import-message ${type}`;
+        messageElement.innerHTML = `
+          <div class="import-status-title">
+            <span class="import-status-icon" aria-hidden="true">${presentation.canProceed ? "&#10003;" : "!"}</span>
+            <span>${escapeImportHtml(presentation.workbookType)} workbook ${presentation.canProceed ? "ready to import" : "cannot be imported yet"}</span>
+          </div>
+          <div class="import-status-body">
+            <p class="workbook-preflight-lead">
+              ${escapeImportHtml(presentation.totalRecords)} workbook records checked.
+              ${presentation.canProceed
+                ? `${escapeImportHtml(presentation.createTotal)} business records are ready to create and ${escapeImportHtml(presentation.skipTotal)} are expected to be skipped.`
+                : "No records have been written."}
+            </p>
+            <div class="import-summary-grid">
+              ${workbookCountCard("Records", presentation.totalRecords)}
+              ${workbookCountCard("Errors", presentation.errors.length)}
+              ${workbookCountCard("Warnings", presentation.warnings.length)}
+              ${workbookCountCard("Likely skips", presentation.skipTotal)}
+            </div>
+            ${renderWorkbookIssueGroup("Errors", presentation.errors, true)}
+            ${renderWorkbookIssueGroup("Warnings", presentation.warnings)}
+            ${renderWorkbookIssueGroup("Duplicate / skip candidates", presentation.duplicates)}
+            ${renderWorkbookIssueGroup("Unresolved relationships", presentation.unresolved, true)}
+          </div>
+        `;
+    }
+
+    function setWorkbookExecutionPresentation(presentation){
+        const type = presentation.status === "success"
+          ? presentation.warnings.length || presentation.fidelityWarnings.length ? "warning" : "success"
+          : "error";
+        const messageElement = document.getElementById("excelImportMessage");
+        if(!messageElement) return;
+        messageElement.className = `import-message ${type}`;
+        const lead = presentation.partialWrites
+          ? "The import stopped after some records were created. Nothing was automatically retried or deleted. Upload the workbook again before any retry."
+          : presentation.status === "success"
+            ? "Created and skipped records are shown separately. Upload the workbook again to run another import."
+            : "No automatic retry was attempted. Upload the workbook again after reviewing the failure.";
+        messageElement.innerHTML = `
+          <div class="import-status-title">
+            <span class="import-status-icon" aria-hidden="true">${presentation.status === "success" ? "&#10003;" : "!"}</span>
+            <span>${escapeImportHtml(presentation.title)}</span>
+          </div>
+          <div class="import-status-body">
+            <p class="workbook-result-lead">${escapeImportHtml(lead)}</p>
+            ${presentation.modules.map(item => `
+              <div class="import-summary-section">
+                <h3 class="import-summary-heading">${escapeImportHtml(item.label)}</h3>
+                <div class="import-summary-grid">
+                  ${workbookCountCard("Created", item.created)}
+                  ${workbookCountCard("Skipped", item.skipped)}
+                </div>
+              </div>
+            `).join("")}
+            ${renderWorkbookIssueGroup("Warnings", presentation.warnings)}
+            ${renderWorkbookIssueGroup("Fidelity warnings", presentation.fidelityWarnings)}
+            ${renderWorkbookIssueGroup("Conflicts", presentation.conflicts, true)}
+            ${renderWorkbookIssueGroup("Failures", presentation.errors, true)}
+          </div>
+        `;
+    }
+
+    function workbookCountCard(label, value){
+        return `
+          <div class="import-count">
+            <span>${escapeImportHtml(label)}</span>
+            <strong>${escapeImportHtml(value)}</strong>
+          </div>
+        `;
+    }
+
+    function renderWorkbookIssueGroup(label, issues, open = false){
+        if(!issues?.length) return "";
+        const limit = 50;
+        const shown = issues.slice(0, limit);
+        return `
+          <details class="workbook-issue-group" ${open || issues.length <= 5 ? "open" : ""}>
+            <summary>${escapeImportHtml(label)} (${escapeImportHtml(issues.length)})</summary>
+            <ul class="workbook-issue-list">
+              ${shown.map(issue => `
+                <li>
+                  ${issue.location ? `<strong>${escapeImportHtml(issue.location)}:</strong> ` : ""}
+                  ${escapeImportHtml(issue.message)}
+                </li>
+              `).join("")}
+              ${issues.length > limit ? `<li>${escapeImportHtml(issues.length - limit)} more issues are not shown.</li>` : ""}
+            </ul>
+          </details>
+        `;
     }
 
     async function importValidatedClients(){
@@ -1547,60 +1760,27 @@
     }
 
     async function importValidatedWorkbookAll(){
-        if(!validatedImportWorkbook){
-          setExcelImportMessage("Please upload and validate a workbook before importing all data.", "error");
+        const controller = getCanonicalWorkbookImportController();
+        if(!controller || controller.snapshot().canExecute !== true){
+          setExcelImportMessage("Upload the workbook and complete a fresh safe preflight before importing.", "error");
           setAllImportButtonsEnabled(false);
           return;
         }
 
-        const confirmed = await showImportAllConfirmationModal();
-
-        if(!confirmed){
+        const outcome = await controller.execute();
+        if(outcome.kind === "cancelled") return;
+        if(outcome.kind === "blocked" && outcome.reason === "concurrent-execution"){
+          setExcelImportMessage("A workbook import or confirmation is already in progress.", "error");
           return;
         }
-
-        const { services, user } = await getBackupUserAndServices();
-
-        if(!user || !services?.addDoc){
-          setExcelImportMessage("Please log in before importing workbook data.", "error");
-          return;
-        }
-
-        const importSteps = [
-          { label: "Clients", run: importClientsFromWorkbook },
-          { label: "Invoices", run: importInvoicesFromWorkbook },
-          { label: "Bills", run: importBillsFromWorkbook },
-          { label: "Expenses", run: importExpensesFromWorkbook },
-          { label: "Mileage", run: importMileageFromWorkbook }
-        ];
-        const context = {
-          workbook: validatedImportWorkbook,
-          services,
-          user
-        };
-        const results = [];
-
-        setUploadButtonEnabled(false);
-        setAllImportButtonsEnabled(false);
-        setExcelImportMessage("Importing...", "loading", { loading: true });
-
-        try{
-          for(const step of importSteps){
-            results.push({
-              label: step.label,
-              result: await step.run(context)
-            });
-          }
-
-          setExcelImportMessage(formatWorkbookImportSummary(results), workbookImportStatus(results));
-        }catch(error){
-          console.error("Workbook import failed", error);
-          setExcelImportMessage(error.message || "Workbook import stopped because of a critical error.", "error");
-        }finally{
-          setUploadButtonEnabled(true);
-          if(validatedImportWorkbook){
-            setAllImportButtonsEnabled(true);
-          }
+        if(outcome.kind === "stale"){
+          const messages = {
+            "preflight-stale": "This workbook preflight is stale. Upload the workbook again before importing.",
+            "account-context-changed": "The selected account or plan changed. Upload the workbook again before importing.",
+            "execution-constraints-changed": "Current account data no longer satisfies the import safety checks. Upload the workbook again.",
+            "execution-preview-changed": "Current account data changed after confirmation. Upload the workbook again before importing."
+          };
+          setExcelImportMessage(messages[outcome.reason] || "The workbook must be checked again before importing.", "error");
         }
     }
 
@@ -2594,15 +2774,38 @@
         ];
     }
 
-    function showImportAllConfirmationModal(){
+    function showImportAllConfirmationModal(summary = {}){
         const overlay = document.getElementById("importAllConfirmOverlay");
         const cancelButton = document.getElementById("cancelImportAllButton");
         const confirmButton = document.getElementById("confirmImportAllButton");
+        const body = document.getElementById("importAllConfirmBody");
+        const counts = document.getElementById("importAllConfirmCounts");
+        const modules = document.getElementById("importAllConfirmModules");
+        const warnings = document.getElementById("importAllConfirmWarnings");
+        const paidNote = document.getElementById("importAllConfirmPaidNote");
         const previouslyFocused = document.activeElement;
 
-        if(!overlay || !cancelButton || !confirmButton){
+        if(!overlay || !cancelButton || !confirmButton || !body || !counts || !modules || !warnings || !paidNote){
           return Promise.resolve(false);
         }
+
+        body.textContent = `Importing will create ${Number(summary.recordsToCreate || 0)} business records in Simple Books.`;
+        counts.innerHTML = [
+          workbookCountCard("To create", Number(summary.recordsToCreate || 0)),
+          workbookCountCard("Likely skips", Number(summary.likelySkips || 0)),
+          workbookCountCard("Warnings", Number(summary.warningCount || 0))
+        ].join("");
+        modules.innerHTML = (summary.modules || [])
+          .filter(item => Number(item.count || 0) > 0 || Number(item.skipped || 0) > 0)
+          .map(item => `<li>${escapeImportHtml(item.label)}: ${escapeImportHtml(item.count)} to create, ${escapeImportHtml(item.skipped)} to skip</li>`)
+          .join("");
+        warnings.textContent = Number(summary.warningCount || 0) > 0
+          ? `There are ${Number(summary.warningCount)} warnings. Review them in the preflight panel before continuing.`
+          : "No workbook warnings were reported.";
+        paidNote.hidden = summary.paidHistoryWarning !== true;
+        paidNote.textContent = summary.paidHistoryWarning
+          ? "Paid invoices or bills without supported payment history cannot be imported."
+          : "";
 
         return new Promise((resolve) => {
           const closeModal = (confirmed) => {
@@ -2835,8 +3038,12 @@
     }
 
     function setAllImportButtonsEnabled(enabled){
+        setButtonEnabled("importAllButton", enabled);
+        setLegacyModuleImportButtonsEnabled(false);
+    }
+
+    function setLegacyModuleImportButtonsEnabled(enabled){
         [
-          "importAllButton",
           "importClientsButton",
           "importInvoicesButton",
           "importBillsButton",

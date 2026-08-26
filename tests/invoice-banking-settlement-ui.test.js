@@ -48,6 +48,11 @@ const toggleInvoiceStatusDeclaration = declarationBetween(
   "async function toggleInvoiceStatus(invoiceId){",
   "async function populateInvoiceForm(invoice){"
 );
+const updateInvoiceStatusDeclaration = declarationBetween(
+  invoiceModuleScript,
+  "window.updateInvoiceStatusInFirestore = async function(invoiceId, newStatus){",
+  "window.importInvoicesToFirestore = async function(invoices, existingInvoices){"
+);
 
 const bankSettlementSourceStatePromise = Promise.resolve({
   BANK_SETTLEMENT_ACCOUNTING_MESSAGE,
@@ -178,5 +183,37 @@ describe("Invoice Banking settlement UI", () => {
     expect(alert).toHaveBeenCalledOnce();
     expect(alert).toHaveBeenCalledWith(BANK_SETTLEMENT_STATUS_MESSAGE);
     expect(renderRecentInvoices).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Unpaid", "Paid"],
+    ["Paid", "Unpaid"]
+  ])("changes an ordinary Invoice from %s to %s through the status-only path", async (status, expected) => {
+    const updateInvoiceStatusInFirestore = vi.fn();
+    const toggleInvoiceStatus = compileDeclaration(
+      toggleInvoiceStatusDeclaration,
+      "toggleInvoiceStatus",
+      {
+        window:{
+          getInvoicesFromFirestore:vi.fn(async () => [{ id:"ordinary",status }]),
+          updateInvoiceStatusInFirestore
+        },
+        localStorage:{ getItem:vi.fn() },
+        alert:vi.fn(),
+        bankSettlementSourceStatePromise,
+        renderRecentInvoices:vi.fn()
+      }
+    );
+
+    await toggleInvoiceStatus("ordinary");
+
+    expect(updateInvoiceStatusInFirestore).toHaveBeenCalledWith("ordinary", expected);
+  });
+
+  it("persists manual Invoice Paid/Unpaid as status only, without paidAt or a journal mutation", () => {
+    expect(updateInvoiceStatusDeclaration).toContain("updateDoc(");
+    expect(updateInvoiceStatusDeclaration).toContain("status: newStatus");
+    expect(updateInvoiceStatusDeclaration).not.toContain("paidAt");
+    expect(updateInvoiceStatusDeclaration).not.toMatch(/replaceInvoiceJournal|createBankSettlementJournal|bankSettlement/);
   });
 });

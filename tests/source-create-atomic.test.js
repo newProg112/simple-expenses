@@ -82,8 +82,7 @@ function fixture(entries=[], options={}){
   let timestamp=0;
   const create=createSourceWithReferenceService({
     firestore,serverTimestamp:() => `server-${++timestamp}`,now:() => "2026-08-20T12:00:00.000Z",
-    deletionGuard:options.guardDeletion ? createAccountDeletionGuard(firestore) : undefined,
-    allowInitialPaidInvoice:options.allowInitialPaidInvoice === true
+    deletionGuard:options.guardDeletion ? createAccountDeletionGuard(firestore) : undefined
   });
   return {firestore,create};
 }
@@ -95,17 +94,16 @@ const createBill=(create,overrides={}) => create({
 });
 
 describe("atomic source creation",() => {
-  it("keeps ordinary invoice creation Unpaid-only but permits the guarded workbook create mode",async () => {
-    const ordinary=fixture();
-    await expect(createInvoice(ordinary.create,{payload:invoice({status:"Paid"})}))
+  it("keeps every Invoice create path Unpaid-only while preserving an optional VAT rate",async () => {
+    const {firestore,create}=fixture();
+    await expect(createInvoice(create,{payload:invoice({status:"Paid"})}))
       .rejects.toMatchObject({code:"invalid-argument"});
-    const workbook=fixture([],{allowInitialPaidInvoice:true});
-    const result=await createInvoice(workbook.create,{payload:invoice({status:"Paid",vatRate:0.2})});
+    const result=await createInvoice(create,{payload:invoice({vatRate:0.2})});
     expect(result.status).toBe("created");
-    expect(workbook.firestore.read("users/user-1/invoices/invoice-1")).toMatchObject({
-      status:"Paid",vatRate:0.2
+    expect(firestore.read("users/user-1/invoices/invoice-1")).toMatchObject({
+      status:"Unpaid",vatRate:0.2
     });
-    expect(workbook.firestore.paths("journals/")).toHaveLength(1);
+    expect(firestore.paths("journals/")).toHaveLength(1);
   });
 
   it("refuses a privileged source mutation once deletion has started", async () => {

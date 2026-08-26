@@ -507,7 +507,7 @@ describe("canonical workbook Phase 4A execution", () => {
     Object.values(prohibited).forEach(method => expect(method).not.toHaveBeenCalled());
   });
 
-  it("keeps Import All disabled and does not wire Phase 4A execution into exports.html", () => {
+  it("keeps Import All initially disabled and leaves Phase 4A behind the Phase 4C controller", () => {
     const exportsSource = readFileSync(
       fileURLToPath(new URL("../exports.html", import.meta.url)),
       "utf8"
@@ -518,8 +518,10 @@ describe("canonical workbook Phase 4A execution", () => {
 
     expect(exportsSource).toContain('id="importAllButton" onclick="importValidatedWorkbookAll()" disabled');
     expect(uploadPath).toContain("setAllImportButtonsEnabled(false)");
+    expect(uploadPath).toContain("importController.arm(validatedWorkbookPreflight)");
     expect(uploadPath).not.toContain("executePhase4A");
     expect(uploadPath).not.toContain("validatedImportWorkbook = workbook");
+    expect(exportsSource).toContain("canonical-workbook-phase4c.js");
   });
 
   it("pure planning performs no persistence calls", () => {

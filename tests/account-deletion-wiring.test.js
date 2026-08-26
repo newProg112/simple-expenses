@@ -44,7 +44,7 @@ describe("account-deletion production wiring", () => {
         "const stripeSecretKey",
     );
     expect(foundation.match(/deletionGuard: accountDeletionGuard/g))
-        .toHaveLength(4);
+        .toHaveLength(3);
   });
 
   it("exposes the protected, authenticated deletion callable", () => {

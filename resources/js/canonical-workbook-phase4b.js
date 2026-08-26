@@ -137,7 +137,7 @@ export function createFirestorePhase4BPersistence({ services, user, callables = 
   const where = requireService(services, "where", "Firestore Phase 4B persistence");
   const createInvoice = requireService(
     callables,
-    "createWorkbookInvoiceWithReference",
+    "createInvoiceWithReference",
     "Firestore Phase 4B persistence callables"
   );
   const createBill = requireService(
@@ -172,6 +172,9 @@ export function createFirestorePhase4BPersistence({ services, user, callables = 
       };
     },
     async createInvoiceAccounting(payload) {
+      if(text(payload?.status) !== "Unpaid"){
+        throw new Error("Canonical Paid Invoice creation requires payment or Banking settlement history.");
+      }
       const sourceId = text(doc(userCollection("invoices")).id);
       const request = {
         sourceId,
@@ -186,6 +189,9 @@ export function createFirestorePhase4BPersistence({ services, user, callables = 
       };
     },
     async createBillAccounting(payload) {
+      if(text(payload?.status) !== "Unpaid"){
+        throw new Error("Canonical Paid Bill creation requires payment or Banking settlement history.");
+      }
       const candidate = typeof services.nextBillId === "function"
         ? Number(services.nextBillId())
         : Date.now();
@@ -544,6 +550,33 @@ function validLinkedJournal(journal, moduleName, source) {
   }
 }
 
+function validPaidSettlement(context, moduleName, source) {
+  if(!["invoices", "bills"].includes(moduleName)) return true;
+  const marker = source?.bankSettlement;
+  const transactionId = text(marker?.transactionId);
+  const journalId = text(marker?.journalId);
+  const sourceId = text(source?.id);
+  if(Number(marker?.version) !== 1 || !transactionId || !journalId || !sourceId) return false;
+  const journal = (context.journals || []).find(candidate =>
+    text(candidate.id ?? candidate.journalId) === journalId
+  );
+  if(!journal || text(journal.sourceType) !== "bankSettlement" ||
+    text(journal.sourceId) !== transactionId || text(journal.bankTransactionId) !== transactionId ||
+    text(journal.matchedRecordType) !== (moduleName === "invoices" ? "invoice" : "bill") ||
+    text(journal.matchedRecordId) !== sourceId || !Array.isArray(journal.lines) || journal.lines.length !== 2){
+    return false;
+  }
+  const amount = roundMoney(source.total);
+  const expected = moduleName === "invoices"
+    ? [["1000", amount, 0], ["1100", 0, amount]]
+    : [["2000", amount, 0], ["1000", 0, amount]];
+  return expected.every(([accountCode, debit, credit]) => journal.lines.some(line =>
+    text(line.accountCode) === accountCode && roundMoney(line.debit) === debit &&
+    roundMoney(line.credit) === credit
+  )) && roundMoney(journal.lines.reduce((sum, line) => sum + Number(line.debit || 0), 0)) ===
+    roundMoney(journal.lines.reduce((sum, line) => sum + Number(line.credit || 0), 0));
+}
+
 function accountingSkipRows(preflight, moduleName) {
   return new Set(preflight.duplicateCandidates
     .filter(candidate => candidate.module === moduleName && candidate.proposedAction === "skip")
@@ -603,6 +636,11 @@ function addExistingDecision(plan, preflight, context, moduleName, record, key, 
         plan.conflicts.push(problem(
           `${moduleName}-journal-integrity-conflict`, moduleName, record,
           "The matching source does not have its required balanced accounting journal; the existing record will not be altered."
+        ));
+      }else if(desired.status === "Paid" && !validPaidSettlement(context, moduleName, existing)){
+        plan.conflicts.push(problem(
+          `${moduleName}-paid-settlement-integrity-conflict`, moduleName, record,
+          "The matching Paid source does not have a valid Banking settlement marker and clearing journal; it cannot be treated as a safe imported match."
         ));
       }else{
         plan.skipped[moduleName].push({
@@ -669,7 +707,14 @@ export function planPhase4BExecution(preflight, executionContext = {}) {
         "recurringInvoice", "recurringFrequency", "nextInvoiceDate", "reminderDate", "projectReferenceKey", "items"]
     );
     if(!decision.handled){
-      plan.operations.invoices.push({ record, key, clientKey, projectKey, items, client });
+      if(desired.status === "Paid"){
+        plan.errors.push(problem(
+          "paid-accounting-history-required", "invoices", record,
+          "A new Paid Invoice cannot be restored safely without its payment or Banking settlement history. No Invoice was created."
+        ));
+      }else{
+        plan.operations.invoices.push({ record, key, clientKey, projectKey, items, client });
+      }
     }
   }
 
@@ -687,7 +732,16 @@ export function planPhase4BExecution(preflight, executionContext = {}) {
       plan, preflight, executionContext, "bills", record, key, desired, matches,
       ["supplierKey", "billNumberKey", "billDate", "dueDate", "category", "projectReferenceKey", "net", "vatRate", "vat", "total", "status", "notes"]
     );
-    if(!decision.handled) plan.operations.bills.push({ record, key, projectKey });
+    if(!decision.handled){
+      if(desired.status === "Paid"){
+        plan.errors.push(problem(
+          "paid-accounting-history-required", "bills", record,
+          "A new Paid Bill cannot be restored safely without its payment or Banking settlement history. No Bill was created."
+        ));
+      }else{
+        plan.operations.bills.push({ record, key, projectKey });
+      }
+    }
   }
 
   for(const record of preflight.records.expenses){

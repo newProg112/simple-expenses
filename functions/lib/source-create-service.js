@@ -94,7 +94,6 @@ function createSourceWithReferenceService(options = {}) {
   const now = options.now || (() => new Date().toISOString());
   const keyForReference = options.keyForReference || referenceRegistryKey;
   const deletionGuard = options.deletionGuard || null;
-  const allowInitialPaidInvoice = options.allowInitialPaidInvoice === true;
   if (!firestore || typeof firestore.runTransaction !== "function" || typeof firestore.collection !== "function") throw new TypeError("A Firestore transaction service is required.");
   if (typeof serverTimestamp !== "function" || typeof now !== "function") throw new TypeError("Timestamp providers are required.");
 
@@ -104,7 +103,7 @@ function createSourceWithReferenceService(options = {}) {
     const configuration = adapter(type);
     const sourceId = identifier(input.sourceId, "Source ID");
     const operationId = requestId(input.requestId);
-    const payload = validateCreatePayload(type, input.payload, {allowInitialPaidInvoice});
+    const payload = validateCreatePayload(type, input.payload);
     if (type === "bill" && String(payload.id) !== sourceId) {
       throw new ReferenceRegistryError("invalid-argument", "Bill ID does not match its source path.");
     }
