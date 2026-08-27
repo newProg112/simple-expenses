@@ -63,7 +63,7 @@ const SUMMARY_ROWS = Object.freeze([
   Object.freeze(["Workbook schema", `Version ${WORKBOOK_SCHEMA_VERSION}`])
 ]);
 
-function dataColumnWidth(column) {
+export function canonicalWorkbookColumnWidth(column) {
   const wideTextHeaders = new Set([
     "Address",
     "Business Purpose",
@@ -109,8 +109,54 @@ export function buildCanonicalTemplateDefinition() {
       name: schemaSheet.name,
       kind: "data",
       headers: schemaSheet.columns.map(column => column.header),
-      columnWidths: schemaSheet.columns.map(dataColumnWidth)
+      columnWidths: schemaSheet.columns.map(canonicalWorkbookColumnWidth)
     };
+  });
+}
+
+export function applyCanonicalDataSheetFormatting(XLSX, worksheet, schemaSheet, rowCount = 0, options = {}) {
+  if(!XLSX?.utils?.encode_col){
+    throw new TypeError("A compatible SheetJS library is required to format the worksheet.");
+  }
+
+  worksheet["!cols"] = schemaSheet.columns.map(column => ({
+    wch: canonicalWorkbookColumnWidth(column)
+  }));
+  if(options.freeze !== false){
+    worksheet["!freeze"] = {
+      xSplit: 0,
+      ySplit: 1,
+      topLeftCell: "A2",
+      activePane: "bottomLeft",
+      state: "frozen"
+    };
+  }
+  worksheet["!autofilter"] = {
+    ref: `A1:${XLSX.utils.encode_col(schemaSheet.columns.length - 1)}${Math.max(1, rowCount + 1)}`
+  };
+
+  if(!XLSX.utils.encode_cell) return;
+
+  schemaSheet.columns.forEach((column, columnIndex) => {
+    const headerCell = worksheet[XLSX.utils.encode_cell({ r: 0, c: columnIndex })];
+    if(headerCell){
+      headerCell.s = {
+        ...(headerCell.s || {}),
+        font: { ...((headerCell.s && headerCell.s.font) || {}), bold: true }
+      };
+    }
+
+    let numberFormat = "";
+    if(column.dataType === "date") numberFormat = "dd/mm/yyyy";
+    if(column.dataType === "money") numberFormat = "£#,##0.00;[Red]-£#,##0.00";
+    if(column.dataType === "percentage") numberFormat = "0%";
+    if(column.header === "Miles") numberFormat = "0.0";
+    if(!numberFormat) return;
+
+    for(let rowIndex = 1; rowIndex <= rowCount; rowIndex += 1){
+      const cell = worksheet[XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })];
+      if(cell) cell.z = numberFormat;
+    }
   });
 }
 
@@ -138,10 +184,8 @@ export function buildCanonicalTemplateWorkbook(XLSX) {
         { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }
       ];
     }else{
-      const lastColumn = templateSheet.headers.length - 1;
-      worksheet["!autofilter"] = {
-        ref: `A1:${XLSX.utils.encode_col(lastColumn)}1`
-      };
+      const schemaSheet = CANONICAL_WORKBOOK_SCHEMA.sheets.find(sheet => sheet.name === templateSheet.name);
+      applyCanonicalDataSheetFormatting(XLSX, worksheet, schemaSheet, 0, { freeze: false });
     }
 
     XLSX.utils.book_append_sheet(

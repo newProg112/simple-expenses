@@ -1054,7 +1054,7 @@
         <h2>Excel export</h2>
 
         <p class="muted">
-          Download a multi-sheet Excel workbook containing invoices, bills, expenses, mileage and a summary sheet.
+          Download a canonical Excel workbook containing clients, invoices and line items, bills, expenses, mileage, projects, budgets and a concise summary.
         </p>
 
         <button class="btn" onclick="downloadExcelExport()">
@@ -1254,6 +1254,13 @@
     import {
       getAccountantPackAccess
     } from "/resources/js/accountant-pack-access.js?v=20260806-demo-pro1";
+    import {
+      buildCanonicalExportWorkbook
+    } from "/resources/js/canonical-workbook-export.js?v=20260827-canonical-workbook5";
+
+    window.simpleBooksCanonicalWorkbookExport = Object.freeze({
+      buildWorkbook: buildCanonicalExportWorkbook
+    });
 
     import {
       addDoc,
@@ -1406,16 +1413,20 @@
         }
 
         try{
-          const exportData = await buildFirestoreExcelData(user, services);
-          const workbook = XLSX.utils.book_new();
+          const exportData = await buildFirestoreExcelData(user, services, { canonical: true });
+          const exportBuilder = window.simpleBooksCanonicalWorkbookExport;
+          if(!exportBuilder?.buildWorkbook){
+            throw new Error("Canonical workbook export module is not available.");
+          }
+          const { workbook, warnings } = exportBuilder.buildWorkbook(XLSX, exportData);
 
-          appendFormattedSheet(XLSX, workbook, "Invoices", exportData.invoices.map(invoiceExcelRow));
-          appendFormattedSheet(XLSX, workbook, "Bills", exportData.bills.map(billExcelRow));
-          appendFormattedSheet(XLSX, workbook, "Expenses", exportData.expenses.map(expenseExcelRow));
-          appendFormattedSheet(XLSX, workbook, "Mileage", exportData.mileage.map(mileageExcelRow));
-          appendFormattedSheet(XLSX, workbook, "Summary", summaryExcelRows(exportData));
-
-          XLSX.writeFile(workbook, `simple-books-export-${exportTimestamp()}.xlsx`);
+          XLSX.writeFile(workbook, `simple-books-export-${exportTimestamp()}.xlsx`, {
+            cellStyles: true,
+            compression: true
+          });
+          if(warnings.length){
+            alert(`Excel export completed with ${warnings.length} data-quality warning${warnings.length === 1 ? "" : "s"}. Review the Summary sheet before importing the workbook.`);
+          }
         }catch(error){
           console.error("Excel export failed", error);
           alert("Could not export Excel data. Please try again.");
@@ -3257,126 +3268,30 @@
         ].includes(header);
     }
 
-    async function buildFirestoreExcelData(user, services){
-        const [invoices, bills, allExpenses] = await Promise.all([
+    async function buildFirestoreExcelData(user, services, options = {}){
+        const requests = [
           readFirestoreCollection(user, services, "invoices"),
           readFirestoreCollection(user, services, "bills"),
           readFirestoreCollection(user, services, "expenses")
-        ]);
+        ];
+        if(options.canonical){
+          requests.push(
+            readFirestoreCollection(user, services, "clients"),
+            readFirestoreCollection(user, services, "customers"),
+            readFirestoreCollection(user, services, "projects"),
+            readFirestoreCollection(user, services, "budgets")
+          );
+        }
+        const [invoices, bills, allExpenses, clients = [], customers = [], projects = [], budgets = []] = await Promise.all(requests);
 
         return {
           exportedAt: new Date().toISOString(),
           invoices,
           bills,
           expenses: allExpenses.filter(item => item.type !== "mileage"),
-          mileage: allExpenses.filter(item => item.type === "mileage")
+          mileage: allExpenses.filter(item => item.type === "mileage"),
+          ...(options.canonical ? { clients, customers, projects, budgets } : {})
         };
-    }
-
-    function invoiceExcelRow(invoice){
-        return {
-          "Invoice ID": invoice.id || "",
-          "Invoice Number": invoice.invoiceNo || "",
-          "Date": excelValue(invoice.date),
-          "Client": invoice.client || "",
-          "Client Email": invoice.clientEmail || "",
-          "Due Date": excelValue(invoice.dueDate),
-          "Payment Terms": invoice.paymentTerms || "",
-          "Net": numberValue(invoice.amount),
-          "VAT": numberValue(invoice.vat),
-          "Total": numberValue(invoice.total),
-          "Status": invoice.status || "Unpaid",
-          "Recurring": invoice.recurringInvoice || "",
-          "Next Invoice Date": excelValue(invoice.nextInvoiceDate),
-          "Reminder Date": excelValue(invoice.reminderDate),
-          "Created At": excelValue(invoice.createdAt)
-        };
-    }
-
-    function billExcelRow(bill){
-        return {
-          "Bill ID": bill.id || "",
-          "Supplier": bill.supplier || "",
-          "Bill Number": bill.billNumber || "",
-          "Bill Date": excelValue(bill.billDate),
-          "Due Date": excelValue(bill.dueDate),
-          "Net": numberValue(bill.net),
-          "VAT Rate": numberValue(bill.vatRate),
-          "VAT": numberValue(bill.vat),
-          "Total": numberValue(bill.total),
-          "Status": bill.status || "Unpaid",
-          "Notes": bill.notes || "",
-          "Attachment": bill.attachmentName || "",
-          "Created At": excelValue(bill.createdAt)
-        };
-    }
-
-    function expenseExcelRow(expense){
-        return {
-          "Expense ID": expense.id || "",
-          "Date": excelValue(expense.date),
-          "Merchant": expense.merchant || expense.supplier || "",
-          "Category": expense.category || "",
-          "Description": expense.description || "",
-          "Net": numberValue(expense.net ?? expense.netAmount),
-          "VAT Rate": numberValue(expense.vatRate),
-          "VAT": numberValue(expense.vat ?? expense.vatAmount),
-          "Gross": expenseTotal(expense),
-          "Status": expense.status || "",
-          "Notes": expense.notes || "",
-          "Attachment": expense.attachmentName || "",
-          "Created At": excelValue(expense.createdAt)
-        };
-    }
-
-    function mileageExcelRow(mileage){
-        return {
-          "Mileage ID": mileage.id || "",
-          "Date": excelValue(mileage.date),
-          "From": mileage.from || "",
-          "To": mileage.to || "",
-          "Business Purpose": mileage.businessPurpose || mileage.purpose || "",
-          "Miles": numberValue(mileage.miles),
-          "Rate Per Mile": numberValue(mileage.ratePerMile ?? mileage.mileageRate),
-          "Amount": mileageTotal(mileage),
-          "Status": mileage.status || "",
-          "Notes": mileage.notes || "",
-          "Attachment": mileage.attachmentName || "",
-          "Created At": excelValue(mileage.createdAt)
-        };
-    }
-
-    function summaryExcelRows(data){
-        const invoiceTotal = data.invoices.reduce((sum, invoice) => sum + numberValue(invoice.total), 0);
-        const paidInvoiceTotal = data.invoices
-          .filter(invoice => invoice.status === "Paid")
-          .reduce((sum, invoice) => sum + numberValue(invoice.total), 0);
-        const unpaidBillsTotal = data.bills
-          .filter(bill => bill.status !== "Paid")
-          .reduce((sum, bill) => sum + numberValue(bill.total), 0);
-        const expensesTotal = data.expenses.reduce((sum, expense) => sum + expenseTotal(expense), 0);
-        const mileageTotalValue = data.mileage.reduce((sum, mileage) => sum + mileageTotal(mileage), 0);
-
-        return [
-          { "Metric": "Exported at", "Value": data.exportedAt },
-          { "Metric": "Invoice total", "Value": roundCurrency(invoiceTotal) },
-          { "Metric": "Paid invoice total", "Value": roundCurrency(paidInvoiceTotal) },
-          { "Metric": "Unpaid bills total", "Value": roundCurrency(unpaidBillsTotal) },
-          { "Metric": "Expenses total", "Value": roundCurrency(expensesTotal) },
-          { "Metric": "Mileage total", "Value": roundCurrency(mileageTotalValue) }
-        ];
-    }
-
-    function excelValue(value){
-        if(!value){
-          return "";
-        }
-
-        if(typeof value.toDate === "function"){
-          return value.toDate().toISOString();
-        }
-
-        return value;
     }
 
     function numberValue(value){
