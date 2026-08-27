@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "generate:guides": "node scripts/generate-guides.mjs",
+    "generate:public-workbook": "node scripts/generate-public-workbook.mjs",
     "migration:legacy-storage:dry-run": "node scripts/migrate-legacy-storage-attachments.mjs --project simple-books-office --report migration-reports/legacy-storage-dry-run.json",
     "test:storage:rules": "firebase emulators:exec --only auth,firestore,storage \"node tests/storage-rules-emulator.cjs\"",
     "test:firestore:rules": "firebase emulators:exec --project demo-simple-books --only firestore \"node tests/firestore-rules-emulator.cjs\"",
@@ -23,6 +24,7 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

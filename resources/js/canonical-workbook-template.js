@@ -8,13 +8,21 @@ export const CANONICAL_TEMPLATE_FILENAME = "simple-books-import-template.xlsx";
 const SUMMARY_ROWS = Object.freeze([
   Object.freeze(["Simple Books Workbook", ""]),
   Object.freeze([
-    "Keep your business records in Excel, then import them into Simple Books when you are ready.",
+    "This is the Simple Books import and export workbook structure.",
     ""
   ]),
   Object.freeze(["", ""]),
   Object.freeze([
     "Getting started",
-    "Use the sheets you need and leave the others blank. Do not add or rename column headings."
+    "Use the sheets you need and leave the others blank. Keep sheet names and column headings unchanged if you plan to import the workbook."
+  ]),
+  Object.freeze([
+    "Supported records",
+    "Clients, invoices and invoice items, bills, expenses, mileage, projects and budgets."
+  ]),
+  Object.freeze([
+    "Portability limits",
+    "Banking, attachments and logos, payment or settlement history and generated reports are not included."
   ]),
   Object.freeze([
     "Clients",

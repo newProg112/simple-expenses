@@ -92,7 +92,12 @@ describe("canonical workbook template", () => {
     const summaryText = summary.rows.flat().join(" ");
 
     expect(summaryText).toContain("Simple Books Workbook");
-    expect(summary.rows[1][0]).toContain("Keep your business records in Excel");
+    expect(summary.rows[1][0]).toContain("Simple Books import and export workbook structure");
+    expect(summaryText).toContain("Keep sheet names and column headings unchanged");
+    expect(summaryText).toContain("Supported records");
+    expect(summaryText).toContain("Clients, invoices and invoice items, bills, expenses, mileage, projects and budgets");
+    expect(summaryText).toContain("Portability limits");
+    expect(summaryText).toContain("Banking, attachments and logos, payment or settlement history and generated reports are not included");
     expect(summaryText).toContain("Version 1");
     expect(summaryText).toContain("dd/mm/yyyy");
     expect(summaryText).toContain("Simple Books will check your workbook and tell you what needs fixing before anything is imported.");

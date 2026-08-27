@@ -1,752 +1,32 @@
 <!doctype html>
 <html lang="en-GB">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <meta name="theme-color" content="#0077B6" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/pwa-192.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="Simple Books" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0077B6">
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/pwa-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Simple Books">
+  <meta name="description" content="Practical business software for freelancers, sole traders and small businesses. Bring everyday records, projects, planning and reporting together without unnecessary complexity.">
+  <title>Simple Books | Simple business software</title>
+  <link rel="stylesheet" href="/assets/home.css">
   <!-- Sentry frontend error monitoring -->
   <script src="/assets/sentry-monitoring.js"></script>
-  <meta name="description" content="Simple Books is business management software for freelancers, sole traders and small businesses. Manage sales, purchases, projects, planning and financial reports in one place." />
-  <title>Simple Books | Simple business software</title>
-  <style>
-    :root{
-      --bg: #ffffff;
-      --panel: #f7f9fb;
-      --panel-2: #eef3f7;
-
-      --text: #1f2933;
-      --muted: #4D4D4D;
-      --faint: #6b7280;
-
-      --line: rgba(0,0,0,0.10);
-
-      --accent: #0077B6;
-      --accent-2: #0077B6;
-
-      --shadow: 0 10px 30px rgba(0,0,0,.10);
-      --radius: 18px;
-      --radius-lg: 26px;
-      --max: 1100px;
-    }
-
-    *{ box-sizing:border-box; }
-    html{ scroll-behavior:smooth; }
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      color: var(--text);
-      background:
-        radial-gradient(1200px 700px at 15% 10%, rgba(0,119,182,.10), transparent 55%),
-        radial-gradient(900px 600px at 85% 30%, rgba(0,119,182,.06), transparent 55%),
-        var(--bg);
-      line-height: 1.5;
-    }
-
-    a{ color: inherit; text-decoration: none; }
-    a:hover{ text-decoration: underline; }
-
-    .wrap{ max-width: var(--max); margin:0 auto; padding: 0 20px; }
-
-    /* Header */
-    header{
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      backdrop-filter: blur(10px);
-      background: rgba(255,255,255,.92);
-      border-bottom: 1px solid rgba(0,0,0,.08);
-    }
-    .nav{
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 14px 0;
-    }
-    .mark{
-      width: 34px;
-      height: 34px;
-      border-radius: 12px;
-      background:
-        radial-gradient(14px 14px at 30% 30%, rgba(255,255,255,.35), transparent 60%),
-        linear-gradient(135deg, rgba(125,211,252,.9), rgba(167,243,208,.85));
-      box-shadow: 0 10px 30px rgba(0,0,0,.25);
-    }
-    .brand .name{
-      font-weight: 650;
-      letter-spacing: .2px;
-    }
-    .brand .tag{
-      display:block;
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: -2px;
-    }
-    .logo{
-      height: 44px;
-      width: auto;
-      display: block;
-    }
-    .brand{
-      min-width: unset; /* optional: stops it forcing space */
-    }
-    @media (max-width: 900px){
-      .logo{ height: 40px; }
-    }
-
-    nav ul{
-      list-style:none;
-      display:flex;
-      align-items:center;
-      gap: 16px;
-      padding:0;
-      margin:0;
-    }
-    nav a{
-      font-size: 14px;
-      color: #4D4D4D;
-      padding: 8px 10px;
-      border-radius: 12px;
-    }
-    nav a:hover{
-      color: #1f2933;
-      background: rgba(0,0,0,.04);
-      text-decoration:none;
-    }
-
-    .actions{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-      min-width: 220px;
-      justify-content: flex-end;
-    }
-
-    .btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap: 8px;
-      padding: 10px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.04);
-      color: var(--text);
-      font-weight: 600;
-      font-size: 14px;
-      cursor: pointer;
-      transition: transform .06s ease, background .15s ease, border-color .15s ease;
-      user-select:none;
-    }
-    .btn:hover{ background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.18); text-decoration:none; }
-    .btn:active{ transform: translateY(1px); }
-    .btn.primary{
-      background: #0077B6;
-      color: #ffffff;
-      border-color: #0077B6;
-    }
-    .btn.primary:hover{
-      background: #00639a;
-    }
-
-    .menu-btn{
-      display:none;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.04);
-      color: var(--text);
-      font-weight: 650;
-      cursor:pointer;
-    }
-
-    /* Mobile nav (hidden on desktop by default) */
-    .mobile{ display:none; }
-
-    /* Hero */
-    .hero{
-      padding: 54px 0 22px;
-    }
-    .hero-grid{
-      display:grid;
-      grid-template-columns: 1.25fr .75fr;
-      gap: 18px;
-      align-items: stretch;
-    }
-    .card{
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
-    }
-    .hero-main{
-      padding: 28px;
-      position: relative;
-      overflow:hidden;
-    }
-    .hero-main:before{
-      content:"";
-      position:absolute;
-      inset:-2px;
-      background:
-        radial-gradient(500px 280px at 25% 15%, rgba(125,211,252,.18), transparent 65%),
-        radial-gradient(500px 280px at 85% 65%, rgba(167,243,208,.14), transparent 70%);
-      pointer-events:none;
-    }
-    .hero-main > *{ position: relative; }
-    h1{
-      margin: 0 0 10px;
-      font-size: clamp(30px, 4.4vw, 44px);
-      letter-spacing: -0.6px;
-      line-height: 1.12;
-    }
-    .subhead{
-      margin: 0 0 16px;
-      color: var(--muted);
-      font-size: 16px;
-      max-width: 58ch;
-    }
-    .bullets{
-      display:grid;
-      gap: 10px;
-      margin: 18px 0 22px;
-      padding:0;
-      list-style:none;
-      color: var(--text);
-    }
-    .bullets li{
-      display:flex;
-      gap: 10px;
-      align-items:flex-start;
-      color: var(--muted);
-    }
-    .dot{
-      margin-top: 6px;
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: rgba(0,119,182,.30);
-      flex: 0 0 auto;
-    }
-    .hero-ctas{
-      display:flex;
-      flex-wrap:wrap;
-      gap: 10px;
-      align-items:center;
-      margin: 6px 0 14px;
-    }
-    .trust{
-      font-size: 12.5px;
-      color: var(--faint);
-    }
-    .trust strong{ color: var(--muted); font-weight: 650; }
-
-    .hero-side{
-      padding: 22px;
-      display:flex;
-      flex-direction:column;
-      gap: 12px;
-      justify-content: space-between;
-    }
-    .side-title{
-      font-weight: 700;
-      letter-spacing: .2px;
-      margin: 0;
-    }
-    .side-note{
-      margin: 0;
-      color: var(--muted);
-      font-size: 14px;
-    }
-    .mini{
-      display:grid;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .pill{
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.03);
-      border-radius: 16px;
-      padding: 12px;
-      color: var(--muted);
-      font-size: 13.5px;
-    }
-    .pill strong{ color: var(--text); font-weight: 700; }
-
-    /* Sections */
-    section{ padding: 28px 0; }
-    .section-head{
-      display:flex;
-      align-items:flex-end;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 14px;
-    }
-    h2{
-      margin:0;
-      font-size: 22px;
-      letter-spacing: -0.2px;
-    }
-    .lead{
-      margin: 0;
-      color: var(--muted);
-      max-width: 70ch;
-      font-size: 14.5px;
-    }
-
-    .grid-3{
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-    }
-    .grid-2{
-      display:grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-    }
-
-    .box{
-      padding: 18px;
-      border-radius: var(--radius);
-      background: var(--panel);
-      border: 1px solid var(--line);
-    }
-    .box h3{
-      margin: 0 0 8px;
-      font-size: 16px;
-      letter-spacing: -0.2px;
-    }
-    .box p{ margin:0; color: var(--muted); font-size: 14px; }
-    .meta{
-      margin-top: 10px;
-      color: var(--faint);
-      font-size: 12.5px;
-    }
-
-    /* Pricing */
-    .price{
-      display:flex;
-      align-items: baseline;
-      gap: 6px;
-      margin: 10px 0 8px;
-    }
-    .amount{
-      font-size: 26px;
-      font-weight: 800;
-      letter-spacing: -0.4px;
-    }
-    .per{ color: var(--muted); font-size: 13px; }
-    .ul{
-      margin: 10px 0 0;
-      padding-left: 18px;
-      color: var(--muted);
-      font-size: 13.5px;
-    }
-    .ul li{ margin: 6px 0; }
-    .badge{
-      display:inline-flex;
-      align-items:center;
-      gap: 8px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.03);
-      color: var(--muted);
-      font-size: 12.5px;
-      white-space: nowrap;
-    }
-    .badge .spark{ background: rgba(0,119,182,.60); }
-
-    .pricing-cards{
-      display:grid;
-      grid-template-columns:repeat(2, minmax(0, 1fr));
-      gap:14px;
-    }
-    .plan-card{
-      display:flex;
-      flex-direction:column;
-      min-width:0;
-      padding:22px;
-    }
-    .plan-card-pro{
-      background:var(--panel-2);
-      border-color:rgba(0,119,182,.28);
-    }
-    .plan-card-head{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-    }
-    .plan-card h3{
-      margin:0;
-      font-size:19px;
-    }
-    .plan-card p{
-      margin:0;
-      color:var(--muted);
-      font-size:14px;
-    }
-    .plan-highlights{
-      display:grid;
-      gap:7px;
-      margin:16px 0 20px;
-      padding:0;
-      list-style:none;
-      color:var(--muted);
-      font-size:13.5px;
-    }
-    .plan-highlights li::before{
-      content:"✓";
-      margin-right:8px;
-      color:var(--accent);
-      font-weight:800;
-    }
-    .plan-card .btn{
-      align-self:flex-start;
-      margin-top:auto;
-    }
-    .comparison-wrap{
-      max-width:100%;
-      margin-top:16px;
-      overflow:hidden;
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      background:var(--panel);
-    }
-    .comparison-table{
-      width:100%;
-      border-collapse:collapse;
-      table-layout:fixed;
-      font-size:13.5px;
-    }
-    .comparison-table th,
-    .comparison-table td{
-      padding:11px 16px;
-      border-bottom:1px solid var(--line);
-      overflow-wrap:break-word;
-      text-align:left;
-      vertical-align:top;
-    }
-    .comparison-table thead th{
-      background:var(--panel-2);
-      font-size:13px;
-    }
-    .comparison-table thead th:first-child{
-      width:44%;
-    }
-    .comparison-table tbody:last-child tr:last-child > *{
-      border-bottom:0;
-    }
-    .comparison-group th{
-      padding-top:13px;
-      padding-bottom:8px;
-      background:rgba(0,119,182,.06);
-      color:var(--accent);
-      font-size:12px;
-      letter-spacing:.04em;
-      text-transform:uppercase;
-    }
-    .comparison-value{
-      color:var(--muted);
-      font-weight:650;
-    }
-    .comparison-value.included{
-      color:#166534;
-    }
-    .comparison-value.not-included{
-      color:#7f1d1d;
-    }
-    .visually-hidden{
-      position:absolute;
-      width:1px;
-      height:1px;
-      padding:0;
-      margin:-1px;
-      overflow:hidden;
-      clip:rect(0, 0, 0, 0);
-      white-space:nowrap;
-      border:0;
-    }
-
-    /* How it works */
-    .steps{
-      counter-reset: step;
-      display:grid;
-      gap: 12px;
-    }
-    .step{
-      display:flex;
-      gap: 12px;
-      align-items:flex-start;
-      padding: 16px;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.03);
-    }
-    .step:before{
-      counter-increment: step;
-      content: counter(step);
-      width: 32px;
-      height: 32px;
-      border-radius: 12px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight: 800;
-      background: rgba(0,119,182,.18);
-      color: #0077B6;
-      border: 1px solid rgba(0,119,182,.25);
-      flex: 0 0 auto;
-      margin-top: 2px;
-    }
-    .step h3{ margin:0 0 4px; font-size: 15.5px; }
-    .step p{ margin:0; color: var(--muted); font-size: 13.8px; }
-
-    /* FAQ */
-    details{
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.03);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-    }
-    details + details{ margin-top: 10px; }
-    summary{
-      cursor:pointer;
-      font-weight: 700;
-      color: var(--text);
-      list-style:none;
-    }
-    summary::-webkit-details-marker{ display:none; }
-    details p{
-      margin: 10px 0 0;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    /* Contact */
-    form{
-      display:grid;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .fields{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    label{
-      display:grid;
-      gap: 6px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    input, select, textarea{
-      width:100%;
-      padding: 12px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(0,0,0,.12);
-      background: #ffffff;
-      color: var(--text);
-      outline: none;
-      font-size: 14px;
-    }
-    input:focus, select:focus, textarea:focus{
-      border-color: rgba(0,119,182,.45);
-      box-shadow: 0 0 0 4px rgba(0,119,182,.12);
-    }
-    textarea{ min-height: 120px; resize: vertical; }
-    .contact-actions{
-      display:flex;
-      flex-wrap:wrap;
-      align-items:center;
-      gap: 10px;
-      margin-top: 4px;
-    }
-    .hint{
-      color: var(--faint);
-      font-size: 12.5px;
-      margin: 8px 0 0;
-    }
-    .toast{
-      margin-top: 10px;
-      display:none;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(167,243,208,.35);
-      background: rgba(167,243,208,.10);
-      color: var(--text);
-      font-size: 13.5px;
-    }
-
-    /* Footer */
-    footer{
-      padding: 26px 0 44px;
-      border-top: 1px solid var(--line);
-      margin-top: 24px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .footer-grid{
-      display:flex;
-      align-items:flex-start;
-      justify-content: space-between;
-      gap: 14px;
-      flex-wrap:wrap;
-    }
-    .fine{
-      color: var(--faint);
-      max-width: 80ch;
-      margin-top: 10px;
-      font-size: 12.5px;
-    }
-
-    /* Responsive */
-    @media (max-width: 1020px){
-      .actions{ min-width: auto; }
-      .nav > nav{ display:none; }
-      .menu-btn{ display:inline-flex; }
-      .mobile{
-        display:none;
-        padding: 10px 0 14px;
-      }
-      .mobile.open{ display:block; }
-      .mobile a{
-        display:block;
-        padding: 10px 12px;
-        border-radius: 14px;
-        border: 1px solid transparent;
-        color: var(--muted);
-      }
-      .mobile a:hover{
-        background: rgba(255,255,255,.06);
-        border-color: rgba(255,255,255,.12);
-        color: var(--text);
-        text-decoration:none;
-      }
-    }
-    .account-deleted-notice{
-      margin:18px auto 0;
-      border:1px solid #bbf7d0;
-      border-radius:16px;
-      background:#f0fdf4;
-      color:#166534;
-      padding:13px 16px;
-      font-weight:700;
-    }
-    .account-deleted-notice[hidden]{ display:none; }
-
-    @media (max-width: 900px){
-      .hero-grid{ grid-template-columns: 1fr; }
-      .actions{ min-width: auto; }
-      .nav > nav{ display:none; }
-      .menu-btn{ display:inline-flex; }
-      .mobile{
-        display:none;
-        padding: 10px 0 14px;
-      }
-      .mobile.open{ display:block; }
-      .mobile a{
-        display:block;
-        padding: 10px 12px;
-        border-radius: 14px;
-        border: 1px solid transparent;
-        color: var(--muted);
-      }
-      .mobile a:hover{
-        background: rgba(255,255,255,.06);
-        border-color: rgba(255,255,255,.12);
-        color: var(--text);
-        text-decoration:none;
-      }
-      .grid-3{ grid-template-columns: 1fr; }
-      .grid-2{ grid-template-columns: 1fr; }
-      .pricing-cards{ grid-template-columns: 1fr; }
-      .fields{ grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 640px){
-      .plan-card{ padding:18px; }
-      .plan-card-head{ align-items:flex-start; }
-      .comparison-wrap{
-        overflow:visible;
-        border:0;
-        background:transparent;
-      }
-      .comparison-table,
-      .comparison-table tbody{
-        display:block;
-        width:100%;
-      }
-      .comparison-table thead{
-        display:none;
-      }
-      .comparison-table tr{
-        display:grid;
-        grid-template-columns:repeat(2, minmax(0, 1fr));
-        margin-bottom:10px;
-        overflow:hidden;
-        border:1px solid var(--line);
-        border-radius:14px;
-        background:var(--panel);
-      }
-      .comparison-table th,
-      .comparison-table td{
-        display:block;
-        min-width:0;
-        padding:10px 12px;
-        border-bottom:0;
-      }
-      .comparison-table th[scope="row"]{
-        grid-column:1 / -1;
-        border-bottom:1px solid var(--line);
-      }
-      .comparison-table td + td{
-        border-left:1px solid var(--line);
-      }
-      .comparison-table td::before{
-        content:attr(data-plan);
-        display:block;
-        margin-bottom:3px;
-        color:var(--faint);
-        font-size:11px;
-        font-weight:700;
-        text-transform:uppercase;
-      }
-      .comparison-table .comparison-group{
-        display:block;
-        margin-top:16px;
-        margin-bottom:8px;
-        border:0;
-        border-radius:0;
-        background:transparent;
-      }
-      .comparison-group th{
-        padding:0;
-        border:0;
-        background:transparent;
-      }
-    }
-
-  </style>
 </head>
-
 <body>
-<header>
-  <div class="wrap">
-    <div class="nav">
-      <a class="brand" href="/" aria-label="Simple Books home">
-        <img src="assets/logo.png" alt="Simple Books" class="logo">
-      </a>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 
+<header class="site-header">
+  <div class="wrap">
+    <div class="site-nav">
+      <a class="brand" href="/" aria-label="Simple Books home">
+        <img class="logo" src="/assets/logo.png" alt="Simple Books">
+      </a>
       <nav aria-label="Primary navigation">
-        <ul>
+        <ul class="site-links">
           <li><a href="/features">Features</a></li>
           <li><a href="/pricing">Pricing</a></li>
           <li><a href="/about">About</a></li>
@@ -757,687 +37,297 @@
           <li><a href="#contact">Contact</a></li>
         </ul>
       </nav>
-
-      <div class="actions">
-        <a class="btn" href="/login.html">
-          Login
-        </a>
-
-        <a class="btn primary" href="/signup.html">
-          Sign Up
-        </a>
-        <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="mobileNav">Menu</button>
+      <div class="site-actions">
+        <a class="button quiet-button" href="/login.html">Login</a>
+        <a class="button primary" href="/signup.html">Start Free</a>
+        <button class="button menu-button" id="menuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">Menu</button>
       </div>
-    </div>
-
-    <div class="mobile" id="mobileNav" aria-label="Mobile navigation">
-      <a href="/features">Features</a>
-      <a href="/pricing">Pricing</a>
-      <a href="/about">About</a>
-      <a href="/whats-new">What's New</a>
-      <a href="/security">Security</a>
-      <a href="/guides">Guides</a>
-      <a href="/faq">FAQ</a>
-      <a href="#contact">Contact</a>
-      <a href="/login.html">Login</a>
-      <a href="/signup.html">Sign Up</a>
+      <nav class="mobile-navigation" id="mobileNav" aria-label="Mobile navigation">
+        <a href="/features">Features</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/whats-new">What's New</a>
+        <a href="/security">Security</a>
+        <a href="/guides">Guides</a>
+        <a href="/faq">FAQ</a>
+        <a href="#contact">Contact</a>
+        <a href="/login.html">Login</a>
+        <a href="/signup.html">Sign Up</a>
+      </nav>
     </div>
   </div>
 </header>
 
-<div
-  class="wrap account-deleted-notice"
-  id="accountDeletedNotice"
-  role="status"
-  aria-live="polite"
-  hidden
->
+<div class="wrap account-deleted-notice" id="accountDeletedNotice" role="status" aria-live="polite" hidden>
   Your Simple Books account has been deleted.
 </div>
 
-<main id="top">
-  <section class="hero">
-    <div class="wrap">
-      <div class="hero-grid">
-        <div class="card hero-main">
-          <h1>Simple business software, all in one place.</h1>
-          <p class="subhead">
-            Business management software for freelancers, sole traders and small businesses.
-            Manage everyday work, finances and planning from one clear platform.
-          </p>
-
-          <ul class="bullets">
-            <li><span class="dot" aria-hidden="true"></span>Manage invoices, bills, expenses, clients and projects</li>
-            <li><span class="dot" aria-hidden="true"></span>Plan with budgets, cashflow forecasts and connected dashboards</li>
-            <li><span class="dot" aria-hidden="true"></span>Use AI assistance and financial reports when you need deeper insight</li>
-          </ul>
-
-          <div class="hero-ctas">
-            <a class="btn primary" href="/signup.html">
-              Sign Up
-            </a>
-
-            <a class="btn" href="/login.html">
-              Login
-            </a>
-
-            <a class="btn" href="/login.html?demo=1">
-              Try Demo
-            </a>
-          </div>
-
-          <div class="trust">
-            <strong>Built for freelancers, sole traders and small businesses</strong>
-            · Start free and upgrade when you need more
-          </div>
+<main id="main-content">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="wrap hero-layout">
+      <div class="hero-copy">
+        <p class="eyebrow">For freelancers, sole traders and small businesses</p>
+        <h1 id="hero-title">Simple business software, without the unnecessary complexity.</h1>
+        <p class="hero-intro">Bring invoices, spending, projects, planning and useful financial insight together in one approachable place.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="/login.html?demo=1">Try Demo</a>
+          <a class="button" href="/signup.html">Start Free</a>
+          <a class="text-link" href="/features">Explore Features <span aria-hidden="true">&rarr;</span></a>
         </div>
+        <p class="hero-reassurance">Start with the free plan. Explore a populated Demo first. Move to Pro only when the extra tools become useful.</p>
+      </div>
+      <figure class="product-visual dashboard-visual">
+        <img class="product-shot" src="/assets/home/dashboard-overview.webp" width="1894" height="1080" alt="Simple Books Dashboard showing navigation, key metrics, Business Health and financial charts" decoding="async" fetchpriority="high">
+        <figcaption>The populated Simple Books Dashboard brings navigation, business health and financial context into one view.</figcaption>
+      </figure>
+    </div>
+  </section>
 
-        <aside class="card hero-side" aria-label="Quick reassurance">
-          <div>
-            <p class="side-title">One connected business platform.</p>
-            <p class="side-note">Run day-to-day work, plan ahead and understand your numbers in one place.</p>
+  <section class="section helps-section" id="helps" aria-labelledby="helps-title">
+    <div class="wrap">
+      <div class="section-intro split-intro">
+        <div>
+          <p class="eyebrow">How Simple Books helps</p>
+          <h2 id="helps-title">Keep the work moving and the numbers connected.</h2>
+        </div>
+        <p>Simple Books focuses on the outcomes behind the admin, with deeper tools available when you need them.</p>
+      </div>
+      <ol class="outcome-list">
+        <li><span>01</span><div><h3>Get paid</h3><p>Create invoices, follow due dates and keep track of what customers owe.</p></div></li>
+        <li><span>02</span><div><h3>Keep spending organised</h3><p>Record bills, expenses and mileage with the documents and details that support them.</p></div></li>
+        <li><span>03</span><div><h3>Manage your work</h3><p>Connect clients, projects, dates, budgets and related transactions.</p></div></li>
+        <li><span>04</span><div><h3>Plan ahead</h3><p>Build budgets and use expected invoices and bills to look ahead at cashflow.</p></div></li>
+        <li><span>05</span><div><h3>Understand your numbers</h3><p>Start with a clear overview, then use Pro insights and accounting reports when useful.</p></div></li>
+        <li><span>06</span><div><h3>Work with your accountant</h3><p>Keep structured records and, with Pro, prepare reports and an Accountant Pack for handover.</p></div></li>
+      </ol>
+      <p class="section-link"><a class="text-link" href="/features">See the complete Features overview <span aria-hidden="true">&rarr;</span></a></p>
+    </div>
+  </section>
 
-            <div class="mini">
-              <div class="pill"><strong>Run the work</strong><br/>Manage customers, invoices, purchases and projects.</div>
-              <div class="pill"><strong>Plan ahead</strong><br/>Build budgets and monitor expected cashflow.</div>
-              <div class="pill"><strong>Understand performance</strong><br/>Review dashboards and connected financial reports.</div>
-            </div>
-          </div>
+  <section class="section progression-section" id="progression" aria-labelledby="progression-title">
+    <div class="wrap">
+      <div class="section-intro centred-intro">
+        <p class="eyebrow">Start where you are</p>
+        <h2 id="progression-title">From spreadsheet to Simple Books&mdash;at your pace.</h2>
+        <p>There is no need to change everything at once. Begin with something familiar, bring records together for free, and add more capacity only when it helps.</p>
+      </div>
+      <ol class="progression" aria-label="Progression from spreadsheets to Simple Books Pro">
+        <li class="progression-stage spreadsheet-stage">
+          <div class="stage-heading"><span class="stage-number">01</span><span class="stage-label">Begin your way</span></div>
+          <h3>Spreadsheet</h3>
+          <p class="stage-price">Your own workbook</p>
+          <p>Familiar, flexible and useful when you want to organise things yourself first.</p>
+          <ul><li>Start with a format you know</li><li>Keep direct control of the file</li><li>Expect more manual work as records grow</li></ul>
+        </li>
+        <li class="progression-stage starter-stage">
+          <div class="stage-heading"><span class="stage-number">02</span><span class="stage-label">Bring records together</span></div>
+          <h3>Starter</h3>
+          <p class="stage-price">&pound;0 <span>/ month</span></p>
+          <p><strong>A free starting plan you don&rsquo;t have to leave.</strong> There is currently no time limit and no card-entry step when creating a Starter account.</p>
+          <ul><li>Core everyday Simple Books workflows</li><li>10 AI Assistant questions and 10 AI document scans each month</li><li>Up to 5 active projects</li></ul>
+        </li>
+        <li class="progression-stage pro-stage">
+          <div class="stage-heading"><span class="stage-number">03</span><span class="stage-label">Add more when useful</span></div>
+          <h3>Pro</h3>
+          <p class="stage-price">&pound;15 <span>/ month</span></p>
+          <p><strong>More Simple Books, not a different Simple Books.</strong> Keep the same core experience and add capacity, complete insights and reporting.</p>
+          <ul><li>500 AI Assistant questions and 500 AI document scans each month</li><li>Unlimited active projects and complete Business Insights</li><li>Four accounting reports and the Accountant Pack</li></ul>
+        </li>
+      </ol>
+      <p class="progression-note">Pro reports include Trial Balance, General Ledger, Profit &amp; Loss and Balance Sheet. <a href="/pricing">Compare the plans in full</a>.</p>
+    </div>
+  </section>
 
-          <div class="pill">
-            <strong>AI Assistant</strong><br/>
-            Ask questions about your business data and get practical, contextual help.
-          </div>
-        </aside>
+  <section class="section ownership-section" id="ownership" aria-labelledby="ownership-title">
+    <div class="wrap ownership-layout">
+      <div class="ownership-copy">
+        <p class="eyebrow">Data ownership</p>
+        <h2 id="ownership-title">Your business. Your records. Your copy.</h2>
+        <p class="ownership-lead">We think you should keep copies of your own business records&mdash;even if you have no intention of leaving Simple Books.</p>
+        <blockquote>Trust the software. Keep your own copy anyway.</blockquote>
+        <p>Use the supported workbook structure to prepare records, import them when appropriate, and export supported business records back to Excel. Keep those files on your own computer or storage as part of your normal routine.</p>
+        <p class="ownership-prompt">One of the first things we&rsquo;d encourage you to try: create a test invoice, export your workbook and open it yourself.</p>
+      </div>
+      <aside class="portability-panel" aria-labelledby="portable-title">
+        <p class="panel-label">Supported workbook journey</p>
+        <h3 id="portable-title">Excel workbook <span aria-hidden="true">&harr;</span> Simple Books</h3>
+        <p>The canonical workbook supports Clients, Invoices, Invoice Items, Bills, Expenses, Mileage, Projects and Budgets.</p>
+        <div class="workbook-flow" aria-label="Fill, import, use and export the supported workbook structure">
+          <span>Fill</span><i aria-hidden="true">&rarr;</i><span>Import</span><i aria-hidden="true">&rarr;</i><span>Use</span><i aria-hidden="true">&rarr;</i><span>Export</span>
+        </div>
+        <p class="scope-note">The workbook covers supported business records, not every part of Simple Books. The exported Summary is not imported, and Banking, attachments and logos, payment or settlement history and generated reports are excluded. Paid invoices and bills need their missing payment history before they can be recreated as paid.</p>
+        <a class="button workbook-button" href="/downloads/simple-books-workbook.xlsx" download="simple-books-workbook.xlsx" aria-describedby="workbook-download-note">Download the workbook</a>
+        <p id="workbook-download-note" class="coming-note">See the same supported structure Simple Books uses for workbook imports and exports.</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="section connected-section" id="connected" aria-labelledby="connected-title">
+    <div class="wrap connected-layout">
+      <figure class="product-visual connected-visual">
+        <img class="product-shot" src="/assets/home/projects-portfolio.webp" width="1522" height="1081" alt="Simple Books Projects portfolio showing invoicing, costs, gross profit and budget usage" loading="lazy" decoding="async">
+        <figcaption>Projects bring invoicing, bills, expenses, mileage, profit and budgets into one portfolio view.</figcaption>
+      </figure>
+      <div class="connected-copy">
+        <p class="eyebrow">One record can do more</p>
+        <h2 id="connected-title">Everyday activity should not live in isolated boxes.</h2>
+        <p>An invoice can contribute to a project, appear in cashflow and feed the financial view behind the business. Bills, expenses and mileage can add the cost context.</p>
+        <ul class="connected-points">
+          <li><span aria-hidden="true">01</span>Record the work and money where it happens.</li>
+          <li><span aria-hidden="true">02</span>Connect it to the relevant client or project.</li>
+          <li><span aria-hidden="true">03</span>Use the combined picture to plan and understand.</li>
+        </ul>
       </div>
     </div>
   </section>
 
-  <section id="pricing">
-    <div class="wrap">
-      <div class="section-head">
-        <div>
-          <h2>Choose the plan that fits your business</h2>
-          <p class="lead">Start free and upgrade when you need more AI usage, unlimited projects and advanced accounting reports.</p>
-        </div>
-        <span class="badge">
-          <span class="spark" aria-hidden="true"></span>
-          Clear monthly plans
-        </span>
+  <section class="section mobile-workflow-section" id="mobile-workflow" aria-labelledby="mobile-workflow-title">
+    <div class="wrap mobile-workflow-layout">
+      <div class="mobile-workflow-copy">
+        <p class="eyebrow">Deal with it while it is in front of you</p>
+        <h2 id="mobile-workflow-title">You don&rsquo;t have to sit down and &ldquo;do the books&rdquo;.</h2>
+        <p>Use Simple Books in a mobile browser and choose a JPG, PNG, WEBP or PDF bill or expense document from your device. AI scanning can suggest possible details for you to review.</p>
+        <p>You decide whether to use those suggestions. Saving the record remains a separate, deliberate action.</p>
+        <ol class="micro-flow" aria-label="Document workflow">
+          <li><span>1</span><strong>Choose it</strong><small>Select a supported image or PDF</small></li>
+          <li><span>2</span><strong>Check it</strong><small>Review the suggested details</small></li>
+          <li><span>3</span><strong>Save it</strong><small>Complete the normal save action</small></li>
+        </ol>
       </div>
+      <figure class="product-visual document-review-visual">
+        <img class="product-shot" src="/assets/home/mobile-document-review.webp" width="1480" height="1059" alt="Add Bill screen with AI-suggested details highlighted for review before saving" loading="lazy" decoding="async">
+        <figcaption>AI-suggested bill details remain highlighted for review before the record and scanned document are saved.</figcaption>
+      </figure>
+    </div>
+  </section>
 
-      <div class="pricing-cards">
-        <article class="card plan-card">
-          <div class="plan-card-head">
-            <div>
-              <h3>Starter</h3>
-              <div class="price">
-                <div class="amount">Free</div>
-              </div>
-            </div>
-            <span class="badge">Start here</span>
-          </div>
-          <p>Core business tools with practical monthly AI allowances for getting organised.</p>
-          <ul class="plan-highlights">
-            <li>10 AI Assistant questions per month</li>
-            <li>10 AI document scans per month</li>
-            <li>Up to 5 active projects</li>
-          </ul>
-          <a class="btn primary" href="/signup.html">Get Started Free</a>
+  <section class="section proof-section" id="proof" aria-labelledby="proof-title">
+    <div class="wrap">
+      <div class="section-intro proof-intro">
+        <p class="eyebrow">Don&rsquo;t take our word for it</p>
+        <h2 id="proof-title">Look around before you commit.</h2>
+        <p>Explore the working product, start with a free account, or inspect the public workbook when it arrives. The decision can stay yours.</p>
+      </div>
+      <div class="proof-options">
+        <article class="proof-option demo-option">
+          <span class="option-number">01</span>
+          <div><h3>Explore the populated Demo</h3><p>Explore a fictional business already using Simple Books&mdash;without creating your own account. Normal nested business records can be changed, and those changes are visible in the shared Demo, so please don&rsquo;t enter real information.</p><a class="button primary" href="/login.html?demo=1">Try Demo</a></div>
         </article>
-
-        <article class="card plan-card plan-card-pro">
-          <div class="plan-card-head">
-            <div>
-              <h3>Pro</h3>
-              <div class="price">
-                <div class="amount">&pound;15</div>
-                <div class="per">/ month</div>
-              </div>
-            </div>
-            <span class="badge">For growing businesses</span>
-          </div>
-          <p>Designed for growing businesses with higher AI limits, unlimited projects and advanced accounting reports.</p>
-          <ul class="plan-highlights">
-            <li>500 AI Assistant questions per month</li>
-            <li>500 AI document scans per month</li>
-            <li>Unlimited active projects</li>
-            <li>Business Insights dashboard</li>
-            <li>Advanced accounting reports (Trial Balance, General Ledger, Profit &amp; Loss and Balance Sheet)</li>
-            <li>Accountant Pack included</li>
-          </ul>
-          <a class="btn primary" href="/signup.html">Upgrade to Pro</a>
+        <article class="proof-option starter-option">
+          <span class="option-number">02</span>
+          <div><h3>Start free</h3><p>Create your own Starter account without entering a payment card. There is currently no trial countdown.</p><a class="button" href="/signup.html">Start Free</a></div>
+        </article>
+        <article class="proof-option workbook-option">
+          <span class="option-number">03</span>
+          <div><h3>Inspect the blank workbook</h3><p>See the same supported structure Simple Books uses for workbook imports and exports.</p><a class="text-link" href="/downloads/simple-books-workbook.xlsx" download="simple-books-workbook.xlsx">Download the workbook</a></div>
         </article>
       </div>
+    </div>
+  </section>
 
-      <div class="comparison-wrap">
-        <table class="comparison-table">
-          <caption class="visually-hidden">Comparison of Simple Books Starter and Pro plans</caption>
-          <thead>
-            <tr>
-              <th scope="col">Feature</th>
-              <th scope="col">Starter</th>
-              <th scope="col">Pro</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="comparison-group">
-              <th colspan="3" scope="colgroup">Core business tools</th>
-            </tr>
-            <tr>
-              <th scope="row">Invoices</th>
-              <td class="comparison-value included" data-plan="Starter">Included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">Bills</th>
-              <td class="comparison-value included" data-plan="Starter">Included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">Expenses</th>
-              <td class="comparison-value included" data-plan="Starter">Included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">Mileage</th>
-              <td class="comparison-value included" data-plan="Starter">Included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">Budgets</th>
-              <td class="comparison-value included" data-plan="Starter">Included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">Cashflow</th>
-              <td class="comparison-value included" data-plan="Starter">Included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr class="comparison-group">
-              <th colspan="3" scope="colgroup">Usage and projects</th>
-            </tr>
-            <tr>
-              <th scope="row">AI Assistant</th>
-              <td class="comparison-value" data-plan="Starter">10 questions/month</td>
-              <td class="comparison-value" data-plan="Pro">500 questions/month</td>
-            </tr>
-            <tr>
-              <th scope="row">AI Document Scanning</th>
-              <td class="comparison-value" data-plan="Starter">10 scans/month</td>
-              <td class="comparison-value" data-plan="Pro">500 scans/month</td>
-            </tr>
-            <tr>
-              <th scope="row">Active projects</th>
-              <td class="comparison-value" data-plan="Starter">Up to 5</td>
-              <td class="comparison-value" data-plan="Pro">Unlimited</td>
-            </tr>
-            <tr class="comparison-group">
-              <th colspan="3" scope="colgroup">Advanced accounting</th>
-            </tr>
-            <tr>
-              <th scope="row">Business Insights</th>
-              <td class="comparison-value not-included" data-plan="Starter">Not included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">Accountant Pack</th>
-              <td class="comparison-value not-included" data-plan="Starter">Not included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">Trial Balance</th>
-              <td class="comparison-value not-included" data-plan="Starter">Not included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">General Ledger</th>
-              <td class="comparison-value not-included" data-plan="Starter">Not included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">Profit &amp; Loss</th>
-              <td class="comparison-value not-included" data-plan="Starter">Not included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-            <tr>
-              <th scope="row">Balance Sheet</th>
-              <td class="comparison-value not-included" data-plan="Starter">Not included</td>
-              <td class="comparison-value included" data-plan="Pro">Included</td>
-            </tr>
-          </tbody>
-        </table>
+  <section class="section fit-section" id="fit" aria-labelledby="fit-title">
+    <div class="wrap fit-layout">
+      <div class="section-intro fit-intro">
+        <p class="eyebrow">Where Simple Books fits</p>
+        <h2 id="fit-title">Choose what suits the way your business works.</h2>
+        <p>Simple Books is one option between managing everything manually and adopting a broader accounting ecosystem. It will not be the right fit for everyone.</p>
+      </div>
+      <div class="fit-comparison">
+        <article><span class="fit-label">Familiar and flexible</span><h3>Spreadsheets</h3><p>Useful for direct control and a familiar start, but increasingly manual as records and relationships grow.</p></article>
+        <article class="simple-books-fit"><span class="fit-label">Connected everyday work</span><h3>Simple Books</h3><p>Connects business records, projects, planning and reporting in one approachable product.</p></article>
+        <article><span class="fit-label">Wider ecosystems</span><h3>Broader accounting platforms</h3><p>May suit businesses that need a wider range of integrations, ecosystems or specialist functionality.</p></article>
       </div>
     </div>
   </section>
 
-  <section id="features">
-    <div class="wrap">
-      <div class="section-head">
-        <div>
-          <h2>Everything you need to stay organised</h2>
-          <p class="lead">
-            Manage sales, purchases, projects, planning and reporting without switching systems.
-          </p>
-        </div>
-        <span class="badge">
-          <span class="spark" aria-hidden="true"></span>
-          Business software
-        </span>
+  <section class="section plans-section" id="plans" aria-labelledby="plans-title">
+    <div class="wrap plans-layout">
+      <div class="section-intro plans-intro">
+        <p class="eyebrow">Two Simple Books plans</p>
+        <h2 id="plans-title">Start usefully. Upgrade deliberately.</h2>
+        <p>Both plans use the same core Simple Books experience. The detailed and authoritative comparison lives on the Pricing page.</p>
+        <a class="text-link" href="/pricing">View full Pricing details <span aria-hidden="true">&rarr;</span></a>
       </div>
-
-      <div class="grid-3">
-
-        <div class="box">
-          <h3>Dashboard</h3>
-          <p>See key business activity, outstanding items and trends from one clear overview.</p>
-          <div class="meta">Your business at a glance.</div>
-        </div>
-
-        <div class="box">
-          <h3>Invoices</h3>
-          <p>Create invoices, manage customers, track due dates and monitor payment status.</p>
-          <div class="meta">Stay on top of sales.</div>
-        </div>
-
-        <div class="box">
-          <h3>Clients</h3>
-          <p>Keep customer details, notes, activity and follow-up dates together.</p>
-          <div class="meta">Maintain useful customer records.</div>
-        </div>
-
-        <div class="box">
-          <h3>Bills</h3>
-          <p>Record supplier bills, scan documents, monitor due dates and track payments.</p>
-          <div class="meta">Keep purchases organised.</div>
-        </div>
-
-        <div class="box">
-          <h3>Expenses</h3>
-          <p>Record expenses, mileage and receipts with project and status tracking.</p>
-          <div class="meta">Manage everyday spending.</div>
-        </div>
-
-        <div class="box">
-          <h3>Projects</h3>
-          <p>Organise client work, budgets, dates and related transactions in one place.</p>
-          <div class="meta">See work and performance together.</div>
-        </div>
-
-        <div class="box">
-          <h3>Budgets</h3>
-          <p>Set business budgets and compare plans with recorded activity.</p>
-          <div class="meta">Plan spending with context.</div>
-        </div>
-
-        <div class="box">
-          <h3>Cashflow</h3>
-          <p>Forecast money in and out and review the timing of expected movements.</p>
-          <div class="meta">Look ahead with confidence.</div>
-        </div>
-
-        <div class="box">
-          <h3>AI Assistant</h3>
-          <p>Ask questions about your business information and receive contextual answers.</p>
-          <div class="meta">Practical help inside the platform.</div>
-        </div>
-
-        <div class="box">
-          <h3>Trial Balance</h3>
-          <p>Review account balances generated from your connected business records.</p>
-          <div class="meta">Check debits and credits clearly.</div>
-        </div>
-
-        <div class="box">
-          <h3>General Ledger</h3>
-          <p>Explore account activity, journal entries and running balances.</p>
-          <div class="meta">Trace the detail behind reports.</div>
-        </div>
-
-        <div class="box">
-          <h3>Profit &amp; Loss</h3>
-          <p>Review income, expenses and your resulting profit or loss for a selected period.</p>
-          <div class="meta">Understand business performance.</div>
-        </div>
-
-        <div class="box">
-          <h3>Balance Sheet</h3>
-          <p>See assets, liabilities and equity at a chosen reporting date.</p>
-          <div class="meta">A clear financial position.</div>
-        </div>
-
-        <div class="box">
-          <h3>Accountant Pack</h3>
-          <p>Prepare structured exports and reports for a cleaner financial handover.</p>
-          <div class="meta">Share organised business records.</div>
-        </div>
-
+      <div class="concise-plans">
+        <article class="concise-plan">
+          <div class="concise-plan-heading"><div><span>Start here</span><h3>Starter</h3></div><p><strong>&pound;0</strong>/month</p></div>
+          <ul><li>Core everyday workflows</li><li>10 monthly AI Assistant questions and 10 AI document scans</li><li>Up to 5 active projects</li></ul>
+          <a class="button" href="/signup.html">Start Free</a>
+        </article>
+        <article class="concise-plan pro-plan">
+          <div class="concise-plan-heading"><div><span>When you want more</span><h3>Pro</h3></div><p><strong>&pound;15</strong>/month</p></div>
+          <ul><li>Higher AI capacity and unlimited active projects</li><li>Complete Business Insights and four accounting reports</li><li>Accountant Pack included</li></ul>
+          <a class="button primary" href="/pricing">Explore Pro</a>
+        </article>
       </div>
     </div>
   </section>
 
-  <section id="how">
+  <section class="trust-section" id="trust" aria-labelledby="trust-title">
     <div class="wrap">
-      <div class="section-head">
-        <div>
-          <h2>How Simple Books works</h2>
-          <p class="lead">One account, connected workflows and clear information across your business.</p>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="box">
-          <div class="steps">
-
-            <div class="step">
-              <div>
-                <h3>Sign up</h3>
-                <p>Create your Simple Books profile and add your basic business details.</p>
-              </div>
-            </div>
-
-            <div class="step">
-              <div>
-                <h3>Use your dashboard</h3>
-                <p>See sales, purchases, projects, cashflow and business activity from one central place.</p>
-              </div>
-            </div>
-
-            <div class="step">
-              <div>
-                <h3>Manage your records</h3>
-                <p>Create invoices, track purchases, manage projects and keep expenses organised.</p>
-              </div>
-            </div>
-
-            <div class="step">
-              <div>
-                <h3>Review and report</h3>
-                <p>Use dashboards, financial reports and structured exports to understand and share your records.</p>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        <div class="box">
-          <h3>Built around everyday business management</h3>
-          <p>
-            Simple Books connects the work you do with the money, plans and reports behind it.
-          </p>
-
-          <ul class="ul">
-            <li>Track money owed to you</li>
-            <li>Record supplier bills and costs</li>
-            <li>Manage projects, clients and related transactions</li>
-            <li>Plan budgets and forecast cashflow</li>
-          </ul>
-
-          <div class="meta">
-            Move from everyday activity to detailed reports without leaving the platform.
-          </div>
-        </div>
-      </div>
+      <h2 class="visually-hidden" id="trust-title">Simple Books reassurance</h2>
+      <ul class="trust-list">
+        <li><strong>No card for Starter</strong><span>Create the free account without a card-entry step.</span></li>
+        <li><strong>Shared Demo first</strong><span>Explore fictional records before creating your own account.</span></li>
+        <li><strong>Keep your own copies</strong><span>Export supported records and store them yourself.</span></li>
+        <li><strong>Stripe subscription pages</strong><span>Pro checkout and subscription management open on Stripe&rsquo;s pages.</span></li>
+      </ul>
     </div>
   </section>
 
-  <section id="about">
+  <section class="section final-cta" id="contact" aria-labelledby="final-cta-title">
     <div class="wrap">
-      <div class="section-head">
-        <div>
-          <h2>Built for real business work</h2>
-          <p class="lead">Simple Books brings together the everyday jobs small businesses need to manage.</p>
+      <div class="final-cta-panel">
+        <div><p class="eyebrow">No pressure, no hidden clock</p><h2 id="final-cta-title">Have a look before you decide.</h2><p>Explore the shared fictional Demo, start with the free plan, or read the detail first. We&rsquo;d rather earn your reason to stay than make it difficult to leave.</p></div>
+        <div class="final-actions">
+          <a class="button primary" href="/login.html?demo=1">Try Demo</a>
+          <a class="button" href="/signup.html">Start Free</a>
+          <a class="text-link" href="/features">Explore Features <span aria-hidden="true">&rarr;</span></a>
+          <a class="contact-link" href="mailto:adam@simple-books.co.uk">adam@simple-books.co.uk</a>
         </div>
-      </div>
-
-      <div class="box">
-        <p>
-          Simple Books brings invoices, purchases, expenses, clients, projects and planning into one accessible platform.
-        </p>
-
-        <p style="margin-top:10px;">
-          The goal is simple: help small businesses manage day-to-day activity, understand performance and prepare
-          useful financial reports without unnecessary complexity.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <section id="faqs">
-    <div class="wrap">
-      <div class="section-head">
-        <div>
-          <h2>FAQs</h2>
-          <p class="lead">Common questions about the Simple Books platform.</p>
-        </div>
-      </div>
-
-      <details>
-        <summary>Who is Simple Books for?</summary>
-        <p>Simple Books is designed for freelancers, sole traders and small businesses that want one place to manage work, finances and planning.</p>
-      </details>
-
-      <details>
-        <summary>Can I export my data?</summary>
-        <p>Yes. You can download backups and export your records whenever you want, so you stay in control of your information.</p>
-      </details>
-
-      <details>
-        <summary>What financial reports are included?</summary>
-        <p>Pro includes the Trial Balance, General Ledger, Profit &amp; Loss and Balance Sheet, supported by connected business records.</p>
-      </details>
-
-      <details>
-        <summary>Can I export my data for a financial handover?</summary>
-        <p>Yes. Pro includes the Accountant Pack alongside structured exports and advanced reporting.</p>
-      </details>
-
-      <details>
-        <summary>What is included in the free plan?</summary>
-        <p>Starter includes the core business tools, 10 AI Assistant questions and 10 document scans per month, and up to 5 active projects.</p>
-      </details>
-
-      <details>
-        <summary>How do I get started?</summary>
-        <p>Create an account, add your business details and start using the dashboard straight away.</p>
-      </details>
-    </div>
-  </section>
-
-  <section id="contact">
-    <div class="wrap">
-      <div class="section-head">
-        <div>
-          <h2>Get started with Simple Books</h2>
-          <p class="lead">Create an account, explore the platform, or get in touch if you have questions.</p>
-        </div>
-        <span class="badge">
-          <span class="spark" aria-hidden="true"></span>
-          adam@simple-books.co.uk
-        </span>
-      </div>
-
-      <div class="grid-2">
-
-        <div class="box">
-          <h3>Ready to start?</h3>
-
-          <p>
-            Create your Simple Books account and begin managing invoices,
-            purchases, projects and business performance from one dashboard.
-          </p>
-
-          <div class="contact-actions" style="margin-top:20px;">
-            <a class="btn primary" href="/signup.html">Create account</a>
-            <a class="btn" href="/dashboard.html">View dashboard</a>
-          </div>
-
-          <p class="hint" style="margin-top:18px;">
-            Start with the Starter plan and upgrade whenever your business grows.
-          </p>
-        </div>
-
-        <div class="box">
-          <h3>Need help?</h3>
-
-          <p>
-            If you're unsure which subscription is right for you,
-            or have a question about the platform, send us a message.
-          </p>
-
-          <ul class="ul">
-            <li>Questions about subscriptions</li>
-            <li>Feature requests</li>
-            <li>Product support</li>
-            <li>Partnership opportunities</li>
-            <li>General help and feedback</li>
-          </ul>
-
-          <div class="contact-actions" style="margin-top:20px;">
-            <a class="btn" href="mailto:adam@simple-books.co.uk">Email us</a>
-          </div>
-
-          <div class="meta">
-            Typical reply time: within 1–2 working days.
-          </div>
-        </div>
-
       </div>
     </div>
   </section>
 </main>
 
-<footer>
-  <div class="wrap">
-    <div class="footer-grid">
-      <div>
-        <strong style="color:var(--text);">Simple Books</strong><br/>
-        Simple business software for work, finances, planning and reporting.
-      </div>
-
-      <div>
-        <a href="/about">About</a><br/>
-        <a href="/whats-new">What's New</a><br/>
-        <a href="/security">Security</a><br/>
-        <a href="/guides">Guides</a><br/>
-        <a href="/faq">FAQ</a><br/>
-        <a href="/login.html">Login</a><br/>
-        <a href="/signup.html">Sign Up</a><br/>
-        <a href="mailto:adam@simple-books.co.uk?subject=Simple%20Books%20enquiry">
-          adam@simple-books.co.uk
-        </a><br/>
-        <a href="#privacy">Privacy</a>
-      </div>
-    </div>
-
-    <div class="fine" id="privacy">
-      <strong style="color:var(--text);">Privacy:</strong>
-      Simple Books uses connected cloud services and browser storage where applicable to provide the platform.
-      You remain responsible for reviewing and exporting your records. If you contact Simple Books,
-      your details are used only to respond to your enquiry. Your information is not sold.
-    </div>
-
-    <div class="fine">
-      Simple Books is business management software and is not a substitute for professional financial or tax advice.
-    </div>
-
-    <div class="fine">
-      © <span id="year"></span> Simple Books. All rights reserved.
+<footer class="site-footer">
+  <div class="wrap footer-layout">
+    <div class="footer-brand"><strong>Simple Books</strong><p>Practical business software for work, finances, planning and reporting.</p></div>
+    <nav class="footer-links" aria-label="Footer navigation">
+      <a href="/features">Features</a><a href="/pricing">Pricing</a><a href="/about">About</a><a href="/whats-new">What's New</a><a href="/security">Security</a><a href="/guides">Guides</a><a href="/faq">FAQ</a><a href="#contact">Contact</a><a href="#privacy">Privacy</a><a href="/login.html">Login</a><a href="/signup.html">Sign Up</a>
+    </nav>
+    <div class="footer-notes">
+      <p id="privacy"><strong>Privacy:</strong> Simple Books uses connected cloud services and browser storage where applicable to provide the platform. You remain responsible for reviewing and exporting your records. If you contact Simple Books, your details are used only to respond to your enquiry. Your information is not sold.</p>
+      <p>Simple Books is business management software and is not a substitute for professional financial or tax advice.</p>
+      <p>&copy; <span id="year"></span> Simple Books. All rights reserved.</p>
     </div>
   </div>
 </footer>
 
 <script>
-  (function () {
-    const EMAIL_TO = "adam@simple-books.co.uk";
-
+  (() => {
     const completionParameters = new URLSearchParams(window.location.search);
-    if (completionParameters.get("account") === "deleted") {
+    if(completionParameters.get("account") === "deleted"){
       document.getElementById("accountDeletedNotice").hidden = false;
       completionParameters.delete("account");
       const remainingQuery = completionParameters.toString();
-      history.replaceState(
-        null,
-        "",
-        `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ""}${window.location.hash}`
-      );
+      history.replaceState(null,"",`${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ""}${window.location.hash}`);
     }
-
-    // Footer year
     document.getElementById("year").textContent = new Date().getFullYear();
-
-    // Mobile menu
     const menuBtn = document.getElementById("menuBtn");
     const mobileNav = document.getElementById("mobileNav");
-    if (menuBtn && mobileNav) {
-      menuBtn.addEventListener("click", () => {
-        const open = mobileNav.classList.toggle("open");
-        menuBtn.setAttribute("aria-expanded", String(open));
+    if(menuBtn && mobileNav){
+      menuBtn.addEventListener("click",() => {
+         const open = mobileNav.classList.toggle("open");
+         menuBtn.setAttribute("aria-expanded",String(open));
+         menuBtn.setAttribute("aria-label",open ? "Close menu" : "Open menu");
       });
-
-      // Close mobile nav after click
-      mobileNav.querySelectorAll("a").forEach(a => {
-        a.addEventListener("click", () => {
-          mobileNav.classList.remove("open");
-          menuBtn.setAttribute("aria-expanded", "false");
+      mobileNav.querySelectorAll("a").forEach(link => {
+        link.addEventListener("click",() => {
+           mobileNav.classList.remove("open");
+           menuBtn.setAttribute("aria-expanded","false");
+           menuBtn.setAttribute("aria-label","Open menu");
         });
-      });
-    }
-
-    // Contact form -> mailto
-    const form = document.getElementById("contactForm");
-    const toast = document.getElementById("toast");
-
-    function showToast(msg) {
-      toast.textContent = msg;
-      toast.style.display = "block";
-      clearTimeout(showToast._t);
-      showToast._t = setTimeout(() => (toast.style.display = "none"), 4000);
-    }
-
-    if (form) {
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const fd = new FormData(form);
-
-        const name = (fd.get("name") || "").toString().trim();
-        const email = (fd.get("email") || "").toString().trim();
-        const biz = (fd.get("biz") || "").toString().trim();
-        const vat = (fd.get("vat") || "").toString().trim();
-        const message = (fd.get("message") || "").toString().trim();
-
-        if (!name || !email || !biz || !vat || !message) {
-          showToast("Please complete all fields.");
-          return;
-        }
-
-        const subject = encodeURIComponent("Simple Books enquiry");
-        const body = encodeURIComponent(
-`Name: ${name}
-Email: ${email}
-Business type: ${biz}
-VAT registered: ${vat}
-
-Message:
-${message}`
-        );
-
-        // Open email client
-        window.location.href = `mailto:${EMAIL_TO}?subject=${subject}&body=${body}`;
-        showToast("Opening your email app…");
-      });
-    }
-
-    // Copy email
-    const copyBtn = document.getElementById("copyEmailBtn");
-    if (copyBtn) {
-      copyBtn.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(EMAIL_TO);
-          showToast("Email copied: " + EMAIL_TO);
-        } catch {
-          showToast("Couldn’t copy automatically — email is " + EMAIL_TO);
-        }
       });
     }
   })();
