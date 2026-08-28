@@ -1188,3 +1188,40 @@ Consent and cookie presentation are intentionally unchanged in this phase.
 Review the production consent model, privacy notice, regional requirements, and
 Google Consent Mode separately before deciding whether a consent banner or
 additional controls are required.
+# JSON Backup & Restore V2 — Phases 1 and 2
+
+The JSON account backup format is schema V2 only. Legacy unversioned JSON files and the former localStorage restore path are intentionally unsupported because there are no live customer backups requiring migration.
+
+V2 exports structured Firestore business data using an explicit `app: "Simple Books"`, `schemaVersion: 2`, export timestamp, collection counts, intentional-omission manifest and safe `{ id, data }` document envelopes. The real Firestore document ID is separate from any business `data.id` field. Firestore Timestamp values use the tagged codec in `resources/js/json-backup-schema.js`; the exporter does not rely on Firebase SDK JSON conversion.
+
+Included structured collections are invoices, bills, expenses, mileage, clients, customers, projects, budgets, bank accounts, bank transactions, bank income, reconciliations, transfers, transfer links, bank exception resolutions, owner-scoped journals and reference keys. The account document is filtered through an explicit restorable business-settings allow-list.
+
+Authentication credentials, `userProfiles` billing/subscription state, account/deletion/demo/backup internals, create/edit/delete idempotency requests, reference-backfill markers, admin/analytics data and Storage binaries are intentionally excluded. Attachment and company-logo files are therefore not present in a JSON backup.
+
+The browser still performs the first preflight and destination inspection, but it performs no restore writes. When all 17 restorable collections are empty it offers an explicit restore button and confirmation, then sends the V2 payload and a UUID restore-job ID to the authenticated `restoreJsonBackupV2` callable. A non-empty destination never receives a restore button. The page displays success and reloads only when the server returns both `status: "completed"` and `verified: true`.
+
+The callable independently validates the complete backup and decodes tagged timestamps to Admin SDK `Timestamp` values. Ownership comes only from `request.auth.uid`: nested user collections are written beneath that UID, banking `userId` fields and journal ownership are rebound, and source UID/owner fields are removed. Safe account settings are merged into `users/<uid>` so server-owned fields survive; the account document itself does not make a destination non-empty.
+
+Restore is empty-account-only and has no merge mode. Before a new job writes anything, the service performs an existence query against each of the 16 user-scoped collections and an owner-filtered journals query. Any result fails with `NON_EMPTY_DESTINATION`. A staged retry of the same failed job is allowed because deterministic `set` operations recreate the same paths; a different payload cannot reuse its job ID, a live lease prevents concurrent execution, and a completed job is verified and returned as a replay without rewriting records. A multi-stage failure is recorded on `jsonRestoreJobs`, is not described as success, and is not automatically rolled back.
+
+Restore order is safe account settings; master/reference data; invoice, bill, expense and mileage sources; banking records; reference integrity; then journals. Active invoice/bill claims and their journals are regenerated deterministically from restored source records. Exported active claims and exported invoice/bill journals are not replayed, and transient request-marker collections remain omitted. Valid retired or legacy-conflict claims are retained without their operational request IDs. Other journal types are owner-rebound and deterministically re-keyed after balance and source-link checks. Verification checks exact expected counts and IDs across all 17 collections, account settings, and required ownership before completing the job.
+
+Storage binaries are not restored. To avoid presenting inaccessible source-account URLs as usable files, attachment metadata fields on bills, expenses, mileage and clients are cleared during restore. Company logo metadata remains outside the account allow-list.
+
+Current limitation: execution is a foreground callable with bounded 400-write batches and a 540-second timeout, rather than a background job. Ordinary product writes are not locked by Firestore rules while a restore is running, so the empty-account check cannot prevent a separate tab from creating data immediately afterward; exact post-restore verification will fail closed if that changes counts. Partially written failed jobs must be retried with the same job ID and identical backup.
+
+The Exports “Last backup” display is account-scoped. Firestore metadata is read from the authenticated account document and the client fallback keys include the authenticated UID. Legacy unscoped backup-status keys are ignored and removed, so changing accounts in one browser cannot carry the previous account's timestamp or onboarding completion flag across.
+
+After a verified restore, only the five legacy business-data cache keys used by older dashboard/tool fallbacks are invalidated before reload. Firestore remains authoritative and unrelated preferences are untouched. The callable performs no deferred journal or report work: it awaits all batches and verification before returning. Dashboard and report pages wait for Auth and then issue their own Firestore queries, so emulator cold starts and independent page initialization can still cause visible loading time without indicating an incomplete restore. No service worker cache participates in this flow.
+
+Run the focused tests with:
+
+```powershell
+npx.cmd vitest run tests/json-backup-schema.test.js tests/json-backup-ui.test.js tests/json-backup-restore-service.test.js tests/backup-status-storage.test.js tests/json-backup-post-restore.test.js
+```
+
+Run the authenticated Auth/Firestore/Functions emulator round trip with:
+
+```powershell
+npm.cmd run test:json-backup-restore:emulator
+```

@@ -180,6 +180,37 @@
       text-align: center;
     }
 
+    .backup-preflight {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid #bfdbfe;
+      border-radius: 14px;
+      background: #eff6ff;
+      color: #1e3a5f;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .backup-preflight[data-state="error"] {
+      border-color: #fecaca;
+      background: #fff1f2;
+      color: #991b1b;
+    }
+
+    .backup-preflight h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .backup-preflight p {
+      margin: 5px 0;
+    }
+
+    .backup-preflight ul {
+      margin: 7px 0 0;
+      padding-left: 19px;
+    }
+
     .btn:focus,
     .btn:active{
       outline:none;
@@ -1030,7 +1061,7 @@
         <h2>Backup &amp; Restore</h2>
 
         <p class="muted">
-          Download or restore all locally stored invoices, bills, clients and account data.
+          Download a versioned JSON backup of your structured business data, or check a backup before a future restore.
         </p>
 
         <button class="btn" onclick="downloadFullBackup()">
@@ -1046,8 +1077,10 @@
         >
 
         <button class="btn" onclick="document.getElementById('backupImportInput').click()">
-          Import backup
+          Check backup for restore
         </button>
+
+        <div id="backupPreflightResult" class="backup-preflight" hidden aria-live="polite"></div>
       </div>
 
       <div class="card export-action-card">
@@ -1257,9 +1290,39 @@
     import {
       buildCanonicalExportWorkbook
     } from "/resources/js/canonical-workbook-export.js?v=20260827-canonical-workbook5";
+    import {
+      JSON_BACKUP_COLLECTIONS,
+      backupAccountStateFromCounts,
+      createJsonBackupV2,
+      preflightJsonBackupV2
+    } from "/resources/js/json-backup-schema.js?v=20260828-json-backup-v2";
+    import {
+      clearLegacyBackupStatus,
+      markBackupDownloaded,
+      readLastBackupDownloadedAt,
+      writeLastBackupDownloadedAt
+    } from "/resources/js/backup-status-storage.js?v=20260828-backup-status1";
+    import {
+      clearLegacyBusinessCachesAfterRestore
+    } from "/resources/js/json-backup-post-restore.js?v=20260828-post-restore1";
 
     window.simpleBooksCanonicalWorkbookExport = Object.freeze({
       buildWorkbook: buildCanonicalExportWorkbook
+    });
+    window.simpleBooksJsonBackupV2 = Object.freeze({
+      collections: JSON_BACKUP_COLLECTIONS,
+      createBackup: createJsonBackupV2,
+      preflight: preflightJsonBackupV2,
+      accountStateFromCounts: backupAccountStateFromCounts
+    });
+    window.simpleBooksBackupStatusStorage = Object.freeze({
+      clearLegacy: clearLegacyBackupStatus,
+      markDownloaded: markBackupDownloaded,
+      readDownloadedAt: readLastBackupDownloadedAt,
+      writeDownloadedAt: writeLastBackupDownloadedAt
+    });
+    window.simpleBooksJsonBackupPostRestore = Object.freeze({
+      clearLegacyBusinessCaches: clearLegacyBusinessCachesAfterRestore
     });
 
     import {
@@ -1316,11 +1379,19 @@
       createInvoiceWithReference: httpsCallable(functions, "createInvoiceWithReference"),
       createBillWithReference: httpsCallable(functions, "createBillWithReference")
     });
+    window.simpleBooksJsonBackupCallables = Object.freeze({
+      restoreJsonBackupV2: httpsCallable(functions, "restoreJsonBackupV2", { timeout: 540000 })
+    });
     let workbookImportAuthUid = auth.currentUser?.uid || "";
     onAuthStateChanged(auth, (user) => {
       const nextUid = user?.uid || "";
-      if(workbookImportAuthUid && nextUid !== workbookImportAuthUid){
-        window.simpleBooksInvalidateCanonicalWorkbookImport?.("account-context-changed");
+      if(nextUid !== workbookImportAuthUid){
+        if(workbookImportAuthUid){
+          window.simpleBooksInvalidateCanonicalWorkbookImport?.("account-context-changed");
+        }
+        selectedJsonBackupRestore = null;
+        window.renderLastBackupStatus?.(null);
+        if(nextUid) void window.loadLastBackupDownloadedAt?.();
       }
       workbookImportAuthUid = nextUid;
     });
@@ -1369,29 +1440,24 @@
     let canonicalWorkbookImportController = null;
 
     async function downloadFullBackup(){
-
-        const backupData = await buildFullBackupData();
-
-        const blob = new Blob(
-        [JSON.stringify(backupData, null, 2)],
-        { type: "application/json" }
-        );
-
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement("a");
-
-        a.href = url;
-
-        a.download =
-        `simple-books-backup-${new Date().toISOString().slice(0,10)}.json`;
-
-        a.click();
-
-        localStorage.setItem("simpleBooksBackupDownloaded", "true");
-        await saveBackupDownloadedAt(new Date().toISOString());
-
-        URL.revokeObjectURL(url);
+        try{
+          const backupData = await buildFullBackupData();
+          const blob = new Blob(
+            [JSON.stringify(backupData, null, 2)],
+            { type: "application/json" }
+          );
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download =
+            `simple-books-backup-v2-${new Date().toISOString().slice(0,10)}.json`;
+          a.click();
+          await saveBackupDownloadedAt(new Date().toISOString());
+          URL.revokeObjectURL(url);
+        }catch(error){
+          console.error("JSON backup export failed", error);
+          alert("Could not create the JSON backup. Please try again.");
+        }
     }
 
     async function downloadExcelExport(){
@@ -5235,59 +5301,62 @@
     }
 
     async function buildFullBackupData(){
-        const services = window.simpleBooksBackupServices;
-        const user = services?.auth?.currentUser ||
-          await (window.simpleBooksBackupUserReady || Promise.resolve(null));
-
-        if(user && services){
-          return buildFirestoreBackupData(user, services);
+        const { services, user } = await getBackupUserAndServices();
+        if(!user || !services){
+          throw new Error("An authenticated user is required to create a JSON backup.");
         }
-
-        const backupData = {
-        exportedAt: new Date().toISOString(),
-
-        invoices:
-            JSON.parse(localStorage.getItem("simpleBooksInvoices") || "[]"),
-
-        bills:
-            JSON.parse(localStorage.getItem("simpleBooksBills") || "[]"),
-
-        clients:
-            JSON.parse(localStorage.getItem("simpleBooksClients") || "[]"),
-
-        account:
-            JSON.parse(localStorage.getItem("simpleBooksAccount") || "{}"),
-
-        customers:
-            JSON.parse(localStorage.getItem("simpleBooksCustomers") || "[]")
-        };
-
-        return backupData;
+        return buildFirestoreBackupData(user, services);
     }
 
     async function buildFirestoreBackupData(user, services){
-        const accountSnap = await services.getDoc(
-          services.doc(services.db, "users", user.uid)
+        const backupModule = window.simpleBooksJsonBackupV2;
+        if(!backupModule?.createBackup){
+          throw new Error("The JSON Backup V2 module is unavailable.");
+        }
+        const [accountSnap, collections] = await Promise.all([
+          services.getDoc(services.doc(services.db, "users", user.uid)),
+          readFirestoreBackupCollections(user, services)
+        ]);
+        return backupModule.createBackup({
+          exportedAt: new Date().toISOString(),
+          account: accountSnap.exists() ? accountSnap.data() : {},
+          collections
+        });
+    }
+
+    async function readFirestoreBackupCollections(user, services){
+        const names = window.simpleBooksJsonBackupV2?.collections || [];
+        const results = await Promise.all(names.map(collectionName =>
+          collectionName === "journals"
+            ? readFirestoreBackupJournals(user, services)
+            : readFirestoreBackupCollection(user, services, collectionName)
+        ));
+        return Object.fromEntries(names.map((name, index) => [name, results[index]]));
+    }
+
+    async function readFirestoreBackupCollection(user, services, collectionName){
+        const snapshot = await services.getDocs(
+          services.collection(services.db, "users", user.uid, collectionName)
         );
+        return snapshot.docs.map(item => ({ id: item.id, data: item.data() }));
+    }
 
-        return {
-        exportedAt: new Date().toISOString(),
+    async function readFirestoreBackupJournals(user, services){
+        const snapshot = await services.getDocs(
+          services.query(
+            services.collection(services.db, "journals"),
+            services.where("userId", "==", user.uid)
+          )
+        );
+        return snapshot.docs.map(item => ({ id: item.id, data: item.data() }));
+    }
 
-        invoices:
-            await readFirestoreCollection(user, services, "invoices"),
-
-        bills:
-            await readFirestoreCollection(user, services, "bills"),
-
-        clients:
-            await readFirestoreCollection(user, services, "clients"),
-
-        account:
-            accountSnap.exists() ? accountSnap.data() : {},
-
-        customers:
-            await readFirestoreCollection(user, services, "customers")
-        };
+    async function inspectCurrentBackupAccountState(user, services){
+        const collections = await readFirestoreBackupCollections(user, services);
+        const counts = Object.fromEntries(
+          Object.entries(collections).map(([name, records]) => [name, records.length])
+        );
+        return window.simpleBooksJsonBackupV2.accountStateFromCounts(counts);
     }
 
     async function readFirestoreCollection(user, services, collectionName){
@@ -5318,9 +5387,14 @@
     async function saveBackupDownloadedAt(timestamp){
         const { services, user } = await getBackupUserAndServices();
 
-        localStorage.setItem("simpleBooksLastBackupDownloadedAt", timestamp);
+        if(!user){
+          throw new Error("An authenticated user is required to save backup status.");
+        }
+        const statusStorage = window.simpleBooksBackupStatusStorage;
+        statusStorage.writeDownloadedAt(localStorage, user.uid, timestamp);
+        statusStorage.markDownloaded(localStorage, user.uid);
 
-        if(user && services?.setDoc){
+        if(services?.setDoc){
           try{
             await services.setDoc(
               services.doc(services.db, "users", user.uid),
@@ -5338,7 +5412,14 @@
     async function loadLastBackupDownloadedAt(){
         const { services, user } = await getBackupUserAndServices();
 
-        if(user && services){
+        renderLastBackupStatus(null);
+        if(!user){
+          return;
+        }
+        const statusStorage = window.simpleBooksBackupStatusStorage;
+        statusStorage.clearLegacy(localStorage);
+
+        if(services){
           try{
             const accountSnap = await services.getDoc(
               services.doc(services.db, "users", user.uid)
@@ -5349,7 +5430,7 @@
               const timestamp = normaliseBackupTimestamp(data.lastBackupDownloadedAt);
 
               if(timestamp){
-                localStorage.setItem("simpleBooksLastBackupDownloadedAt", timestamp);
+                statusStorage.writeDownloadedAt(localStorage, user.uid, timestamp);
                 renderLastBackupStatus(timestamp);
                 return;
               }
@@ -5359,9 +5440,7 @@
           }
         }
 
-        renderLastBackupStatus(
-          localStorage.getItem("simpleBooksLastBackupDownloadedAt")
-        );
+        renderLastBackupStatus(statusStorage.readDownloadedAt(localStorage, user.uid));
     }
 
     async function loadBusinessRecordsTotal(){
@@ -5474,6 +5553,140 @@
         );
     }
 
+    let selectedJsonBackupRestore = null;
+
+    function renderBackupPreflightError(error){
+      const result = document.getElementById("backupPreflightResult");
+      if(!result) return;
+      result.hidden = false;
+      result.dataset.state = "error";
+      result.replaceChildren();
+      const heading = document.createElement("h3");
+      heading.textContent = "Backup cannot be used";
+      result.appendChild(heading);
+      const errors = Array.isArray(error?.errors) ? error.errors : [error?.message || "The backup file is invalid."];
+      const list = document.createElement("ul");
+      errors.slice(0, 12).forEach(message => {
+        const item = document.createElement("li");
+        item.textContent = message;
+        list.appendChild(item);
+      });
+      result.appendChild(list);
+    }
+
+    function renderBackupPreflightSuccess(preflight, accountState){
+      const result = document.getElementById("backupPreflightResult");
+      if(!result) return;
+      result.hidden = false;
+      result.dataset.state = "ready";
+      result.replaceChildren();
+
+      const heading = document.createElement("h3");
+      heading.textContent = "Backup ready to restore";
+      result.appendChild(heading);
+
+      const details = [
+        `Backup date: ${new Date(preflight.exportedAt).toLocaleString("en-GB")}`,
+        `Schema version: ${preflight.schemaVersion}`,
+        `Structured records: ${preflight.totalRecords}`,
+        `Account settings present: ${preflight.accountFields.length}`,
+        `Current destination account: ${accountState.empty ? "empty" : `not empty (${accountState.totalRecords} structured records)`}`
+      ];
+      details.forEach(text => {
+        const paragraph = document.createElement("p");
+        paragraph.textContent = text;
+        result.appendChild(paragraph);
+      });
+      const accountFields = document.createElement("p");
+      accountFields.textContent = preflight.accountFields.length
+        ? `Account settings: ${preflight.accountFields.join(", ")}`
+        : "Account settings: none";
+      result.appendChild(accountFields);
+
+      const countsHeading = document.createElement("p");
+      countsHeading.textContent = "Records by collection:";
+      result.appendChild(countsHeading);
+      const countList = document.createElement("ul");
+      Object.entries(preflight.collectionCounts).forEach(([name, count]) => {
+        const item = document.createElement("li");
+        item.textContent = `${name}: ${count}`;
+        countList.appendChild(item);
+      });
+      result.appendChild(countList);
+
+      const omissionsHeading = document.createElement("p");
+      omissionsHeading.textContent = "Intentional omissions:";
+      result.appendChild(omissionsHeading);
+      const omissionList = document.createElement("ul");
+      preflight.omissions.forEach(omission => {
+        const item = document.createElement("li");
+        item.textContent = omission.description;
+        omissionList.appendChild(item);
+      });
+      result.appendChild(omissionList);
+
+      const notice = document.createElement("p");
+      if(!accountState.empty){
+        notice.textContent = "Restore is unavailable because this account already contains structured data. V2 restore cannot merge or overwrite an existing business account.";
+        result.appendChild(notice);
+        return;
+      }
+      notice.textContent = "The destination is empty. Storage attachments and company-logo files are not included and attachment links will be cleared.";
+      result.appendChild(notice);
+      const restoreButton = document.createElement("button");
+      restoreButton.type = "button";
+      restoreButton.className = "btn";
+      restoreButton.id = "confirmJsonBackupRestoreButton";
+      restoreButton.textContent = "Restore this backup";
+      restoreButton.addEventListener("click", restoreSelectedJsonBackup);
+      result.appendChild(restoreButton);
+    }
+
+    async function restoreSelectedJsonBackup(){
+      const selection = selectedJsonBackupRestore;
+      if(!selection?.backup || !selection.accountState?.empty) return;
+      if(window.simpleBooksBackupServices?.auth?.currentUser?.uid !== selection.userUid){
+        renderBackupPreflightError(new Error("The signed-in account changed. Check the backup again before restoring."));
+        selectedJsonBackupRestore = null;
+        return;
+      }
+      const confirmed = window.confirm(
+        "Restore this structured business backup into the current empty account?\n\n" +
+        "This cannot merge into an existing business account. Storage attachments and files are not included."
+      );
+      if(!confirmed) return;
+      const resultElement = document.getElementById("backupPreflightResult");
+      const button = document.getElementById("confirmJsonBackupRestoreButton");
+      if(button){ button.disabled = true; button.textContent = "Restoring and verifying..."; button.setAttribute("aria-busy", "true"); }
+      try{
+        const callable = window.simpleBooksJsonBackupCallables?.restoreJsonBackupV2;
+        if(typeof callable !== "function") throw new Error("The secure restore service is unavailable.");
+        const response = await callable({ jobId: selection.jobId, backup: selection.backup });
+        const outcome = response?.data;
+        if(outcome?.status !== "completed" || outcome?.verified !== true){
+          throw new Error("The server did not verify the restore as complete.");
+        }
+        window.simpleBooksJsonBackupPostRestore?.clearLegacyBusinessCaches(localStorage);
+        selectedJsonBackupRestore = null;
+        resultElement.dataset.state = "success";
+        resultElement.replaceChildren();
+        const heading = document.createElement("h3");
+        heading.textContent = "Backup restored and verified";
+        const message = document.createElement("p");
+        message.textContent = "Structured business data and safe account settings have been restored. Reloading your account data...";
+        resultElement.append(heading, message);
+        window.setTimeout(() => window.location.reload(), 800);
+      }catch(error){
+        console.error("JSON backup restore failed", error);
+        const reason = error?.details?.reason || error?.details?.details?.reason;
+        const message = reason === "NON_EMPTY_DESTINATION"
+          ? "Restore stopped because the destination is no longer empty. No success was reported."
+          : (error?.message || "The restore failed and was not reported as complete.");
+        renderBackupPreflightError(new Error(message));
+        selectedJsonBackupRestore = null;
+      }
+    }
+
     function importFullBackup(event){
       const file = event.target.files[0];
 
@@ -5483,33 +5696,39 @@
 
       const reader = new FileReader();
 
-      reader.onload = function(e){
+      reader.onload = async function(e){
         try{
           const backup = JSON.parse(e.target.result);
-
-          if(!backup.invoices || !backup.bills || !backup.clients || !backup.account){
-            alert("Invalid Simple Books backup file.");
-            return;
+          const backupModule = window.simpleBooksJsonBackupV2;
+          if(!backupModule?.preflight){
+            throw new Error("The JSON Backup V2 preflight module is unavailable.");
           }
-
-          if(!confirm("Importing this backup will replace your current local Simple Books data. Continue?")){
-            return;
+          const preflight = backupModule.preflight(backup);
+          const { services, user } = await getBackupUserAndServices();
+          if(!user || !services){
+            throw new Error("Please log in before checking a backup for restore.");
           }
-
-          localStorage.setItem("simpleBooksInvoices", JSON.stringify(backup.invoices || []));
-          localStorage.setItem("simpleBooksBills", JSON.stringify(backup.bills || []));
-          localStorage.setItem("simpleBooksClients", JSON.stringify(backup.clients || []));
-          localStorage.setItem("simpleBooksAccount", JSON.stringify(backup.account || {}));
-          localStorage.setItem("simpleBooksCustomers", JSON.stringify(backup.customers || []));
-
-          alert("Backup imported successfully.");
-
-          window.location.reload();
-
+          const accountState = await inspectCurrentBackupAccountState(user, services);
+          selectedJsonBackupRestore = accountState.empty ? {
+            backup,
+            preflight,
+            accountState,
+            userUid: user.uid,
+            jobId: crypto.randomUUID()
+          } : null;
+          renderBackupPreflightSuccess(preflight, accountState);
         }catch(error){
-          console.error(error);
-          alert("Could not import backup file.");
+          console.error("JSON backup preflight failed", error);
+          selectedJsonBackupRestore = null;
+          renderBackupPreflightError(error);
+        }finally{
+          event.target.value = "";
         }
+      };
+
+      reader.onerror = function(){
+        renderBackupPreflightError(new Error("The backup file could not be read."));
+        event.target.value = "";
       };
 
       reader.readAsText(file);

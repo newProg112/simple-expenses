@@ -13,7 +13,7 @@ const {onTaskDispatched} = require("firebase-functions/v2/tasks");
 const {defineSecret} = require("firebase-functions/params");
 const functionsV1 = require("firebase-functions/v1");
 const admin = require("firebase-admin");
-const {FieldValue} = require("firebase-admin/firestore");
+const {FieldValue, Timestamp} = require("firebase-admin/firestore");
 const Stripe = require("stripe");
 const {
   isBillingPortalStatus,
@@ -101,6 +101,12 @@ const {
 const {
   createGetAccountDeletionStatusHandler,
 } = require("./lib/account-deletion-status-handler");
+const {
+  createJsonBackupRestoreService,
+} = require("./lib/json-backup-restore-service");
+const {
+  createJsonBackupRestoreHandler,
+} = require("./lib/json-backup-restore-handler");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -139,6 +145,15 @@ const deleteSourceWithReference = createSourceDeleteService({
 });
 const sourceDeleteHandlers = createSourceDeleteHandlers(
     deleteSourceWithReference,
+);
+const restoreJsonBackupV2 = createJsonBackupRestoreService({
+  firestore,
+  timestampFactory: (seconds, nanoseconds) =>
+    new Timestamp(seconds, nanoseconds),
+  serverTimestamp: () => FieldValue.serverTimestamp(),
+});
+const restoreJsonBackupV2Handler = createJsonBackupRestoreHandler(
+    restoreJsonBackupV2,
 );
 
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
@@ -985,6 +1000,13 @@ exports.createInvoiceWithReference = onCall(
       timeoutSeconds: 30, memory: "256MiB",
     },
     sourceCreateHandlers.createInvoiceWithReference,
+);
+exports.restoreJsonBackupV2 = onCall(
+    {
+      region: "us-central1", maxInstances: 5,
+      timeoutSeconds: 540, memory: "512MiB",
+    },
+    restoreJsonBackupV2Handler,
 );
 exports.createBillWithReference = onCall(
     {
