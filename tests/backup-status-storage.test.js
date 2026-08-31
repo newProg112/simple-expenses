@@ -2,12 +2,19 @@ import {readFileSync} from "node:fs";
 import {describe,expect,it} from "vitest";
 import {
   LEGACY_BACKUP_STATUS_KEYS,
+  LEGACY_EXPORT_STATUS_KEYS,
   backupStatusStorageKeys,
   clearLegacyBackupStatus,
+  clearLegacyExportStatus,
+  exportStatusStorageKeys,
   markBackupDownloaded,
+  readLastAccountantPackGeneratedAt,
   readLastBackupDownloadedAt,
+  readLastRestoreCompletedAt,
   wasBackupDownloaded,
-  writeLastBackupDownloadedAt
+  writeLastAccountantPackGeneratedAt,
+  writeLastBackupDownloadedAt,
+  writeLastRestoreCompletedAt
 } from "../resources/js/backup-status-storage.js";
 
 const exportsHtml=readFileSync(new URL("../exports.html",import.meta.url),"utf8");
@@ -62,5 +69,37 @@ describe("account-scoped backup status",()=>{
     expect(exportsHtml).not.toContain('localStorage.getItem("simpleBooksLastBackupDownloadedAt")');
     expect(dashboardHtml).toContain("wasBackupDownloaded(localStorage, user.uid)");
     expect(dashboardHtml).not.toContain('localStorage.getItem("simpleBooksBackupDownloaded")');
+  });
+
+  it("isolates Accountant Pack and restore timestamps while preserving same-user reloads",()=>{
+    const storage=new MemoryStorage();
+    writeLastAccountantPackGeneratedAt(storage,"user-a","2026-08-30T12:00:00.000Z");
+    writeLastRestoreCompletedAt(storage,"user-a","2026-08-31T09:30:00.000Z");
+    expect(readLastAccountantPackGeneratedAt(storage,"user-a")).toBe("2026-08-30T12:00:00.000Z");
+    expect(readLastRestoreCompletedAt(storage,"user-a")).toBe("2026-08-31T09:30:00.000Z");
+    expect(readLastAccountantPackGeneratedAt(storage,"user-b")).toBe("");
+    expect(readLastRestoreCompletedAt(storage,"user-b")).toBe("");
+    expect(exportStatusStorageKeys("user-a").restoreCompletedAt).toContain(":user-a");
+  });
+
+  it("never reads and actively removes legacy unscoped export KPI values",()=>{
+    const storage=new MemoryStorage({
+      simpleBooksLastAccountantPackGeneratedAt:"2026-08-30T12:00:00.000Z",
+      simpleBooksLastRestoreCompletedAt:"2026-08-31T09:30:00.000Z"
+    });
+    expect(readLastAccountantPackGeneratedAt(storage,"user-b")).toBe("");
+    expect(readLastRestoreCompletedAt(storage,"user-b")).toBe("");
+    clearLegacyExportStatus(storage);
+    LEGACY_EXPORT_STATUS_KEYS.forEach(key=>expect(storage.getItem(key)).toBeNull());
+  });
+
+  it("clears all account-specific visible KPIs before loading an account switch",()=>{
+    expect(exportsHtml).toContain("window.renderLastBackupStatus?.(null)");
+    expect(exportsHtml).toContain("window.updateAccountantPackGeneratedStatus?.(null)");
+    expect(exportsHtml).toContain("window.renderLastRestoreStatus?.(null)");
+    expect(exportsHtml).toContain("void window.loadAccountantPackGeneratedAt?.()");
+    expect(exportsHtml).toContain("void window.loadLastRestoreCompletedAt?.()");
+    expect(exportsHtml).not.toContain('localStorage.getItem("simpleBooksLastAccountantPackGeneratedAt")');
+    expect(exportsHtml).not.toContain('localStorage.getItem("simpleBooksLastRestoreCompletedAt")');
   });
 });

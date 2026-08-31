@@ -1045,8 +1045,8 @@
       </div>
 
       <div class="card export-kpi export-kpi-purple">
-        <span class="muted">Export tools</span>
-        <strong>5 ready</strong>
+        <span class="muted">Last restore</span>
+        <strong id="lastRestoreStatus">Not yet restored</strong>
       </div>
 
       <div class="card export-kpi export-kpi-slate">
@@ -1298,10 +1298,15 @@
     } from "/resources/js/json-backup-schema.js?v=20260828-json-backup-v2";
     import {
       clearLegacyBackupStatus,
+      clearLegacyExportStatus,
       markBackupDownloaded,
+      readLastAccountantPackGeneratedAt,
       readLastBackupDownloadedAt,
-      writeLastBackupDownloadedAt
-    } from "/resources/js/backup-status-storage.js?v=20260828-backup-status1";
+      readLastRestoreCompletedAt,
+      writeLastAccountantPackGeneratedAt,
+      writeLastBackupDownloadedAt,
+      writeLastRestoreCompletedAt
+    } from "/resources/js/backup-status-storage.js?v=20260831-export-status1";
     import {
       clearLegacyBusinessCachesAfterRestore
     } from "/resources/js/json-backup-post-restore.js?v=20260828-post-restore1";
@@ -1317,9 +1322,14 @@
     });
     window.simpleBooksBackupStatusStorage = Object.freeze({
       clearLegacy: clearLegacyBackupStatus,
+      clearLegacyExport: clearLegacyExportStatus,
       markDownloaded: markBackupDownloaded,
+      readAccountantPackGeneratedAt: readLastAccountantPackGeneratedAt,
       readDownloadedAt: readLastBackupDownloadedAt,
-      writeDownloadedAt: writeLastBackupDownloadedAt
+      readRestoreCompletedAt: readLastRestoreCompletedAt,
+      writeAccountantPackGeneratedAt: writeLastAccountantPackGeneratedAt,
+      writeDownloadedAt: writeLastBackupDownloadedAt,
+      writeRestoreCompletedAt: writeLastRestoreCompletedAt
     });
     window.simpleBooksJsonBackupPostRestore = Object.freeze({
       clearLegacyBusinessCaches: clearLegacyBusinessCachesAfterRestore
@@ -1389,9 +1399,15 @@
         if(workbookImportAuthUid){
           window.simpleBooksInvalidateCanonicalWorkbookImport?.("account-context-changed");
         }
-        selectedJsonBackupRestore = null;
+        window.clearSelectedJsonBackupRestore?.();
         window.renderLastBackupStatus?.(null);
-        if(nextUid) void window.loadLastBackupDownloadedAt?.();
+        window.updateAccountantPackGeneratedStatus?.(null);
+        window.renderLastRestoreStatus?.(null);
+        if(nextUid){
+          void window.loadLastBackupDownloadedAt?.();
+          void window.loadAccountantPackGeneratedAt?.();
+          void window.loadLastRestoreCompletedAt?.();
+        }
       }
       workbookImportAuthUid = nextUid;
     });
@@ -5406,7 +5422,7 @@
           }
         }
 
-        renderLastBackupStatus(timestamp);
+        if(isActiveBackupUser(user.uid)) renderLastBackupStatus(timestamp);
     }
 
     async function loadLastBackupDownloadedAt(){
@@ -5431,7 +5447,7 @@
 
               if(timestamp){
                 statusStorage.writeDownloadedAt(localStorage, user.uid, timestamp);
-                renderLastBackupStatus(timestamp);
+                if(isActiveBackupUser(user.uid)) renderLastBackupStatus(timestamp);
                 return;
               }
             }
@@ -5440,7 +5456,7 @@
           }
         }
 
-        renderLastBackupStatus(statusStorage.readDownloadedAt(localStorage, user.uid));
+        if(isActiveBackupUser(user.uid)) renderLastBackupStatus(statusStorage.readDownloadedAt(localStorage, user.uid));
     }
 
     async function loadBusinessRecordsTotal(){
@@ -5521,6 +5537,10 @@
         });
     }
 
+    function isActiveBackupUser(uid){
+        return window.simpleBooksBackupServices?.auth?.currentUser?.uid === uid;
+    }
+
     function updateAccountantPackGeneratedStatus(timestamp){
         const statusElements = [
           document.getElementById("lastAccountantPackStatus"),
@@ -5542,18 +5562,100 @@
         });
     }
 
-    function saveAccountantPackGeneratedAt(timestamp){
-        localStorage.setItem("simpleBooksLastAccountantPackGeneratedAt", timestamp);
+    function renderLastRestoreStatus(timestamp){
+        const status = document.getElementById("lastRestoreStatus");
+        if(!status) return;
+        const date = timestamp ? new Date(timestamp) : null;
+        status.textContent = date && !Number.isNaN(date.getTime())
+          ? date.toLocaleString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit"
+            })
+          : "Not yet restored";
+    }
+
+    async function saveAccountantPackGeneratedAt(timestamp){
+        const { services, user } = await getBackupUserAndServices();
+        if(!user) throw new Error("An authenticated user is required to save Accountant Pack status.");
+        window.simpleBooksBackupStatusStorage.writeAccountantPackGeneratedAt(localStorage, user.uid, timestamp);
+        if(services?.setDoc){
+          try{
+            await services.setDoc(services.doc(services.db, "users", user.uid), { lastAccountantPackGeneratedAt: timestamp }, { merge: true });
+          }catch(error){
+            console.error("Accountant Pack status save failed", error);
+          }
+        }
+        if(!isActiveBackupUser(user.uid)) return;
         updateAccountantPackGeneratedStatus(timestamp);
     }
 
-    function loadAccountantPackGeneratedAt(){
-        updateAccountantPackGeneratedStatus(
-          localStorage.getItem("simpleBooksLastAccountantPackGeneratedAt")
-        );
+    async function loadAccountantPackGeneratedAt(){
+        updateAccountantPackGeneratedStatus(null);
+        const { services, user } = await getBackupUserAndServices();
+        if(!user) return;
+        const statusStorage = window.simpleBooksBackupStatusStorage;
+        statusStorage.clearLegacyExport(localStorage);
+        if(services){
+          try{
+            const accountSnap = await services.getDoc(services.doc(services.db, "users", user.uid));
+            const timestamp = accountSnap.exists() ? normaliseBackupTimestamp(accountSnap.data().lastAccountantPackGeneratedAt) : "";
+            if(timestamp){
+              statusStorage.writeAccountantPackGeneratedAt(localStorage, user.uid, timestamp);
+              if(isActiveBackupUser(user.uid)) updateAccountantPackGeneratedStatus(timestamp);
+              return;
+            }
+          }catch(error){
+            console.error("Accountant Pack status load failed", error);
+          }
+        }
+        if(isActiveBackupUser(user.uid)) updateAccountantPackGeneratedStatus(statusStorage.readAccountantPackGeneratedAt(localStorage, user.uid));
+    }
+
+    async function saveLastRestoreCompletedAt(timestamp){
+        const { services, user } = await getBackupUserAndServices();
+        if(!user) throw new Error("An authenticated user is required to save restore status.");
+        const statusStorage = window.simpleBooksBackupStatusStorage;
+        statusStorage.writeRestoreCompletedAt(localStorage, user.uid, timestamp);
+        if(services?.setDoc){
+          try{
+            await services.setDoc(services.doc(services.db, "users", user.uid), { lastRestoreCompletedAt: timestamp }, { merge: true });
+          }catch(error){
+            console.error("Restore status save failed", error);
+          }
+        }
+        if(isActiveBackupUser(user.uid)) renderLastRestoreStatus(timestamp);
+    }
+
+    async function loadLastRestoreCompletedAt(){
+        renderLastRestoreStatus(null);
+        const { services, user } = await getBackupUserAndServices();
+        if(!user) return;
+        const statusStorage = window.simpleBooksBackupStatusStorage;
+        statusStorage.clearLegacyExport(localStorage);
+        if(services){
+          try{
+            const accountSnap = await services.getDoc(services.doc(services.db, "users", user.uid));
+            const timestamp = accountSnap.exists() ? normaliseBackupTimestamp(accountSnap.data().lastRestoreCompletedAt) : "";
+            if(timestamp){
+              statusStorage.writeRestoreCompletedAt(localStorage, user.uid, timestamp);
+              if(isActiveBackupUser(user.uid)) renderLastRestoreStatus(timestamp);
+              return;
+            }
+          }catch(error){
+            console.error("Restore status load failed", error);
+          }
+        }
+        if(isActiveBackupUser(user.uid)) renderLastRestoreStatus(statusStorage.readRestoreCompletedAt(localStorage, user.uid));
     }
 
     let selectedJsonBackupRestore = null;
+
+    function clearSelectedJsonBackupRestore(){
+      selectedJsonBackupRestore = null;
+    }
 
     function renderBackupPreflightError(error){
       const result = document.getElementById("backupPreflightResult");
@@ -5666,6 +5768,7 @@
         if(outcome?.status !== "completed" || outcome?.verified !== true){
           throw new Error("The server did not verify the restore as complete.");
         }
+        await saveLastRestoreCompletedAt(new Date().toISOString());
         window.simpleBooksJsonBackupPostRestore?.clearLegacyBusinessCaches(localStorage);
         selectedJsonBackupRestore = null;
         resultElement.dataset.state = "success";
@@ -5675,7 +5778,7 @@
         const message = document.createElement("p");
         message.textContent = "Structured business data and safe account settings have been restored. Reloading your account data...";
         resultElement.append(heading, message);
-        window.setTimeout(() => window.location.reload(), 800);
+        window.location.reload();
       }catch(error){
         console.error("JSON backup restore failed", error);
         const reason = error?.details?.reason || error?.details?.details?.reason;
@@ -5868,7 +5971,7 @@
 
         try{
           const result = await generateAccountantPackZip(period, updateGenerationStage);
-          saveAccountantPackGeneratedAt(result.generatedAt);
+          await saveAccountantPackGeneratedAt(result.generatedAt);
           const activityLogger = window.simpleBooksActivityLogger;
           if(activityLogger){
             void activityLogger.logActivityEvent(
@@ -5911,6 +6014,7 @@
     window.addEventListener("DOMContentLoaded", initialiseAccountantPackUi, { once: true });
     loadAccountantPackGeneratedAt();
     loadLastBackupDownloadedAt();
+    loadLastRestoreCompletedAt();
     loadBusinessRecordsTotal();
   </script>
   </div>

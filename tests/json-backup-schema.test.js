@@ -95,6 +95,8 @@ describe("JSON Backup V2 schema",() => {
     expect(JSON_BACKUP_ACCOUNT_FIELDS).toContain("paymentTermsDefault");
     expect(JSON_BACKUP_ACCOUNT_FIELDS).not.toContain("uid");
     expect(JSON_BACKUP_ACCOUNT_FIELDS).not.toContain("companyLogoUrl");
+    expect(JSON_BACKUP_ACCOUNT_FIELDS).not.toContain("lastAccountantPackGeneratedAt");
+    expect(JSON_BACKUP_ACCOUNT_FIELDS).not.toContain("lastRestoreCompletedAt");
   });
 });
 

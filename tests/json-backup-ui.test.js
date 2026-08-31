@@ -30,6 +30,27 @@ describe("JSON Backup V2 page integration",() => {
     expect(html).not.toContain("Backup imported successfully");
   });
 
+  it("records Last Restore only after verified completion and gives persistent post-reload confirmation",()=>{
+    const restoreStart=html.indexOf("async function restoreSelectedJsonBackup()");
+    const restoreEnd=html.indexOf("function importFullBackup(event)",restoreStart);
+    const restoreSource=html.slice(restoreStart,restoreEnd);
+    const verifiedGuard=restoreSource.indexOf('outcome?.status !== "completed" || outcome?.verified !== true');
+    const statusWrite=restoreSource.indexOf("await saveLastRestoreCompletedAt(new Date().toISOString())");
+    expect(verifiedGuard).toBeGreaterThan(-1);
+    expect(statusWrite).toBeGreaterThan(verifiedGuard);
+    expect(restoreSource.slice(0,verifiedGuard)).not.toContain("saveLastRestoreCompletedAt(");
+    expect(restoreSource.slice(statusWrite)).toContain("window.location.reload()");
+    expect(restoreSource).not.toContain("setTimeout");
+    expect(html).toContain('<span class="muted">Last restore</span>');
+    expect(html).toContain('<strong id="lastRestoreStatus">Not yet restored</strong>');
+  });
+
+  it("keeps operational export KPI metadata outside JSON business backup data",()=>{
+    expect(html).toContain("lastAccountantPackGeneratedAt");
+    expect(html).toContain("lastRestoreCompletedAt");
+    expect(html).not.toContain('account: { lastRestoreCompletedAt');
+  });
+
   it("offers restore only for an empty account and warns about merge and Storage omissions",()=>{
     expect(html).toContain("if(!accountState.empty)");
     expect(html).toContain("V2 restore cannot merge");

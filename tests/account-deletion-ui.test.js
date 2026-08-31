@@ -340,6 +340,8 @@ describe("Delete account status, completion, and protected UX", () => {
         simpleBooksCustomers: "private",
         simpleBooksDarkMode: "true",
         se_filters_q: "separate-simple-expenses-state",
+        "simpleBooksLastAccountantPackGeneratedAt:customer-a": "2026-08-30T12:00:00.000Z",
+        "simpleBooksLastRestoreCompletedAt:customer-a": "2026-08-31T09:30:00.000Z",
       },
       sessionStorage: {
         "simple-books:demo-analytics:page-view:v1:customer-a:Login:/": "true",
@@ -350,6 +352,12 @@ describe("Delete account status, completion, and protected UX", () => {
     await result.controller.resumeIfNeeded();
     expect(result.localStorage.getItem("simpleBooksInvoices")).toBeNull();
     expect(result.localStorage.getItem("simpleBooksAccount:customer-a")).toBeNull();
+    expect(result.localStorage.getItem(
+        "simpleBooksLastAccountantPackGeneratedAt:customer-a",
+    )).toBeNull();
+    expect(result.localStorage.getItem(
+        "simpleBooksLastRestoreCompletedAt:customer-a",
+    )).toBeNull();
     expect(result.localStorage.getItem("simpleBooksDarkMode")).toBe("true");
     expect(result.localStorage.getItem("se_filters_q"))
         .toBe("separate-simple-expenses-state");

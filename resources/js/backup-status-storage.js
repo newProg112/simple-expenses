@@ -3,6 +3,12 @@ export const LEGACY_BACKUP_STATUS_KEYS = Object.freeze([
   "simpleBooksBackupDownloaded"
 ]);
 
+export const LEGACY_EXPORT_STATUS_KEYS = Object.freeze([
+  ...LEGACY_BACKUP_STATUS_KEYS,
+  "simpleBooksLastAccountantPackGeneratedAt",
+  "simpleBooksLastRestoreCompletedAt"
+]);
+
 function requiredUid(uid){
   const value=String(uid || "").trim();
   if(!value) throw new TypeError("An authenticated user ID is required.");
@@ -24,9 +30,36 @@ export function backupStatusStorageKeys(uid){
   });
 }
 
+export function exportStatusStorageKeys(uid){
+  const owner=encodeURIComponent(requiredUid(uid));
+  return Object.freeze({
+    accountantPackGeneratedAt:`simpleBooksLastAccountantPackGeneratedAt:${owner}`,
+    restoreCompletedAt:`simpleBooksLastRestoreCompletedAt:${owner}`
+  });
+}
+
 export function clearLegacyBackupStatus(storage){
   const target=requiredStorage(storage);
   LEGACY_BACKUP_STATUS_KEYS.forEach(key => target.removeItem(key));
+}
+
+export function clearLegacyExportStatus(storage){
+  const target=requiredStorage(storage);
+  LEGACY_EXPORT_STATUS_KEYS.forEach(key => target.removeItem(key));
+}
+
+function writeScopedTimestamp(storage,key,timestamp){
+  const target=requiredStorage(storage);
+  const value=String(timestamp || "");
+  if(!value || Number.isNaN(Date.parse(value))) throw new TypeError("A valid status timestamp is required.");
+  target.setItem(key,value);
+  clearLegacyExportStatus(target);
+  return value;
+}
+
+function readScopedTimestamp(storage,key){
+  const value=requiredStorage(storage).getItem(key);
+  return value && !Number.isNaN(Date.parse(value)) ? value : "";
 }
 
 export function writeLastBackupDownloadedAt(storage,uid,timestamp){
@@ -51,4 +84,20 @@ export function markBackupDownloaded(storage,uid){
 
 export function wasBackupDownloaded(storage,uid){
   return requiredStorage(storage).getItem(backupStatusStorageKeys(uid).downloaded) === "true";
+}
+
+export function writeLastAccountantPackGeneratedAt(storage,uid,timestamp){
+  return writeScopedTimestamp(storage,exportStatusStorageKeys(uid).accountantPackGeneratedAt,timestamp);
+}
+
+export function readLastAccountantPackGeneratedAt(storage,uid){
+  return readScopedTimestamp(storage,exportStatusStorageKeys(uid).accountantPackGeneratedAt);
+}
+
+export function writeLastRestoreCompletedAt(storage,uid,timestamp){
+  return writeScopedTimestamp(storage,exportStatusStorageKeys(uid).restoreCompletedAt,timestamp);
+}
+
+export function readLastRestoreCompletedAt(storage,uid){
+  return readScopedTimestamp(storage,exportStatusStorageKeys(uid).restoreCompletedAt);
 }

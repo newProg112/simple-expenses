@@ -19,7 +19,8 @@ const SIMPLE_BOOKS_ACCOUNT_CACHE_KEYS = Object.freeze([
   "simpleBooksLastInvoiceNumber",
   "simpleBooksBackupDownloaded",
   "simpleBooksLastBackupDownloadedAt",
-  "simpleBooksLastAccountantPackGeneratedAt"
+  "simpleBooksLastAccountantPackGeneratedAt",
+  "simpleBooksLastRestoreCompletedAt"
 ]);
 
 function errorCode(error){
@@ -93,6 +94,14 @@ export function clearSimpleBooksAccountCaches(local, session, uid){
   }
   if(uid){
     try{ local?.removeItem(`simpleBooksAccount:${uid}`); }catch(_error){ /* Browser storage unavailable. */ }
+    for(const prefix of [
+      "simpleBooksBackupDownloaded",
+      "simpleBooksLastBackupDownloadedAt",
+      "simpleBooksLastAccountantPackGeneratedAt",
+      "simpleBooksLastRestoreCompletedAt"
+    ]){
+      try{ local?.removeItem(`${prefix}:${encodeURIComponent(uid)}`); }catch(_error){ /* Browser storage unavailable. */ }
+    }
   }
   try{
     for(let index = (session?.length || 0) - 1; index >= 0; index -= 1){
