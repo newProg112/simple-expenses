@@ -1,10 +1,10 @@
 import {
   PLAN_IDS,
-  effectiveProductPlan,
+  effectiveBillingPlan,
   getPlanEntitlements,
-  isUnlimited,
-  normalisePlan
-} from "./plan-entitlements.js?v=20260806-demo-pro1";
+  isUnlimited
+} from "./plan-entitlements.js?v=20260901-stripe-live1";
+import { clientStripeBillingConfiguration } from "./stripe-billing-config.js?v=20260901-stripe-live1";
 
 export const PROJECT_STATUS = Object.freeze({
   ACTIVE: "Active",
@@ -16,14 +16,22 @@ export function countActiveProjects(projects = []) {
   return projects.filter(project => project?.status === PROJECT_STATUS.ACTIVE).length;
 }
 
-export function canUseAnotherActiveProject(plan, projects = [], demoMode = false) {
-  const { activeProjectsLimit } = getPlanEntitlements(effectiveProductPlan(plan, demoMode));
+function effectiveProjectPlan(profile, demoMode){
+  return effectiveBillingPlan(
+    profile,
+    demoMode,
+    clientStripeBillingConfiguration()
+  );
+}
+
+export function canUseAnotherActiveProject(profile, projects = [], demoMode = false) {
+  const { activeProjectsLimit } = getPlanEntitlements(effectiveProjectPlan(profile, demoMode));
   return isUnlimited(activeProjectsLimit) ||
     countActiveProjects(projects) < activeProjectsLimit;
 }
 
 export function canSaveProjectStatus({
-  plan,
+  profile,
   demoMode = false,
   projects = [],
   projectId = null,
@@ -38,11 +46,11 @@ export function canSaveProjectStatus({
     return true;
   }
 
-  return canUseAnotherActiveProject(plan, projects, demoMode);
+  return canUseAnotherActiveProject(profile, projects, demoMode);
 }
 
-export function activeProjectLimitMessage(plan, demoMode = false) {
-  const normalisedPlan = effectiveProductPlan(normalisePlan(plan), demoMode);
+export function activeProjectLimitMessage(profile, demoMode = false) {
+  const normalisedPlan = effectiveProjectPlan(profile, demoMode);
   const { activeProjectsLimit } = getPlanEntitlements(normalisedPlan);
 
   if (isUnlimited(activeProjectsLimit)) {

@@ -8,9 +8,15 @@ import {
   calculatePaymentBehaviour
 } from "../assets/business-insights-forecasts.js";
 import { businessInsightsPresentation, resolveBusinessInsightsAccess } from "../assets/business-insights-access.js";
+import { LIVE_PRO_PRICE_ID } from "../resources/js/stripe-billing-config.js";
 
 const today = new Date(2026, 7, 10);
 const snap = data => ({ exists:() => true, data:() => data });
+const liveProProfile = {
+  currentPlan: "Pro", subscriptionStatus: "active", stripeMode: "live",
+  stripePriceId: LIVE_PRO_PRICE_ID, stripeCustomerId: "cus_live",
+  stripeSubscriptionId: "sub_live"
+};
 const journal = (id, date, revenue = 0, expense = 0, outputVat = 0, inputVat = 0) => ({
   id, date, sourceType:"test", sourceId:id, description:id, userId:"user",
   lines:[
@@ -130,7 +136,7 @@ describe("Business Insights Phase 3 access, UI and privacy", () => {
 
   it("redacts and caps Starter while Pro and Demo receive details without Demo billing", () => {
     const starter = resolveBusinessInsightsAccess(snap({demoMode:false}), snap({currentPlan:"Starter"}));
-    const pro = resolveBusinessInsightsAccess(snap({demoMode:false}), snap({currentPlan:"Pro"}));
+    const pro = resolveBusinessInsightsAccess(snap({demoMode:false}), snap(liveProProfile));
     const demo = resolveBusinessInsightsAccess(snap({demoMode:true}), snap({currentPlan:"Starter"}));
     const starterView = businessInsightsPresentation(forecastModel, starter);
     expect(starterView.forecasts).toEqual([]);

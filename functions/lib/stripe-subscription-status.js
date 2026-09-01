@@ -19,9 +19,10 @@ const stripeStatuses = new Set(STRIPE_SUBSCRIPTION_STATUSES);
  * @return {string} Supported status, or an empty string.
  */
 function stripeSubscriptionStatus(subscription) {
-  const status = subscription && typeof subscription.status === "string" ?
+  let status = subscription && typeof subscription.status === "string" ?
     subscription.status :
     "";
+  if (status === "cancelled") status = "canceled";
   return stripeStatuses.has(status) ? status : "";
 }
 
@@ -31,7 +32,9 @@ function stripeSubscriptionStatus(subscription) {
  * @return {boolean} Whether Stripe billing management remains available.
  */
 function isBillingPortalStatus(status) {
-  return stripeStatuses.has(status) && status !== "canceled";
+  const normalized = stripeSubscriptionStatus({status});
+  return stripeStatuses.has(normalized) &&
+    normalized !== "canceled" && normalized !== "incomplete_expired";
 }
 
 module.exports = {

@@ -102,6 +102,7 @@ describe("read-only account detail projection", () => {
       adminUids: new Set(),
       demoIdentifiers: { uids: new Set(), emails: new Set() },
       proPriceId: "price_pro",
+      expectedMode: "test",
       now: NOW
     });
 
@@ -145,6 +146,7 @@ describe("read-only account detail projection", () => {
         account: { businessName: "Ada Books", privateNote: "secret" },
         profile: {
           currentPlan: "Pro", subscriptionStatus: "active", stripePriceId: "price_pro",
+          stripeMode: "test",
           stripeCustomerId: "cus_private", stripeSubscriptionId: "sub_private",
           subscriptionCurrentPeriodEnd: { toDate: () => new Date("2026-08-31T00:00:00.000Z") }
         },
@@ -157,7 +159,8 @@ describe("read-only account detail projection", () => {
         ]
       }),
       selector: { uid: authUser.uid }, adminUids: new Set(),
-      demoIdentifiers: { uids: new Set(), emails: new Set() }, proPriceId: "price_pro", now: NOW
+      demoIdentifiers: { uids: new Set(), emails: new Set() }, proPriceId: "price_pro",
+      expectedMode: "test", now: NOW
     });
     expect(result).toMatchObject({
       account: {

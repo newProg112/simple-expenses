@@ -42,7 +42,7 @@ describe("Account access resolution", () => {
   it("resolves an ordinary Pro plan without claiming a paid subscription", () => {
     expect(resolveAccountAccessSnapshot(
       snapshot({ businessName: "Pro Books" }),
-      { currentPlan: "Pro", subscriptionStatus: "" }
+      { currentPlan: "Pro", billingOverride: true }
     ).productAccess).toMatchObject({
       demo: false,
       effectivePlan: "Pro",
@@ -85,7 +85,7 @@ describe("Account page access lifecycle integration", () => {
     expect(accountHtml).not.toMatch(/productAccess\s*=\s*snap\.exists\(\)[\s\S]{0,120}:\s*null/);
     const profileEndpoint = functionsIndex.slice(
       functionsIndex.indexOf("exports.ensureUserProfile = onRequest("),
-      functionsIndex.indexOf("function subscriptionPriceId")
+      functionsIndex.indexOf("exports.createCheckoutSession = onRequest(")
     );
     expect(profileEndpoint).toContain('"https://simple-books-office.web.app"');
     expect(profileEndpoint).toContain('"http://localhost:8000"');

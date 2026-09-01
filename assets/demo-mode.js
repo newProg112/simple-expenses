@@ -1,4 +1,5 @@
-import { effectiveProductPlan } from "../resources/js/plan-entitlements.js?v=20260806-demo-pro1";
+import { effectiveBillingPlan } from "../resources/js/plan-entitlements.js?v=20260901-stripe-live1";
+import { clientStripeBillingConfiguration } from "../resources/js/stripe-billing-config.js?v=20260901-stripe-live1";
 
 let currentUser = null;
 let currentAccountData = null;
@@ -20,7 +21,11 @@ export function shouldShowDemoBanner(user, accountData){
 
 export function resolveProductAccess(accountData = {}, billingProfile = {}){
   const demo = accountData?.demoMode === true;
-  const effectivePlan = effectiveProductPlan(billingProfile?.currentPlan, demo);
+  const effectivePlan = effectiveBillingPlan(
+    billingProfile,
+    demo,
+    clientStripeBillingConfiguration()
+  );
   return Object.freeze({
     demo,
     effectivePlan,

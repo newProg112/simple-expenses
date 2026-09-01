@@ -10,7 +10,7 @@ import { trackBeginCheckout } from "./analytics-events.js?v=20260802-analytics1"
 import {
   businessInsightsPresentation,
   loadBusinessInsightsAccess
-} from "./business-insights-access.js?v=20260806-insights-polish1";
+} from "./business-insights-access.js?v=20260901-stripe-live1";
 import { loadBusinessInsightsData } from "./business-insights-data.js?v=20260807-dashboard-health1";
 import {
   partialJournalDataMessage

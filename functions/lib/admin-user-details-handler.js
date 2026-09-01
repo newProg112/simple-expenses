@@ -60,6 +60,7 @@ function createAdminUserDetailsHandler(options) {
         adminUids,
         demoIdentifiers,
         proPriceId: source.proPriceId,
+        expectedMode: source.expectedMode,
         now: source.now ? source.now() : new Date(),
       });
       log.info("Admin user details returned");

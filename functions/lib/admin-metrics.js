@@ -4,7 +4,7 @@
 
 const {
   calendarMonthKey,
-  normalisePlan,
+  effectiveBillingPlan,
   normaliseUsageCount,
 } = require("./plan-entitlements");
 const {
@@ -118,7 +118,7 @@ function buildGrowthCharts(users, planDistribution, now) {
   };
 }
 
-function qualifiesAsActivePaidSubscription(profile, proPriceId) {
+function qualifiesAsActivePaidSubscription(profile, proPriceId, expectedMode) {
   const source = profile && typeof profile === "object" ? profile : {};
   return source.currentPlan === "Pro" &&
     source.subscriptionStatus === "active" &&
@@ -127,7 +127,8 @@ function qualifiesAsActivePaidSubscription(profile, proPriceId) {
     Boolean(source.stripeCustomerId.trim()) &&
     typeof source.stripeSubscriptionId === "string" &&
     Boolean(source.stripeSubscriptionId.trim()) &&
-    source.stripePriceId === proPriceId;
+    source.stripePriceId === proPriceId &&
+    source.stripeMode === expectedMode;
 }
 
 async function readAdminUserData(firestore, user, monthKey) {
@@ -159,11 +160,11 @@ async function readAdminUserDataInBatches(firestore, users, monthKey) {
   return results;
 }
 
-function recentSignupRecord(entry) {
+function recentSignupRecord(entry, billingConfiguration) {
   const joinedDate = safeCreationTime(entry.user);
   return {
     email: typeof entry.user.email === "string" ? entry.user.email : "",
-    plan: normalisePlan(entry.profile.currentPlan),
+    plan: effectiveBillingPlan(entry.profile, false, billingConfiguration),
     joinedAt: joinedDate ? joinedDate.toISOString() : null,
     subscriptionStatus: stripeSubscriptionStatus({
       status: entry.profile.subscriptionStatus,
@@ -191,6 +192,7 @@ async function buildAdminMetrics({
   firestore,
   demoIdentifiers,
   proPriceId,
+  expectedMode,
   now = new Date(),
 }) {
   if (!firestore || typeof firestore.collection !== "function") {
@@ -198,6 +200,9 @@ async function buildAdminMetrics({
   }
   if (typeof proPriceId !== "string" || !proPriceId.trim()) {
     throw new TypeError("The Pro Stripe price ID is required.");
+  }
+  if (expectedMode !== "test" && expectedMode !== "live") {
+    throw new TypeError("The expected Stripe mode is required.");
   }
   if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
     throw new TypeError("A valid metrics date is required.");
@@ -225,10 +230,15 @@ async function buildAdminMetrics({
   let invoiceScanningSuccessfulUses = 0;
 
   entries.forEach((entry) => {
-    const plan = normalisePlan(entry.profile.currentPlan);
+    const plan = effectiveBillingPlan(entry.profile, false, {
+      expectedMode,
+      proPriceId,
+    });
     if (plan === "Pro") proUsers += 1;
     else starterUsers += 1;
-    if (qualifiesAsActivePaidSubscription(entry.profile, proPriceId)) {
+    if (qualifiesAsActivePaidSubscription(
+        entry.profile, proPriceId, expectedMode,
+    )) {
       activePaidSubscriptions += 1;
     }
     aiAssistantSuccessfulUses += normaliseUsageCount(
@@ -243,7 +253,7 @@ async function buildAdminMetrics({
       .slice()
       .sort(sortByNewestSignup)
       .slice(0, RECENT_SIGNUP_LIMIT)
-      .map(recentSignupRecord);
+      .map((entry) => recentSignupRecord(entry, {expectedMode, proPriceId}));
 
   return {
     generatedAt: now.toISOString(),

@@ -22,8 +22,8 @@ describe("account-deletion production wiring", () => {
         "accountDeletionGuard.assertAccountNotDeleting(decodedToken.uid)",
     );
     expect(guard).toBeGreaterThanOrEqual(0);
-    expect(guard).toBeLessThan(checkout.indexOf("new Stripe("));
-    expect(guard).toBeLessThan(checkout.indexOf("checkout.sessions.create"));
+    expect(guard).toBeLessThan(checkout.indexOf("configuredStripeClient()"));
+    expect(guard).toBeLessThan(checkout.indexOf("createStripeCheckoutService({"));
   });
 
   it("guards Billing Portal before creating a portal session", () => {
@@ -35,7 +35,8 @@ describe("account-deletion production wiring", () => {
         "accountDeletionGuard.assertAccountNotDeleting(decodedToken.uid)",
     );
     expect(guard).toBeGreaterThanOrEqual(0);
-    expect(guard).toBeLessThan(portal.indexOf("billingPortal.sessions.create"));
+    expect(guard).toBeLessThan(portal.indexOf("configuredStripeClient()"));
+    expect(guard).toBeLessThan(portal.indexOf("createStripePortalService({"));
   });
 
   it("injects the shared guard into privileged accounting mutations", () => {

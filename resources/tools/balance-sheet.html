@@ -622,7 +622,7 @@
     import {
       getFinancialReportAccess,
       renderFinancialReportAccess
-    } from "../js/financial-report-access.js?v=20260806-demo-pro1";
+    } from "../js/financial-report-access.js?v=20260901-stripe-live1";
     import { requireJournalOwnerId } from "../js/trial-balance-view.js";
     import {
       balanceSheetErrorView,
@@ -836,11 +836,9 @@
         if (auth.currentUser?.uid !== user.uid) {
           return;
         }
-        const profilePlan = profile.exists()
-          ? profile.data().currentPlan
-          : undefined;
+        const billingProfile = profile.exists() ? profile.data() : {};
         const access = getFinancialReportAccess(
-          profilePlan,
+          billingProfile,
           REPORT_IDS.BALANCE_SHEET,
           account.exists() && account.data().demoMode === true
         );

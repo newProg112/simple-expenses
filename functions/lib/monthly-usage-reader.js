@@ -2,21 +2,30 @@
 
 const {
   calendarMonthKey,
-  effectiveProductPlan,
+  effectiveBillingPlan,
   getMonthlyLimit,
   MONTHLY_LIMIT_IDS,
   normaliseUsageCount,
   remainingMonthlyAllowance,
 } = require("./plan-entitlements");
+const {
+  runtimeStripeBillingConfiguration,
+} = require("./stripe-billing-config");
 
 /**
  * Reads a user's current UTC monthly usage without writing any data.
  * @param {object} firestore Firestore service.
  * @param {string} uid Authenticated Firebase UID.
  * @param {Date} date Current server date.
+ * @param {object} billingConfiguration Expected Stripe mode and Pro price.
  * @return {Promise<object>} Normalized monthly usage.
  */
-async function readMonthlyUsage(firestore, uid, date = new Date()) {
+async function readMonthlyUsage(
+    firestore,
+    uid,
+    date = new Date(),
+    billingConfiguration = runtimeStripeBillingConfiguration(),
+) {
   if (!firestore || typeof firestore.collection !== "function") {
     throw new TypeError("A Firestore service is required.");
   }
@@ -36,7 +45,9 @@ async function readMonthlyUsage(firestore, uid, date = new Date()) {
   const profile = profileSnapshot.exists ? profileSnapshot.data() : {};
   const usage = usageSnapshot.exists ? usageSnapshot.data() : {};
   const demoMode = account.demoMode === true;
-  const effectivePlan = effectiveProductPlan(profile.currentPlan, demoMode);
+  const effectivePlan = effectiveBillingPlan(
+      profile, demoMode, billingConfiguration,
+  );
   const aiAssistantSuccessfulUses =
     normaliseUsageCount(usage.aiAssistantSuccessfulUses);
   const invoiceScanningSuccessfulUses =

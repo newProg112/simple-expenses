@@ -1,4 +1,4 @@
-import { businessInsightsPresentation } from "./business-insights-access.js?v=20260806-insights-polish1";
+import { businessInsightsPresentation } from "./business-insights-access.js?v=20260901-stripe-live1";
 
 const money = value => new Intl.NumberFormat("en-GB", {
   style:"currency",

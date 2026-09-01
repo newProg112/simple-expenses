@@ -550,7 +550,7 @@
     import {
       getFinancialReportAccess,
       renderFinancialReportAccess
-    } from "../js/financial-report-access.js?v=20260806-demo-pro1";
+    } from "../js/financial-report-access.js?v=20260901-stripe-live1";
     import {
       journalFromFirestoreData,
       requireJournalOwnerId
@@ -766,11 +766,9 @@
         if (auth.currentUser?.uid !== user.uid) {
           return;
         }
-        const profilePlan = profile.exists()
-          ? profile.data().currentPlan
-          : undefined;
+        const billingProfile = profile.exists() ? profile.data() : {};
         const access = getFinancialReportAccess(
-          profilePlan,
+          billingProfile,
           REPORT_IDS.PROFIT_LOSS,
           account.exists() && account.data().demoMode === true
         );

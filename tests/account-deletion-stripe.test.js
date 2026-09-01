@@ -19,6 +19,9 @@ function paged(values, parameters) {
 }
 
 function stripeFixture({customers = [], subscriptions = [], sessions = []} = {}) {
+  customers.forEach((value) => { value.livemode ??= false; });
+  subscriptions.forEach((value) => { value.livemode ??= false; });
+  sessions.forEach((value) => { value.livemode ??= false; });
   const calls = {cancel: [], expire: []};
   let cancellationFailures = 0;
   let keepSubscriptionLive = false;
@@ -67,7 +70,15 @@ function stripeFixture({customers = [], subscriptions = [], sessions = []} = {})
   return {
     calls,
     profiles,
-    service: createStripeAccountDeletionService({stripe, firestore}),
+    service: createStripeAccountDeletionService({
+      stripe,
+      firestore,
+      billingConfiguration: {
+        expectedMode: "test",
+        proPriceId: "price_test_pro",
+        checkoutEnabled: true,
+      },
+    }),
     failCancellationOnce: () => { cancellationFailures = 1; },
     keepSubscriptionLive: () => { keepSubscriptionLive = true; },
   };
@@ -135,6 +146,7 @@ describe("Stripe account deletion", () => {
     fixture.profiles.set(USER_A, {
       stripeCustomerId: "cus_stored",
       stripeSubscriptionId: "sub_stored",
+      stripeMode: "test",
     });
     fixture.failCancellationOnce();
     await expect(fixture.service(USER_A)).rejects.toMatchObject({

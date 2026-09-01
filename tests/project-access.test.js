@@ -9,6 +9,9 @@ import {
   countActiveProjects
 } from "../resources/js/project-access.js";
 
+const starterProfile = { currentPlan: PLAN_IDS.STARTER };
+const explicitProProfile = { currentPlan: PLAN_IDS.PRO, billingOverride: true };
+
 function projectsByStatus(statuses) {
   return statuses.map((status, index) => ({
     id: `project-${index + 1}`,
@@ -24,9 +27,9 @@ describe("active project limits", () => {
         Array(activeCount).fill(PROJECT_STATUS.ACTIVE)
       );
 
-      expect(canUseAnotherActiveProject(PLAN_IDS.STARTER, projects)).toBe(true);
+      expect(canUseAnotherActiveProject(starterProfile, projects)).toBe(true);
       expect(canSaveProjectStatus({
-        plan: PLAN_IDS.STARTER,
+        profile: starterProfile,
         projects,
         nextStatus: PROJECT_STATUS.ACTIVE
       })).toBe(true);
@@ -38,9 +41,9 @@ describe("active project limits", () => {
       Array(5).fill(PROJECT_STATUS.ACTIVE)
     );
 
-    expect(canUseAnotherActiveProject(PLAN_IDS.STARTER, projects)).toBe(false);
+    expect(canUseAnotherActiveProject(starterProfile, projects)).toBe(false);
     expect(canSaveProjectStatus({
-      plan: PLAN_IDS.STARTER,
+      profile: starterProfile,
       projects,
       nextStatus: PROJECT_STATUS.ACTIVE
     })).toBe(false);
@@ -53,7 +56,7 @@ describe("active project limits", () => {
     ]);
 
     expect(countActiveProjects(projects)).toBe(4);
-    expect(canUseAnotherActiveProject(PLAN_IDS.STARTER, projects)).toBe(true);
+    expect(canUseAnotherActiveProject(starterProfile, projects)).toBe(true);
   });
 
   it("does not count On Hold projects", () => {
@@ -63,7 +66,7 @@ describe("active project limits", () => {
     ]);
 
     expect(countActiveProjects(projects)).toBe(4);
-    expect(canUseAnotherActiveProject(PLAN_IDS.STARTER, projects)).toBe(true);
+    expect(canUseAnotherActiveProject(starterProfile, projects)).toBe(true);
   });
 
   it("keeps Pro Active projects unlimited", () => {
@@ -71,9 +74,9 @@ describe("active project limits", () => {
       Array(500).fill(PROJECT_STATUS.ACTIVE)
     );
 
-    expect(canUseAnotherActiveProject(PLAN_IDS.PRO, projects)).toBe(true);
+    expect(canUseAnotherActiveProject(explicitProProfile, projects)).toBe(true);
     expect(canSaveProjectStatus({
-      plan: PLAN_IDS.PRO,
+      profile: explicitProProfile,
       projects,
       nextStatus: PROJECT_STATUS.ACTIVE
     })).toBe(true);
@@ -81,8 +84,8 @@ describe("active project limits", () => {
 
   it("gives an authoritative demo the unlimited Pro project entitlement", () => {
     const projects = projectsByStatus(Array(50).fill(PROJECT_STATUS.ACTIVE));
-    expect(canUseAnotherActiveProject(PLAN_IDS.STARTER, projects, true)).toBe(true);
-    expect(activeProjectLimitMessage(PLAN_IDS.STARTER, true)).toBe("");
+    expect(canUseAnotherActiveProject(starterProfile, projects, true)).toBe(true);
+    expect(activeProjectLimitMessage(starterProfile, true)).toBe("");
   });
 
   it("prevents reopening a Completed project when Starter is at the limit", () => {
@@ -93,7 +96,7 @@ describe("active project limits", () => {
     const completedProject = projects.at(-1);
 
     expect(canSaveProjectStatus({
-      plan: PLAN_IDS.STARTER,
+      profile: starterProfile,
       projects,
       projectId: completedProject.id,
       nextStatus: PROJECT_STATUS.ACTIVE
@@ -108,7 +111,7 @@ describe("active project limits", () => {
     const onHoldProject = projects.at(-1);
 
     expect(canSaveProjectStatus({
-      plan: PLAN_IDS.STARTER,
+      profile: starterProfile,
       projects,
       projectId: onHoldProject.id,
       nextStatus: PROJECT_STATUS.ACTIVE
@@ -121,7 +124,7 @@ describe("active project limits", () => {
     );
 
     expect(canSaveProjectStatus({
-      plan: PLAN_IDS.STARTER,
+      profile: starterProfile,
       projects,
       projectId: projects[0].id,
       nextStatus: PROJECT_STATUS.ACTIVE
@@ -138,7 +141,7 @@ describe("active project limits", () => {
       PROJECT_STATUS.ON_HOLD
     ]) {
       expect(canSaveProjectStatus({
-        plan: PLAN_IDS.STARTER,
+        profile: starterProfile,
         projects,
         projectId: projects[0].id,
         nextStatus
@@ -147,11 +150,11 @@ describe("active project limits", () => {
   });
 
   it("uses the entitlement values in the friendly Starter message", () => {
-    expect(activeProjectLimitMessage(PLAN_IDS.STARTER)).toBe(
+    expect(activeProjectLimitMessage(starterProfile)).toBe(
       "You've reached the Starter limit of 5 active projects. " +
       "Upgrade to Pro for unlimited active projects."
     );
-    expect(activeProjectLimitMessage(PLAN_IDS.PRO)).toBe("");
+    expect(activeProjectLimitMessage(explicitProProfile)).toBe("");
   });
 });
 
@@ -162,14 +165,14 @@ describe("Projects page integration", () => {
   );
 
   it("loads the billing profile and the entitlement-backed project policy", () => {
-    expect(html).toContain('from "../js/project-access.js?v=20260806-demo-pro1"');
+    expect(html).toContain('from "../js/project-access.js?v=20260901-stripe-live1"');
     expect(html).toContain('doc(db, "users", user.uid)');
     expect(html).toContain('doc(db, "userProfiles", user.uid)');
   });
 
   it("disables both project-creation buttons when capacity is exhausted", () => {
     expect(html).toContain(
-      "const limitReached = !canUseAnotherActiveProject(currentPlan, projects, currentDemoMode)"
+      "const limitReached = !canUseAnotherActiveProject(currentBillingProfile, projects, currentDemoMode)"
     );
     expect(html).toContain("button.disabled = limitReached");
   });

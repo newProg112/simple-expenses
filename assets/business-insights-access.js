@@ -1,5 +1,5 @@
-import { resolveProductAccess } from "./demo-mode.js?v=20260806-demo-pro3";
-import { PLAN_IDS } from "../resources/js/plan-entitlements.js?v=20260806-demo-pro1";
+import { resolveProductAccess } from "./demo-mode.js?v=20260901-stripe-live1";
+import { PLAN_IDS } from "../resources/js/plan-entitlements.js?v=20260901-stripe-live1";
 
 const STARTER_SNAPSHOT_METRIC_IDS = Object.freeze([
   "outstandingInvoices",

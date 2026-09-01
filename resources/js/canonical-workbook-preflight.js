@@ -708,7 +708,7 @@ function validateStarterProjectLimit(state, context) {
   const projected = [...existingProjects];
   for(const project of activeWorkbookProjects){
     if(project.status !== PROJECT_STATUS.ACTIVE || duplicateRows.has(project._row)) continue;
-    if(!canUseAnotherActiveProject(context.plan, projected, context.demoMode === true)){
+    if(!canUseAnotherActiveProject(context.billingProfile, projected, context.demoMode === true)){
       addError(state, "active-project-limit", ...recordContext(project), "Status", "Importing this Active project would exceed the account's current active-project limit.");
       continue;
     }

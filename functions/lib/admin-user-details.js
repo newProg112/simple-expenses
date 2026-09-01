@@ -5,7 +5,7 @@
 const {
   MONTHLY_LIMIT_IDS,
   calendarMonthKey,
-  effectiveProductPlan,
+  effectiveBillingPlan,
   getMonthlyLimit,
   normalisePlan,
   normaliseUsageCount,
@@ -39,7 +39,7 @@ function safeText(value, maximum = 320) {
       .join("").trim().slice(0, maximum);
 }
 
-function supportDiagnostics(profileExists, profile, usage) {
+function supportDiagnostics(profileExists, profile, usage, billingConfiguration = {}) {
   const diagnostics = [];
   const recordedPlan = typeof profile.currentPlan === "string" ? profile.currentPlan.trim() : "";
   const subscriptionStatus = stripeSubscriptionStatus({status: profile.subscriptionStatus});
@@ -48,6 +48,12 @@ function supportDiagnostics(profileExists, profile, usage) {
   if (recordedPlan !== "Starter" && recordedPlan !== "Pro") diagnostics.push("plan-not-set");
   if (!subscriptionStatus) diagnostics.push("subscription-status-not-set");
   if (!hasStripeCustomer) diagnostics.push("stripe-customer-not-linked");
+  if (hasStripeCustomer && profile.stripeMode !== billingConfiguration.expectedMode) {
+    diagnostics.push("stripe-mode-mismatch");
+  }
+  if (hasStripeCustomer && profile.stripePriceId !== billingConfiguration.proPriceId) {
+    diagnostics.push("stripe-price-mismatch");
+  }
   if (normaliseUsageCount(usage.aiAssistantSuccessfulUses) === 0) diagnostics.push("no-ai-usage-this-month");
   if (normaliseUsageCount(usage.invoiceScanningSuccessfulUses) === 0) diagnostics.push("no-invoice-scan-usage-this-month");
   return diagnostics;
@@ -107,7 +113,7 @@ async function readRecentSafeActivity(firestore, uid) {
   return events.slice(0, ADMIN_USER_ACTIVITY_LIMIT);
 }
 
-async function buildAdminUserDetails({auth, firestore, selector, adminUids, demoIdentifiers, proPriceId, now = new Date()}) {
+async function buildAdminUserDetails({auth, firestore, selector, adminUids, demoIdentifiers, proPriceId, expectedMode, now = new Date()}) {
   if (!firestore || typeof firestore.collection !== "function") throw new TypeError("Firestore Admin is required.");
   if (!(now instanceof Date) || Number.isNaN(now.getTime())) throw new TypeError("A valid lookup date is required.");
   const user = await getAuthUser(auth, selector);
@@ -128,7 +134,10 @@ async function buildAdminUserDetails({auth, firestore, selector, adminUids, demo
   const usage = usageSnapshot.exists ? usageSnapshot.data() || {} : {};
   const plan = normalisePlan(profile.currentPlan);
   const demo = account.demoMode === true || isDemoAuthUser(user, demoIdentifiers);
-  const effectivePlan = effectiveProductPlan(plan, demo);
+  const billingConfiguration = {expectedMode, proPriceId};
+  const effectivePlan = effectiveBillingPlan(
+      profile, demo, billingConfiguration,
+  );
   const subscriptionStatus = stripeSubscriptionStatus({status: profile.subscriptionStatus});
   const metadata = user.metadata || {};
   return {
@@ -154,7 +163,9 @@ async function buildAdminUserDetails({auth, firestore, selector, adminUids, demo
       subscriptionStatus: demo ? "" : subscriptionStatus,
       subscriptionLabel: demo ? "Demo account" : "",
       currentPeriodEnd: demo ? null : safeIsoDate(profile.subscriptionCurrentPeriodEnd),
-      activePaidSubscription: demo ? false : qualifiesAsActivePaidSubscription(profile, proPriceId),
+      activePaidSubscription: demo ? false : qualifiesAsActivePaidSubscription(
+          profile, proPriceId, expectedMode,
+      ),
     },
     usage: {
       monthKey,
@@ -166,7 +177,9 @@ async function buildAdminUserDetails({auth, firestore, selector, adminUids, demo
     },
     recentActivity,
     adminNotes,
-    diagnostics: supportDiagnostics(profileSnapshot.exists, profile, usage),
+    diagnostics: supportDiagnostics(
+        profileSnapshot.exists, profile, usage, billingConfiguration,
+    ),
   };
 }
 

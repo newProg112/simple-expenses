@@ -8,6 +8,8 @@ const html = readFileSync(new URL("../pricing.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../assets/pricing.css", import.meta.url), "utf8");
 const accountHtml = readFileSync(new URL("../account.html", import.meta.url), "utf8");
 const functionsSource = readFileSync(new URL("../functions/index.js", import.meta.url), "utf8");
+const checkoutSource = readFileSync(new URL("../functions/lib/stripe-checkout-service.js", import.meta.url), "utf8");
+const portalSource = readFileSync(new URL("../functions/lib/stripe-portal-service.js", import.meta.url), "utf8");
 const adminMetricsSource = readFileSync(new URL("../functions/lib/admin-metrics.js", import.meta.url), "utf8");
 const aiAssistantSource = readFileSync(new URL("../functions/ai-assistant.js", import.meta.url), "utf8");
 const documentScanSource = readFileSync(new URL("../functions/business-document-scan.js", import.meta.url), "utf8");
@@ -58,7 +60,7 @@ describe("public pricing page", () => {
     expect(html).toContain('<div class="plan-price"><strong>&pound;0</strong><span>/ month</span></div>');
     expect(html).toContain('<div class="plan-price"><strong>&pound;15</strong><span>/ month</span></div>');
     expect(functionsSource).toContain('currentPlan: "Starter"');
-    expect(functionsSource).toContain('mode: "subscription"');
+    expect(checkoutSource).toContain('mode: "subscription"');
     expect(accountHtml).toContain('price = "£15/month"');
     expect(adminMetricsSource).toContain("const PRO_MONTHLY_PRICE_PENCE = 1500;");
   });
@@ -127,8 +129,8 @@ describe("public pricing page", () => {
   it("limits subscription reassurance to the implemented Stripe portal flow", () => {
     const reassurance = section("reassurance-title");
 
-    expect(functionsSource).toContain("stripe.billingPortal.sessions.create");
-    expect(functionsSource).toContain("isBillingPortalStatus(profile.subscriptionStatus)");
+    expect(portalSource).toContain("stripe.billingPortal.sessions.create");
+    expect(portalSource).toContain("subscriptionAllowsPortal(subscription)");
     expect(reassurance).toContain("Eligible Pro subscriptions");
     expect(html).not.toMatch(/cancel anytime|no contract|no card required|money-back|refund|free trial/i);
   });

@@ -8,6 +8,7 @@ const SECONDARY_UID_QUERIES = Object.freeze([
   {collection: "journals", field: "userId"},
   {collection: "adminActivityEvents", field: "uid"},
   {collection: "demoAnalyticsEvents", field: "uid"},
+  {collection: "stripeWebhookEvents", field: "uid"},
 ]);
 const SECONDARY_DIRECT_DOCUMENTS = Object.freeze([
   {collection: "adminUserNotes"},

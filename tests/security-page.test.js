@@ -13,6 +13,8 @@ const login = readFileSync(projectFile("login.html"), "utf8");
 const signup = readFileSync(projectFile("signup.html"), "utf8");
 const account = readFileSync(projectFile("account.html"), "utf8");
 const functionsSource = readFileSync(projectFile("functions/index.js"), "utf8");
+const checkoutSource = readFileSync(projectFile("functions/lib/stripe-checkout-service.js"), "utf8");
+const portalSource = readFileSync(projectFile("functions/lib/stripe-portal-service.js"), "utf8");
 const assistant = readFileSync(projectFile("functions/ai-assistant.js"), "utf8");
 const assistantPrompt = readFileSync(projectFile("functions/lib/assistant-prompt.js"), "utf8");
 const scanner = readFileSync(projectFile("functions/business-document-scan.js"), "utf8");
@@ -98,8 +100,8 @@ describe("public Security page", () => {
   });
 
   it("states the implemented Stripe flow without claiming full card storage", () => {
-    expect(functionsSource).toContain("stripe.checkout.sessions.create");
-    expect(functionsSource).toContain("stripe.billingPortal.sessions.create");
+    expect(checkoutSource).toContain("stripe.checkout.sessions.create");
+    expect(portalSource).toContain("stripe.billingPortal.sessions.create");
     expect(functionsSource).toContain("paymentMethodBrand: card.brand");
     expect(functionsSource).toContain("paymentMethodLast4: card.last4");
     expect(account).toContain("CHECKOUT_FUNCTION_URL");

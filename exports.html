@@ -1286,7 +1286,7 @@
     import { createActivityIdempotencyKey, logActivityEvent } from "/assets/activity-logger.js?v=20260805-customer-analytics1b";
     import {
       getAccountantPackAccess
-    } from "/resources/js/accountant-pack-access.js?v=20260806-demo-pro1";
+    } from "/resources/js/accountant-pack-access.js?v=20260901-stripe-live1";
     import {
       buildCanonicalExportWorkbook
     } from "/resources/js/canonical-workbook-export.js?v=20260827-canonical-workbook5";
@@ -1426,7 +1426,7 @@
     window.simpleBooksAccountantPackAccessReady =
       window.simpleBooksBackupUserReady
         .then(async (user) => {
-          let profilePlan;
+          let billingProfile = {};
           let demoMode = false;
 
           if(user){
@@ -1434,11 +1434,11 @@
               getDoc(doc(db, "users", user.uid)),
               getDoc(doc(db, "userProfiles", user.uid))
             ]);
-            profilePlan = profile.exists() ? profile.data().currentPlan : undefined;
+            billingProfile = profile.exists() ? profile.data() : {};
             demoMode = account.exists() && account.data().demoMode === true;
           }
 
-          return getAccountantPackAccess(profilePlan, demoMode);
+          return getAccountantPackAccess(billingProfile, demoMode);
         })
         .catch((error) => {
           console.error("Accountant Pack access check failed", error);
@@ -1447,8 +1447,8 @@
   </script>
 
   <script type="module" src="/resources/js/canonical-workbook-template.js?v=20260826-canonical-workbook2"></script>
-  <script type="module" src="/resources/js/canonical-workbook-preflight.js?v=20260826-canonical-workbook3"></script>
-  <script type="module" src="/resources/js/canonical-workbook-phase4c.js?v=20260826-canonical-workbook4c1"></script>
+  <script type="module" src="/resources/js/canonical-workbook-preflight.js?v=20260901-stripe-live1"></script>
+  <script type="module" src="/resources/js/canonical-workbook-phase4c.js?v=20260901-stripe-live1"></script>
 
   <script>
     let validatedImportWorkbook = null;
@@ -1704,7 +1704,7 @@
             mileage: allExpenses.filter(record => record.type === "mileage"),
             projects
           },
-          plan: profile.exists() ? profile.data().currentPlan : undefined,
+          billingProfile: profile.exists() ? profile.data() : {},
           demoMode: account.exists() && account.data().demoMode === true
         };
     }

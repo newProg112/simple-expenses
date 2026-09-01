@@ -7,6 +7,7 @@ import {
 import { resolveBusinessInsightsAccess } from "../assets/business-insights-access.js";
 import { loadBusinessInsightsData } from "../assets/business-insights-data.js";
 import { buildDashboardBusinessHealth } from "../assets/dashboard-business-health.js";
+import { LIVE_PRO_PRICE_ID } from "../resources/js/stripe-billing-config.js";
 
 const TODAY = new Date(2026, 7, 10);
 const dashboard = readFileSync(new URL("../dashboard.html", import.meta.url), "utf8");
@@ -14,11 +15,16 @@ const insightsSource = readFileSync(new URL("../assets/business-insights.js", im
 const dashboardPresenterSource = readFileSync(new URL("../assets/dashboard-business-health.js", import.meta.url), "utf8");
 const dataSource = readFileSync(new URL("../assets/business-insights-data.js", import.meta.url), "utf8");
 const navigationSource = readFileSync(new URL("../assets/app-shell.js", import.meta.url), "utf8");
+const liveProProfile = {
+  currentPlan:"Pro", subscriptionStatus:"active", stripeMode:"live",
+  stripePriceId:LIVE_PRO_PRICE_ID, stripeCustomerId:"cus_live",
+  stripeSubscriptionId:"sub_live"
+};
 
 const snap = data => ({ exists:() => true, data:() => data });
 const access = (plan, demoMode = false) => resolveBusinessInsightsAccess(
   snap({ demoMode }),
-  snap({ currentPlan:plan })
+  snap(plan === "Pro" ? liveProProfile : { currentPlan:plan })
 );
 const empty = () => ({
   invoices:[], bills:[], expenses:[], projects:[], budgets:[], journals:[],

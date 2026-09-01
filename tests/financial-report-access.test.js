@@ -38,6 +38,7 @@ const reports = [
     loader: "loadBalanceSheet"
   }
 ];
+const explicitProProfile = { currentPlan: PLAN_IDS.PRO, billingOverride: true };
 
 describe.each(reports)("$label access", ({ id, label }) => {
   it("denies Starter with the shared Pro upgrade presentation", () => {
@@ -54,7 +55,7 @@ describe.each(reports)("$label access", ({ id, label }) => {
   });
 
   it("allows Pro without an upgrade message", () => {
-    expect(getFinancialReportAccess(PLAN_IDS.PRO, id)).toEqual({
+    expect(getFinancialReportAccess(explicitProProfile, id)).toEqual({
       allowed: true,
       badgeLabel: "Pro feature",
       message: "",
@@ -76,7 +77,7 @@ describe("Financial Reports page integration", () => {
         "utf8"
       );
       const accessCheck = html.indexOf(
-        `getFinancialReportAccess(\n          profilePlan,\n          REPORT_IDS.${idName}`
+        `getFinancialReportAccess(\n          billingProfile,\n          REPORT_IDS.${idName}`
       );
       const deniedGuard = html.indexOf("if (!access.allowed)", accessCheck);
       const reportLoad = html.indexOf(`${loader}(user)`, deniedGuard);

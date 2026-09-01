@@ -76,6 +76,7 @@ function createAdminMetricsHandler(options) {
         firestore: source.firestore,
         demoIdentifiers,
         proPriceId: source.proPriceId,
+        expectedMode: source.expectedMode,
         now: source.now ? source.now() : new Date(),
       });
       log.info("Admin metrics generated", {

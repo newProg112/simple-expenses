@@ -309,7 +309,7 @@ describe("Phase 4C exports UI wiring", () => {
   });
 
   it("does not automatically execute during load", () => {
-    const scriptTag = '<script type="module" src="/resources/js/canonical-workbook-phase4c.js?v=20260826-canonical-workbook4c1"></script>';
+    const scriptTag = '<script type="module" src="/resources/js/canonical-workbook-phase4c.js?v=20260901-stripe-live1"></script>';
     expect(exportsSource).toContain(scriptTag);
     expect(exportsSource.slice(exportsSource.indexOf(scriptTag), exportsSource.indexOf("<script>", exportsSource.indexOf(scriptTag))))
       .not.toContain("importValidatedWorkbookAll()");

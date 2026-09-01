@@ -7,6 +7,7 @@ const exportsHtml = readFileSync(
   new URL("../exports.html", import.meta.url),
   "utf8"
 );
+const explicitProProfile = { currentPlan: PLAN_IDS.PRO, billingOverride: true };
 
 describe("Accountant Pack access", () => {
   it("denies Starter and provides the friendly upgrade presentation", () => {
@@ -24,7 +25,7 @@ describe("Accountant Pack access", () => {
   });
 
   it("allows Pro without an upgrade message", () => {
-    expect(getAccountantPackAccess(PLAN_IDS.PRO)).toEqual({
+    expect(getAccountantPackAccess(explicitProProfile)).toEqual({
       allowed: true,
       badgeLabel: "Pro feature",
       message: "",
@@ -41,10 +42,10 @@ describe("Accountant Pack access", () => {
 describe("Accountant Pack Exports integration", () => {
   it("loads the authoritative billing profile through the access adapter", () => {
     expect(exportsHtml).toContain(
-      'from "/resources/js/accountant-pack-access.js?v=20260806-demo-pro1"'
+      'from "/resources/js/accountant-pack-access.js?v=20260901-stripe-live1"'
     );
     expect(exportsHtml).toContain('doc(db, "userProfiles", user.uid)');
-    expect(exportsHtml).toContain("getAccountantPackAccess(profilePlan, demoMode)");
+    expect(exportsHtml).toContain("getAccountantPackAccess(billingProfile, demoMode)");
   });
 
   it("guards the generation handler before resolving a period or creating a ZIP", () => {

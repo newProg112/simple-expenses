@@ -12,6 +12,7 @@ import {
 } from "../resources/js/plan-entitlements.js";
 
 const user = { uid: "test-user" };
+const explicitProProfile = { currentPlan: "Pro", billingOverride: true };
 
 function firestoreSnapshot(accountData, exists = true){
   return {
@@ -60,7 +61,7 @@ describe("demo-mode detection", () => {
   it("leaves normal Starter and Pro product plans unchanged", () => {
     expect(resolveProductAccess({}, { currentPlan: "Starter" }).effectivePlan)
       .toBe("Starter");
-    expect(resolveProductAccess({}, { currentPlan: "Pro" }).effectivePlan)
+    expect(resolveProductAccess({}, explicitProProfile).effectivePlan)
       .toBe("Pro");
   });
 

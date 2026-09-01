@@ -19,7 +19,7 @@ describe("demo Pro showcase integration contracts", () => {
     expect(page).toContain('getDoc(doc(db, "users", user.uid))');
     expect(page).toContain("account.exists() && account.data().demoMode === true");
     expect(page).toMatch(new RegExp(
-      `getFinancialReportAccess\\(\\s*profilePlan,\\s*REPORT_IDS\\.${reportId},\\s*` +
+      `getFinancialReportAccess\\(\\s*billingProfile,\\s*REPORT_IDS\\.${reportId},\\s*` +
       "account\\.exists\\(\\) && account\\.data\\(\\)\\.demoMode === true"
     ));
   });
@@ -27,7 +27,7 @@ describe("demo Pro showcase integration contracts", () => {
   it("authorises the Accountant Pack through the shared demo entitlement", () => {
     const page = read("exports.html");
     expect(page).toContain('getDoc(doc(db, "users", user.uid))');
-    expect(page).toContain("getAccountantPackAccess(profilePlan, demoMode)");
+    expect(page).toContain("getAccountantPackAccess(billingProfile, demoMode)");
   });
 
   it("keeps normal plan gates intact while demo mode resolves to Pro", () => {
@@ -41,7 +41,7 @@ describe("demo Pro showcase integration contracts", () => {
     expect(page).toContain("let productAccessLoaded = false;");
     expect(page).toContain("productAccessLoaded = true;");
     expect(page).toContain("Checking project access…");
-    expect(page).toContain("canUseAnotherActiveProject(currentPlan, projects, currentDemoMode)");
+    expect(page).toContain("canUseAnotherActiveProject(currentBillingProfile, projects, currentDemoMode)");
   });
 
   it("starts subscription controls hidden and blocks demo calls before fetch", () => {
@@ -74,14 +74,14 @@ describe("demo Pro showcase integration contracts", () => {
   it("rejects authoritative demo checkout, portal, and webhook billing updates", () => {
     const functions = read("functions/index.js");
     const stripeWriter = read("functions/lib/stripe-profile-writer.js");
-    expect(functions).toContain("const accountSnapshot = await users.doc(decodedToken.uid).get();");
+    expect(functions).toContain("const [accountSnapshot, profileSnapshot] = await Promise.all([");
     expect(functions).toContain('error: "Subscription changes are unavailable in the shared " +');
     expect(functions).toContain('error: "Subscription management is unavailable in the shared " +');
     expect(stripeWriter).toContain("Ignoring subscription update for demo account");
     expect(functions.indexOf("accountSnapshot.data().demoMode === true"))
-      .toBeLessThan(functions.indexOf("stripe.checkout.sessions.create"));
+      .toBeLessThan(functions.indexOf("createStripeCheckoutService({"));
     expect(functions.indexOf("accountSnap.data().demoMode === true"))
-      .toBeLessThan(functions.indexOf("stripe.billingPortal.sessions.create"));
+      .toBeLessThan(functions.indexOf("createStripePortalService({"));
   });
 
   it("keeps the canonical seed billing-neutral and independently demo-entitled", () => {

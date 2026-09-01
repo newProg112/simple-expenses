@@ -9,6 +9,18 @@ const adapters = [
   ["frontend", frontend],
   ["backend", backend]
 ];
+const liveBillingConfiguration = {
+  expectedMode: "live",
+  proPriceId: "price_1UAwaZQwA8Uui39wNgjE9zNh"
+};
+const liveProProfile = {
+  currentPlan: "Pro",
+  subscriptionStatus: "active",
+  stripeMode: "live",
+  stripePriceId: liveBillingConfiguration.proPriceId,
+  stripeCustomerId: "cus_live",
+  stripeSubscriptionId: "sub_live"
+};
 
 const starterEntitlements = {
   aiAssistantMonthlyLimit: 10,
@@ -125,6 +137,45 @@ describe.each(adapters)("%s plan entitlements", (_name, entitlements) => {
     expect(entitlements.hasProAccess("Pro", "trialing")).toBe(true);
     expect(entitlements.hasProAccess("Starter", "active")).toBe(false);
     expect(entitlements.hasProAccess(undefined, "active")).toBe(false);
+  });
+
+  it("requires a fully configured Stripe link or an explicit entitlement", () => {
+    expect(entitlements.effectiveBillingPlan(
+      liveProProfile,
+      false,
+      liveBillingConfiguration
+    )).toBe(entitlements.PLAN_IDS.PRO);
+    expect(entitlements.effectiveBillingPlan(
+      { ...liveProProfile, subscriptionStatus: "trialing", cancelAtPeriodEnd: true },
+      false,
+      liveBillingConfiguration
+    )).toBe(entitlements.PLAN_IDS.PRO);
+
+    for (const profile of [
+      { currentPlan: "Pro", subscriptionStatus: "active" },
+      { ...liveProProfile, subscriptionStatus: "past_due" },
+      { ...liveProProfile, stripeMode: "test" },
+      { ...liveProProfile, stripePriceId: "price_wrong" },
+      { ...liveProProfile, stripeCustomerId: "" },
+      { ...liveProProfile, stripeSubscriptionId: "" }
+    ]) {
+      expect(entitlements.effectiveBillingPlan(
+        profile,
+        false,
+        liveBillingConfiguration
+      )).toBe(entitlements.PLAN_IDS.STARTER);
+    }
+
+    expect(entitlements.effectiveBillingPlan(
+      { currentPlan: "Pro", billingOverride: true },
+      false,
+      liveBillingConfiguration
+    )).toBe(entitlements.PLAN_IDS.PRO);
+    expect(entitlements.effectiveBillingPlan(
+      { currentPlan: "Starter" },
+      true,
+      liveBillingConfiguration
+    )).toBe(entitlements.PLAN_IDS.PRO);
   });
 
   it("represents unlimited active projects only with null", () => {
@@ -250,6 +301,8 @@ describe("frontend and backend parity", () => {
       ["isProEligibleSubscriptionStatus", ["past_due"]],
       ["hasProAccess", ["Pro", "active"]],
       ["hasProAccess", ["Pro", "canceled"]],
+      ["hasConfiguredStripeProAccess", [liveProProfile, liveBillingConfiguration]],
+      ["effectiveBillingPlan", [liveProProfile, false, liveBillingConfiguration]],
       ["calendarMonthKey", [new Date("2027-01-01T00:00:00.000Z")]]
     ];
 

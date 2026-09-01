@@ -128,6 +128,40 @@ export function hasProAccess(plan, subscriptionStatus) {
     isProEligibleSubscriptionStatus(subscriptionStatus);
 }
 
+export function hasValidBillingOverride(profile) {
+  return Boolean(profile && profile.billingOverride === true &&
+    normalisePlan(profile.currentPlan) === PLAN_IDS.PRO);
+}
+
+export function hasConfiguredStripeProAccess(profile, billingConfiguration) {
+  const source = profile && typeof profile === "object" ? profile : {};
+  const configuration = billingConfiguration &&
+    typeof billingConfiguration === "object" ? billingConfiguration : {};
+  return hasProAccess(source.currentPlan, source.subscriptionStatus) &&
+    (configuration.expectedMode === "test" ||
+      configuration.expectedMode === "live") &&
+    typeof configuration.proPriceId === "string" &&
+    Boolean(configuration.proPriceId) &&
+    source.stripeMode === configuration.expectedMode &&
+    source.stripePriceId === configuration.proPriceId &&
+    typeof source.stripeCustomerId === "string" &&
+    Boolean(source.stripeCustomerId.trim()) &&
+    typeof source.stripeSubscriptionId === "string" &&
+    Boolean(source.stripeSubscriptionId.trim());
+}
+
+export function effectiveBillingPlan(
+  profile,
+  demoMode,
+  billingConfiguration
+) {
+  if (demoMode === true || hasValidBillingOverride(profile) ||
+    hasConfiguredStripeProAccess(profile, billingConfiguration)) {
+    return PLAN_IDS.PRO;
+  }
+  return PLAN_IDS.STARTER;
+}
+
 export function calendarMonthKey(date) {
   const value = arguments.length === 0 ? new Date() : date;
 

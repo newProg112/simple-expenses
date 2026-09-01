@@ -5,15 +5,17 @@
 const {
   MONTHLY_LIMIT_IDS,
   PLAN_IDS,
-  effectiveProductPlan,
+  effectiveBillingPlan,
   calendarMonthKey,
   getMonthlyLimit,
-  hasProAccess,
   isUnlimited,
   normalisePlan,
   normaliseUsageCount,
   remainingMonthlyAllowance,
 } = require("./plan-entitlements");
+const {
+  runtimeStripeBillingConfiguration,
+} = require("./stripe-billing-config");
 const {createAccountDeletionGuard} = require("./account-deletion-guard");
 
 const RESERVATION_TTL_MS = 2 * 60 * 1000;
@@ -89,23 +91,20 @@ function remainingAllowance(limit, successfulUses, pendingUses = 0) {
  * Resolves an authoritative effective plan from a billing profile.
  * @param {*} profile Billing profile data.
  * @param {*} account Authoritative business account data.
+ * @param {*} billingConfiguration Expected Stripe mode and Pro price.
  * @return {string} Starter or Pro plan identifier.
  */
-function resolveAuthoritativePlan(profile, account = {}) {
+function resolveAuthoritativePlan(
+    profile,
+    account = {},
+    billingConfiguration = runtimeStripeBillingConfiguration(),
+) {
   const source = profile && typeof profile === "object" ? profile : {};
-  const plan = normalisePlan(source.currentPlan);
-
-  if (account && account.demoMode === true) {
-    return effectiveProductPlan(plan, true);
-  }
-
-  if (source.billingOverride === true && plan === PLAN_IDS.PRO) {
-    return PLAN_IDS.PRO;
-  }
-
-  return hasProAccess(plan, source.subscriptionStatus) ?
-    PLAN_IDS.PRO :
-    PLAN_IDS.STARTER;
+  return effectiveBillingPlan(
+      source,
+      account && account.demoMode === true,
+      billingConfiguration,
+  );
 }
 
 /**
@@ -239,6 +238,8 @@ function createAiUsageManager(options) {
   }
   const nowProvider = options.now || (() => new Date());
   const serverTimestamp = options.serverTimestamp || (() => new Date());
+  const billingConfiguration = options.billingConfiguration ||
+    runtimeStripeBillingConfiguration();
   const deletionGuard = options.deletionGuard ||
     createAccountDeletionGuard(firestore);
 
@@ -272,7 +273,9 @@ function createAiUsageManager(options) {
       const profile = profileSnapshot.exists ? profileSnapshot.data() : {};
       const account = accountSnapshot.exists ? accountSnapshot.data() : {};
       const demoMode = account.demoMode === true;
-      const effectivePlan = resolveAuthoritativePlan(profile, account);
+      const effectivePlan = resolveAuthoritativePlan(
+          profile, account, billingConfiguration,
+      );
       const limit = getMonthlyLimit(
           effectivePlan,
           configuration.limitId,

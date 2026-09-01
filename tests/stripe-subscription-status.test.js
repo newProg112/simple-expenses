@@ -35,13 +35,16 @@ describe("Stripe subscription status preservation", () => {
       undefined,
       null,
       {},
-      { status: "cancelled" },
       { status: "ACTIVE" },
       { status: "unknown" },
       { status: 123 }
     ]) {
       expect(stripeSubscriptionStatus(subscription)).toBe("");
     }
+  });
+
+  it("normalises the legacy British spelling to Stripe's canceled status", () => {
+    expect(stripeSubscriptionStatus({ status: "cancelled" })).toBe("canceled");
   });
 
   it("keeps Pro eligibility limited to active and trialing", () => {
@@ -53,7 +56,9 @@ describe("Stripe subscription status preservation", () => {
 
   it("retains billing portal access for known non-canceled subscriptions", () => {
     for (const status of STRIPE_SUBSCRIPTION_STATUSES) {
-      expect(isBillingPortalStatus(status)).toBe(status !== "canceled");
+      expect(isBillingPortalStatus(status)).toBe(
+        status !== "canceled" && status !== "incomplete_expired"
+      );
     }
     expect(isBillingPortalStatus("cancelled")).toBe(false);
     expect(isBillingPortalStatus("unknown")).toBe(false);
@@ -61,7 +66,7 @@ describe("Stripe subscription status preservation", () => {
 
   it("connects the preserving mapper to checkout and subscription webhooks", () => {
     const source = readFileSync(
-      new URL("../functions/index.js", import.meta.url),
+      new URL("../functions/lib/stripe-webhook-processor.js", import.meta.url),
       "utf8"
     );
 

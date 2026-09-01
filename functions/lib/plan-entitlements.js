@@ -190,6 +190,55 @@ function hasProAccess(plan, subscriptionStatus) {
 }
 
 /**
+ * Checks whether a stored billing profile is an intentional manual override.
+ * @param {*} profile Stored billing profile.
+ * @return {boolean} Whether the override deliberately grants Pro.
+ */
+function hasValidBillingOverride(profile) {
+  return Boolean(profile && profile.billingOverride === true &&
+    normalisePlan(profile.currentPlan) === PLAN_IDS.PRO);
+}
+
+/**
+ * Checks whether a paid profile belongs to the configured Stripe environment.
+ * Missing legacy mode markers deliberately fail closed.
+ * @param {*} profile Stored billing profile.
+ * @param {*} billingConfiguration Expected Stripe mode and Pro price.
+ * @return {boolean} Whether the profile contains valid paid Pro evidence.
+ */
+function hasConfiguredStripeProAccess(profile, billingConfiguration) {
+  const source = profile && typeof profile === "object" ? profile : {};
+  const configuration = billingConfiguration &&
+    typeof billingConfiguration === "object" ? billingConfiguration : {};
+  return hasProAccess(source.currentPlan, source.subscriptionStatus) &&
+    (configuration.expectedMode === "test" ||
+      configuration.expectedMode === "live") &&
+    typeof configuration.proPriceId === "string" &&
+    Boolean(configuration.proPriceId) &&
+    source.stripeMode === configuration.expectedMode &&
+    source.stripePriceId === configuration.proPriceId &&
+    typeof source.stripeCustomerId === "string" &&
+    Boolean(source.stripeCustomerId.trim()) &&
+    typeof source.stripeSubscriptionId === "string" &&
+    Boolean(source.stripeSubscriptionId.trim());
+}
+
+/**
+ * Resolves authoritative product access from Demo, override, and Stripe state.
+ * @param {*} profile Stored billing profile.
+ * @param {*} demoMode Authoritative users/{uid}.demoMode value.
+ * @param {*} billingConfiguration Expected Stripe mode and Pro price.
+ * @return {string} Effective Starter or Pro product plan.
+ */
+function effectiveBillingPlan(profile, demoMode, billingConfiguration) {
+  if (demoMode === true || hasValidBillingOverride(profile) ||
+    hasConfiguredStripeProAccess(profile, billingConfiguration)) {
+    return PLAN_IDS.PRO;
+  }
+  return PLAN_IDS.STARTER;
+}
+
+/**
  * Produces a stable UTC calendar-month key.
  * @param {Date} date Date to format. Defaults to now only when omitted.
  * @return {string} UTC month key in YYYY-MM format.
@@ -224,5 +273,8 @@ module.exports = {
   isReportIncluded,
   isProEligibleSubscriptionStatus,
   hasProAccess,
+  hasValidBillingOverride,
+  hasConfiguredStripeProAccess,
+  effectiveBillingPlan,
   calendarMonthKey,
 };

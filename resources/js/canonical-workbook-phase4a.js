@@ -50,7 +50,7 @@ export function createFirestorePhase4APersistence({ services, user }) {
         customers: snapshotRecords(customers),
         projects: snapshotRecords(projects),
         budgets: snapshotRecords(budgets),
-        plan: profile.exists() ? profile.data().currentPlan : undefined,
+        billingProfile: profile.exists() ? profile.data() : {},
         demoMode: account.exists() && account.data().demoMode === true
       };
     },
@@ -458,7 +458,7 @@ export function planPhase4AExecution(preflight, executionContext = {}) {
   const projectedProjects = [...currentProjects];
   for(const operation of plan.operations.projects){
     if(operation.payload.status !== PROJECT_STATUS.ACTIVE) continue;
-    if(!canUseAnotherActiveProject(executionContext.plan, projectedProjects, executionContext.demoMode === true)){
+    if(!canUseAnotherActiveProject(executionContext.billingProfile, projectedProjects, executionContext.demoMode === true)){
       plan.errors.push(problem(
         "active-project-limit",
         "projects",

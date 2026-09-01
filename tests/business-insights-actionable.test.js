@@ -10,10 +10,16 @@ import {
   selectProjectPerformance
 } from "../assets/business-insights-actionable.js";
 import { businessInsightsPresentation, resolveBusinessInsightsAccess } from "../assets/business-insights-access.js";
+import { LIVE_PRO_PRICE_ID } from "../resources/js/stripe-billing-config.js";
 
 const today = new Date(2026, 7, 6);
 const period = { currentStart:new Date(2026, 7, 1), currentEnd:today };
 const snap = value => ({ exists:() => true, data:() => value });
+const liveProProfile = {
+  currentPlan: "Pro", subscriptionStatus: "active", stripeMode: "live",
+  stripePriceId: LIVE_PRO_PRICE_ID, stripeCustomerId: "cus_live",
+  stripeSubscriptionId: "sub_live"
+};
 
 describe("Business Insights Phase 2 actionable calculations", () => {
   it("ranks top customers by net invoice revenue with percentage and stable tie-breaks", () => {
@@ -86,7 +92,7 @@ describe("Business Insights Phase 2 actionable calculations", () => {
       bills:[{ dueDate:"2026-08-10", status:"Unpaid", total:50 }], expenses:[], journals:[], accountingAvailable:true
     }, { referenceDate:today, period, projectSummaries:[], vatRegistered:false, formatMoney:value => `£${value}` }) };
     const starter = resolveBusinessInsightsAccess(snap({demoMode:false}), snap({currentPlan:"Starter"}));
-    const pro = resolveBusinessInsightsAccess(snap({demoMode:false}), snap({currentPlan:"Pro"}));
+    const pro = resolveBusinessInsightsAccess(snap({demoMode:false}), snap(liveProProfile));
     const demo = resolveBusinessInsightsAccess(snap({demoMode:true}), snap({currentPlan:"Starter"}));
     const starterView = businessInsightsPresentation(model, starter);
     expect(starterView.actionable).toEqual([]);

@@ -1356,7 +1356,7 @@
     import { app, auth, db, functions } from "./firebase-config.js";
     import { trackBeginCheckout } from "./assets/analytics-events.js?v=20260802-analytics1";
     import { trackDemoAnalyticsEvent } from "./assets/demo-analytics.js?v=20260805-demo-analytics1";
-    import { resolveProductAccess } from "./assets/demo-mode.js?v=20260806-demo-pro3";
+    import { resolveProductAccess } from "./assets/demo-mode.js?v=20260901-stripe-live1";
     import {
       createAccountAccessRequestTracker,
       resolveAccountAccessSnapshot
@@ -1365,6 +1365,7 @@
       buildMonthlyUsageView
     } from "./resources/js/monthly-usage.js?v=20260806-demo-pro2";
     import { firebaseFunctionUrl } from "./resources/js/firebase-runtime.js";
+    import { clientStripeBillingConfiguration } from "./resources/js/stripe-billing-config.js?v=20260901-stripe-live1";
     import { createRequestId } from "./resources/js/request-id.js";
     import {
       createAccountDeletionController
@@ -1423,6 +1424,7 @@
       firebaseFunctionUrl("ensureUserProfile");
     const MONTHLY_USAGE_FUNCTION_URL =
       firebaseFunctionUrl("getMonthlyUsage");
+    const EXPECTED_STRIPE_BILLING = clientStripeBillingConfiguration();
 
     let currentUser = null;
     let billingProfile = {};
@@ -1529,12 +1531,19 @@
     }
 
     function normalizeSubscriptionStatus(status){
+      const normalized = status === "cancelled" ? "canceled" : status;
       return [
+        "incomplete",
+        "incomplete_expired",
+        "trialing",
         "active",
+        "past_due",
+        "canceled",
+        "unpaid",
+        "paused",
         "comped",
-        "discounted",
-        "cancelled"
-      ].includes(status) ? status : "";
+        "discounted"
+      ].includes(normalized) ? normalized : "";
     }
 
     function readBillingProfile(profile = {}){
@@ -1544,6 +1553,10 @@
         billingOverride: profile.billingOverride === true,
         billingOverrideReason: profile.billingOverrideReason || "",
         stripeCustomerId: profile.stripeCustomerId || "",
+        stripeSubscriptionId: profile.stripeSubscriptionId || "",
+        stripePriceId: profile.stripePriceId || "",
+        stripeMode: profile.stripeMode || "",
+        cancelAtPeriodEnd: profile.cancelAtPeriodEnd === true,
         subscriptionCurrentPeriodEnd: profile.subscriptionCurrentPeriodEnd || null,
         paymentMethodBrand: profile.paymentMethodBrand || "",
         paymentMethodLast4: profile.paymentMethodLast4 || ""
@@ -1560,6 +1573,10 @@
         billingOverride: profile.billingOverride,
         billingOverrideReason: profile.billingOverrideReason,
         stripeCustomerId: profile.stripeCustomerId,
+        stripeSubscriptionId: profile.stripeSubscriptionId,
+        stripePriceId: profile.stripePriceId,
+        stripeMode: profile.stripeMode,
+        cancelAtPeriodEnd: profile.cancelAtPeriodEnd,
         subscriptionCurrentPeriodEnd: profile.subscriptionCurrentPeriodEnd,
         paymentMethodBrand: profile.paymentMethodBrand,
         paymentMethodLast4: profile.paymentMethodLast4
@@ -1973,20 +1990,28 @@
         return;
       }
 
-      const currentPlan = normalizePlan(account.currentPlan);
+      const currentPlan = productAccess?.effectivePlan || "Starter";
       const subscriptionStatus = normalizeSubscriptionStatus(account.subscriptionStatus);
       const overrideReason = account.billingOverrideReason
         ? ` ${account.billingOverrideReason}`
         : "";
       const isPro = currentPlan === "Pro";
-      const isCancelled = subscriptionStatus === "cancelled";
-      const isActive = isPro && subscriptionStatus === "active";
-      const isComped = isPro && subscriptionStatus === "comped";
-      const isDiscounted = isPro && subscriptionStatus === "discounted";
-      const canUpgrade = !isActive && !isComped && !isDiscounted;
-      const canManageSubscription = isActive &&
+      const isCancelled = subscriptionStatus === "canceled" ||
+        subscriptionStatus === "incomplete_expired";
+      const isActive = isPro && ["active", "trialing"].includes(subscriptionStatus);
+      const isDiscounted = isPro && account.billingOverride === true &&
+        subscriptionStatus === "discounted";
+      const isComped = isPro && account.billingOverride === true && !isDiscounted;
+      const hasConfiguredBillingLink =
+        account.stripeMode === EXPECTED_STRIPE_BILLING.expectedMode &&
+        hasValue(account.stripeCustomerId) &&
+        hasValue(account.stripeSubscriptionId);
+      const canManageSubscription = hasConfiguredBillingLink &&
+        ["incomplete", "trialing", "active", "past_due", "unpaid", "paused"]
+          .includes(subscriptionStatus) &&
         account.billingOverride !== true &&
         hasValue(account.stripeCustomerId);
+      const canUpgrade = !isPro && !canManageSubscription;
 
       let kicker = "Current plan";
       let price = "Starter";
@@ -1995,8 +2020,12 @@
 
       if(isActive){
         price = "£15/month";
-        message = "Subscription active";
-        statusMessage = "Your subscription is active.";
+        message = subscriptionStatus === "trialing" ? "Subscription trial active" : "Subscription active";
+        statusMessage = account.cancelAtPeriodEnd
+          ? "Your Pro access remains active until the end of the current billing period."
+          : subscriptionStatus === "trialing"
+            ? "Your subscription trial is active."
+            : "Your subscription is active.";
       } else if(isComped){
         price = "Free Pro";
         message = "Free Pro account";
@@ -2007,9 +2036,14 @@
         statusMessage = `Discounted Pro account.${overrideReason}`;
       } else if(isCancelled){
         kicker = "Subscription cancelled";
-        price = isPro ? "Pro" : "Starter";
+        price = "Starter";
         message = "Subscription cancelled";
         statusMessage = "Subscription cancelled. You can upgrade again when ready.";
+      } else if(["past_due", "unpaid", "paused", "incomplete"].includes(subscriptionStatus)){
+        kicker = "Billing action needed";
+        price = "Starter";
+        message = "Pro access is paused";
+        statusMessage = "Open Billing Portal to review and recover your subscription.";
       } else if(isPro){
         price = "Pro";
       }

@@ -10,15 +10,31 @@
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onCall, onRequest} = require("firebase-functions/v2/https");
 const {onTaskDispatched} = require("firebase-functions/v2/tasks");
-const {defineSecret} = require("firebase-functions/params");
+const {
+  defineBoolean,
+  defineSecret,
+  defineString,
+} = require("firebase-functions/params");
 const functionsV1 = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const {FieldValue, Timestamp} = require("firebase-admin/firestore");
 const Stripe = require("stripe");
 const {
-  isBillingPortalStatus,
-  stripeSubscriptionStatus,
-} = require("./lib/stripe-subscription-status");
+  assertConfiguredProPrice,
+  assertStripeSecretKeyMode,
+  validateStripeBillingConfiguration,
+} = require("./lib/stripe-billing-config");
+const {
+  StripeCheckoutError,
+  createStripeCheckoutService,
+} = require("./lib/stripe-checkout-service");
+const {
+  StripePortalError,
+  createStripePortalService,
+} = require("./lib/stripe-portal-service");
+const {
+  createStripeWebhookProcessor,
+} = require("./lib/stripe-webhook-processor");
 const {readMonthlyUsage} = require("./lib/monthly-usage-reader");
 const {createAdminMetricsHandler} = require("./lib/admin-metrics-handler");
 const {
@@ -158,15 +174,40 @@ const restoreJsonBackupV2Handler = createJsonBackupRestoreHandler(
 
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
+const stripeExpectedMode = defineString("STRIPE_EXPECTED_MODE", {
+  default: "test",
+});
+const stripeProPriceId = defineString("STRIPE_PRO_PRICE_ID", {
+  default: "price_1TnLTCJmLqrFk5SqusEJiIhu",
+});
+const stripeCheckoutEnabled = defineBoolean("STRIPE_CHECKOUT_ENABLED", {
+  default: false,
+});
 const adminUidsSecret = defineSecret("SIMPLE_BOOKS_ADMIN_UIDS");
 const demoIdentifiersSecret = defineSecret("SIMPLE_BOOKS_DEMO_IDENTIFIERS");
 const protectedUidsSecret = defineSecret("SIMPLE_BOOKS_PROTECTED_UIDS");
-const simpleBooksProPriceId = "price_1TnLTCJmLqrFk5SqusEJiIhu";
 const successUrl = "https://simple-books.co.uk/account.html?checkout=success";
 const cancelUrl = "https://simple-books.co.uk/account.html?checkout=cancelled";
 const billingPortalReturnUrl = "https://simple-books.co.uk/account.html";
 const userProfiles = firestore.collection("userProfiles");
 const users = firestore.collection("users");
+
+/** @return {object} Validated runtime Stripe billing configuration. */
+function stripeBillingConfiguration() {
+  return validateStripeBillingConfiguration({
+    expectedMode: stripeExpectedMode.value(),
+    proPriceId: stripeProPriceId.value(),
+    checkoutEnabled: stripeCheckoutEnabled.value(),
+  });
+}
+
+/** @return {object} A mode-validated Stripe client and configuration. */
+function configuredStripeClient() {
+  const configuration = stripeBillingConfiguration();
+  const secretKey = stripeSecretKey.value();
+  assertStripeSecretKeyMode(secretKey, configuration);
+  return {configuration, stripe: new Stripe(secretKey)};
+}
 
 /**
  * Builds the default Simple Books billing profile for a Firebase user.
@@ -284,20 +325,6 @@ exports.ensureUserProfile = onRequest(
 );
 
 /**
- * Returns the first Stripe price ID on a subscription.
- * @param {object} subscription Stripe subscription object.
- * @return {string} Stripe price ID.
- */
-function subscriptionPriceId(subscription) {
-  const items = subscription.items && subscription.items.data ?
-    subscription.items.data :
-    [];
-  const firstItem = items[0] || {};
-  const price = firstItem.price || {};
-  return price.id || "";
-}
-
-/**
  * Returns a Stripe customer ID from a subscription object.
  * @param {object} subscription Stripe subscription object.
  * @return {string} Stripe customer ID.
@@ -323,26 +350,6 @@ function stripeTimestampToFirestore(seconds) {
   return numericSeconds ?
     admin.firestore.Timestamp.fromMillis(numericSeconds * 1000) :
     null;
-}
-
-/**
- * Retrieves a subscription with payment method details expanded.
- * @param {object} stripe Stripe client.
- * @param {string|object} subscription Stripe subscription ID or object.
- * @return {Promise<object|null>} Expanded Stripe subscription object.
- */
-async function retrieveExpandedSubscription(stripe, subscription) {
-  const subscriptionId = typeof subscription === "string" ?
-    subscription :
-    subscription && subscription.id;
-
-  if (!subscriptionId) {
-    return null;
-  }
-
-  return stripe.subscriptions.retrieve(subscriptionId, {
-    expand: ["default_payment_method"],
-  });
 }
 
 /**
@@ -429,15 +436,6 @@ async function subscriptionBillingDetails(stripe, subscription) {
     });
   }
 
-  console.log("Stripe subscription period end values", {
-    subscriptionId: subscription.id,
-    subscriptionCurrentPeriodEndSeconds:
-      periodEnds.subscriptionCurrentPeriodEndSeconds || null,
-    itemCurrentPeriodEndSeconds:
-      periodEnds.itemCurrentPeriodEndSeconds || null,
-    currentPeriodEndSeconds: currentPeriodEndSeconds || null,
-  });
-
   return {
     subscriptionCurrentPeriodEnd: stripeTimestampToFirestore(
         currentPeriodEndSeconds,
@@ -447,58 +445,21 @@ async function subscriptionBillingDetails(stripe, subscription) {
 }
 
 /**
- * Finds a Firebase user ID for a Stripe subscription event.
- * @param {object} subscription Stripe subscription object.
- * @return {Promise<string>} Firebase user ID, or an empty string.
- */
-async function findUidForSubscription(subscription) {
-  const metadata = subscription.metadata || {};
-
-  if (metadata.firebaseUid) {
-    return metadata.firebaseUid;
-  }
-
-  const subscriptionSnap = await userProfiles
-      .where("stripeSubscriptionId", "==", subscription.id)
-      .limit(1)
-      .get();
-
-  if (!subscriptionSnap.empty) {
-    return subscriptionSnap.docs[0].id;
-  }
-
-  if (!subscriptionCustomerId(subscription)) {
-    return "";
-  }
-
-  const customerSnap = await userProfiles
-      .where("stripeCustomerId", "==", subscriptionCustomerId(subscription))
-      .limit(1)
-      .get();
-
-  return customerSnap.empty ? "" : customerSnap.docs[0].id;
-}
-
-/**
  * Writes subscription details to the Simple Books user profile.
  * @param {string} uid Firebase user ID.
  * @param {object} data Subscription profile fields.
+ * @param {object} eventContext Stripe webhook event identity.
  * @return {Promise<void>} Resolves when Firestore has been updated.
  */
-async function updateSubscriptionProfile(uid, data) {
-  console.log("Writing subscription billing fields", {
-    uid,
-    subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd || null,
-    paymentMethodBrand: data.paymentMethodBrand || "",
-    paymentMethodLast4: data.paymentMethodLast4 || "",
-  });
+async function updateSubscriptionProfile(uid, data, eventContext = {}) {
   return createStripeProfileWriter({
     firestore,
     auth: admin.auth(),
     fieldValue: admin.firestore.FieldValue,
     deletionGuard: accountDeletionGuard,
+    billingConfiguration: stripeBillingConfiguration(),
     logger: console,
-  })(uid, data);
+  })(uid, data, eventContext);
 }
 
 exports.createCheckoutSession = onRequest(
@@ -508,6 +469,7 @@ exports.createCheckoutSession = onRequest(
         "http://127.0.0.1:5500",
         "http://localhost:5500",
         "https://simple-books.co.uk",
+        "https://simple-books-office.web.app",
       ],
       invoker: "public",
     },
@@ -530,7 +492,10 @@ exports.createCheckoutSession = onRequest(
       try {
         const decodedToken = await admin.auth().verifyIdToken(match[1]);
         await accountDeletionGuard.assertAccountNotDeleting(decodedToken.uid);
-        const accountSnapshot = await users.doc(decodedToken.uid).get();
+        const [accountSnapshot, profileSnapshot] = await Promise.all([
+          users.doc(decodedToken.uid).get(),
+          userProfiles.doc(decodedToken.uid).get(),
+        ]);
         if (accountSnapshot.exists &&
           accountSnapshot.data().demoMode === true) {
           response.status(409).json({
@@ -540,30 +505,31 @@ exports.createCheckoutSession = onRequest(
           return;
         }
 
-        const stripe = new Stripe(stripeSecretKey.value());
-        console.log("Stripe account:", await stripe.accounts.retrieve());
-        console.log(await stripe.prices.retrieve(simpleBooksProPriceId));
         const uid = decodedToken.uid;
-
-        const session = await stripe.checkout.sessions.create({
-          mode: "subscription",
-          line_items: [
-            {
-              price: simpleBooksProPriceId,
-              quantity: 1,
-            },
-          ],
-          success_url: successUrl,
-          cancel_url: cancelUrl,
-          client_reference_id: uid,
-          metadata: {
-            firebaseUid: uid,
-          },
-          subscription_data: {
-            metadata: {
-              firebaseUid: uid,
-            },
-          },
+        const profile = profileSnapshot.exists ?
+          profileSnapshot.data() || {} : {};
+        const {configuration, stripe} = configuredStripeClient();
+        const checkout = createStripeCheckoutService({
+          stripe,
+          firestore,
+          billingConfiguration: configuration,
+          fieldValue: admin.firestore.FieldValue,
+          timestampFactory: admin.firestore.Timestamp,
+        });
+        if (!configuration.checkoutEnabled) {
+          throw new StripeCheckoutError(
+              "checkout-disabled",
+              "Checkout is temporarily unavailable.",
+              503,
+          );
+        }
+        const price = await stripe.prices.retrieve(configuration.proPriceId);
+        assertConfiguredProPrice(price, configuration);
+        const {session} = await checkout({
+          uid,
+          profile,
+          successUrl,
+          cancelUrl,
         });
 
         if (!session.url) {
@@ -604,6 +570,7 @@ exports.createCheckoutSession = onRequest(
           "Unknown checkout error.";
         const errorStack = error && error.stack ? String(error.stack) : "";
         const isAuthError = errorCode.startsWith("auth/");
+        const isCheckoutError = error instanceof StripeCheckoutError;
         const isDeleting = error && error.details &&
           error.details.reason === "account-deletion-in-progress";
 
@@ -615,12 +582,14 @@ exports.createCheckoutSession = onRequest(
         ${errorStack}`,
         );
 
-        response.status(isAuthError ? 401 : (isDeleting ? 409 : 500)).json({
+        response.status(isAuthError ? 401 : (isDeleting ? 409 :
+          (isCheckoutError ? error.httpStatus : 500))).json({
           error: isAuthError ?
             "You must be signed in to start checkout." :
             (isDeleting ?
               "Checkout is unavailable while your account is being deleted." :
-              "Checkout session could not be created."),
+              (isCheckoutError ? error.message :
+                "Checkout session could not be created.")),
         });
         return;
       }
@@ -686,24 +655,15 @@ exports.createBillingPortalSession = onRequest(
           return;
         }
         const profile = profileSnap.exists ? profileSnap.data() : {};
-        const customerId = profile.stripeCustomerId || "";
-        const hasPortalAccess = profile.currentPlan === "Pro" &&
-          isBillingPortalStatus(profile.subscriptionStatus) &&
-          profile.billingOverride !== true &&
-          customerId;
-
-        if (!hasPortalAccess) {
-          response.status(403).json({
-            error: "Billing Portal is only available for active Pro " +
-              "subscriptions.",
-          });
-          return;
-        }
-
-        const stripe = new Stripe(stripeSecretKey.value());
-        const session = await stripe.billingPortal.sessions.create({
-          customer: customerId,
-          return_url: billingPortalReturnUrl,
+        const {configuration, stripe} = configuredStripeClient();
+        const portal = createStripePortalService({
+          stripe,
+          billingConfiguration: configuration,
+        });
+        const {session} = await portal({
+          uid: decodedToken.uid,
+          profile,
+          returnUrl: billingPortalReturnUrl,
         });
 
         if (!session.url) {
@@ -723,6 +683,7 @@ exports.createBillingPortalSession = onRequest(
           "Unknown billing portal error.";
         const errorStack = error && error.stack ? String(error.stack) : "";
         const isAuthError = errorCode.startsWith("auth/");
+        const isPortalError = error instanceof StripePortalError;
         const isDeleting = error && error.details &&
           error.details.reason === "account-deletion-in-progress";
 
@@ -734,12 +695,14 @@ exports.createBillingPortalSession = onRequest(
         ${errorStack}`,
         );
 
-        response.status(isAuthError ? 401 : (isDeleting ? 409 : 500)).json({
+        response.status(isAuthError ? 401 : (isDeleting ? 409 :
+          (isPortalError ? error.httpStatus : 500))).json({
           error: isAuthError ?
             "You must be signed in to manage your subscription." :
             (isDeleting ?
               "Billing is unavailable while your account is being deleted." :
-              "Billing Portal session could not be created."),
+              (isPortalError ? error.message :
+                "Billing Portal session could not be created.")),
         });
       }
     },
@@ -751,7 +714,21 @@ exports.stripeWebhook = onRequest(
       invoker: "public",
     },
     async (request, response) => {
-      const stripe = new Stripe(stripeSecretKey.value());
+      if (request.method !== "POST") {
+        response.status(405).send("Method not allowed.");
+        return;
+      }
+      let stripe;
+      let configuration;
+      try {
+        ({stripe, configuration} = configuredStripeClient());
+      } catch (error) {
+        console.error("stripeWebhook configuration rejected", {
+          code: error && error.code ? String(error.code) : "unknown",
+        });
+        response.status(500).send("Webhook configuration is invalid.");
+        return;
+      }
       const signature = request.get("stripe-signature");
       let event;
 
@@ -770,127 +747,59 @@ exports.stripeWebhook = onRequest(
       }
 
       try {
-        if (event.type === "checkout.session.completed") {
-          const session = event.data.object;
-          const metadata = session.metadata || {};
-          const uid = metadata.firebaseUid || session.client_reference_id;
-          let subscription = null;
-
-          if (!uid) {
-            console.error(
-                "stripeWebhook checkout session missing Firebase uid",
-                {sessionId: session.id},
-            );
-            response.json({received: true});
-            return;
-          }
-
-          if (session.subscription) {
-            subscription = await retrieveExpandedSubscription(
-                stripe,
-                session.subscription,
-            );
-          }
-
-          const stripePriceId = subscription ?
-            subscriptionPriceId(subscription) :
-            "";
-          const billingDetails = subscription ?
-            await subscriptionBillingDetails(stripe, subscription) :
-            {};
-
-          const subscriptionStatus = stripeSubscriptionStatus(subscription);
-          const profileUpdate = await updateSubscriptionProfile(uid, {
-            subscriptionStatus: stripeSubscriptionStatus(subscription),
-            stripeCustomerId: session.customer || "",
-            stripeSubscriptionId: session.subscription || "",
-            stripePriceId,
-            ...billingDetails,
-          });
-          if (profileUpdate.updated && subscription &&
-            ["active", "trialing"].includes(subscriptionStatus)) {
-            try {
-              const user = await admin.auth().getUser(uid);
-              await writeActivityEvent({
-                firestore: admin.firestore(),
-                fieldValue: admin.firestore.FieldValue,
-                identity: {
-                  uid,
-                  displayEmail: user.email || "",
-                  plan: "pro",
-                },
-                eventType: "upgraded_to_pro",
-                idempotencyKey: event.id,
-              });
-            } catch (activityError) {
-              console.warn("Upgrade activity could not be recorded", {
-                code: activityError && activityError.code ?
-                  String(activityError.code) : "unknown",
-              });
-            }
+        const processWebhook = createStripeWebhookProcessor({
+          stripe,
+          billingConfiguration: configuration,
+          updateProfile: updateSubscriptionProfile,
+          billingDetails: subscriptionBillingDetails,
+        });
+        const result = await processWebhook(event);
+        if (result.handled && result.profileUpdate.updated &&
+          result.eventType === "checkout.session.completed" &&
+          result.configuredPrice &&
+          ["active", "trialing"].includes(result.subscriptionStatus)) {
+          try {
+            const user = await admin.auth().getUser(result.uid);
+            await writeActivityEvent({
+              firestore: admin.firestore(),
+              fieldValue: admin.firestore.FieldValue,
+              identity: {
+                uid: result.uid,
+                displayEmail: user.email || "",
+                plan: "pro",
+              },
+              eventType: "upgraded_to_pro",
+              idempotencyKey: event.id,
+            });
+          } catch (activityError) {
+            console.warn("Upgrade activity could not be recorded", {
+              code: activityError && activityError.code ?
+                String(activityError.code) : "unknown",
+            });
           }
         }
-
-        if (event.type === "customer.subscription.created" ||
-          event.type === "customer.subscription.updated" ||
-          event.type === "customer.subscription.deleted") {
-          let subscription = event.data.object;
-
-          if (event.type === "customer.subscription.created" ||
-            event.type === "customer.subscription.updated") {
-            subscription = await retrieveExpandedSubscription(
-                stripe,
-                subscription,
-            );
-          }
-
-          const uid = await findUidForSubscription(subscription);
-
-          if (!uid) {
-            console.error(
-                "stripeWebhook subscription missing Firebase uid",
-                {subscriptionId: subscription.id},
-            );
-            response.json({received: true});
-            return;
-          }
-
-          const billingDetails = await subscriptionBillingDetails(
-              stripe,
-              subscription,
-          );
-
-          const profileUpdate = await updateSubscriptionProfile(uid, {
-            subscriptionStatus: stripeSubscriptionStatus(subscription),
-            stripeCustomerId: subscriptionCustomerId(subscription),
-            stripeSubscriptionId: subscription.id,
-            stripePriceId: subscriptionPriceId(subscription),
-            ...billingDetails,
-          });
-          if (profileUpdate.updated &&
-            event.type === "customer.subscription.deleted") {
-            try {
-              const user = await admin.auth().getUser(uid);
-              await writeActivityEvent({
-                firestore: admin.firestore(),
-                fieldValue: admin.firestore.FieldValue,
-                identity: {
-                  uid,
-                  displayEmail: user.email || "",
-                  plan: normalizePlan("pro"),
-                },
-                eventType: "subscription_cancelled",
-                idempotencyKey: event.id,
-              });
-            } catch (activityError) {
-              console.warn("Cancellation activity could not be recorded", {
-                code: activityError && activityError.code ?
-                  String(activityError.code) : "unknown",
-              });
-            }
+        if (result.handled && result.profileUpdate.updated &&
+          result.eventType === "customer.subscription.deleted") {
+          try {
+            const user = await admin.auth().getUser(result.uid);
+            await writeActivityEvent({
+              firestore: admin.firestore(),
+              fieldValue: admin.firestore.FieldValue,
+              identity: {
+                uid: result.uid,
+                displayEmail: user.email || "",
+                plan: normalizePlan("pro"),
+              },
+              eventType: "subscription_cancelled",
+              idempotencyKey: event.id,
+            });
+          } catch (activityError) {
+            console.warn("Cancellation activity could not be recorded", {
+              code: activityError && activityError.code ?
+                String(activityError.code) : "unknown",
+            });
           }
         }
-
         response.json({received: true});
       } catch (error) {
         console.error("stripeWebhook handler failed", {
@@ -952,10 +861,14 @@ exports.processAccountDeletion = onTaskDispatched(
       demoConfiguration: demoIdentifiersSecret.value(),
       protectedUidConfiguration: protectedUidsSecret.value(),
       logger: console,
-      stripeCleanup: createStripeAccountDeletionService({
-        stripe: new Stripe(stripeSecretKey.value()),
-        firestore,
-      }),
+      stripeCleanup: async (uid) => {
+        const {stripe, configuration} = configuredStripeClient();
+        return createStripeAccountDeletionService({
+          stripe,
+          firestore,
+          billingConfiguration: configuration,
+        })(uid);
+      },
       storageCleanup: createStorageAccountDeletionService({
         bucket: admin.storage().bucket(),
         firestore,
@@ -1076,6 +989,8 @@ exports.getMonthlyUsage = onRequest(
         const usage = await readMonthlyUsage(
             admin.firestore(),
             decodedToken.uid,
+            new Date(),
+            stripeBillingConfiguration(),
         );
         response.json({
           ...usage,
@@ -1111,7 +1026,8 @@ exports.getAdminMetrics = onCall(
       firestore: admin.firestore(),
       adminUidConfiguration: adminUidsSecret.value(),
       demoConfiguration: demoIdentifiersSecret.value(),
-      proPriceId: simpleBooksProPriceId,
+      proPriceId: stripeBillingConfiguration().proPriceId,
+      expectedMode: stripeBillingConfiguration().expectedMode,
       logger: console,
     })(request),
 );
@@ -1214,7 +1130,8 @@ exports.getAdminUserDetails = onCall(
       firestore: admin.firestore(),
       adminUidConfiguration: adminUidsSecret.value(),
       demoConfiguration: demoIdentifiersSecret.value(),
-      proPriceId: simpleBooksProPriceId,
+      proPriceId: stripeBillingConfiguration().proPriceId,
+      expectedMode: stripeBillingConfiguration().expectedMode,
       logger: console,
     })(request),
 );

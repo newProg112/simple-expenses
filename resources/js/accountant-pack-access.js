@@ -1,12 +1,20 @@
 import {
   FEATURE_IDS,
   PLAN_IDS,
-  effectiveProductPlan,
+  effectiveBillingPlan,
   isFeatureIncluded
-} from "./plan-entitlements.js?v=20260806-demo-pro1";
+} from "./plan-entitlements.js?v=20260901-stripe-live1";
+import { clientStripeBillingConfiguration } from "./stripe-billing-config.js?v=20260901-stripe-live1";
 
-export function getAccountantPackAccess(plan, demoMode = false) {
-  const allowed = isFeatureIncluded(effectiveProductPlan(plan, demoMode), FEATURE_IDS.ACCOUNTANT_PACK);
+export function getAccountantPackAccess(profile, demoMode = false) {
+  const allowed = isFeatureIncluded(
+    effectiveBillingPlan(
+      profile,
+      demoMode,
+      clientStripeBillingConfiguration()
+    ),
+    FEATURE_IDS.ACCOUNTANT_PACK
+  );
 
   return Object.freeze({
     allowed,

@@ -4,6 +4,7 @@
 
 const crypto = require("node:crypto");
 const {AccountDeletionError} = require("./account-deletion-error");
+const {assertStripeObjectMode} = require("./stripe-billing-config");
 
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"]);
 
@@ -48,19 +49,27 @@ async function listAll(list, parameters = {}) {
   return results;
 }
 
-function addStoredIdentifiers(profile, customers, subscriptions) {
+function addStoredIdentifiers(profile, customers, subscriptions, billingConfiguration) {
+  if (!profile || profile.stripeMode !== billingConfiguration.expectedMode) {
+    return;
+  }
   const customerId = objectId(profile && profile.stripeCustomerId);
   const subscriptionId = objectId(profile && profile.stripeSubscriptionId);
   if (customerId) customers.add(customerId);
   if (subscriptionId) subscriptions.add(subscriptionId);
 }
 
-async function discoverStripeResources(stripe, uid, profile = {}) {
+async function discoverStripeResources(stripe, uid, profile = {}, billingConfiguration) {
+  if (!billingConfiguration) {
+    throw new AccountDeletionError("stripe-configuration-invalid");
+  }
   const customerIds = new Set();
   const subscriptionIds = new Set();
   const sessionsById = new Map();
   const subscriptionsById = new Map();
-  addStoredIdentifiers(profile, customerIds, subscriptionIds);
+  addStoredIdentifiers(
+      profile, customerIds, subscriptionIds, billingConfiguration,
+  );
 
   const [customers, subscriptions, sessions] = await Promise.all([
     listAll((parameters) => stripe.customers.list(parameters)),
@@ -69,9 +78,11 @@ async function discoverStripeResources(stripe, uid, profile = {}) {
   ]);
 
   for (const customer of customers) {
+    assertStripeObjectMode(customer, billingConfiguration, "customer");
     if (belongsDirectlyToUid(customer, uid)) customerIds.add(objectId(customer));
   }
   for (const subscription of subscriptions) {
+    assertStripeObjectMode(subscription, billingConfiguration, "subscription");
     const customerId = objectId(subscription.customer);
     if (belongsDirectlyToUid(subscription, uid) || customerIds.has(customerId)) {
       subscriptionIds.add(objectId(subscription));
@@ -80,6 +91,7 @@ async function discoverStripeResources(stripe, uid, profile = {}) {
     }
   }
   for (const session of sessions) {
+    assertStripeObjectMode(session, billingConfiguration, "checkout-session");
     const customerId = objectId(session.customer);
     if (belongsDirectlyToUid(session, uid) || customerIds.has(customerId)) {
       sessionsById.set(objectId(session), session);
@@ -93,6 +105,9 @@ async function discoverStripeResources(stripe, uid, profile = {}) {
     if (!subscriptionsById.has(subscriptionId)) {
       try {
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        assertStripeObjectMode(
+            subscription, billingConfiguration, "subscription",
+        );
         subscriptionsById.set(subscriptionId, subscription);
       } catch (error) {
         if (String(error && error.code || "") !== "resource_missing") throw error;
@@ -107,13 +122,19 @@ function createStripeAccountDeletionService(options = {}) {
     throw new TypeError("Stripe deletion dependencies are incomplete.");
   }
   const stripe = options.stripe;
+  const billingConfiguration = options.billingConfiguration;
+  if (!billingConfiguration) {
+    throw new TypeError("Stripe deletion billing configuration is incomplete.");
+  }
   const profiles = options.firestore.collection("userProfiles");
 
   return async function reconcileStripe(uid) {
     try {
       const profileSnapshot = await profiles.doc(uid).get();
       const profile = profileSnapshot.exists ? profileSnapshot.data() || {} : {};
-      const resources = await discoverStripeResources(stripe, uid, profile);
+      const resources = await discoverStripeResources(
+          stripe, uid, profile, billingConfiguration,
+      );
       for (const session of resources.sessionsById.values()) {
         if (session.status === "open") {
           await stripe.checkout.sessions.expire(session.id, {}, {
@@ -128,7 +149,9 @@ function createStripeAccountDeletionService(options = {}) {
           });
         }
       }
-      const verification = await discoverStripeResources(stripe, uid, profile);
+      const verification = await discoverStripeResources(
+          stripe, uid, profile, billingConfiguration,
+      );
       const openSession = [...verification.sessionsById.values()]
           .some((session) => session.status === "open");
       const liveSubscription = [...verification.subscriptionsById.values()]

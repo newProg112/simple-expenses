@@ -15,6 +15,7 @@ const {
   usageDocumentPath
 } = require("../functions/lib/ai-usage.js");
 const { PLAN_IDS } = require("../functions/lib/plan-entitlements.js");
+const { TEST_PRO_PRICE_ID } = require("../functions/lib/stripe-billing-config.js");
 
 const uid = "usage-test-user";
 const accountPath = `users/${uid}`;
@@ -27,6 +28,18 @@ const requestIds = [
   "00000000-0000-4000-8000-000000000002",
   "00000000-0000-4000-8000-000000000003"
 ];
+
+function testProProfile(overrides = {}) {
+  return {
+    currentPlan: "Pro",
+    subscriptionStatus: "active",
+    stripeMode: "test",
+    stripePriceId: TEST_PRO_PRICE_ID,
+    stripeCustomerId: "cus_test",
+    stripeSubscriptionId: "sub_test",
+    ...overrides
+  };
+}
 
 function clone(value) {
   return value === undefined ? undefined : structuredClone(value);
@@ -143,22 +156,15 @@ describe("authoritative AI allowances", () => {
       currentPlan: "Starter",
       subscriptionStatus: "active"
     })).toBe(10);
-    expect(getAuthoritativeAiLimit({
-      currentPlan: "Pro",
-      subscriptionStatus: "active"
-    })).toBe(500);
-    expect(getAuthoritativeAiLimit({
-      currentPlan: "Pro",
+    expect(getAuthoritativeAiLimit(testProProfile())).toBe(500);
+    expect(getAuthoritativeAiLimit(testProProfile({
       subscriptionStatus: "trialing"
-    })).toBe(500);
+    }))).toBe(500);
     expect(getAuthoritativeInvoiceScanningLimit({
       currentPlan: "Starter",
       subscriptionStatus: "active"
     })).toBe(10);
-    expect(getAuthoritativeInvoiceScanningLimit({
-      currentPlan: "Pro",
-      subscriptionStatus: "active"
-    })).toBe(500);
+    expect(getAuthoritativeInvoiceScanningLimit(testProProfile())).toBe(500);
   });
 
   it("fails missing, unknown, and ineligible billing states to Starter", () => {
@@ -346,7 +352,7 @@ describe("transaction-safe reservations", () => {
     },
     {
       label: "Pro AI Assistant use 500",
-      profile: { currentPlan: "Pro", subscriptionStatus: "active" },
+      profile: testProProfile(),
       usageType: USAGE_TYPES.AI_ASSISTANT,
       counter: "aiAssistantSuccessfulUses",
       belowLimit: 499,
@@ -362,7 +368,7 @@ describe("transaction-safe reservations", () => {
     },
     {
       label: "Pro document scan 500",
-      profile: { currentPlan: "Pro", subscriptionStatus: "active" },
+      profile: testProProfile(),
       usageType: USAGE_TYPES.INVOICE_SCANNING,
       counter: "invoiceScanningSuccessfulUses",
       belowLimit: 499,

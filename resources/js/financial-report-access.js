@@ -1,9 +1,10 @@
 import {
   PLAN_IDS,
   REPORT_IDS,
-  effectiveProductPlan,
+  effectiveBillingPlan,
   isReportIncluded
-} from "./plan-entitlements.js?v=20260806-demo-pro1";
+} from "./plan-entitlements.js?v=20260901-stripe-live1";
+import { clientStripeBillingConfiguration } from "./stripe-billing-config.js?v=20260901-stripe-live1";
 
 const REPORT_LABELS = Object.freeze({
   [REPORT_IDS.TRIAL_BALANCE]: "Trial Balance",
@@ -12,9 +13,16 @@ const REPORT_LABELS = Object.freeze({
   [REPORT_IDS.BALANCE_SHEET]: "Balance Sheet"
 });
 
-export function getFinancialReportAccess(plan, reportId, demoMode = false) {
+export function getFinancialReportAccess(profile, reportId, demoMode = false) {
   const reportLabel = REPORT_LABELS[reportId] || "Financial report";
-  const allowed = isReportIncluded(effectiveProductPlan(plan, demoMode), reportId);
+  const allowed = isReportIncluded(
+    effectiveBillingPlan(
+      profile,
+      demoMode,
+      clientStripeBillingConfiguration()
+    ),
+    reportId
+  );
 
   return Object.freeze({
     allowed,

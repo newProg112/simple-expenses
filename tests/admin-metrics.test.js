@@ -118,6 +118,7 @@ async function metricsFor(users, options = {}) {
       options.demoConfiguration || DEMO_CONFIGURATION
     ),
     proPriceId: PRO_PRICE_ID,
+    expectedMode: "test",
     now: options.now || NOW
   });
   return { result, reads };
@@ -131,6 +132,7 @@ function activeProfile(overrides = {}) {
     stripeCustomerId: "cus_test",
     stripeSubscriptionId: "sub_test",
     stripePriceId: PRO_PRICE_ID,
+    stripeMode: "test",
     ...overrides
   };
 }
@@ -378,7 +380,7 @@ describe("admin metrics aggregation", () => {
     ], {
       profiles: {
         starter: { currentPlan: "Starter" },
-        pro: { currentPlan: "Pro", subscriptionStatus: "past_due" }
+        pro: { currentPlan: "Pro", subscriptionStatus: "past_due", billingOverride: true }
       }
     });
     expect(result.metrics).toMatchObject({
@@ -387,6 +389,22 @@ describe("admin metrics aggregation", () => {
       activePaidSubscriptions: 0,
       estimatedMrrPence: 0
     });
+  });
+
+  it("uses the same effective plan for aggregate and recent-signup diagnostics", async () => {
+    const { result } = await metricsFor([authUser("legacy-pro")], {
+      profiles: {
+        "legacy-pro": {
+          currentPlan: "Pro",
+          subscriptionStatus: "active",
+          stripePriceId: PRO_PRICE_ID,
+          stripeCustomerId: "cus_legacy",
+          stripeSubscriptionId: "sub_legacy"
+        }
+      }
+    });
+    expect(result.metrics).toMatchObject({ starterUsers: 1, proUsers: 0 });
+    expect(result.recentSignups[0].plan).toBe("Starter");
   });
 
   it("counts only fully qualified active paid subscriptions", async () => {
@@ -431,8 +449,8 @@ describe("admin metrics aggregation", () => {
   });
 
   it("requires every active-paid qualification field", () => {
-    expect(qualifiesAsActivePaidSubscription(activeProfile(), PRO_PRICE_ID)).toBe(true);
-    expect(qualifiesAsActivePaidSubscription({ currentPlan: "Pro" }, PRO_PRICE_ID)).toBe(false);
+    expect(qualifiesAsActivePaidSubscription(activeProfile(), PRO_PRICE_ID, "test")).toBe(true);
+    expect(qualifiesAsActivePaidSubscription({ currentPlan: "Pro" }, PRO_PRICE_ID, "test")).toBe(false);
   });
 
   it("selects the current UTC month and sums normalized successful usage", async () => {
@@ -503,7 +521,7 @@ describe("admin growth chart data", () => {
       authUser("demo-user", { creationTime: "2026-07-02T00:00:00.000Z" }),
       authUser("starter", { creationTime: "2026-06-02T00:00:00.000Z" }),
       authUser("pro", { creationTime: "2026-07-02T00:00:00.000Z" })
-    ], { profiles: { pro: { currentPlan: "Pro" } } });
+    ], { profiles: { pro: { currentPlan: "Pro", billingOverride: true } } });
     expect(result.charts.planDistribution).toEqual({ starter: 1, pro: 1 });
     expect(result.charts.planDistribution.starter).toBe(result.metrics.starterUsers);
     expect(result.charts.planDistribution.pro).toBe(result.metrics.proUsers);
@@ -520,6 +538,7 @@ describe("admin growth chart data", () => {
       firestore: createFirestore(),
       demoIdentifiers: parseDemoIdentifiers(DEMO_CONFIGURATION),
       proPriceId: PRO_PRICE_ID,
+      expectedMode: "test",
       now: NOW
     });
     expect(auth.listUsers).toHaveBeenCalledTimes(2);
@@ -566,6 +585,7 @@ describe("recent admin signups", () => {
       profiles: {
         customer: {
           currentPlan: "Pro",
+          billingOverride: true,
           email: "stale-profile@example.test",
           stripeCustomerId: "must-not-return",
           stripeSubscriptionId: "must-not-return",

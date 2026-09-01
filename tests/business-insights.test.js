@@ -28,8 +28,14 @@ import {
   ownedJournalQuery,
   partialJournalDataMessage
 } from "../resources/js/journal-source.js";
+import { LIVE_PRO_PRICE_ID } from "../resources/js/stripe-billing-config.js";
 
 const today = new Date(2026, 7, 6);
+const liveProProfile = {
+  currentPlan: "Pro", subscriptionStatus: "active", stripeMode: "live",
+  stripePriceId: LIVE_PRO_PRICE_ID, stripeCustomerId: "cus_live",
+  stripeSubscriptionId: "sub_live"
+};
 const source = record => ({ id: record.id, ...record.data });
 const empty = () => ({ invoices: [], bills: [], expenses: [], projects: [], budgets: [], journals: [] });
 const journal = (id, date, income, expense = 0) => ({
@@ -56,7 +62,7 @@ describe("Business Insights Phase 1", () => {
   it("resolves Starter preview, Pro full access, and Demo full Pro access", () => {
     const snapshot = data => ({ exists:() => true, data:() => data });
     const starter = resolveBusinessInsightsAccess(snapshot({demoMode:false}), snapshot({currentPlan:"Starter"}));
-    const pro = resolveBusinessInsightsAccess(snapshot({demoMode:false}), snapshot({currentPlan:"Pro"}));
+    const pro = resolveBusinessInsightsAccess(snapshot({demoMode:false}), snapshot(liveProProfile));
     const demo = resolveBusinessInsightsAccess(snapshot({demoMode:true}), snapshot({currentPlan:"Starter"}));
     expect(businessInsightsVisibility(starter)).toEqual(expect.objectContaining({scoreBreakdown:false, priorityLimit:2, trends:false, fullSnapshot:false, methodology:false, upgradePrompt:true, billingActions:true}));
     expect(businessInsightsVisibility(pro)).toEqual(expect.objectContaining({scoreBreakdown:true, priorityLimit:5, trends:true, fullSnapshot:true, methodology:true, upgradePrompt:false}));

@@ -284,6 +284,10 @@ describe("deletion barrier", () => {
       auth: {getUser: async (uid) => ({uid})},
       fieldValue: {serverTimestamp: () => "server-timestamp"},
       logger: {warn: () => {}},
+      billingConfiguration: {
+        expectedMode: "test",
+        proPriceId: "price_active",
+      },
     });
     await expect(writer(USER_A, {
       subscriptionStatus: "active",
@@ -322,12 +326,17 @@ describe("deletion barrier", () => {
       auth: {getUser: async (uid) => ({uid})},
       fieldValue: {serverTimestamp: () => "server-timestamp"},
       logger: {warn: () => {}},
+      billingConfiguration: {
+        expectedMode: "test",
+        proPriceId: "price_active",
+      },
     });
     await expect(writer(USER_A, {
       subscriptionStatus: "active",
       stripeCustomerId: "cus_active",
       stripeSubscriptionId: "sub_active",
       stripePriceId: "price_active",
+      stripeMode: "test",
       paymentMethodBrand: "visa",
       paymentMethodLast4: "4242",
     })).resolves.toEqual({updated: true, reason: "updated"});

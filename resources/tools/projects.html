@@ -1201,7 +1201,7 @@
       activeProjectLimitMessage,
       canSaveProjectStatus,
       canUseAnotherActiveProject
-    } from "../js/project-access.js?v=20260806-demo-pro1";
+    } from "../js/project-access.js?v=20260901-stripe-live1";
     import {
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -1260,7 +1260,7 @@
     let portfolioBills = [];
     let portfolioExpenses = [];
     let portfolioDataLoaded = false;
-    let currentPlan;
+    let currentBillingProfile = {};
     let currentDemoMode = false;
     let productAccessLoaded = false;
 
@@ -1773,11 +1773,11 @@
           getDoc(doc(db, "users", user.uid)),
           getDoc(doc(db, "userProfiles", user.uid))
         ]);
-        currentPlan = profile.exists() ? profile.data().currentPlan : undefined;
+        currentBillingProfile = profile.exists() ? profile.data() : {};
         currentDemoMode = account.exists() && account.data().demoMode === true;
       } catch (error) {
         console.error("Firestore billing profile load failed", error);
-        currentPlan = undefined;
+        currentBillingProfile = {};
         currentDemoMode = false;
       } finally {
         productAccessLoaded = true;
@@ -1858,8 +1858,8 @@
         return;
       }
 
-      const limitReached = !canUseAnotherActiveProject(currentPlan, projects, currentDemoMode);
-      const message = limitReached ? activeProjectLimitMessage(currentPlan, currentDemoMode) : "";
+      const limitReached = !canUseAnotherActiveProject(currentBillingProfile, projects, currentDemoMode);
+      const message = limitReached ? activeProjectLimitMessage(currentBillingProfile, currentDemoMode) : "";
 
       [elements.newProjectButton, elements.emptyNewProjectButton].forEach(button => {
         button.disabled = limitReached;
@@ -1885,8 +1885,8 @@
     }
 
     function openProjectForm(project = null) {
-      if (!project && !canUseAnotherActiveProject(currentPlan, projects, currentDemoMode)) {
-        showPageFeedback(activeProjectLimitMessage(currentPlan, currentDemoMode), true);
+      if (!project && !canUseAnotherActiveProject(currentBillingProfile, projects, currentDemoMode)) {
+        showPageFeedback(activeProjectLimitMessage(currentBillingProfile, currentDemoMode), true);
         return;
       }
 
@@ -1942,13 +1942,13 @@
         existingProject?.status !== PROJECT_STATUS.ACTIVE;
 
       if (!canSaveProjectStatus({
-        plan: currentPlan,
+        profile: currentBillingProfile,
         demoMode: currentDemoMode,
         projects,
         projectId: editingProjectId,
         nextStatus: data.status
       })) {
-        setFormFeedback(activeProjectLimitMessage(currentPlan, currentDemoMode));
+        setFormFeedback(activeProjectLimitMessage(currentBillingProfile, currentDemoMode));
         return;
       }
 
@@ -1963,16 +1963,16 @@
             getDoc(doc(db, "userProfiles", user.uid)),
             getDocs(collection(db, "users", user.uid, "projects"))
           ]);
-          currentPlan = profileSnapshot.exists()
-            ? profileSnapshot.data().currentPlan
-            : undefined;
+          currentBillingProfile = profileSnapshot.exists()
+            ? profileSnapshot.data()
+            : {};
           currentDemoMode = accountSnapshot.exists() && accountSnapshot.data().demoMode === true;
           projects = projectsSnapshot.docs
             .map(normaliseProject)
             .sort((a, b) => projectSortValue(b) - projectSortValue(a));
 
           if (!canSaveProjectStatus({
-            plan: currentPlan,
+            profile: currentBillingProfile,
             demoMode: currentDemoMode,
             projects,
             projectId: editingProjectId,
@@ -1980,7 +1980,7 @@
           })) {
             renderProjects();
             renderPortfolio();
-            setFormFeedback(activeProjectLimitMessage(currentPlan, currentDemoMode));
+            setFormFeedback(activeProjectLimitMessage(currentBillingProfile, currentDemoMode));
             return;
           }
         }

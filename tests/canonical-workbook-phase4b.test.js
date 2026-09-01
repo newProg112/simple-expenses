@@ -684,7 +684,7 @@ describe("canonical workbook Phase 4B execution", () => {
       })),
       getDoc: vi.fn(async reference => ({
         exists: () => reference.name === "userProfiles",
-        data: () => reference.name === "userProfiles" ? { currentPlan: "Pro" } : {}
+        data: () => reference.name === "userProfiles" ? { currentPlan: "Pro", billingOverride: true } : {}
       })),
       addDoc: vi.fn(),
       writeBatch: vi.fn(() => ({ set: vi.fn(), commit: vi.fn(async () => undefined) })),
