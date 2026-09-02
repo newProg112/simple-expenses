@@ -343,7 +343,8 @@ describe("redesigned public homepage", () => {
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain("Have a look before you decide.");
     expect(html).toContain('href="mailto:adam@simple-books.co.uk"');
-    expect(html).toContain('href="#privacy">Privacy</a>');
+    expect(html).toContain('href="/privacy.html">Privacy</a>');
+    expect(html).toContain('href="/terms.html">Terms</a>');
     expect(html).toContain('id="privacy"');
     expect(html).toContain(
       "is not a substitute for professional financial or tax advice",
