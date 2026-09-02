@@ -2,7 +2,10 @@
   "hosting": [
     {
       "target": "main",
-      "public": ".",
+      "public": "dist/hosting",
+      "predeploy": [
+        "npm run build:hosting"
+      ],
       "ignore": [
         "firebase.json",
         "**/.*",
