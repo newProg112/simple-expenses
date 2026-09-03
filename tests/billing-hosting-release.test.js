@@ -1,4 +1,7 @@
-import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -89,9 +92,62 @@ describe("billing-only Hosting release recipe", () => {
     expect(staged.hosting[0]).toMatchObject({
       target: "main",
       public: "source/dist/hosting",
-      predeploy: ["node ../../scripts/prepare-billing-hosting-release.mjs"]
+      predeploy: ["npm.cmd --prefix ../.. run prepare:hosting:billing"]
     });
   });
+
+  it.runIf(process.platform === "win32")(
+    "runs the generated hook through Firebase CLI's Windows lifecycle shell",
+    async () => {
+      const crossEnvShell = path.join(
+        process.env.APPDATA || "",
+        "npm",
+        "node_modules",
+        "firebase-tools",
+        "node_modules",
+        "cross-env",
+        "src",
+        "bin",
+        "cross-env-shell.js"
+      );
+      expect(existsSync(crossEnvShell)).toBe(true);
+
+      const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "billing-hook-"));
+      const fixtureStage = path.join(fixtureRoot, "dist", "billing-hosting-release");
+      try {
+        await mkdir(path.join(fixtureRoot, "scripts"), { recursive: true });
+        await mkdir(fixtureStage, { recursive: true });
+        await writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({
+          private: true,
+          scripts: {
+            "prepare:hosting:billing": "node scripts/fixture-prepare.cjs"
+          }
+        }));
+        await writeFile(
+          path.join(fixtureRoot, "scripts", "fixture-prepare.cjs"),
+          'console.log("BILLING_HOOK_FIXTURE_OK");\n'
+        );
+
+        const hook = stageFirebaseConfiguration({
+          target: "main",
+          public: "dist/hosting"
+        }).hosting[0].predeploy[0];
+        const escapedHook = hook.replace(/"/g, '\\"');
+        const translatedCommand =
+          `"${process.execPath}" "${crossEnvShell}" "${escapedHook}"`;
+        const result = spawnSync(translatedCommand, [], {
+          cwd: fixtureStage,
+          encoding: "utf8",
+          shell: true
+        });
+
+        expect(result.status, result.stderr).toBe(0);
+        expect(result.stdout).toContain("BILLING_HOOK_FIXTURE_OK");
+      } finally {
+        await rm(fixtureRoot, { recursive: true, force: true });
+      }
+    }
+  );
 
   it("fails closed if the live version or file count changes", () => {
     const live = version => ({

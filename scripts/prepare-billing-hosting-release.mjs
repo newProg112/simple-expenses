@@ -140,7 +140,7 @@ export function stageFirebaseConfiguration(hosting) {
     hosting: [{
       ...hosting,
       public: "source/dist/hosting",
-      predeploy: ["node ../../scripts/prepare-billing-hosting-release.mjs"]
+      predeploy: ["npm.cmd --prefix ../.. run prepare:hosting:billing"]
     }]
   };
 }
