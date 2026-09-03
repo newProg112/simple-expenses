@@ -25,6 +25,9 @@ const {
   validateStripeBillingConfiguration,
 } = require("./lib/stripe-billing-config");
 const {
+  stripeBillingReturnUrls,
+} = require("./lib/stripe-return-urls");
+const {
   StripeCheckoutError,
   createStripeCheckoutService,
 } = require("./lib/stripe-checkout-service");
@@ -186,9 +189,7 @@ const stripeCheckoutEnabled = defineBoolean("STRIPE_CHECKOUT_ENABLED", {
 const adminUidsSecret = defineSecret("SIMPLE_BOOKS_ADMIN_UIDS");
 const demoIdentifiersSecret = defineSecret("SIMPLE_BOOKS_DEMO_IDENTIFIERS");
 const protectedUidsSecret = defineSecret("SIMPLE_BOOKS_PROTECTED_UIDS");
-const successUrl = "https://simple-books.co.uk/account.html?checkout=success";
-const cancelUrl = "https://simple-books.co.uk/account.html?checkout=cancelled";
-const billingPortalReturnUrl = "https://simple-books.co.uk/account.html";
+const stripeBillingUrls = stripeBillingReturnUrls(process.env);
 const userProfiles = firestore.collection("userProfiles");
 const users = firestore.collection("users");
 
@@ -528,8 +529,8 @@ exports.createCheckoutSession = onRequest(
         const {session} = await checkout({
           uid,
           profile,
-          successUrl,
-          cancelUrl,
+          successUrl: stripeBillingUrls.successUrl,
+          cancelUrl: stripeBillingUrls.cancelUrl,
         });
 
         if (!session.url) {
@@ -605,6 +606,8 @@ exports.createBillingPortalSession = onRequest(
       const allowedOrigins = [
         "https://simple-books-office.web.app",
         "https://simple-books.co.uk",
+        ...(stripeBillingUrls.emulator ?
+          [stripeBillingUrls.frontendOrigin] : []),
       ];
       const origin = request.get("Origin") || "";
 
@@ -663,7 +666,7 @@ exports.createBillingPortalSession = onRequest(
         const {session} = await portal({
           uid: decodedToken.uid,
           profile,
-          returnUrl: billingPortalReturnUrl,
+          returnUrl: stripeBillingUrls.billingPortalReturnUrl,
         });
 
         if (!session.url) {
