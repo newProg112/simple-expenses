@@ -105,4 +105,12 @@ describe("Account page access lifecycle integration", () => {
     expect(accountHtml).toContain("loadMonthlyUsageFromBackend()");
     expect(accountHtml).not.toMatch(/monthlyUsage[\s\S]{0,80}productAccess\s*=/);
   });
+
+  it("labels a scheduled cancellation as ending without revoking active Pro", () => {
+    expect(accountHtml).toContain("subscriptionCancelAt: profile.subscriptionCancelAt || null");
+    expect(accountHtml).toContain("account.subscriptionCancelAt || account.subscriptionCurrentPeriodEnd");
+    expect(accountHtml).toContain('${cancellationScheduled ? "Ends" : "Renews"} on ${renewalDate}');
+    expect(accountHtml).toContain('const isActive = isPro && ["active", "trialing"].includes(subscriptionStatus)');
+    expect(accountHtml).toContain("statusMessage = cancellationScheduled");
+  });
 });

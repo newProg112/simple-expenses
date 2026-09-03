@@ -20,8 +20,13 @@ const {
   createStripeWebhookProcessor
 } = require("../functions/lib/stripe-webhook-processor.js");
 const {
+  STRIPE_PROFILE_PROJECTION_VERSION,
   createStripeProfileWriter
 } = require("../functions/lib/stripe-profile-writer.js");
+const {
+  stripeTimestampToFirestore
+} = require("../functions/lib/stripe-firestore-values.js");
+const admin = require("../functions/node_modules/firebase-admin");
 
 const UID = "billing-user";
 const NOW = new Date("2026-09-01T12:00:00.000Z");
@@ -220,6 +225,48 @@ function checkoutFixture({ configuration = testConfiguration, clock = NOW } = {}
 }
 
 describe("Stripe billing configuration", () => {
+  it("converts Stripe timestamps outside the bound Admin Firestore namespace", () => {
+    const emulatorStyleFirestore = admin.firestore.bind(admin);
+    expect(emulatorStyleFirestore.Timestamp).toBeUndefined();
+
+    const converted = stripeTimestampToFirestore(1_725_192_000);
+    expect(converted.toMillis()).toBe(1_725_192_000_000);
+    expect(stripeTimestampToFirestore(0)).toBeNull();
+  });
+
+  it("keeps webhook profile and activity wiring off bound Admin statics", () => {
+    const source = readFileSync(
+      new URL("../functions/index.js", import.meta.url),
+      "utf8"
+    );
+    const profileStart = source.indexOf("async function updateSubscriptionProfile(");
+    const webhookEnd = source.indexOf("const {\n  askBusinessAssistantPreview", profileStart);
+    const webhookBillingWiring = source.slice(profileStart, webhookEnd);
+
+    expect(profileStart).toBeGreaterThan(-1);
+    expect(webhookEnd).toBeGreaterThan(profileStart);
+    expect(webhookBillingWiring).not.toContain("admin.firestore.FieldValue");
+    expect(webhookBillingWiring).not.toContain("admin.firestore.Timestamp");
+    expect(webhookBillingWiring).toContain("fieldValue: FieldValue");
+  });
+
+  it("wires the checkout caller with emulator-safe Firestore value types", () => {
+    const source = readFileSync(
+      new URL("../functions/index.js", import.meta.url),
+      "utf8"
+    );
+    const checkoutStart = source.indexOf("const checkout = createStripeCheckoutService({");
+    const checkoutEnd = source.indexOf("if (!configuration.checkoutEnabled)", checkoutStart);
+    const checkoutWiring = source.slice(checkoutStart, checkoutEnd);
+
+    expect(checkoutStart).toBeGreaterThan(-1);
+    expect(checkoutEnd).toBeGreaterThan(checkoutStart);
+    expect(checkoutWiring).toContain("fieldValue: FieldValue");
+    expect(checkoutWiring).toContain("timestampFactory: Timestamp");
+    expect(checkoutWiring).not.toContain("admin.firestore.FieldValue");
+    expect(checkoutWiring).not.toContain("admin.firestore.Timestamp");
+  });
+
   it("does not retain verbose Stripe billing-field logging", () => {
     const source = readFileSync(
       new URL("../functions/index.js", import.meta.url),
@@ -470,6 +517,36 @@ describe("Stripe webhook validation and retryability", () => {
     );
   });
 
+  it("projects a separate scheduled cancellation date", async () => {
+    const cancelAt = 1_780_519_540;
+    const fixture = webhookFixture({
+      subscription: subscription({
+        status: "active",
+        cancel_at_period_end: false,
+        cancel_at: cancelAt
+      })
+    });
+    fixture.processor = createStripeWebhookProcessor({
+      stripe: fixture.stripe,
+      billingConfiguration: testConfiguration,
+      updateProfile: fixture.updateProfile,
+      billingDetails: vi.fn(async (_stripe, canonicalSubscription) => ({
+        subscriptionCancelAt: canonicalSubscription.cancel_at
+      }))
+    });
+
+    await fixture.processor(subscriptionEvent());
+    expect(fixture.updateProfile).toHaveBeenCalledWith(
+      UID,
+      expect.objectContaining({
+        subscriptionStatus: "active",
+        cancelAtPeriodEnd: false,
+        subscriptionCancelAt: cancelAt
+      }),
+      expect.any(Object)
+    );
+  });
+
   it("rejects checkout customer/subscription ownership mismatches", async () => {
     const fixture = webhookFixture();
     const event = {
@@ -559,6 +636,7 @@ function profileUpdate(overrides = {}) {
     stripePriceId: TEST_PRO_PRICE_ID,
     stripeMode: "test",
     cancelAtPeriodEnd: false,
+    subscriptionCancelAt: null,
     ...overrides
   };
 }
@@ -575,7 +653,39 @@ describe("durable webhook profile updates", () => {
       { updated: false, reason: "duplicate-event" }
     ]));
     expect(fixture.firestore.read(`stripeWebhookEvents/evt_duplicate`))
-      .toMatchObject({ uid: UID, result: "updated" });
+      .toMatchObject({
+        uid: UID,
+        result: "updated",
+        profileProjectionVersion: STRIPE_PROFILE_PROJECTION_VERSION
+      });
+  });
+
+  it("reprojects one legacy receipt and then remains idempotent", async () => {
+    const fixture = profileWriterFixture();
+    fixture.firestore.documents.set("stripeWebhookEvents/evt_legacy", {
+      uid: UID,
+      result: "updated",
+      processedAt: "old-server-timestamp"
+    });
+    const cancellationDate = new Date("2026-10-03T20:45:40.000Z");
+
+    await expect(fixture.writer(UID, profileUpdate({
+      subscriptionCancelAt: cancellationDate
+    }), {eventId: "evt_legacy"})).resolves.toEqual({
+      updated: true,
+      reason: "updated"
+    });
+    await expect(fixture.writer(UID, profileUpdate({
+      subscriptionCancelAt: cancellationDate
+    }), {eventId: "evt_legacy"})).resolves.toEqual({
+      updated: false,
+      reason: "duplicate-event"
+    });
+    expect(fixture.firestore.read(`userProfiles/${UID}`)).toMatchObject({
+      currentPlan: "Pro",
+      subscriptionStatus: "active",
+      subscriptionCancelAt: cancellationDate
+    });
   });
 
   it("ignores an older different subscription after a newer one is stored", async () => {

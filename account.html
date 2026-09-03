@@ -1557,6 +1557,7 @@
         stripePriceId: profile.stripePriceId || "",
         stripeMode: profile.stripeMode || "",
         cancelAtPeriodEnd: profile.cancelAtPeriodEnd === true,
+        subscriptionCancelAt: profile.subscriptionCancelAt || null,
         subscriptionCurrentPeriodEnd: profile.subscriptionCurrentPeriodEnd || null,
         paymentMethodBrand: profile.paymentMethodBrand || "",
         paymentMethodLast4: profile.paymentMethodLast4 || ""
@@ -1577,6 +1578,7 @@
         stripePriceId: profile.stripePriceId,
         stripeMode: profile.stripeMode,
         cancelAtPeriodEnd: profile.cancelAtPeriodEnd,
+        subscriptionCancelAt: profile.subscriptionCancelAt,
         subscriptionCurrentPeriodEnd: profile.subscriptionCurrentPeriodEnd,
         paymentMethodBrand: profile.paymentMethodBrand,
         paymentMethodLast4: profile.paymentMethodLast4
@@ -1732,15 +1734,22 @@
 
       if(!meta || !renewal || !paymentMethod) return;
 
+      const cancellationScheduled = account.cancelAtPeriodEnd === true ||
+        Boolean(account.subscriptionCancelAt);
+      const billingDate = cancellationScheduled
+        ? account.subscriptionCancelAt || account.subscriptionCurrentPeriodEnd
+        : account.subscriptionCurrentPeriodEnd;
       const renewalDate = canManageSubscription
-        ? formatBillingDate(account.subscriptionCurrentPeriodEnd)
+        ? formatBillingDate(billingDate)
         : "";
       const brand = canManageSubscription
         ? formatCardBrand(account.paymentMethodBrand)
         : "";
       const last4 = canManageSubscription ? account.paymentMethodLast4 : "";
 
-      renewal.textContent = renewalDate ? `Renews on ${renewalDate}` : "";
+      renewal.textContent = renewalDate
+        ? `${cancellationScheduled ? "Ends" : "Renews"} on ${renewalDate}`
+        : "";
       paymentMethod.textContent = brand && last4
         ? `${brand} ending ${last4}`
         : "";
@@ -1999,6 +2008,8 @@
       const isCancelled = subscriptionStatus === "canceled" ||
         subscriptionStatus === "incomplete_expired";
       const isActive = isPro && ["active", "trialing"].includes(subscriptionStatus);
+      const cancellationScheduled = account.cancelAtPeriodEnd === true ||
+        Boolean(account.subscriptionCancelAt);
       const isDiscounted = isPro && account.billingOverride === true &&
         subscriptionStatus === "discounted";
       const isComped = isPro && account.billingOverride === true && !isDiscounted;
@@ -2021,7 +2032,7 @@
       if(isActive){
         price = "£15/month";
         message = subscriptionStatus === "trialing" ? "Subscription trial active" : "Subscription active";
-        statusMessage = account.cancelAtPeriodEnd
+        statusMessage = cancellationScheduled
           ? "Your Pro access remains active until the end of the current billing period."
           : subscriptionStatus === "trialing"
             ? "Your subscription trial is active."

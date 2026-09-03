@@ -38,6 +38,9 @@ const {
 const {
   createStripeWebhookProcessor,
 } = require("./lib/stripe-webhook-processor");
+const {
+  stripeTimestampToFirestore,
+} = require("./lib/stripe-firestore-values");
 const {readMonthlyUsage} = require("./lib/monthly-usage-reader");
 const {createAdminMetricsHandler} = require("./lib/admin-metrics-handler");
 const {
@@ -341,19 +344,6 @@ function subscriptionCustomerId(subscription) {
 }
 
 /**
- * Converts a Stripe Unix timestamp into a Firestore timestamp.
- * @param {number} seconds Stripe timestamp in seconds.
- * @return {object|null} Firestore timestamp, or null when unavailable.
- */
-function stripeTimestampToFirestore(seconds) {
-  const numericSeconds = Number(seconds || 0);
-
-  return numericSeconds ?
-    admin.firestore.Timestamp.fromMillis(numericSeconds * 1000) :
-    null;
-}
-
-/**
  * Returns current period end values from the subscription and its items.
  * @param {object} subscription Stripe subscription object.
  * @return {object} Stripe timestamp values in seconds.
@@ -441,6 +431,7 @@ async function subscriptionBillingDetails(stripe, subscription) {
     subscriptionCurrentPeriodEnd: stripeTimestampToFirestore(
         currentPeriodEndSeconds,
     ),
+    subscriptionCancelAt: stripeTimestampToFirestore(subscription.cancel_at),
     ...paymentMethod,
   };
 }
@@ -456,7 +447,7 @@ async function updateSubscriptionProfile(uid, data, eventContext = {}) {
   return createStripeProfileWriter({
     firestore,
     auth: admin.auth(),
-    fieldValue: admin.firestore.FieldValue,
+    fieldValue: FieldValue,
     deletionGuard: accountDeletionGuard,
     billingConfiguration: stripeBillingConfiguration(),
     logger: console,
@@ -514,8 +505,8 @@ exports.createCheckoutSession = onRequest(
           stripe,
           firestore,
           billingConfiguration: configuration,
-          fieldValue: admin.firestore.FieldValue,
-          timestampFactory: admin.firestore.Timestamp,
+          fieldValue: FieldValue,
+          timestampFactory: Timestamp,
         });
         if (!configuration.checkoutEnabled) {
           throw new StripeCheckoutError(
@@ -549,7 +540,7 @@ exports.createCheckoutSession = onRequest(
           });
           await writeActivityEvent({
             firestore: admin.firestore(),
-            fieldValue: admin.firestore.FieldValue,
+            fieldValue: FieldValue,
             identity,
             eventType: "checkout_started",
             idempotencyKey: session.id,
@@ -765,7 +756,7 @@ exports.stripeWebhook = onRequest(
             const user = await admin.auth().getUser(result.uid);
             await writeActivityEvent({
               firestore: admin.firestore(),
-              fieldValue: admin.firestore.FieldValue,
+              fieldValue: FieldValue,
               identity: {
                 uid: result.uid,
                 displayEmail: user.email || "",
@@ -787,7 +778,7 @@ exports.stripeWebhook = onRequest(
             const user = await admin.auth().getUser(result.uid);
             await writeActivityEvent({
               firestore: admin.firestore(),
-              fieldValue: admin.firestore.FieldValue,
+              fieldValue: FieldValue,
               identity: {
                 uid: result.uid,
                 displayEmail: user.email || "",
@@ -858,8 +849,8 @@ exports.processAccountDeletion = onTaskDispatched(
     (request) => createAccountDeletionWorker({
       auth: admin.auth(),
       firestore,
-      fieldValue: admin.firestore.FieldValue,
-      timestampFactory: admin.firestore.Timestamp,
+      fieldValue: FieldValue,
+      timestampFactory: Timestamp,
       adminUidConfiguration: adminUidsSecret.value(),
       demoConfiguration: demoIdentifiersSecret.value(),
       protectedUidConfiguration: protectedUidsSecret.value(),

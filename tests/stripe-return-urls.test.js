@@ -8,6 +8,9 @@ const {
   PRODUCTION_STRIPE_FRONTEND_ORIGIN,
   stripeBillingReturnUrls
 } = require("../functions/lib/stripe-return-urls.js");
+const {
+  TEST_PRO_PRICE_ID
+} = require("../functions/lib/stripe-billing-config.js");
 
 describe("Stripe billing return URLs", () => {
   it("uses the fixed localhost rehearsal URLs only in the Functions Emulator", () => {
@@ -66,13 +69,20 @@ describe("Stripe billing return URLs", () => {
     );
   });
 
-  it("keeps checkout disabled in both local and deployed parameter files", () => {
-    for (const relativePath of [
-      "../functions/.env.local",
-      "../functions/.env.simple-books-office"
-    ]) {
-      const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
-      expect(source).toMatch(/^STRIPE_CHECKOUT_ENABLED=false$/m);
-    }
+  it("keeps deployed checkout disabled and the local rehearsal test-only", () => {
+    const deployed = readFileSync(
+      new URL("../functions/.env.simple-books-office", import.meta.url),
+      "utf8"
+    );
+    expect(deployed).toMatch(/^STRIPE_EXPECTED_MODE=live$/m);
+    expect(deployed).toMatch(/^STRIPE_CHECKOUT_ENABLED=false$/m);
+
+    const local = readFileSync(
+      new URL("../functions/.env.local", import.meta.url),
+      "utf8"
+    );
+    expect(local).toMatch(/^STRIPE_EXPECTED_MODE=test$/m);
+    expect(local).toMatch(new RegExp(`^STRIPE_PRO_PRICE_ID=${TEST_PRO_PRICE_ID}$`, "m"));
+    expect(local).toMatch(/^STRIPE_CHECKOUT_ENABLED=(?:true|false)$/m);
   });
 });

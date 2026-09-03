@@ -8,6 +8,8 @@ const {
   effectiveBillingPlan,
 } = require("./plan-entitlements");
 
+const STRIPE_PROFILE_PROJECTION_VERSION = 1;
+
 function authUserMissing(error) {
   return String(error && error.code || "") === "auth/user-not-found";
 }
@@ -55,7 +57,11 @@ function createStripeProfileWriter(options = {}) {
             transaction.get(profileReference),
             eventReference ? transaction.get(eventReference) : null,
           ]);
-        if (eventSnapshot && eventSnapshot.exists) {
+        const eventReceipt = eventSnapshot && eventSnapshot.exists ?
+          eventSnapshot.data() || {} : {};
+        if (eventSnapshot && eventSnapshot.exists &&
+          Number(eventReceipt.profileProjectionVersion || 0) >=
+            STRIPE_PROFILE_PROJECTION_VERSION) {
           return {updated: false, reason: "duplicate-event"};
         }
         await deletionGuard.assertAccountNotDeletingInTransaction(
@@ -66,9 +72,10 @@ function createStripeProfileWriter(options = {}) {
         if (accountSnapshot.exists && accountSnapshot.data().demoMode === true) {
           log.warn("Ignoring subscription update for demo account", {uid});
           if (eventReference) {
-            transaction.create(eventReference, {
+            transaction.set(eventReference, {
               uid,
               result: "ignored-demo",
+              profileProjectionVersion: STRIPE_PROFILE_PROJECTION_VERSION,
               processedAt: fieldValue.serverTimestamp(),
             });
           }
@@ -84,10 +91,11 @@ function createStripeProfileWriter(options = {}) {
           storedCreated > 0 && incomingCreated > 0 && incomingCreated < storedCreated;
         if (staleDifferentSubscription) {
           if (eventReference) {
-            transaction.create(eventReference, {
+            transaction.set(eventReference, {
               uid,
               stripeSubscriptionId: incomingSubscriptionId,
               result: "ignored-stale-subscription",
+              profileProjectionVersion: STRIPE_PROFILE_PROJECTION_VERSION,
               processedAt: fieldValue.serverTimestamp(),
             });
           }
@@ -117,16 +125,18 @@ function createStripeProfileWriter(options = {}) {
           stripePriceId: data.stripePriceId,
           stripeMode: data.stripeMode,
           cancelAtPeriodEnd: data.cancelAtPeriodEnd === true,
+          subscriptionCancelAt: data.subscriptionCancelAt || null,
           subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd || null,
           paymentMethodBrand: data.paymentMethodBrand || "",
           paymentMethodLast4: data.paymentMethodLast4 || "",
           subscriptionUpdatedAt: fieldValue.serverTimestamp(),
         }, {merge: true});
         if (eventReference) {
-          transaction.create(eventReference, {
+          transaction.set(eventReference, {
             uid,
             stripeSubscriptionId: incomingSubscriptionId,
             result: "updated",
+            profileProjectionVersion: STRIPE_PROFILE_PROJECTION_VERSION,
             processedAt: fieldValue.serverTimestamp(),
           });
         }
@@ -143,6 +153,7 @@ function createStripeProfileWriter(options = {}) {
 }
 
 module.exports = {
+  STRIPE_PROFILE_PROJECTION_VERSION,
   authUserMissing,
   createStripeProfileWriter,
   deletionInProgress,
