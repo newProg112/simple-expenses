@@ -1356,16 +1356,16 @@
     import { app, auth, db, functions } from "./firebase-config.js";
     import { trackBeginCheckout } from "./assets/analytics-events.js?v=20260802-analytics1";
     import { trackDemoAnalyticsEvent } from "./assets/demo-analytics.js?v=20260805-demo-analytics1";
-    import { resolveProductAccess } from "./assets/demo-mode.js?v=20260901-stripe-live1";
+    import { resolveProductAccess } from "./assets/demo-mode.js?v=20260902-stripe-live2";
     import {
       createAccountAccessRequestTracker,
       resolveAccountAccessSnapshot
-    } from "./assets/account-access-state.js?v=20260806-demo-pro3";
+    } from "./assets/account-access-state.js?v=20260902-stripe-live2";
     import {
       buildMonthlyUsageView
     } from "./resources/js/monthly-usage.js?v=20260806-demo-pro2";
     import { firebaseFunctionUrl } from "./resources/js/firebase-runtime.js";
-    import { clientStripeBillingConfiguration } from "./resources/js/stripe-billing-config.js?v=20260901-stripe-live1";
+    import { clientStripeBillingConfiguration } from "./resources/js/stripe-billing-config.js?v=20260902-stripe-live2";
     import { createRequestId } from "./resources/js/request-id.js";
     import {
       createAccountDeletionController

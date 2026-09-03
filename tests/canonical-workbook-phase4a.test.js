@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { CANONICAL_WORKBOOK_SCHEMA } from "../resources/js/canonical-workbook-schema.js";
-import { preflightCanonicalWorkbook } from "../resources/js/canonical-workbook-preflight.js";
+import { preflightCanonicalWorkbook } from "../resources/js/canonical-workbook-preflight.js?v=20260902-stripe-live2";
 import {
   createFirestorePhase4APersistence,
   executePhase4A,

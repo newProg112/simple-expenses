@@ -3,8 +3,8 @@ import {
   REPORT_IDS,
   effectiveBillingPlan,
   isReportIncluded
-} from "./plan-entitlements.js?v=20260901-stripe-live1";
-import { clientStripeBillingConfiguration } from "./stripe-billing-config.js?v=20260901-stripe-live1";
+} from "./plan-entitlements.js?v=20260902-stripe-live2";
+import { clientStripeBillingConfiguration } from "./stripe-billing-config.js?v=20260902-stripe-live2";
 
 const REPORT_LABELS = Object.freeze({
   [REPORT_IDS.TRIAL_BALANCE]: "Trial Balance",

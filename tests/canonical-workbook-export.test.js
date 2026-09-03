@@ -6,7 +6,7 @@ import {
   buildCanonicalExportDefinition,
   buildCanonicalExportWorkbook
 } from "../resources/js/canonical-workbook-export.js";
-import { preflightCanonicalWorkbook } from "../resources/js/canonical-workbook-preflight.js";
+import { preflightCanonicalWorkbook } from "../resources/js/canonical-workbook-preflight.js?v=20260902-stripe-live2";
 import { planPhase4BExecution } from "../resources/js/canonical-workbook-phase4b.js";
 
 const EXPECTED_SHEETS = [

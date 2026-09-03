@@ -1,5 +1,5 @@
-import { effectiveBillingPlan } from "../resources/js/plan-entitlements.js?v=20260901-stripe-live1";
-import { clientStripeBillingConfiguration } from "../resources/js/stripe-billing-config.js?v=20260901-stripe-live1";
+import { effectiveBillingPlan } from "../resources/js/plan-entitlements.js?v=20260902-stripe-live2";
+import { clientStripeBillingConfiguration } from "../resources/js/stripe-billing-config.js?v=20260902-stripe-live2";
 
 let currentUser = null;
 let currentAccountData = null;

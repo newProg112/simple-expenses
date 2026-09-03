@@ -133,6 +133,26 @@ describe("generated Firebase Hosting publication safety", () => {
       .rejects.toThrow("Hosting publication is blocked by source references");
   });
 
+  it("permits only an exact explicitly expected set of existing missing references", async () => {
+    const root = await fixtureRoot();
+    await put(root, "index.html", `<a href="/downloads/missing.xlsx">Existing issue</a>`);
+    const expected = ["index.html -> downloads/missing.xlsx"];
+
+    const result = await buildHosting({
+      projectRoot: root,
+      files: ["index.html"],
+      expectedExistingMissingReferences: expected
+    });
+    expect(result.dependencyAudit.missingReferences).toEqual(expected);
+
+    await expect(buildHosting({
+      projectRoot: root,
+      files: ["index.html"],
+      expectedExistingMissingReferences: []
+    })).rejects.toThrow("Hosting publication is blocked by source references");
+    await expect(access(path.join(root, GENERATED_OUTPUT))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("rejects unexpected or forbidden files in generated output", async () => {
     const root = await fixtureRoot();
     const output = path.join(root, GENERATED_OUTPUT);
@@ -172,15 +192,18 @@ describe("reviewed Simple Books runtime allowlist", () => {
     const files = validateAllowlist(manifest.files);
 
     expect(manifest.reviewedAgainstHostingVersion).toBe("ba9ff337be8b742e");
-    expect(files).toHaveLength(162);
+    expect(files).toHaveLength(163);
+    expect(files).toContain("resources/js/stripe-billing-config.js");
     expect(files).not.toContain("privacy.html");
     expect(files).not.toContain("terms.html");
     expect(files).not.toContain("assets/legal.css");
     expect(files.some(file => file.startsWith("__/"))).toBe(false);
     const audit = await auditRuntimeDependencies(projectRoot, files);
     expect(audit.excludedReferences.length).toBeGreaterThan(0);
-    expect(audit.missingReferences).toContain(
-      "account.html -> resources/js/stripe-billing-config.js"
-    );
+    expect(audit.missingReferences).toEqual([
+      "expenses/index.html -> downloads/simple-expenses-android.apk",
+      "expenses/webapp/index.html -> downloads/simple-expenses-android.apk",
+      "resources/index.html -> downloads/Bulk-email-draft-generator-free.xlsm"
+    ]);
   });
 });

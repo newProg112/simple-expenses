@@ -3,7 +3,7 @@ import {
   createFirestorePhase4BPersistence,
   executePhase4B,
   planPhase4BExecution
-} from "./canonical-workbook-phase4b.js";
+} from "./canonical-workbook-phase4b.js?v=20260902-stripe-live2";
 
 export const PHASE4C_PREFLIGHT_MAX_AGE_MS = 10 * 60 * 1000;
 

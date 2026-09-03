@@ -289,7 +289,8 @@ export async function cleanGeneratedOutput(projectRoot, outputRoot) {
 export async function buildHosting({
   projectRoot,
   outputRoot = path.join(projectRoot, GENERATED_OUTPUT),
-  files
+  files,
+  expectedExistingMissingReferences
 }) {
   const safeOutput = assertSafeOutputPath(projectRoot, outputRoot);
   await cleanGeneratedOutput(projectRoot, safeOutput);
@@ -300,10 +301,20 @@ export async function buildHosting({
       await assertSourceFile(projectRoot, relativePath);
     }
     const audit = await auditRuntimeDependencies(projectRoot, reviewedFiles);
-    if (audit.excludedReferences.length || audit.missingReferences.length) {
+    const expectedMissing = expectedExistingMissingReferences === undefined
+      ? []
+      : [...new Set(expectedExistingMissingReferences)].sort();
+    const missingReferencesMatch = expectedExistingMissingReferences !== undefined &&
+      JSON.stringify(audit.missingReferences) === JSON.stringify(expectedMissing);
+    if (audit.excludedReferences.length ||
+        (!missingReferencesMatch && audit.missingReferences.length) ||
+        (expectedExistingMissingReferences !== undefined && !missingReferencesMatch)) {
       throw new HostingBuildError("Hosting publication is blocked by source references", [
         ...audit.excludedReferences.map(item => `excluded pending approval: ${item}`),
-        ...audit.missingReferences.map(item => `not in reviewed runtime allowlist: ${item}`)
+        ...audit.missingReferences.map(item => `not in reviewed runtime allowlist: ${item}`),
+        ...expectedMissing
+          .filter(item => !audit.missingReferences.includes(item))
+          .map(item => `expected baseline issue is no longer present: ${item}`)
       ]);
     }
 
@@ -314,7 +325,7 @@ export async function buildHosting({
       await copyFile(sourcePath, destinationPath);
     }
     const inventory = await validateOutputInventory(safeOutput, reviewedFiles);
-    return { outputRoot: safeOutput, inventory };
+    return { outputRoot: safeOutput, inventory, dependencyAudit: audit };
   } catch (error) {
     await cleanGeneratedOutput(projectRoot, safeOutput);
     throw error;

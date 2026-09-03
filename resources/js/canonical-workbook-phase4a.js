@@ -1,10 +1,10 @@
 import {
   isTrustedWorkbookPreflightResult
-} from "./canonical-workbook-preflight.js";
+} from "./canonical-workbook-preflight.js?v=20260902-stripe-live2";
 import {
   PROJECT_STATUS,
   canUseAnotherActiveProject
-} from "./project-access.js";
+} from "./project-access.js?v=20260902-stripe-live2";
 
 export const PHASE4A_MODULE_ORDER = Object.freeze(["clients", "projects", "budgets"]);
 

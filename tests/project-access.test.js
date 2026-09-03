@@ -165,7 +165,7 @@ describe("Projects page integration", () => {
   );
 
   it("loads the billing profile and the entitlement-backed project policy", () => {
-    expect(html).toContain('from "../js/project-access.js?v=20260901-stripe-live1"');
+    expect(html).toContain('from "../js/project-access.js?v=20260902-stripe-live2"');
     expect(html).toContain('doc(db, "users", user.uid)');
     expect(html).toContain('doc(db, "userProfiles", user.uid)');
   });

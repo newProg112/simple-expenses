@@ -2,8 +2,8 @@ import {
   createFirestorePhase4APersistence,
   executePhase4A,
   planPhase4AExecution
-} from "./canonical-workbook-phase4a.js";
-import { isTrustedWorkbookPreflightResult } from "./canonical-workbook-preflight.js";
+} from "./canonical-workbook-phase4a.js?v=20260902-stripe-live2";
+import { isTrustedWorkbookPreflightResult } from "./canonical-workbook-preflight.js?v=20260902-stripe-live2";
 import {
   expenseJournalDocumentId,
   mileageJournalDocumentId,

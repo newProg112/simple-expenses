@@ -1,4 +1,4 @@
-import { resolveProductAccess } from "./demo-mode.js?v=20260901-stripe-live1";
+import { resolveProductAccess } from "./demo-mode.js?v=20260902-stripe-live2";
 
 export function resolveAccountAccessSnapshot(accountSnapshot, billingProfile = {}){
   const accountData = accountSnapshot?.exists?.() === true

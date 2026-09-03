@@ -2,7 +2,7 @@ import { CANONICAL_WORKBOOK_SCHEMA } from "./canonical-workbook-schema.js";
 import {
   PROJECT_STATUS,
   canUseAnotherActiveProject
-} from "./project-access.js";
+} from "./project-access.js?v=20260902-stripe-live2";
 
 const DATA_SHEETS = CANONICAL_WORKBOOK_SCHEMA.sheets.filter(sheet => !sheet.importIgnored);
 const DATA_SHEET_NAMES = new Set(DATA_SHEETS.map(sheet => sheet.name));

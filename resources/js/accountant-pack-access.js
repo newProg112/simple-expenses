@@ -3,8 +3,8 @@ import {
   PLAN_IDS,
   effectiveBillingPlan,
   isFeatureIncluded
-} from "./plan-entitlements.js?v=20260901-stripe-live1";
-import { clientStripeBillingConfiguration } from "./stripe-billing-config.js?v=20260901-stripe-live1";
+} from "./plan-entitlements.js?v=20260902-stripe-live2";
+import { clientStripeBillingConfiguration } from "./stripe-billing-config.js?v=20260902-stripe-live2";
 
 export function getAccountantPackAccess(profile, demoMode = false) {
   const allowed = isFeatureIncluded(
