@@ -44,6 +44,9 @@ const {
 const {readMonthlyUsage} = require("./lib/monthly-usage-reader");
 const {createAdminMetricsHandler} = require("./lib/admin-metrics-handler");
 const {
+  createFounderAnalyticsHandler,
+} = require("./lib/founder-analytics-handler");
+const {
   createAdminUserDetailsHandler,
 } = require("./lib/admin-user-details-handler");
 const {
@@ -1022,6 +1025,27 @@ exports.getAdminMetrics = onCall(
       demoConfiguration: demoIdentifiersSecret.value(),
       proPriceId: stripeBillingConfiguration().proPriceId,
       expectedMode: stripeBillingConfiguration().expectedMode,
+      logger: console,
+    })(request),
+);
+
+exports.getFounderAnalyticsSnapshot = onCall(
+    {
+      region: "us-central1",
+      maxInstances: 2,
+      timeoutSeconds: 60,
+      memory: "256MiB",
+      secrets: [adminUidsSecret, demoIdentifiersSecret],
+    },
+    (request) => createFounderAnalyticsHandler({
+      auth: admin.auth(),
+      firestore: admin.firestore(),
+      adminUidConfiguration: adminUidsSecret.value(),
+      demoConfiguration: demoIdentifiersSecret.value(),
+      proPriceId: stripeBillingConfiguration().proPriceId,
+      expectedMode: stripeBillingConfiguration().expectedMode,
+      timestampFactory: admin.firestore.Timestamp,
+      documentIdField: admin.firestore.FieldPath.documentId(),
       logger: console,
     })(request),
 );
