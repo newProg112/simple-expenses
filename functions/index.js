@@ -17,7 +17,7 @@ const {
 } = require("firebase-functions/params");
 const functionsV1 = require("firebase-functions/v1");
 const admin = require("firebase-admin");
-const {FieldValue, Timestamp} = require("firebase-admin/firestore");
+const {FieldPath, FieldValue, Timestamp} = require("firebase-admin/firestore");
 const Stripe = require("stripe");
 const {
   assertConfiguredProPrice,
@@ -1044,8 +1044,8 @@ exports.getFounderAnalyticsSnapshot = onCall(
       demoConfiguration: demoIdentifiersSecret.value(),
       proPriceId: stripeBillingConfiguration().proPriceId,
       expectedMode: stripeBillingConfiguration().expectedMode,
-      timestampFactory: admin.firestore.Timestamp,
-      documentIdField: admin.firestore.FieldPath.documentId(),
+      timestampFactory: Timestamp,
+      documentIdField: FieldPath.documentId(),
       logger: console,
     })(request),
 );

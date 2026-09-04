@@ -235,8 +235,8 @@ describe("Founder Analytics callable export wiring", () => {
     expect(wiring).toContain("demoConfiguration: demoIdentifiersSecret.value()");
     expect(wiring).toContain("auth: admin.auth()");
     expect(wiring).toContain("firestore: admin.firestore()");
-    expect(wiring).toContain("timestampFactory: admin.firestore.Timestamp");
-    expect(wiring).toContain("documentIdField: admin.firestore.FieldPath.documentId()");
+    expect(wiring).toContain("timestampFactory: Timestamp");
+    expect(wiring).toContain("documentIdField: FieldPath.documentId()");
     expect(wiring).not.toContain("enforceAppCheck");
   });
 });
