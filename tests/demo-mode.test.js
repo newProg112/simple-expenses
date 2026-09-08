@@ -148,6 +148,6 @@ describe("existing plan behaviour", () => {
     expect(getPlanEntitlements("Pro").accountantPack).toBe(true);
     expect(hasProAccess("Starter", "active")).toBe(false);
     expect(hasProAccess("Pro", "active")).toBe(true);
-    expect(hasProAccess("Pro", "past_due")).toBe(false);
+    expect(hasProAccess("Pro", "past_due")).toBe(true);
   });
 });

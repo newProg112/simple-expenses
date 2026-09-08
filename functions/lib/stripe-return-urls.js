@@ -40,7 +40,7 @@ function stripeBillingReturnUrls(environment = process.env) {
     frontendOrigin,
     successUrl: `${frontendOrigin}/account.html?checkout=success`,
     cancelUrl: `${frontendOrigin}/account.html?checkout=cancelled`,
-    billingPortalReturnUrl: `${frontendOrigin}/account.html`,
+    billingPortalReturnUrl: `${frontendOrigin}/account.html?billing=return`,
   });
 }
 

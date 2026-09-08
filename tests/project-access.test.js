@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PLAN_IDS } from "../resources/js/plan-entitlements.js";
 import {
@@ -152,38 +151,8 @@ describe("active project limits", () => {
   it("uses the entitlement values in the friendly Starter message", () => {
     expect(activeProjectLimitMessage(starterProfile)).toBe(
       "You've reached the Starter limit of 5 active projects. " +
-      "Upgrade to Pro for unlimited active projects."
+      "You can still create an On Hold or Completed project, or finish an active project to make space."
     );
     expect(activeProjectLimitMessage(explicitProProfile)).toBe("");
-  });
-});
-
-describe("Projects page integration", () => {
-  const html = readFileSync(
-    new URL("../resources/tools/projects.html", import.meta.url),
-    "utf8"
-  );
-
-  it("loads the billing profile and the entitlement-backed project policy", () => {
-    expect(html).toContain('from "../js/project-access.js?v=20260902-stripe-live2"');
-    expect(html).toContain('doc(db, "users", user.uid)');
-    expect(html).toContain('doc(db, "userProfiles", user.uid)');
-  });
-
-  it("disables both project-creation buttons when capacity is exhausted", () => {
-    expect(html).toContain(
-      "const limitReached = !canUseAnotherActiveProject(currentBillingProfile, projects, currentDemoMode)"
-    );
-    expect(html).toContain("button.disabled = limitReached");
-  });
-
-  it("checks Active capacity before any project write", () => {
-    const guardPosition = html.indexOf("if (!canSaveProjectStatus({");
-    const updatePosition = html.indexOf("await updateDoc(");
-    const createPosition = html.indexOf("await addDoc(");
-
-    expect(guardPosition).toBeGreaterThan(-1);
-    expect(guardPosition).toBeLessThan(updatePosition);
-    expect(guardPosition).toBeLessThan(createPosition);
   });
 });

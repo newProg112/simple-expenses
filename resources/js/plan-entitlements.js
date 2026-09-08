@@ -21,7 +21,8 @@ export const REPORT_IDS = Object.freeze({
 
 export const PRO_ELIGIBLE_SUBSCRIPTION_STATUSES = Object.freeze([
   "active",
-  "trialing"
+  "trialing",
+  "past_due"
 ]);
 
 const starterReports = Object.freeze({

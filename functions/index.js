@@ -19,6 +19,7 @@ const functionsV1 = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const {FieldPath, FieldValue, Timestamp} = require("firebase-admin/firestore");
 const Stripe = require("stripe");
+const {STRIPE_READ_OPTIONS} = require("./lib/stripe-object-validation");
 const {
   assertConfiguredProPrice,
   assertStripeSecretKeyMode,
@@ -37,6 +38,7 @@ const {
 } = require("./lib/stripe-portal-service");
 const {
   createStripeWebhookProcessor,
+  createSubscriptionProjectionReader,
 } = require("./lib/stripe-webhook-processor");
 const {
   stripeTimestampToFirestore,
@@ -376,13 +378,17 @@ async function subscriptionPaymentMethodSummary(stripe, subscription) {
   let paymentMethod = subscription.default_payment_method || null;
 
   if (!paymentMethod && customerId) {
-    const customer = await stripe.customers.retrieve(customerId);
+    const customer = await stripe.customers.retrieve(
+        customerId, {}, STRIPE_READ_OPTIONS,
+    );
     const invoiceSettings = customer.invoice_settings || {};
     paymentMethod = invoiceSettings.default_payment_method || null;
   }
 
   if (typeof paymentMethod === "string") {
-    paymentMethod = await stripe.paymentMethods.retrieve(paymentMethod);
+    paymentMethod = await stripe.paymentMethods.retrieve(
+        paymentMethod, {}, STRIPE_READ_OPTIONS,
+    );
   }
 
   if (!paymentMethod && customerId) {
@@ -390,7 +396,7 @@ async function subscriptionPaymentMethodSummary(stripe, subscription) {
       customer: customerId,
       type: "card",
       limit: 1,
-    });
+    }, STRIPE_READ_OPTIONS);
     paymentMethod = paymentMethods.data[0] || null;
   }
 
@@ -447,6 +453,11 @@ async function subscriptionBillingDetails(stripe, subscription) {
  * @return {Promise<void>} Resolves when Firestore has been updated.
  */
 async function updateSubscriptionProfile(uid, data, eventContext = {}) {
+  if (typeof eventContext.refreshData !== "function") {
+    throw new TypeError(
+        "Billing projection requires a canonical reader.",
+    );
+  }
   return createStripeProfileWriter({
     firestore,
     auth: admin.auth(),
@@ -656,6 +667,23 @@ exports.createBillingPortalSession = onRequest(
         const portal = createStripePortalService({
           stripe,
           billingConfiguration: configuration,
+          reconcileSubscription: async (uid, subscription) => {
+            let reconciled = subscription;
+            const readProjection = createSubscriptionProjectionReader({
+              stripe, billingConfiguration: configuration,
+              billingDetails: subscriptionBillingDetails, uid,
+              subscriptionId: subscription.id,
+              customerId: subscriptionCustomerId(subscription),
+            });
+            await updateSubscriptionProfile(uid, {}, {
+              refreshData: async () => {
+                const projection = await readProjection();
+                reconciled = projection.subscription;
+                return projection.data;
+              },
+            });
+            return reconciled;
+          },
         });
         const {session} = await portal({
           uid: decodedToken.uid,

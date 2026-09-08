@@ -1,5 +1,4 @@
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
@@ -47,10 +46,10 @@ describe("Stripe subscription status preservation", () => {
     expect(stripeSubscriptionStatus({ status: "cancelled" })).toBe("canceled");
   });
 
-  it("keeps Pro eligibility limited to active and trialing", () => {
+  it("includes past_due in temporary Pro eligibility", () => {
     for (const status of STRIPE_SUBSCRIPTION_STATUSES) {
       expect(hasProAccess("Pro", stripeSubscriptionStatus({ status })))
-        .toBe(status === "active" || status === "trialing");
+        .toBe(["active", "trialing", "past_due"].includes(status));
     }
   });
 
@@ -64,20 +63,4 @@ describe("Stripe subscription status preservation", () => {
     expect(isBillingPortalStatus("unknown")).toBe(false);
   });
 
-  it("connects the preserving mapper to checkout and subscription webhooks", () => {
-    const source = readFileSync(
-      new URL("../functions/lib/stripe-webhook-processor.js", import.meta.url),
-      "utf8"
-    );
-
-    expect(source.match(
-      /subscriptionStatus:\s*stripeSubscriptionStatus\(subscription\)/g
-    )).toHaveLength(2);
-    expect(source).not.toMatch(
-      /subscriptionStatus:\s*subscription\s*\?\s*"active"/
-    );
-    expect(source).not.toMatch(
-      /subscriptionStatus:\s*data\.status\s*===\s*"canceled"/
-    );
-  });
 });

@@ -3,6 +3,8 @@
 "use strict";
 
 const {assertStripeObjectMode} = require("./stripe-billing-config");
+const {isProEligibleSubscriptionStatus} = require("./plan-entitlements");
+const STRIPE_READ_OPTIONS = Object.freeze({timeout: 3000, maxNetworkRetries: 0});
 const {
   isBillingPortalStatus,
   stripeSubscriptionStatus,
@@ -36,16 +38,17 @@ function subscriptionUsesConfiguredPrice(subscription, billingConfiguration) {
   const items = subscriptionItems(subscription);
   return items.length === 1 &&
     objectId(items[0] && items[0].price) === billingConfiguration.proPriceId &&
-    Number(items[0] && items[0].quantity || 1) === 1;
+    items[0].quantity === 1;
 }
 
 function subscriptionEligibleForPro(subscription, billingConfiguration) {
   return subscriptionUsesConfiguredPrice(subscription, billingConfiguration) &&
-    ["active", "trialing"].includes(stripeSubscriptionStatus(subscription));
+    isProEligibleSubscriptionStatus(stripeSubscriptionStatus(subscription));
 }
 
 function assertUidMetadata(value, uid, label) {
-  if (!uid || metadataUid(value) !== uid) {
+  if (typeof uid !== "string" || !uid.trim() || uid.length > 128 ||
+    uid.includes("/") || metadataUid(value) !== uid) {
     const error = new Error(`Stripe ${label} ownership could not be verified.`);
     error.code = "stripe-ownership-invalid";
     throw error;
@@ -61,7 +64,7 @@ function assertCustomerRelationship(subscription, customerId) {
 }
 
 async function retrieveOwnedCustomer(stripe, customerId, uid, billingConfiguration, options = {}) {
-  const customer = await stripe.customers.retrieve(customerId);
+  const customer = await stripe.customers.retrieve(customerId, {}, options.requestOptions);
   if (!customer || customer.deleted === true) {
     const error = new Error("Stripe customer is unavailable.");
     error.code = "stripe-customer-unavailable";
@@ -82,14 +85,23 @@ async function retrieveOwnedCustomer(stripe, customerId, uid, billingConfigurati
   return customer;
 }
 
-async function retrieveOwnedSubscription(stripe, subscriptionId, uid, billingConfiguration) {
+async function retrieveOwnedSubscription(stripe, subscriptionId, uid, billingConfiguration, requestOptions) {
+  if (!/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) {
+    throw new Error("Invalid Stripe subscription reference.");
+  }
   const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
     expand: ["default_payment_method"],
-  });
+  }, requestOptions);
+  if (!subscription || subscription.deleted === true) {
+    const error = new Error("Stripe subscription is unavailable.");
+    error.code = "stripe-subscription-unavailable";
+    throw error;
+  }
+  if (subscription.id !== subscriptionId) throw new Error("Stripe subscription identity mismatch.");
   assertStripeObjectMode(subscription, billingConfiguration, "subscription");
   assertUidMetadata(subscription, uid, "subscription");
   const customerId = subscriptionCustomerId(subscription);
-  await retrieveOwnedCustomer(stripe, customerId, uid, billingConfiguration);
+  await retrieveOwnedCustomer(stripe, customerId, uid, billingConfiguration, {requestOptions});
   return subscription;
 }
 
@@ -98,6 +110,7 @@ function subscriptionAllowsPortal(subscription) {
 }
 
 module.exports = {
+  STRIPE_READ_OPTIONS,
   assertCustomerRelationship,
   assertUidMetadata,
   metadataUid,

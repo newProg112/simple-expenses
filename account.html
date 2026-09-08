@@ -1359,8 +1359,10 @@
     import { resolveProductAccess } from "./assets/demo-mode.js?v=20260902-stripe-live2";
     import {
       createAccountAccessRequestTracker,
+      createBillingProfilePoller,
+      createBillingPortalReturnTracker,
       resolveAccountAccessSnapshot
-    } from "./assets/account-access-state.js?v=20260902-stripe-live2";
+    } from "./assets/account-access-state.js?v=20260908-subscription-phase1";
     import {
       buildMonthlyUsageView
     } from "./resources/js/monthly-usage.js?v=20260806-demo-pro2";
@@ -1387,6 +1389,7 @@
       doc,
       deleteField,
       getDoc,
+      getDocFromServer,
       getDocs,
       setDoc,
       serverTimestamp
@@ -1425,6 +1428,12 @@
     const MONTHLY_USAGE_FUNCTION_URL =
       firebaseFunctionUrl("getMonthlyUsage");
     const EXPECTED_STRIPE_BILLING = clientStripeBillingConfiguration();
+    const ACCOUNT_CHECKOUT_ENABLED = false;
+    const billingPortalReturn = createBillingPortalReturnTracker({
+      getItem: key => window.sessionStorage.getItem(key),
+      setItem: (key, value) => window.sessionStorage.setItem(key, value),
+      removeItem: key => window.sessionStorage.removeItem(key)
+    });
 
     let currentUser = null;
     let billingProfile = {};
@@ -1739,7 +1748,8 @@
       const billingDate = cancellationScheduled
         ? account.subscriptionCancelAt || account.subscriptionCurrentPeriodEnd
         : account.subscriptionCurrentPeriodEnd;
-      const renewalDate = canManageSubscription
+      const renewalDate = canManageSubscription &&
+        ["active", "trialing"].includes(account.subscriptionStatus)
         ? formatBillingDate(billingDate)
         : "";
       const brand = canManageSubscription
@@ -1861,14 +1871,15 @@
       renderMonthlyUsage();
     }
 
-    async function loadMonthlyUsageFromBackend(){
-      if(!currentUser){
+    async function loadMonthlyUsageFromBackend(isCurrent = () => true){
+      const usageUser = currentUser;
+      if(!usageUser){
         resetMonthlyUsage();
         return;
       }
 
       try {
-        const idToken = await currentUser.getIdToken();
+        const idToken = await usageUser.getIdToken();
         const response = await fetch(MONTHLY_USAGE_FUNCTION_URL, {
           method: "POST",
           headers: {
@@ -1881,8 +1892,11 @@
           throw new Error("Monthly usage could not be loaded.");
         }
 
-        monthlyUsage = await response.json();
+        const usage = await response.json();
+        if(currentUser !== usageUser || !isCurrent()) return;
+        monthlyUsage = usage;
       } catch(error) {
+        if(currentUser !== usageUser || !isCurrent()) return;
         console.error("Could not load monthly usage", error);
         monthlyUsage = {};
       }
@@ -2007,7 +2021,8 @@
       const isPro = currentPlan === "Pro";
       const isCancelled = subscriptionStatus === "canceled" ||
         subscriptionStatus === "incomplete_expired";
-      const isActive = isPro && ["active", "trialing"].includes(subscriptionStatus);
+      const isActive = isPro && ["active", "trialing"].includes(subscriptionStatus) &&
+        account.billingOverride !== true;
       const cancellationScheduled = account.cancelAtPeriodEnd === true ||
         Boolean(account.subscriptionCancelAt);
       const isDiscounted = isPro && account.billingOverride === true &&
@@ -2022,11 +2037,12 @@
           .includes(subscriptionStatus) &&
         account.billingOverride !== true &&
         hasValue(account.stripeCustomerId);
-      const canUpgrade = !isPro && !canManageSubscription;
+      // Checkout remains disabled for this phase, including direct button calls.
+      const canUpgrade = ACCOUNT_CHECKOUT_ENABLED && !isPro && !canManageSubscription;
 
       let kicker = "Current plan";
       let price = "Starter";
-      let message = "Upgrade to Pro for £15/month.";
+      let message = "Pro checkout is currently unavailable.";
       let statusMessage = "";
 
       if(isActive){
@@ -2045,18 +2061,28 @@
         price = "Discounted Pro";
         message = "Discounted Pro account";
         statusMessage = `Discounted Pro account.${overrideReason}`;
+      } else if(subscriptionStatus === "past_due" && isPro){
+        kicker = "Payment needs attention";
+        price = "£15/month";
+        message = "Your payment is overdue. Pro remains available for now.";
+        statusMessage = "Your payment needs attention.";
       } else if(isCancelled){
-        kicker = "Subscription cancelled";
+        kicker = subscriptionStatus === "incomplete_expired" ? "Payment setup expired" : "Subscription cancelled";
         price = "Starter";
-        message = "Subscription cancelled";
-        statusMessage = "Subscription cancelled. You can upgrade again when ready.";
+        message = kicker;
+        statusMessage = "You are on Starter. Existing records and standard Excel and JSON exports remain available. Pro checkout is currently unavailable.";
       } else if(["past_due", "unpaid", "paused", "incomplete"].includes(subscriptionStatus)){
         kicker = "Billing action needed";
         price = "Starter";
-        message = "Pro access is paused";
-        statusMessage = "Open Billing Portal to review and recover your subscription.";
+        message = subscriptionStatus === "incomplete" ? "Initial payment is incomplete. You are on Starter." : "You are on Starter.";
+        statusMessage = "Existing records and standard Excel and JSON exports remain available.";
       } else if(isPro){
         price = "Pro";
+      }
+      if(["past_due", "unpaid", "paused", "incomplete"].includes(subscriptionStatus) && !account.billingOverride){
+        statusMessage += canManageSubscription
+          ? " Use Manage Subscription to review billing. Successful recovery restores Pro once the subscription is active again; a refresh may be required."
+          : " Subscription management is unavailable for this account. Contact adam@simple-books.co.uk for help.";
       }
 
       setText("subscriptionPlan", currentPlan);
@@ -2095,6 +2121,10 @@
     }
 
     async function startStripeCheckout(){
+      if(!ACCOUNT_CHECKOUT_ENABLED){
+        setCheckoutStatus("Pro checkout is currently unavailable.", true);
+        return;
+      }
       if(productAccess === null){
         setCheckoutStatus(
           accountAccessError
@@ -2200,6 +2230,7 @@
       }
 
       const originalButtonText = manageSubscriptionBtn.textContent;
+      const portalUser = currentUser;
       billingPortalOpening = true;
       manageSubscriptionBtn.disabled = true;
       manageSubscriptionBtn.textContent = "Opening...";
@@ -2208,7 +2239,7 @@
       let portalRedirecting = false;
 
       try {
-        const idToken = await currentUser.getIdToken();
+        const idToken = await portalUser.getIdToken();
         const response = await fetch(BILLING_PORTAL_FUNCTION_URL, {
           method: "POST",
           headers: {
@@ -2235,7 +2266,12 @@
         if(!session.url){
           throw new Error("Billing Portal session URL was missing.");
         }
-
+        const destination = new URL(session.url);
+        if(destination.protocol !== "https:" || destination.hostname !== "billing.stripe.com"){
+          throw new Error("Billing Portal returned an unexpected destination.");
+        }
+        if(currentUser?.uid !== portalUser.uid) return;
+        billingPortalReturn.mark(portalUser.uid);
         portalRedirecting = true;
         window.location.href = session.url;
       } catch(error) {
@@ -2686,7 +2722,30 @@
 
     saveBtn.addEventListener("click", saveAccount);
 
+    async function applyBillingProfileRefresh(profile, isCurrent){
+      billingProfile = readBillingProfile(profile);
+      productAccess = resolveProductAccess({}, billingProfile);
+      const account = accountWithBilling(currentAccountSnapshot());
+      setField("currentPlan", productAccess.effectivePlan);
+      setText("summaryPlan", productAccess.planLabel);
+      setText("planStatus", productAccess.accessLabel);
+      renderSubscriptionCard(account);
+      await loadMonthlyUsageFromBackend(isCurrent);
+    }
+
+    const billingReturnPoller = createBillingProfilePoller({
+      readProfile: async uid => {
+        const snapshot = await getDocFromServer(doc(db, "userProfiles", uid));
+        return snapshot.exists() ? snapshot.data() : {};
+      },
+      isCurrent: uid => currentUser?.uid === uid && productAccess !== null && !productAccess.demo,
+      applyProfile: applyBillingProfileRefresh
+    });
+    window.addEventListener("pagehide", () => billingReturnPoller.stop());
+
     onAuthStateChanged(auth, async (user) => {
+      billingReturnPoller.stop();
+      if(!user || (currentUser && currentUser.uid !== user.uid)) billingPortalReturn.clear();
       const accessRequest = accountAccessRequests.begin(user?.uid || "");
       currentUser = user;
       accountDeletionController.handleAuthState(user);
@@ -2701,6 +2760,13 @@
         return;
       }
       await loadAccount(user, accessRequest);
+      if(user && currentUser?.uid === user.uid && productAccess && !productAccess.demo &&
+        billingPortalReturn.consume(user.uid, window.location.search)){
+        const url = new URL(window.location.href);
+        url.searchParams.delete("billing");
+        window.history.replaceState(null, "", url);
+        billingReturnPoller.start(user.uid);
+      }
     });
   </script>
 </body>

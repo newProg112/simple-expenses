@@ -1,5 +1,4 @@
 import {
-  PLAN_IDS,
   effectiveBillingPlan,
   getPlanEntitlements,
   isUnlimited
@@ -58,5 +57,5 @@ export function activeProjectLimitMessage(profile, demoMode = false) {
   }
 
   return `You've reached the ${normalisedPlan} limit of ${activeProjectsLimit} active projects. ` +
-    `Upgrade to ${PLAN_IDS.PRO} for unlimited active projects.`;
+    "You can still create an On Hold or Completed project, or finish an active project to make space.";
 }

@@ -19,7 +19,7 @@ describe("Stripe billing return URLs", () => {
       frontendOrigin: EMULATOR_STRIPE_FRONTEND_ORIGIN,
       successUrl: "http://localhost:5500/account.html?checkout=success",
       cancelUrl: "http://localhost:5500/account.html?checkout=cancelled",
-      billingPortalReturnUrl: "http://localhost:5500/account.html"
+      billingPortalReturnUrl: "http://localhost:5500/account.html?billing=return"
     });
   });
 
@@ -32,7 +32,7 @@ describe("Stripe billing return URLs", () => {
       frontendOrigin: PRODUCTION_STRIPE_FRONTEND_ORIGIN,
       successUrl: "https://simple-books.co.uk/account.html?checkout=success",
       cancelUrl: "https://simple-books.co.uk/account.html?checkout=cancelled",
-      billingPortalReturnUrl: "https://simple-books.co.uk/account.html"
+      billingPortalReturnUrl: "https://simple-books.co.uk/account.html?billing=return"
     });
   });
 
@@ -83,6 +83,6 @@ describe("Stripe billing return URLs", () => {
     );
     expect(local).toMatch(/^STRIPE_EXPECTED_MODE=test$/m);
     expect(local).toMatch(new RegExp(`^STRIPE_PRO_PRICE_ID=${TEST_PRO_PRICE_ID}$`, "m"));
-    expect(local).toMatch(/^STRIPE_CHECKOUT_ENABLED=(?:true|false)$/m);
+    expect(local).toMatch(/^STRIPE_CHECKOUT_ENABLED=false$/m);
   });
 });

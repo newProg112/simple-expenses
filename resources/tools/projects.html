@@ -1862,7 +1862,7 @@
       const message = limitReached ? activeProjectLimitMessage(currentBillingProfile, currentDemoMode) : "";
 
       [elements.newProjectButton, elements.emptyNewProjectButton].forEach(button => {
-        button.disabled = limitReached;
+        button.disabled = false;
         button.title = message;
       });
       elements.projectLimitMessage.textContent = message;
@@ -1885,11 +1885,6 @@
     }
 
     function openProjectForm(project = null) {
-      if (!project && !canUseAnotherActiveProject(currentBillingProfile, projects, currentDemoMode)) {
-        showPageFeedback(activeProjectLimitMessage(currentBillingProfile, currentDemoMode), true);
-        return;
-      }
-
       editingProjectId = project?.id || null;
       elements.form.reset();
       clearValidation();
@@ -1899,7 +1894,10 @@
       elements.name.value = project?.name || "";
       elements.reference.value = project?.reference || nextProjectReference();
       elements.description.value = project?.description || "";
-      elements.status.value = project?.status || "Active";
+      elements.status.value = project?.status || (
+        canUseAnotherActiveProject(currentBillingProfile, projects, currentDemoMode)
+          ? PROJECT_STATUS.ACTIVE : PROJECT_STATUS.ON_HOLD
+      );
       elements.budget.value = project?.budget ? String(project.budget) : "";
       elements.startDate.value = project?.startDate || "";
       elements.endDate.value = project?.endDate || "";

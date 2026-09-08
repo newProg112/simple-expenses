@@ -58,6 +58,10 @@ class Reference {
   collection(name) {
     return new Collection(this.firestore, `${this.path}/${name}`);
   }
+
+  async get() {
+    return new Snapshot(this.firestore.documents.get(this.path));
+  }
 }
 
 class Collection {
@@ -440,10 +444,11 @@ describe("Stripe Checkout concurrency and ownership", () => {
 function webhookFixture(overrides = {}) {
   const canonicalSubscription = overrides.subscription || subscription();
   const canonicalCustomer = overrides.customer || customer();
-  const updateProfile = overrides.updateProfile || vi.fn(async () => ({
-    updated: true,
-    reason: "updated"
-  }));
+  const projected = [];
+  const updateProfile = overrides.updateProfile || vi.fn(async (uid, _data, context) => {
+    projected.push({uid, ...await context.refreshData()});
+    return {updated: true, reason: "updated"};
+  });
   const stripe = {
     subscriptions: {
       retrieve: vi.fn(async () => canonicalSubscription)
@@ -462,7 +467,7 @@ function webhookFixture(overrides = {}) {
       paymentMethodLast4: "4242"
     }))
   });
-  return { processor, stripe, updateProfile };
+  return { processor, stripe, updateProfile, projected };
 }
 
 function subscriptionEvent(type = "customer.subscription.updated", object = subscription()) {
@@ -481,7 +486,10 @@ describe("Stripe webhook validation and retryability", () => {
       "checkout.session.completed",
       "customer.subscription.created",
       "customer.subscription.updated",
-      "customer.subscription.deleted"
+      "customer.subscription.deleted",
+      "invoice.payment_failed",
+      "invoice.paid",
+      "invoice.payment_succeeded"
     ]);
   });
 
@@ -505,16 +513,13 @@ describe("Stripe webhook validation and retryability", () => {
       staleEventObject
     ));
     expect(result.subscriptionStatus).toBe("active");
-    expect(fixture.updateProfile).toHaveBeenCalledWith(
-      UID,
-      expect.objectContaining({
+    expect(fixture.projected.at(-1)).toMatchObject({
+        uid: UID,
         subscriptionStatus: "active",
         cancelAtPeriodEnd: true,
         stripeMode: "test",
         stripePriceId: TEST_PRO_PRICE_ID
-      }),
-      expect.objectContaining({ eventId: expect.stringMatching(/^evt_/) })
-    );
+    });
   });
 
   it("projects a separate scheduled cancellation date", async () => {
@@ -536,15 +541,12 @@ describe("Stripe webhook validation and retryability", () => {
     });
 
     await fixture.processor(subscriptionEvent());
-    expect(fixture.updateProfile).toHaveBeenCalledWith(
-      UID,
-      expect.objectContaining({
+    expect(fixture.projected.at(-1)).toMatchObject({
+        uid: UID,
         subscriptionStatus: "active",
         cancelAtPeriodEnd: false,
         subscriptionCancelAt: cancelAt
-      }),
-      expect.any(Object)
-    );
+    });
   });
 
   it("rejects checkout customer/subscription ownership mismatches", async () => {
@@ -567,7 +569,7 @@ describe("Stripe webhook validation and retryability", () => {
     await expect(fixture.processor(event)).rejects.toMatchObject({
       code: "stripe-ownership-invalid"
     });
-    expect(fixture.updateProfile).not.toHaveBeenCalled();
+    expect(fixture.projected).toEqual([]);
   });
 
   it("records a non-qualifying price so the writer can revoke Pro", async () => {
@@ -578,11 +580,7 @@ describe("Stripe webhook validation and retryability", () => {
     });
     const result = await fixture.processor(subscriptionEvent());
     expect(result.configuredPrice).toBe(false);
-    expect(fixture.updateProfile).toHaveBeenCalledWith(
-      UID,
-      expect.objectContaining({ stripePriceId: "price_wrong" }),
-      expect.any(Object)
-    );
+    expect(fixture.projected.at(-1)).toMatchObject({uid: UID, stripePriceId: "price_wrong"});
   });
 
   it("does not qualify a non-unit quantity of the configured price", async () => {
@@ -593,11 +591,7 @@ describe("Stripe webhook validation and retryability", () => {
     });
     const result = await fixture.processor(subscriptionEvent());
     expect(result.configuredPrice).toBe(false);
-    expect(fixture.updateProfile).toHaveBeenCalledWith(
-      UID,
-      expect.objectContaining({ stripePriceId: "" }),
-      expect.any(Object)
-    );
+    expect(fixture.projected.at(-1)).toMatchObject({uid: UID, stripePriceId: ""});
   });
 
   it("leaves failed processing retryable", async () => {

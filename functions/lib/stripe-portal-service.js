@@ -6,6 +6,7 @@ const {
   retrieveOwnedSubscription,
   subscriptionAllowsPortal,
   subscriptionCustomerId,
+  STRIPE_READ_OPTIONS,
 } = require("./stripe-object-validation");
 
 class StripePortalError extends Error {
@@ -32,12 +33,16 @@ function createStripePortalService(options = {}) {
           "Billing Portal is unavailable for this account.",
       );
     }
-    const subscription = await retrieveOwnedSubscription(
+    let subscription = await retrieveOwnedSubscription(
         stripe,
         profile.stripeSubscriptionId,
         uid,
         billingConfiguration,
+        STRIPE_READ_OPTIONS,
     );
+    if (typeof options.reconcileSubscription === "function") {
+      subscription = await options.reconcileSubscription(uid, subscription) || subscription;
+    }
     if (!subscriptionAllowsPortal(subscription)) {
       throw new StripePortalError(
           "portal-unavailable",

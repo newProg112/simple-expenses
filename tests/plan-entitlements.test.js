@@ -110,12 +110,13 @@ describe.each(adapters)("%s plan entitlements", (_name, entitlements) => {
     expect(entitlements.getMonthlyLimit("Pro", "unknownLimit")).toBe(0);
   });
 
-  it("recognises only active and trialing as Pro-eligible statuses", () => {
+  it("recognises active, trialing and past_due as Pro-eligible statuses", () => {
     expect(entitlements.isProEligibleSubscriptionStatus("active")).toBe(true);
     expect(entitlements.isProEligibleSubscriptionStatus("trialing")).toBe(true);
+    expect(entitlements.isProEligibleSubscriptionStatus("past_due")).toBe(true);
 
     for (const status of [
-      "past_due",
+      "unpaid",
       "cancelled",
       "canceled",
       "inactive",
@@ -153,7 +154,7 @@ describe.each(adapters)("%s plan entitlements", (_name, entitlements) => {
 
     for (const profile of [
       { currentPlan: "Pro", subscriptionStatus: "active" },
-      { ...liveProProfile, subscriptionStatus: "past_due" },
+      { ...liveProProfile, subscriptionStatus: "unpaid" },
       { ...liveProProfile, stripeMode: "test" },
       { ...liveProProfile, stripePriceId: "price_wrong" },
       { ...liveProProfile, stripeCustomerId: "" },
