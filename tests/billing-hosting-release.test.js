@@ -21,15 +21,27 @@ const recipe = JSON.parse(await readFile(path.join(root, "hosting-billing-releas
 const runtime = JSON.parse(await readFile(path.join(root, "hosting-runtime-files.json"), "utf8"));
 
 describe("billing-only Hosting release recipe", () => {
-  it("locks the containment baseline and exact 23-file billing scope", () => {
-    expect(recipe.baselineHostingVersion).toBe("ba9ff337be8b742e");
-    expect(recipe.billingOverlayFiles).toHaveLength(23);
-    expect(recipe.cacheCorrectionFiles).toHaveLength(21);
-    expect(recipe.expectedDifferences.additions).toEqual([
-      "resources/js/stripe-billing-config.js"
+    it("locks the current live baseline and exact five-file billing scope", () => {
+    expect(recipe.baselineHostingVersion).toBe("b5aeddc6d2169213");
+    expect(recipe.billingOverlayFiles).toEqual([
+      "account.html",
+      "assets/account-access-state.js",
+      "resources/js/plan-entitlements.js",
+      "resources/js/project-access.js",
+      "resources/tools/projects.html"
     ]);
-    expect(recipe.expectedDifferences.modifications).toHaveLength(22);
-    expect(recipe.expectedDifferences.deletions).toEqual([]);
+    expect(recipe.cacheCorrectionFiles).toEqual([]);
+    expect(recipe.expectedDifferences).toEqual({
+      additions: [],
+      modifications: [
+        "account.html",
+        "assets/account-access-state.js",
+        "resources/js/plan-entitlements.js",
+        "resources/js/project-access.js",
+        "resources/tools/projects.html"
+      ],
+      deletions: []
+    });
     expect(runtime.files).toContain("resources/js/stripe-billing-config.js");
   });
 
