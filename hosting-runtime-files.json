@@ -50,6 +50,7 @@
     "assets/icons/pwa-192.png",
     "assets/icons/pwa-512.png",
     "assets/logo.png",
+    "assets/legal.css",
     "assets/pricing.css",
     "assets/security.css",
     "assets/sentry-monitoring.js",
@@ -96,6 +97,7 @@
     "login.html",
     "manifest.webmanifest",
     "pricing.html",
+    "privacy.html",
     "resources/bulk-email-draft-generator/index.html",
     "resources/bulk-email-draft-generator-pro/index.html",
     "resources/index.html",
@@ -164,6 +166,7 @@
     "resources/tools/trial-balance.html",
     "security.html",
     "signup.html",
+    "terms.html",
     "whats-new.html"
   ]
 }

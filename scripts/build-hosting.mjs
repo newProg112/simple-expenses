@@ -11,11 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const GENERATED_OUTPUT = path.join("dist", "hosting");
 export const MANIFEST_FILE = "hosting-runtime-files.json";
-export const EXCLUDED_LOCAL_FILES = new Set([
-  "privacy.html",
-  "terms.html",
-  "assets/legal.css"
-]);
+export const EXCLUDED_LOCAL_FILES = new Set();
 
 const FORBIDDEN_TOP_LEVEL_DIRECTORIES = new Set([
   "docs",

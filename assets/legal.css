@@ -99,6 +99,13 @@
   margin: 0 0 12px;
 }
 
+.legal-document address {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-style: normal;
+  line-height: 1.65;
+}
+
 .legal-document ul,
 .legal-document ol {
   display: grid;

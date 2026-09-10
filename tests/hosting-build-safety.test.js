@@ -87,10 +87,7 @@ describe("generated Firebase Hosting publication safety", () => {
     "migration-reports/result.json",
     "docs/internal.md",
     "package.json",
-    "__/firebase/init.js",
-    "privacy.html",
-    "terms.html",
-    "assets/legal.css"
+    "__/firebase/init.js"
   ])("rejects a forbidden allowlist fixture: %s", relativePath => {
     expect(() => validateAllowlist(["index.html", relativePath]))
       .toThrow(HostingBuildError);
@@ -106,15 +103,16 @@ describe("generated Firebase Hosting publication safety", () => {
     await expect(access(path.join(root, GENERATED_OUTPUT, "__"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("blocks references to excluded legal pages and removes generated output", async () => {
+  it("blocks references outside the reviewed allowlist and removes generated output", async () => {
     const root = await fixtureRoot();
-    await put(root, "index.html", `<a href="/privacy.html">Privacy</a>`);
+    await put(root, "index.html", `<a href="/unreviewed.html">Unreviewed</a>`);
+    await put(root, "unreviewed.html", "<!doctype html><title>Unreviewed</title>");
     await put(root, "dist/hosting/stale.html", "stale");
 
     await expect(buildHosting({ projectRoot: root, files: ["index.html"] }))
       .rejects.toMatchObject({
         message: "Hosting publication is blocked by source references",
-        details: ["excluded pending approval: index.html -> privacy.html"]
+        details: ["not in reviewed runtime allowlist: index.html -> unreviewed.html"]
       });
     await expect(access(path.join(root, GENERATED_OUTPUT))).rejects.toMatchObject({ code: "ENOENT" });
   });
@@ -186,20 +184,20 @@ describe("reviewed Simple Books runtime allowlist", () => {
     expect(gitignore).toMatch(/^\/dist\/hosting\/$/m);
   });
 
-  it("contains the approved containment inventory and remains publication-blocked", async () => {
+  it("contains the approved containment inventory including reviewed legal pages", async () => {
     const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
     const manifest = JSON.parse(await readFile(path.join(projectRoot, "hosting-runtime-files.json"), "utf8"));
     const files = validateAllowlist(manifest.files);
 
     expect(manifest.reviewedAgainstHostingVersion).toBe("ba9ff337be8b742e");
-    expect(files).toHaveLength(163);
+    expect(files).toHaveLength(166);
     expect(files).toContain("resources/js/stripe-billing-config.js");
-    expect(files).not.toContain("privacy.html");
-    expect(files).not.toContain("terms.html");
-    expect(files).not.toContain("assets/legal.css");
+    expect(files).toContain("privacy.html");
+    expect(files).toContain("terms.html");
+    expect(files).toContain("assets/legal.css");
     expect(files.some(file => file.startsWith("__/"))).toBe(false);
     const audit = await auditRuntimeDependencies(projectRoot, files);
-    expect(audit.excludedReferences.length).toBeGreaterThan(0);
+    expect(audit.excludedReferences).toEqual([]);
     expect(audit.missingReferences).toEqual([
       "expenses/index.html -> downloads/simple-expenses-android.apk",
       "expenses/webapp/index.html -> downloads/simple-expenses-android.apk",
