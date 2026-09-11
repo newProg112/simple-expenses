@@ -18,6 +18,9 @@ import {
   stageActivationFirebaseConfiguration,
   stageRollbackFirebaseConfiguration
 } from "../scripts/prepare-stripe-live-activation-hosting-release.mjs";
+import {
+  verifyPreparedStripeLiveActivationHostingRelease
+} from "../scripts/verify-stripe-live-activation-hosting-release.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = relativePath => readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
@@ -26,6 +29,7 @@ const runtime = JSON.parse(read("hosting-runtime-files.json"));
 const firebase = JSON.parse(read("firebase.json"));
 const packageConfig = JSON.parse(read("package.json"));
 let prepared;
+let verified;
 
 beforeAll(async () => {
   const hosting = firebase.hosting.find(item => item.target === recipe.target);
@@ -51,6 +55,11 @@ beforeAll(async () => {
     liveChannelResult,
     liveFilesResult
   });
+  verified = await verifyPreparedStripeLiveActivationHostingRelease({
+    root,
+    liveChannelResult,
+    liveFilesResult
+  });
 }, 30000);
 
 describe("controlled Stripe-live activation Hosting release", () => {
@@ -63,6 +72,7 @@ describe("controlled Stripe-live activation Hosting release", () => {
       "__/firebase/init.js", "__/firebase/init.json"
     ]);
     expect(prepared.report.verifiedLiveBaseline.version).toBe(recipe.baselineHostingVersion);
+    expect(verified.verifiedLiveVersion).toBe(recipe.baselineHostingVersion);
   });
 
   it("enables frontend checkout only in the candidate and prepares an exact disabled rollback", () => {
@@ -141,16 +151,40 @@ describe("controlled Stripe-live activation Hosting release", () => {
       .toBe(recipe.hostingConfigDigest);
     expect(stageActivationFirebaseConfiguration(hosting).hosting[0]).toMatchObject({
       target: "main", public: "source/dist/hosting",
-      predeploy: ["npm.cmd --prefix ../.. run prepare:hosting:stripe-live"]
+      predeploy: ["npm.cmd --prefix ../.. run verify:hosting:stripe-live"]
     });
     expect(stageRollbackFirebaseConfiguration(hosting).hosting[0]).toMatchObject({
       target: "main", public: "dist/hosting"
     });
     expect(stageRollbackFirebaseConfiguration(hosting).hosting[0].predeploy).toBeUndefined();
-    expect(DEPLOY_COMMAND).toContain("firebase.cmd deploy --only hosting:main");
-    expect(ROLLBACK_COMMAND).toContain("firebase.cmd deploy --only hosting:main");
+    expect(DEPLOY_COMMAND).toBe(
+      "firebase.cmd deploy --only hosting:main --project simple-books-office --config dist/stripe-live-activation-hosting-release/firebase.json"
+    );
+    expect(ROLLBACK_COMMAND).toBe(
+      "firebase.cmd deploy --only hosting:main --project simple-books-office --config dist/stripe-live-activation-hosting-release/rollback/firebase.json"
+    );
     expect(packageConfig.scripts["prepare:hosting:stripe-live"])
       .toBe("node scripts/prepare-stripe-live-activation-hosting-release.mjs");
+    expect(packageConfig.scripts["verify:hosting:stripe-live"])
+      .toBe("node scripts/verify-stripe-live-activation-hosting-release.mjs");
+  });
+
+  it("uses a read-only predeploy verifier that cannot remove its Windows working directory", () => {
+    const verifier = read("scripts/verify-stripe-live-activation-hosting-release.mjs");
+    const staged = stageActivationFirebaseConfiguration(
+      firebase.hosting.find(item => item.target === recipe.target)
+    );
+    expect(staged.hosting[0].predeploy[0]).toContain("verify:hosting:stripe-live");
+    expect(staged.hosting[0].predeploy[0]).not.toContain("prepare:hosting:stripe-live");
+    expect(verifier).not.toMatch(/\b(?:rm|rename|writeFile|copyFile|cp|buildHosting)\s*\(/);
+    expect(verifier).not.toContain("prepareStripeLiveActivationHostingRelease(");
+    expect(verified).toMatchObject({
+      readOnlyVerification: true,
+      candidateDigest: recipe.finalHostingDigest,
+      rollbackDigest: recipe.baselineHostingDigest,
+      differences: {additions: [], modifications: ["account.html"], deletions: []}
+    });
+    expect(verified.credentialMaterialAbsent).toBe(true);
   });
 
   it("keeps known legacy defects documented without expanding activation scope", () => {

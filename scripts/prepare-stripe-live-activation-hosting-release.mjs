@@ -24,9 +24,9 @@ export const ROLLBACK_STAGE = path.join(RELEASE_STAGE, "rollback");
 export const ROLLBACK_PUBLIC = path.join(ROLLBACK_STAGE, "dist", "hosting");
 export const RELEASE_REPORT = "stripe-live-activation-verification.json";
 export const DEPLOY_COMMAND =
-  "firebase.cmd deploy --only hosting:main --project simple-books-office";
+  "firebase.cmd deploy --only hosting:main --project simple-books-office --config dist/stripe-live-activation-hosting-release/firebase.json";
 export const ROLLBACK_COMMAND =
-  "firebase.cmd deploy --only hosting:main --project simple-books-office --config firebase.json";
+  "firebase.cmd deploy --only hosting:main --project simple-books-office --config dist/stripe-live-activation-hosting-release/rollback/firebase.json";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceFlag = "const ACCOUNT_CHECKOUT_ENABLED = false;";
@@ -79,7 +79,7 @@ export function stageActivationFirebaseConfiguration(hosting){
   return isolatedHostingConfiguration(
     hosting,
     "source/dist/hosting",
-    ["npm.cmd --prefix ../.. run prepare:hosting:stripe-live"]
+    ["npm.cmd --prefix ../.. run verify:hosting:stripe-live"]
   );
 }
 
@@ -95,7 +95,7 @@ function firebaseRc(recipe){
   };
 }
 
-async function assertRuntimeBoundaries(root, sourceRoot, rollbackRoot, recipe){
+export async function assertRuntimeBoundaries(root, sourceRoot, rollbackRoot, recipe){
   const read = relativePath => readFile(path.join(sourceRoot, ...relativePath.split("/")), "utf8");
   const [account, firebaseConfig, firebaseRuntime, stripeConfig, consent, sentry,
     activity, customerAnalytics, rollbackAccount] = await Promise.all([
@@ -148,7 +148,7 @@ async function assertRuntimeBoundaries(root, sourceRoot, rollbackRoot, recipe){
   }
 }
 
-function liveInventory(files){
+export function liveInventory(files){
   const staticEntries = [];
   const managedPaths = [];
   for(const file of files){
@@ -307,11 +307,11 @@ export async function prepareStripeLiveActivationHostingRelease({
     rollbackArtifact: {
       staticFiles: rollbackEntries.length,
       digest: entryDigest(rollbackEntries),
-      workingDirectory: `${RELEASE_STAGE.split(path.sep).join("/")}/rollback`,
+      workingDirectory: ".",
       command: ROLLBACK_COMMAND
     },
     knownBaselineMissingReferences: build.dependencyAudit.missingReferences,
-    deploymentWorkingDirectory: RELEASE_STAGE.split(path.sep).join("/"),
+    deploymentWorkingDirectory: ".",
     deploymentCommand: DEPLOY_COMMAND
   };
   await writeFile(path.join(stageRoot, RELEASE_REPORT), `${JSON.stringify(report, null, 2)}\n`);

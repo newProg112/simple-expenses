@@ -9,6 +9,7 @@ From the repository root, confirm the worktree contains only the reviewed activa
 ```powershell
 npm.cmd run test:hosting:stripe-live
 npm.cmd run prepare:hosting:stripe-live
+npm.cmd run verify:hosting:stripe-live
 git diff --check
 ```
 
@@ -30,12 +31,10 @@ Review `dist\stripe-live-activation-hosting-release\stripe-live-activation-verif
 
    Do not call the authenticated endpoint during this preparation/verification step because that could create a real Checkout Session. If the function deployment is not healthy, execute the Functions rollback below and stop.
 
-3. Deploy only the isolated Hosting target from the prepared activation directory:
+3. From the repository root, deploy only the isolated Hosting target. Its predeploy hook performs the same live-backed, read-only verification of the already-prepared candidate; it does not rebuild or remove the directory containing Firebase's running configuration:
 
    ```powershell
-   Set-Location dist\stripe-live-activation-hosting-release
-   firebase.cmd deploy --only hosting:main --project simple-books-office
-   Set-Location ..\..
+   firebase.cmd deploy --only hosting:main --project simple-books-office --config dist/stripe-live-activation-hosting-release/firebase.json
    ```
 
 4. In a clean browser session, sign in to the designated blank Starter account, verify the Account page offers `Upgrade to Pro`, and perform the separately authorised controlled purchase. Verify success return, webhook-created Pro entitlement, Account billing state, portal access, analytics choices, and legal links. Stop and roll back on any mismatch.
@@ -49,9 +48,7 @@ From the repository root:
 ```powershell
 npm.cmd run checkout:production:disable
 firebase.cmd deploy --only functions:createCheckoutSession --project simple-books-office
-Set-Location dist\stripe-live-activation-hosting-release\rollback
-firebase.cmd deploy --only hosting:main --project simple-books-office --config firebase.json
-Set-Location ..\..\..
+firebase.cmd deploy --only hosting:main --project simple-books-office --config dist/stripe-live-activation-hosting-release/rollback/firebase.json
 ```
 
 The rollback Hosting artifact digest is the verified live baseline digest `3c63cb6acb71d00a5333bd693b3e5d7df37c13371b36b207f4cdfeef396097ed`; its `account.html` has checkout disabled. The disable script changes only `STRIPE_CHECKOUT_ENABLED` and does not read, print, or alter secret values. Do not redeploy the webhook or any unrelated Function during activation or rollback.

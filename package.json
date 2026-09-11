@@ -7,6 +7,7 @@
     "prepare:hosting:billing": "node scripts/prepare-billing-hosting-release.mjs",
     "prepare:hosting:launch": "node scripts/prepare-launch-readiness-hosting-release.mjs",
     "prepare:hosting:stripe-live": "node scripts/prepare-stripe-live-activation-hosting-release.mjs",
+    "verify:hosting:stripe-live": "node scripts/verify-stripe-live-activation-hosting-release.mjs",
     "checkout:production:disable": "node scripts/disable-production-checkout.mjs",
     "generate:guides": "node scripts/generate-guides.mjs",
     "generate:public-workbook": "node scripts/generate-public-workbook.mjs",
