@@ -13,6 +13,7 @@ firebase-debug.*.log*
 # Generated, validated Firebase Hosting publish directory
 /dist/hosting/
 /dist/billing-hosting-release/
+/dist/launch-readiness-hosting-release/
 
 # Firebase config
 

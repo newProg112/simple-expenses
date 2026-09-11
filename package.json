@@ -5,6 +5,7 @@
   "scripts": {
     "build:hosting": "node scripts/build-hosting.mjs",
     "prepare:hosting:billing": "node scripts/prepare-billing-hosting-release.mjs",
+    "prepare:hosting:launch": "node scripts/prepare-launch-readiness-hosting-release.mjs",
     "generate:guides": "node scripts/generate-guides.mjs",
     "generate:public-workbook": "node scripts/generate-public-workbook.mjs",
     "migration:legacy-storage:dry-run": "node scripts/migrate-legacy-storage-attachments.mjs --project simple-books-office --report migration-reports/legacy-storage-dry-run.json",
@@ -26,6 +27,7 @@
     "test": "vitest run",
     "test:hosting:safety": "vitest run tests/hosting-build-safety.test.js",
     "test:hosting:billing": "vitest run tests/billing-hosting-release.test.js",
+    "test:hosting:launch": "vitest run tests/launch-readiness-hosting-release.test.js",
     "test:guides:hosting": "firebase emulators:exec --only hosting:main \"node scripts/smoke-guides-hosting.mjs\"",
     "test:watch": "vitest"
   },

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "releaseName": "launch-readiness",
+  "project": "simple-books-office",
+  "site": "simple-books-office",
+  "target": "main",
+  "baselineHostingVersion": "54d035f39313e96b",
+  "baselineFileCount": 163,
+  "baselineHostingDigest": "7ad0b197500e81658142473e2f00b2e592ce805bf19d5681e96c4973a2ec3725",
+  "historicalBaselineRecipe": "hosting-billing-release.json",
+  "historicalRuntimeGitRevision": "0cd4fc99d3f768e3e51780d1657d191c2cd68cd7",
+  "legalGitRevision": "43cd931cb10b7ee988c0804d80b743550eff3dd7",
+  "releaseGitRevision": "d937e4746a6e2fec3aa4fa357add63d85f6c9296",
+  "runtimeFileCount": 168,
+  "runtimePathDigest": "7817d8443580b83f0146f5249ae8bddb741fa2992b635250931c9a69724c7169",
+  "overlayFiles": [
+    "about.html",
+    "assets/analytics-consent.css",
+    "assets/analytics-consent.js",
+    "assets/analytics-event-policy.js",
+    "assets/analytics-events.js",
+    "assets/app-shell.js",
+    "assets/guides/public-shell.js",
+    "assets/legal.css",
+    "faq.html",
+    "features.html",
+    "firebase-config.js",
+    "index.html",
+    "login.html",
+    "pricing.html",
+    "privacy.html",
+    "resources/js/firebase-runtime.js",
+    "security.html",
+    "signup.html",
+    "terms.html",
+    "whats-new.html"
+  ],
+  "overlayDigest": "db39660d0006555eb6a3cd6f22ecaf0dc9b78589a7c89c5ea92c3b06157c6290",
+  "knownBaselineMissingReferences": [
+    "expenses/index.html -> downloads/simple-expenses-android.apk",
+    "expenses/webapp/index.html -> downloads/simple-expenses-android.apk",
+    "resources/index.html -> downloads/Bulk-email-draft-generator-free.xlsm"
+  ],
+  "expectedDifferences": {
+    "additions": [
+      "assets/analytics-consent.css",
+      "assets/analytics-consent.js",
+      "assets/legal.css",
+      "privacy.html",
+      "terms.html"
+    ],
+    "modifications": [
+      "about.html",
+      "assets/analytics-event-policy.js",
+      "assets/analytics-events.js",
+      "assets/app-shell.js",
+      "assets/guides/public-shell.js",
+      "faq.html",
+      "features.html",
+      "firebase-config.js",
+      "index.html",
+      "login.html",
+      "pricing.html",
+      "resources/js/firebase-runtime.js",
+      "security.html",
+      "signup.html",
+      "whats-new.html"
+    ],
+    "deletions": []
+  },
+  "requiredPreservedFiles": [
+    "account.html",
+    "assets/activity-logger.js",
+    "assets/admin-customer-analytics-view.js",
+    "assets/demo-analytics.js",
+    "assets/sentry-monitoring.js",
+    "resources/js/stripe-billing-config.js"
+  ],
+  "finalHostingDigest": "3c63cb6acb71d00a5333bd693b3e5d7df37c13371b36b207f4cdfeef396097ed",
+  "hostingConfigDigest": "08f5de7f8f073be9b69eb0c1a4ed6e22071e5307911e7a4b10f32c6d93747e58",
+  "expectedManagedPaths": [
+    "__/firebase/init.js",
+    "__/firebase/init.json"
+  ],
+  "expectedStripeConfiguration": {
+    "mode": "live",
+    "priceId": "price_1UAwaZQwA8Uui39wNgjE9zNh",
+    "checkoutEnabled": false
+  }
+}

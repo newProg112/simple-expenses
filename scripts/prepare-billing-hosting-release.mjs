@@ -92,7 +92,7 @@ export function assertExactReleasePath(root, candidate) {
   return actual;
 }
 
-function readGitFile(root, revision, relativePath) {
+export function readGitFile(root, revision, relativePath) {
   return execFileSync("git", [
     "-c",
     `safe.directory=${root.split(path.sep).join("/")}`,
@@ -105,11 +105,11 @@ function readGitFile(root, revision, relativePath) {
   });
 }
 
-function sameList(actual, expected) {
+export function sameList(actual, expected) {
   return JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort());
 }
 
-function firebaseConfigView(hosting) {
+export function firebaseConfigView(hosting) {
   return {
     headers: (hosting.headers || []).map(item => ({
       headers: Object.fromEntries((item.headers || []).map(header => [header.key, header.value])),
@@ -127,7 +127,7 @@ function firebaseConfigView(hosting) {
   };
 }
 
-function liveConfigView(config = {}) {
+export function liveConfigView(config = {}) {
   return {
     headers: config.headers || [],
     rewrites: config.rewrites || [],
@@ -160,7 +160,7 @@ export function verifyLiveChannelResult(result, recipe) {
   return { channel, version, versionId };
 }
 
-function loadLiveChannel(recipe, root) {
+export function loadLiveChannel(recipe, root) {
   const command = process.platform === "win32" ? "firebase.cmd" : "firebase";
   const result = spawnSync(command, [
     "hosting:channel:list",
@@ -194,7 +194,7 @@ function firebaseToolsLibraryRoot() {
   return found;
 }
 
-async function loadLiveFiles(recipe, versionId, root) {
+export async function loadLiveFiles(recipe, versionId, root) {
   const libraryRoot = firebaseToolsLibraryRoot();
   const auth = require(path.join(libraryRoot, "auth.js"));
   const { Client } = require(path.join(libraryRoot, "apiv2.js"));
@@ -221,13 +221,13 @@ async function loadLiveFiles(recipe, versionId, root) {
   return files;
 }
 
-async function writeRuntimeFile(root, relativePath, contents) {
+export async function writeRuntimeFile(root, relativePath, contents) {
   const destination = path.join(root, ...relativePath.split("/"));
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, contents);
 }
 
-async function hashRuntimeFiles(root, files) {
+export async function hashRuntimeFiles(root, files) {
   const entries = [];
   for (const relativePath of files) {
     entries.push([
