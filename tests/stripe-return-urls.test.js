@@ -75,7 +75,7 @@ describe("Stripe billing return URLs", () => {
       "utf8"
     );
     expect(deployed).toMatch(/^STRIPE_EXPECTED_MODE=live$/m);
-    expect(deployed).toMatch(/^STRIPE_CHECKOUT_ENABLED=false$/m);
+    expect(deployed).toMatch(/^STRIPE_CHECKOUT_ENABLED=true$/m);
 
     const local = readFileSync(
       new URL("../functions/.env.local", import.meta.url),

@@ -105,7 +105,7 @@ describe("launch-readiness controlled Hosting release", () => {
     expect(read("assets/guides/public-shell.js")).toContain('import "../analytics-consent.js');
   });
 
-  it("preserves essential services, operational analytics, Sentry, and disabled checkout", () => {
+  it("preserves essential services, operational analytics, Sentry, and its historical disabled frontend", () => {
     const config = read("firebase-config.js");
     for(const service of ["getAuth(app)", "getFirestore(app)", "getFunctions(app", "getStorage(app)"]){
       expect(config).toContain(service);
@@ -115,7 +115,7 @@ describe("launch-readiness controlled Hosting release", () => {
     expect(read("assets/admin-customer-analytics-view.js")).toContain("customerAnalytics");
     expect(read("assets/sentry-monitoring.js")).toContain("sendDefaultPii: false");
     expect(read("account.html")).toContain("const ACCOUNT_CHECKOUT_ENABLED = false;");
-    expect(read("functions/.env.simple-books-office")).toMatch(/^STRIPE_CHECKOUT_ENABLED=false$/m);
+    expect(read("functions/.env.simple-books-office")).toMatch(/^STRIPE_CHECKOUT_ENABLED=true$/m);
     expect(recipe.expectedStripeConfiguration.checkoutEnabled).toBe(false);
     expect(recipe.requiredPreservedFiles).toContain("assets/sentry-monitoring.js");
     expect(recipe.requiredPreservedFiles).toContain("assets/activity-logger.js");

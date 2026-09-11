@@ -14,6 +14,7 @@ firebase-debug.*.log*
 /dist/hosting/
 /dist/billing-hosting-release/
 /dist/launch-readiness-hosting-release/
+/dist/stripe-live-activation-hosting-release/
 
 # Firebase config
 

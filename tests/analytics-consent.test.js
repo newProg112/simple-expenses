@@ -176,8 +176,8 @@ describe("Consent integration boundaries", () => {
     expect(read("assets/analytics-consent.css")).toContain("grid-template-columns: 1fr 1fr");
   });
 
-  it("keeps checkout disabled in both browser and deployed Functions configuration", () => {
+  it("keeps the source frontend fail-closed while the production Functions activation is explicit", () => {
     expect(read("account.html")).toContain("const ACCOUNT_CHECKOUT_ENABLED = false;");
-    expect(read("functions/.env.simple-books-office")).toMatch(/^STRIPE_CHECKOUT_ENABLED=false$/m);
+    expect(read("functions/.env.simple-books-office")).toMatch(/^STRIPE_CHECKOUT_ENABLED=true$/m);
   });
 });

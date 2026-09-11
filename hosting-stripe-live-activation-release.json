@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "releaseName": "stripe-live-activation",
+  "project": "simple-books-office",
+  "site": "simple-books-office",
+  "target": "main",
+  "baselineHostingVersion": "e2fceb0659593bf6",
+  "baselineFileCount": 168,
+  "baselineHostingDigest": "3c63cb6acb71d00a5333bd693b3e5d7df37c13371b36b207f4cdfeef396097ed",
+  "runtimePathDigest": "7817d8443580b83f0146f5249ae8bddb741fa2992b635250931c9a69724c7169",
+  "expectedManagedPaths": [
+    "__/firebase/init.js",
+    "__/firebase/init.json"
+  ],
+  "expectedDifferences": {
+    "additions": [],
+    "modifications": [
+      "account.html"
+    ],
+    "deletions": []
+  },
+  "knownBaselineMissingReferences": [
+    "expenses/index.html -> downloads/simple-expenses-android.apk",
+    "expenses/webapp/index.html -> downloads/simple-expenses-android.apk",
+    "resources/index.html -> downloads/Bulk-email-draft-generator-free.xlsm"
+  ],
+  "finalHostingDigest": "a6cf998dad13dca194fec0072b48a5209f07ac912465f95ee5ff64e80c068eff",
+  "hostingConfigDigest": "08f5de7f8f073be9b69eb0c1a4ed6e22071e5307911e7a4b10f32c6d93747e58",
+  "expectedStripeConfiguration": {
+    "mode": "live",
+    "priceId": "price_1UAwaZQwA8Uui39wNgjE9zNh",
+    "productionFunctionsCheckoutEnabled": true,
+    "sourceFrontendCheckoutEnabled": false,
+    "candidateFrontendCheckoutEnabled": true
+  }
+}

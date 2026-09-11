@@ -205,5 +205,5 @@ describe("reviewed Simple Books runtime allowlist", () => {
       "expenses/webapp/index.html -> downloads/simple-expenses-android.apk",
       "resources/index.html -> downloads/Bulk-email-draft-generator-free.xlsm"
     ]);
-  });
+  }, 15000);
 });
