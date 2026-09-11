@@ -321,6 +321,7 @@ describe("Stripe billing configuration", () => {
 describe("Stripe Checkout concurrency and ownership", () => {
   const request = {
     uid: UID,
+    email: "billing-user@example.test",
     profile: {},
     successUrl: "https://simple-books.co.uk/account.html?checkout=success",
     cancelUrl: "https://simple-books.co.uk/account.html?checkout=cancelled"
@@ -335,6 +336,63 @@ describe("Stripe Checkout concurrency and ownership", () => {
       httpStatus: 503
     });
     expect(fixture.calls.create).toHaveLength(0);
+  });
+
+  it("prefills a new customer's email while retaining UID ownership metadata", async () => {
+    const fixture = checkoutFixture();
+    await fixture.service(request);
+    const parameters = fixture.calls.create[0].parameters;
+    expect(parameters).toMatchObject({
+      customer_email: request.email,
+      client_reference_id: UID,
+      metadata: {firebaseUid: UID},
+      subscription_data: {metadata: {firebaseUid: UID}},
+      line_items: [{price: TEST_PRO_PRICE_ID, quantity: 1}]
+    });
+    expect(parameters).not.toHaveProperty("customer");
+  });
+
+  it("reuses only a directly UID-owned Stripe customer instead of passing customer_email", async () => {
+    const fixture = checkoutFixture();
+    await fixture.service({
+      ...request,
+      profile: {stripeMode: "test", stripeCustomerId: "cus_owned"}
+    });
+    expect(fixture.calls.retrieveCustomer).toEqual(["cus_owned"]);
+    expect(fixture.calls.create[0].parameters).toMatchObject({
+      customer: "cus_owned",
+      client_reference_id: UID,
+      metadata: {firebaseUid: UID},
+      subscription_data: {metadata: {firebaseUid: UID}}
+    });
+    expect(fixture.calls.create[0].parameters).not.toHaveProperty("customer_email");
+  });
+
+  it("does not reuse a pre-email-context open Session", async () => {
+    const fixture = checkoutFixture();
+    fixture.firestore.documents.set(`userProfiles/${UID}/billing/checkout`, {
+      stripeMode: "test",
+      stripePriceId: TEST_PRO_PRICE_ID,
+      generation: 1,
+      sessionId: "cs_test_blank_email",
+      sessionExpiresAt: new Date(NOW.getTime() + 60 * 60 * 1000)
+    });
+    fixture.sessions.set("cs_test_blank_email", {
+      id: "cs_test_blank_email",
+      url: "https://checkout.stripe.test/blank-email",
+      expires_at: Math.floor(NOW.getTime() / 1000) + 3600,
+      livemode: false,
+      mode: "subscription",
+      status: "open",
+      customer: null,
+      metadata: {firebaseUid: UID},
+      line_items: {data: [{price: {id: TEST_PRO_PRICE_ID}, quantity: 1}]}
+    });
+    const result = await fixture.service(request);
+    expect(result.reused).toBe(false);
+    expect(result.session.id).not.toBe("cs_test_blank_email");
+    expect(fixture.calls.retrieveSession).toEqual([]);
+    expect(fixture.calls.create[0].parameters.customer_email).toBe(request.email);
   });
 
   it("reuses the same owned open session for a repeated request", async () => {

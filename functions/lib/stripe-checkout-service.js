@@ -15,6 +15,7 @@ const {
 } = require("./stripe-object-validation");
 
 const CHECKOUT_LEASE_MS = 30 * 1000;
+const CHECKOUT_CONTEXT_VERSION = 2;
 const TERMINAL_RETRY_STATUSES = new Set(["canceled", "incomplete_expired"]);
 
 class StripeCheckoutError extends Error {
@@ -35,9 +36,13 @@ function timestampMillis(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function checkoutIdempotencyKey(uid, billingConfiguration, generation) {
+function checkoutEmailHash(email) {
+  return crypto.createHash("sha256").update(email).digest("hex");
+}
+
+function checkoutIdempotencyKey(uid, billingConfiguration, generation, authEmailHash) {
   const digest = crypto.createHash("sha256")
-      .update(`${billingConfiguration.expectedMode}:${uid}:${billingConfiguration.proPriceId}:${generation}`)
+      .update(`${CHECKOUT_CONTEXT_VERSION}:${billingConfiguration.expectedMode}:${uid}:${billingConfiguration.proPriceId}:${authEmailHash}:${generation}`)
       .digest("hex");
   return `simple-books-checkout-${digest}`;
 }
@@ -73,17 +78,19 @@ async function ownedReusableCustomer(stripe, profile, uid, billingConfiguration)
   return customerId;
 }
 
-function stateMatchesConfiguration(state, billingConfiguration) {
+function stateMatchesConfiguration(state, billingConfiguration, authEmailHash) {
   return state && state.stripeMode === billingConfiguration.expectedMode &&
-    state.stripePriceId === billingConfiguration.proPriceId;
+    state.stripePriceId === billingConfiguration.proPriceId &&
+    state.contextVersion === CHECKOUT_CONTEXT_VERSION &&
+    state.authEmailHash === authEmailHash;
 }
 
-async function acquireLease({firestore, uid, billingConfiguration, fieldValue, timestampFactory, now, leaseToken}) {
+async function acquireLease({firestore, uid, billingConfiguration, authEmailHash, fieldValue, timestampFactory, now, leaseToken}) {
   const reference = checkoutStateReference(firestore, uid);
   return firestore.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(reference);
     const stored = snapshot.exists ? snapshot.data() || {} : {};
-    const state = stateMatchesConfiguration(stored, billingConfiguration) ? stored : {};
+    const state = stateMatchesConfiguration(stored, billingConfiguration, authEmailHash) ? stored : {};
     const nowMillis = now.getTime();
     if (state.sessionId && timestampMillis(state.sessionExpiresAt) > nowMillis + 5000) {
       return {state: "candidate", sessionId: state.sessionId};
@@ -100,6 +107,8 @@ async function acquireLease({firestore, uid, billingConfiguration, fieldValue, t
     transaction.set(reference, {
       stripeMode: billingConfiguration.expectedMode,
       stripePriceId: billingConfiguration.proPriceId,
+      contextVersion: CHECKOUT_CONTEXT_VERSION,
+      authEmailHash,
       generation,
       leaseToken,
       leaseExpiresAt: timestampFactory.fromDate(
@@ -146,13 +155,13 @@ async function releaseLease({firestore, uid, leaseToken, fieldValue}) {
   });
 }
 
-async function persistSession({firestore, uid, leaseToken, session, billingConfiguration, fieldValue, timestampFactory}) {
+async function persistSession({firestore, uid, leaseToken, session, billingConfiguration, authEmailHash, fieldValue, timestampFactory}) {
   const reference = checkoutStateReference(firestore, uid);
   await firestore.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(reference);
     const state = snapshot.exists ? snapshot.data() || {} : {};
     if (state.leaseToken !== leaseToken ||
-      !stateMatchesConfiguration(state, billingConfiguration)) {
+      !stateMatchesConfiguration(state, billingConfiguration, authEmailHash)) {
       throw new StripeCheckoutError(
           "checkout-state-conflict",
           "Checkout state changed before the session could be saved.",
@@ -219,7 +228,7 @@ function createStripeCheckoutService(options = {}) {
   }
   const nowProvider = options.now || (() => new Date());
 
-  return async function createOrReuseCheckout({uid, profile, successUrl, cancelUrl}) {
+  return async function createOrReuseCheckout({uid, email, profile, successUrl, cancelUrl}) {
     if (!billingConfiguration.checkoutEnabled) {
       throw new StripeCheckoutError(
           "checkout-disabled",
@@ -230,11 +239,12 @@ function createStripeCheckoutService(options = {}) {
     const customerId = await ownedReusableCustomer(
         stripe, profile, uid, billingConfiguration,
     );
+    const authEmailHash = checkoutEmailHash(email);
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const now = new Date(nowProvider());
       const leaseToken = crypto.randomUUID();
       const lease = await acquireLease({
-        firestore, uid, billingConfiguration, fieldValue,
+        firestore, uid, billingConfiguration, authEmailHash, fieldValue,
         timestampFactory, now, leaseToken,
       });
       if (lease.state === "candidate") {
@@ -257,10 +267,10 @@ function createStripeCheckoutService(options = {}) {
           client_reference_id: uid,
           metadata: {firebaseUid: uid},
           subscription_data: {metadata: {firebaseUid: uid}},
-          ...(customerId ? {customer: customerId} : {}),
+          ...(customerId ? {customer: customerId} : {customer_email: email}),
         }, {
           idempotencyKey: checkoutIdempotencyKey(
-              uid, billingConfiguration, lease.generation,
+              uid, billingConfiguration, lease.generation, authEmailHash,
           ),
         });
         assertStripeObjectMode(session, billingConfiguration, "checkout-session");
@@ -281,6 +291,7 @@ function createStripeCheckoutService(options = {}) {
         }
         await persistSession({
           firestore, uid, leaseToken, session, billingConfiguration,
+          authEmailHash,
           fieldValue, timestampFactory,
         });
         return {session, reused: false};
@@ -299,9 +310,11 @@ function createStripeCheckoutService(options = {}) {
 
 module.exports = {
   CHECKOUT_LEASE_MS,
+  CHECKOUT_CONTEXT_VERSION,
   StripeCheckoutError,
   acquireLease,
   checkoutIdempotencyKey,
+  checkoutEmailHash,
   checkoutStateReference,
   createStripeCheckoutService,
   ownedReusableCustomer,

@@ -8,7 +8,7 @@
  */
 
 const {setGlobalOptions} = require("firebase-functions/v2");
-const {onCall, onRequest} = require("firebase-functions/v2/https");
+const {HttpsError, onCall, onRequest} = require("firebase-functions/v2/https");
 const {onTaskDispatched} = require("firebase-functions/v2/tasks");
 const {
   defineBoolean,
@@ -32,6 +32,9 @@ const {
   StripeCheckoutError,
   createStripeCheckoutService,
 } = require("./lib/stripe-checkout-service");
+const {
+  authenticatedCheckoutIdentity,
+} = require("./lib/stripe-checkout-auth");
 const {
   StripePortalError,
   createStripePortalService,
@@ -488,19 +491,19 @@ exports.createCheckoutSession = onRequest(
       const authorization = request.get("Authorization") || "";
       const match = authorization.match(/^Bearer (.+)$/);
 
-      if (!match) {
-        response.status(401).json({
-          error: "You must be signed in to start checkout.",
-        });
-        return;
-      }
-
       try {
-        const decodedToken = await admin.auth().verifyIdToken(match[1]);
-        await accountDeletionGuard.assertAccountNotDeleting(decodedToken.uid);
+        const decodedToken = match ?
+          await admin.auth().verifyIdToken(match[1]) : null;
+        const identity = authenticatedCheckoutIdentity({
+          auth: decodedToken ? {
+            uid: decodedToken.uid,
+            token: decodedToken,
+          } : null,
+        });
+        await accountDeletionGuard.assertAccountNotDeleting(identity.uid);
         const [accountSnapshot, profileSnapshot] = await Promise.all([
-          users.doc(decodedToken.uid).get(),
-          userProfiles.doc(decodedToken.uid).get(),
+          users.doc(identity.uid).get(),
+          userProfiles.doc(identity.uid).get(),
         ]);
         if (accountSnapshot.exists &&
           accountSnapshot.data().demoMode === true) {
@@ -511,7 +514,7 @@ exports.createCheckoutSession = onRequest(
           return;
         }
 
-        const uid = decodedToken.uid;
+        const {uid, email} = identity;
         const profile = profileSnapshot.exists ?
           profileSnapshot.data() || {} : {};
         const {configuration, stripe} = configuredStripeClient();
@@ -533,6 +536,7 @@ exports.createCheckoutSession = onRequest(
         assertConfiguredProPrice(price, configuration);
         const {session} = await checkout({
           uid,
+          email,
           profile,
           successUrl: stripeBillingUrls.successUrl,
           cancelUrl: stripeBillingUrls.cancelUrl,
@@ -576,6 +580,7 @@ exports.createCheckoutSession = onRequest(
           "Unknown checkout error.";
         const errorStack = error && error.stack ? String(error.stack) : "";
         const isAuthError = errorCode.startsWith("auth/");
+        const isHttpsError = error instanceof HttpsError;
         const isCheckoutError = error instanceof StripeCheckoutError;
         const isDeleting = error && error.details &&
           error.details.reason === "account-deletion-in-progress";
@@ -588,13 +593,16 @@ exports.createCheckoutSession = onRequest(
         ${errorStack}`,
         );
 
+        const httpsStatus = errorCode === "unauthenticated" ? 401 :
+          (errorCode === "failed-precondition" ? 412 : 500);
         response.status(isAuthError ? 401 : (isDeleting ? 409 :
-          (isCheckoutError ? error.httpStatus : 500))).json({
-          error: isAuthError ?
+          (isHttpsError ? httpsStatus :
+          (isCheckoutError ? error.httpStatus : 500)))).json({
+          error: isAuthError || errorCode === "unauthenticated" ?
             "You must be signed in to start checkout." :
             (isDeleting ?
               "Checkout is unavailable while your account is being deleted." :
-              (isCheckoutError ? error.message :
+              (isHttpsError || isCheckoutError ? error.message :
                 "Checkout session could not be created.")),
         });
         return;

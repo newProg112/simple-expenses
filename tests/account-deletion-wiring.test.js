@@ -19,7 +19,7 @@ describe("account-deletion production wiring", () => {
         "exports.createBillingPortalSession",
     );
     const guard = checkout.indexOf(
-        "accountDeletionGuard.assertAccountNotDeleting(decodedToken.uid)",
+        "accountDeletionGuard.assertAccountNotDeleting(identity.uid)",
     );
     expect(guard).toBeGreaterThanOrEqual(0);
     expect(guard).toBeLessThan(checkout.indexOf("configuredStripeClient()"));
