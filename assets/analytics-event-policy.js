@@ -75,6 +75,7 @@ export function analyticsRuntimeDisabled(runtime = globalThis){
 export function createAnalyticsTracker({
   analytics,
   logEvent,
+  consentGranted = () => true,
   runtime = globalThis,
   now = () => Date.now(),
   dedupeWindowMs = 1000,
@@ -86,7 +87,8 @@ export function createAnalyticsTracker({
     let sanitizedParameters;
     try{
       sanitizedParameters = sanitizeAnalyticsParameters(eventName, parameters);
-      if(!sanitizedParameters || analyticsRuntimeDisabled(runtime) || !analytics || typeof logEvent !== "function"){
+      if(!sanitizedParameters || analyticsRuntimeDisabled(runtime) || !consentGranted() ||
+        !analytics || typeof logEvent !== "function"){
         return false;
       }
     }catch(error){

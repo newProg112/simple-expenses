@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  FIREBASE_EMULATOR_SESSION_KEY,
+  firebaseEmulatorsRequested,
   firebaseFunctionUrl,
   isLocalFirebaseHost
 } from "../resources/js/firebase-runtime.js";
@@ -22,18 +24,49 @@ describe("local Firebase runtime routing",() => {
     expect(isLocalFirebaseHost({location:{hostname}})).toBe(false);
   });
 
-  it("connects Auth, Firestore, regional Functions and Storage to the requested local ports",() => {
+  function runtime(hostname, {emulators = false, consent = null} = {}){
+    return {
+      location: {hostname},
+      localStorage: {
+        getItem: key => key === "simple-books:analytics-consent:v1" ? consent : null
+      },
+      sessionStorage: {
+        getItem: key => key === FIREBASE_EMULATOR_SESSION_KEY && emulators ? "true" : null
+      }
+    };
+  }
+
+  it.each(["essential","accepted"])(
+    "keeps the real login Firebase boundary on normal services under %s consent",
+    consent => {
+      for(const hostname of ["localhost","127.0.0.1"]){
+        const browser = runtime(hostname,{consent});
+        expect(firebaseEmulatorsRequested(browser)).toBe(false);
+        expect(firebaseFunctionUrl("getMonthlyUsage",browser))
+          .toBe("https://us-central1-simple-books-office.cloudfunctions.net/getMonthlyUsage");
+      }
+
+      expect(login).toContain('import { auth } from "./firebase-config.js"');
+      expect(config).toContain("const auth = getAuth(app)");
+      expect(config).toContain("firebaseEmulatorsRequested(window)");
+    }
+  );
+
+  it("connects Auth, Firestore, regional Functions and Storage only when explicitly requested",() => {
     expect(config).toContain('connectAuthEmulator(auth, "http://127.0.0.1:9099"');
     expect(config).toContain('connectFirestoreEmulator(db, "127.0.0.1", 8080)');
     expect(config).toContain('const functions = getFunctions(app, "us-central1")');
     expect(config).toContain('connectFunctionsEmulator(functions, "127.0.0.1", 5001)');
     expect(config).toContain('connectStorageEmulator(storage, "127.0.0.1", 9199)');
     expect(config).toMatch(/storage\s*\r?\n};/);
-    expect(config).not.toContain("sessionStorage");
+    for(const hostname of ["localhost","127.0.0.1","[::1]"]){
+      expect(firebaseEmulatorsRequested(runtime(hostname))).toBe(false);
+      expect(firebaseEmulatorsRequested(runtime(hostname,{emulators:true}))).toBe(true);
+    }
   });
 
-  it.each(["localhost","127.0.0.1","[::1]"])("routes HTTP Functions locally for %s",hostname => {
-    expect(firebaseFunctionUrl("getMonthlyUsage",{location:{hostname}}))
+  it.each(["localhost","127.0.0.1","[::1]"])("routes HTTP Functions locally for opted-in %s",hostname => {
+    expect(firebaseFunctionUrl("getMonthlyUsage",runtime(hostname,{emulators:true})))
       .toBe("http://127.0.0.1:5001/simple-books-office/us-central1/getMonthlyUsage");
   });
 

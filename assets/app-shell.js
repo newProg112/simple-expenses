@@ -1,4 +1,5 @@
 import { isAdminUid } from "./admin-access.js";
+import "./analytics-consent.js?v=20260911-consent1";
 import {
   watchDemoMode
 } from "./demo-mode.js?v=20260806-demo-pro2";

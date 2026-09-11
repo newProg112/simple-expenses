@@ -1,5 +1,6 @@
 import { analytics } from "/firebase-config.js";
 import { logEvent } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+import { analyticsConsentGranted } from "./analytics-consent.js?v=20260911-consent1";
 import {
   createAnalyticsTracker,
   invoiceItemCountBucket,
@@ -10,6 +11,7 @@ import {
 export const trackAnalyticsEvent = createAnalyticsTracker({
   analytics,
   logEvent,
+  consentGranted: () => analyticsConsentGranted(window),
   runtime: typeof window === "undefined" ? null : window,
   warn: message => {
     if(typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname)){

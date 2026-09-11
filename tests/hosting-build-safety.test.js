@@ -190,7 +190,9 @@ describe("reviewed Simple Books runtime allowlist", () => {
     const files = validateAllowlist(manifest.files);
 
     expect(manifest.reviewedAgainstHostingVersion).toBe("ba9ff337be8b742e");
-    expect(files).toHaveLength(166);
+    expect(files).toHaveLength(168);
+    expect(files).toContain("assets/analytics-consent.js");
+    expect(files).toContain("assets/analytics-consent.css");
     expect(files).toContain("resources/js/stripe-billing-config.js");
     expect(files).toContain("privacy.html");
     expect(files).toContain("terms.html");

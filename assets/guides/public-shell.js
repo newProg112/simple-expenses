@@ -1,3 +1,5 @@
+import "../analytics-consent.js?v=20260911-consent1";
+
 // Shared public navigation behavior for the index and individual guides.
 const menuButton = document.querySelector("#menu-button");
 const mobileNavigation = document.querySelector("#mobile-navigation");

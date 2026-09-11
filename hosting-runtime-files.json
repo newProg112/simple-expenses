@@ -18,6 +18,8 @@
     "assets/admin-demo-environment.js",
     "assets/admin-feature-usage-view.js",
     "assets/admin-metrics-view.js",
+    "assets/analytics-consent.css",
+    "assets/analytics-consent.js",
     "assets/analytics-event-policy.js",
     "assets/analytics-events.js",
     "assets/app-shell.css",

@@ -23,10 +23,11 @@ describe("launch legal pages", () => {
     for (const page of [privacy, terms]) {
       expect(page.match(/<h1(?:\s|>)/g)).toHaveLength(1);
       expect(page).toContain('class="skip-link"');
-      expect(page).toContain("Effective: 10 September 2026");
       expect(page).not.toMatch(/draft|publication blocker|owner.review/i);
       expect(page).toContain('/assets/legal.css');
     }
+    expect(privacy).toContain("Effective: 11 September 2026");
+    expect(terms).toContain("Effective: 10 September 2026");
     expect(css).toMatch(/@media \(max-width: 860px\)[\s\S]*?\.legal-layout\s*\{[\s\S]*?grid-template-columns: 1fr/);
   });
   it("states confirmed identity and commercial facts", () => {

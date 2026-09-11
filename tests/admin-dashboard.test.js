@@ -268,9 +268,8 @@ describe("Admin Dashboard Phase 1 and Phase 2A", () => {
     expect(javascript).toContain('state.kind === "unauthenticated"');
   });
 
-  it("automatically connects every shared Firebase service on local hosts", () => {
-    expect(firebaseConfigSource).toContain("isLocalFirebaseHost(window)");
-    expect(firebaseConfigSource).not.toContain("simpleBooksUseFirebaseEmulators");
+  it("connects every shared Firebase service only for explicitly requested emulators", () => {
+    expect(firebaseConfigSource).toContain("firebaseEmulatorsRequested(window)");
     expect(firebaseConfigSource).toContain("connectAuthEmulator(auth");
     expect(firebaseConfigSource).toContain("connectFirestoreEmulator(db");
     expect(firebaseConfigSource).toContain("connectFunctionsEmulator(functions");
